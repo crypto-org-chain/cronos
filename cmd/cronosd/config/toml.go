@@ -35,6 +35,12 @@ mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 # the recheck-batch cap (candidates re-validated per Commit cycle ≈ one block of
 # senders). 0 = unlimited. Default 2900.
 mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
+
+# Evict mempool.type=app txs older than this many blocks (by arrival height),
+# independent of per-tx TimeoutHeight (EVM txs have TimeoutHeight 0 = never
+# expire). Drains txs the proposal keeps skipping (baseFee gate, blocklist) whose
+# sender never commits. 0 = disabled. Default 120.
+mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

@@ -183,6 +183,7 @@ const (
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
+	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
 )
 
 var Forks = []Fork{}
@@ -434,6 +435,15 @@ func New(
 		}
 		txsPerBlock = parsed
 	}
+	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
+	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {
+		// Strict parse: a silent negative is meaningless; 0 explicitly disables.
+		parsed, err := cast.ToInt64E(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTTLNumBlocks, v))
+		}
+		ttlNumBlocks = parsed
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -529,6 +539,7 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
 			admitter.SetRecheckBatchSize(txsPerBlock)
+			admitter.SetTTLNumBlocks(ttlNumBlocks)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			mempoolAdmitter = admitter

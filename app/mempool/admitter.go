@@ -49,6 +49,12 @@ type Admitter struct {
 	// deep per-sender queue eventually drains instead of being silently dropped.
 	deferred            []sdk.Tx
 	lastCommittedHeight int64
+	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
+	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle (stale entries
+	// drop out) and touched only by RecheckTxs (serial per Commit), so it needs no lock.
+	arrival map[sdk.Tx]int64
+	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
+	ttlNumBlocks int64
 }
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
@@ -160,6 +166,13 @@ func (a *Admitter) SetRecheckBatchSize(n int) {
 	a.maxRecheckBatch = n
 }
 
+// SetTTLNumBlocks evicts pool txs older than n blocks by arrival height; 0 disables.
+// Drains proposal-skipped txs (baseFee gate, blocklist) whose sender never commits;
+// they'd otherwise pin a slot forever (EVM txs carry TimeoutHeight 0 = never expire).
+func (a *Admitter) SetTTLNumBlocks(n int64) {
+	a.ttlNumBlocks = n
+}
+
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction.
@@ -230,13 +243,30 @@ func (a *Admitter) RecheckTxs() {
 	var (
 		candidates     []sdk.Tx
 		expiredEvicted float32
+		ttlEvicted     float32
 	)
+	// Rebuild arrival from this cycle's snapshot so txs gone from the pool fall out.
+	var newArrival map[sdk.Tx]int64
+	if a.ttlNumBlocks > 0 {
+		newArrival = make(map[sdk.Tx]int64, len(snapshot))
+	}
 	for _, tx := range snapshot {
 		if txExpired(tx, height) {
-			_ = a.mpool.Remove(tx)
-			a.encCache.Evict(tx)
+			a.evict(tx)
 			expiredEvicted++
 			continue
+		}
+		if a.ttlNumBlocks > 0 {
+			arrived, seen := a.arrival[tx]
+			if !seen {
+				arrived = height // first sighting starts the TTL window
+			}
+			if height-arrived >= a.ttlNumBlocks {
+				a.evict(tx)
+				ttlEvicted++
+				continue
+			}
+			newArrival[tx] = arrived
 		}
 		if deferredLive != nil {
 			if _, isDeferred := deferredLive[tx]; isDeferred {
@@ -253,8 +283,12 @@ func (a *Admitter) RecheckTxs() {
 			}
 		}
 	}
+	a.arrival = newArrival
 	if expiredEvicted > 0 {
 		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+	}
+	if ttlEvicted > 0 {
+		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 	}
 
 	// Front-load last cycle's overflow (still in the pool) ahead of fresh
@@ -317,6 +351,13 @@ func txExpired(tx sdk.Tx, committedHeight int64) bool {
 	}
 	th := t.GetTimeoutHeight()
 	return th > 0 && uint64(committedHeight) >= th
+}
+
+// evict removes tx from the pool and encoder cache together, so the cache never
+// outlives its pool entry.
+func (a *Admitter) evict(tx sdk.Tx) {
+	_ = a.mpool.Remove(tx)
+	a.encCache.Evict(tx)
 }
 
 func (a *Admitter) signers(tx sdk.Tx) []string {

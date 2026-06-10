@@ -33,6 +33,10 @@ type CronosConfig struct {
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
 	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
+	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
+	// (by arrival height), draining proposal-skipped txs whose sender never commits.
+	// 0 disables.
+	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -48,6 +52,9 @@ const (
 	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
 	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
 	DefaultMempoolTxsPerBlock = 2900
+	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
+	// blocks by arrival height, draining proposal-skipped txs that never commit.
+	DefaultMempoolTTLNumBlocks = 120
 )
 
 const (
@@ -83,6 +90,7 @@ func DefaultCronosConfig() CronosConfig {
 		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
+		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
 	}
 }
 

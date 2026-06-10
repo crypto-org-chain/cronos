@@ -546,3 +546,85 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 		t.Fatal("candidate from a touched sender must still be rechecked")
 	}
 }
+
+// TTL evicts a tx older than ttlNumBlocks by arrival height — regardless of
+// TimeoutHeight (EVM txs carry th=0 = never expire) and without a RunTx recheck.
+func TestRecheckTxs_TTLEvictsAgedTx(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.ttlNumBlocks = 5
+	aged := f.add(1, "alice", 0, "alice-0") // th=0: the timeout sweep never touches it
+
+	f.a.lastCommittedHeight = 10 // first sighting records arrival=10
+	f.a.RecheckTxs()
+	if !poolHas(f.pool, aged) {
+		t.Fatal("tx must survive its first sighting")
+	}
+
+	f.a.lastCommittedHeight = 15 // 15-10 == 5 == ttl → evicted
+	f.a.RecheckTxs()
+	if poolHas(f.pool, aged) {
+		t.Fatal("tx older than ttlNumBlocks must be evicted")
+	}
+	if _, ok := f.enc.Get(aged); ok {
+		t.Fatal("aged tx must be evicted from encCache")
+	}
+	if len(f.runner.modes) != 0 {
+		t.Fatal("TTL eviction must not run a RunTx recheck")
+	}
+}
+
+// A tx younger than ttlNumBlocks survives the sweep.
+func TestRecheckTxs_TTLKeepsYoungTx(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.ttlNumBlocks = 5
+	young := f.add(1, "alice", 0, "alice-0")
+
+	f.a.lastCommittedHeight = 10 // arrival=10
+	f.a.RecheckTxs()
+	f.a.lastCommittedHeight = 14 // 14-10 == 4 < ttl
+	f.a.RecheckTxs()
+
+	if !poolHas(f.pool, young) {
+		t.Fatal("tx younger than ttlNumBlocks must stay")
+	}
+}
+
+// ttlNumBlocks == 0 disables TTL: no eviction by age, no arrival map allocated.
+func TestRecheckTxs_TTLDisabledKeepsOldTx(t *testing.T) {
+	f := newRecheckFixture()
+	// ttlNumBlocks left 0
+	old := f.add(1, "alice", 0, "alice-0")
+
+	for h := int64(1); h <= 200; h++ {
+		f.a.lastCommittedHeight = h
+		f.a.RecheckTxs()
+	}
+
+	if !poolHas(f.pool, old) {
+		t.Fatal("TTL disabled: tx must never be evicted by age")
+	}
+	if f.a.arrival != nil {
+		t.Fatal("disabled TTL must not allocate the arrival map")
+	}
+}
+
+// Arrival entries for txs gone from the pool (e.g. included in a block) drop out
+// each cycle, bounding the map to the live pool.
+func TestRecheckTxs_TTLArrivalReconcilesRemovedTxs(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.ttlNumBlocks = 100
+	tx := f.add(1, "alice", 0, "alice-0")
+
+	f.a.lastCommittedHeight = 1
+	f.a.RecheckTxs()
+	if len(f.a.arrival) != 1 {
+		t.Fatalf("arrival must track the live tx, got %d", len(f.a.arrival))
+	}
+
+	_ = f.pool.Remove(tx) // simulate block inclusion
+	f.a.lastCommittedHeight = 2
+	f.a.RecheckTxs()
+	if len(f.a.arrival) != 0 {
+		t.Fatalf("arrival must drop the removed tx, got %d", len(f.a.arrival))
+	}
+}
