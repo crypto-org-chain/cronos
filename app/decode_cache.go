@@ -22,8 +22,16 @@ var xxhashSeed = func() uint64 {
 	return binary.LittleEndian.Uint64(b[:])
 }()
 
-// shardCount is the number of independent LRU stripes in decodeCache.
+// shardCount is the number of independent LRU stripes in decodeCache. Must be a
+// power of two so shardMask can replace modulo in shard selection.
 const shardCount = 16
+
+// shardMask maps a hash to a shard via h&shardMask (== h%shardCount for a
+// power-of-two shardCount).
+const shardMask = shardCount - 1
+
+// Compile-time assert shardCount is a power of two.
+var _ = [1]struct{}{}[shardCount&shardMask]
 
 type lruItem struct {
 	h   uint64
@@ -109,7 +117,7 @@ func newDecodeCache(size, maxTxBytes int) *decodeCache {
 
 func (c *decodeCache) get(bz []byte) (sdk.Tx, bool) {
 	h := xxhash.Sum64(bz) ^ xxhashSeed
-	return c.shards[h%shardCount].get(h, bz)
+	return c.shards[h&shardMask].get(h, bz)
 }
 
 func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
@@ -117,7 +125,7 @@ func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
 		return
 	}
 	h := xxhash.Sum64(bz) ^ xxhashSeed
-	c.shards[h%shardCount].set(h, bz, tx)
+	c.shards[h&shardMask].set(h, bz, tx)
 }
 
 // newCachingDecoder wraps base with the shared cache, so PrepareProposal and
