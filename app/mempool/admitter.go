@@ -36,7 +36,8 @@ type Admitter struct {
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	pendingMu       sync.Mutex
-	// pending holds leftover transactions in the mempool after a last committed block
+	// pending accumulates senders of committed blocks awaiting recheck; merged
+	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
 	pending map[string]struct{}
 	// deferred carries candidates past maxRecheckBatch to the next cycle, so a
 	// deep per-sender queue eventually drains instead of being silently dropped.
@@ -175,7 +176,15 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 		}
 	}
 	a.pendingMu.Lock()
-	a.pending = senders
+	if a.pending == nil {
+		a.pending = senders
+	} else {
+		// Merge, don't overwrite: a prior block whose Commit skipped RecheckTxs
+		// (e.g. Commit error) still has senders staged here that must not be lost.
+		for s := range senders {
+			a.pending[s] = struct{}{}
+		}
+	}
 	a.pendingMu.Unlock()
 }
 

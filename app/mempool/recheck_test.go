@@ -272,6 +272,39 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	}
 }
 
+// Two committed blocks staged without an intervening RecheckTxs drain (e.g. a
+// Commit error skipped the recheck) must union their senders, not drop the first.
+func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
+	txA, txB := &ptrTx{id: 1}, &ptrTx{id: 2}
+	signer.m[txA] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	signer.m[txB] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("bob"), 0)}
+	decoder := func(b []byte) (sdk.Tx, error) {
+		switch string(b) {
+		case "a":
+			return txA, nil
+		case "b":
+			return txB, nil
+		}
+		return nil, errors.New("unknown")
+	}
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+
+	a.StageRecheckSenders(10, [][]byte{[]byte("a")})
+	a.StageRecheckSenders(11, [][]byte{[]byte("b")}) // no drain between: must keep alice
+
+	if _, ok := a.pending[sdk.AccAddress("alice").String()]; !ok {
+		t.Fatal("block-10 sender lost after staging block 11 without a recheck drain")
+	}
+	if _, ok := a.pending[sdk.AccAddress("bob").String()]; !ok {
+		t.Fatal("block-11 sender missing")
+	}
+	if a.lastCommittedHeight != 11 {
+		t.Fatalf("height must advance to 11, got %d", a.lastCommittedHeight)
+	}
+}
+
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
