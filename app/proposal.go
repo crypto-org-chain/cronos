@@ -64,17 +64,17 @@ func (ts *ExtTxSelector) Clear() {
 
 func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
 	// returned bool = stop iterating; true once the block is full.
-	full := func() bool {
+	isFull := func() bool {
 		return uint64(ts.totalBytes) >= maxTxBytes || (maxBlockGas > 0 && ts.totalGas >= maxBlockGas)
 	}
 
 	if err := ts.validateTx(memTx, txBz); err != nil {
-		return full() // blocked/invalid: skip, keep scanning
+		return isFull() // blocked/invalid: skip, keep scanning
 	}
 
 	txSize := cronosmempool.ProtoSizeForTx(txBz)
 	if uint64(ts.totalBytes)+uint64(txSize) > maxTxBytes {
-		return full() // too large: try smaller txs unless already full
+		return isFull() // too large: try smaller txs unless already full
 	}
 
 	feeTx, isFeeTx := memTx.(sdk.FeeTx)
@@ -87,7 +87,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 			if gas := feeTx.GetGas(); gas > 0 {
 				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
 				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
-					return full()
+					return isFull()
 				}
 			}
 		}
@@ -97,14 +97,14 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		gasWanted := feeTx.GetGas()
 		// Overflow-safe: totalGas <= maxBlockGas by induction.
 		if gasWanted > maxBlockGas-ts.totalGas {
-			return full()
+			return isFull()
 		}
 		ts.totalGas += gasWanted
 	}
 
 	ts.selectedTxs = append(ts.selectedTxs, txBz)
 	ts.totalBytes += txSize
-	return full()
+	return isFull()
 }
 
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
