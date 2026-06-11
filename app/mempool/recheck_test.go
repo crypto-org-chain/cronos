@@ -628,3 +628,103 @@ func TestRecheckTxs_TTLArrivalReconcilesRemovedTxs(t *testing.T) {
 		t.Fatalf("arrival must drop the removed tx, got %d", len(f.a.arrival))
 	}
 }
+
+// TTL eviction sits in the scan loop ahead of the batch cap, so it fires for
+// every aged tx regardless of maxRecheckBatch and never spends a RunTx recheck.
+func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
+	const total = 5
+	f := newRecheckFixture()
+	f.a.ttlNumBlocks = 2
+	f.a.maxRecheckBatch = 1 // far below total
+	txs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	f.a.lastCommittedHeight = 100 // first sighting: arrival=100
+	f.a.RecheckTxs()
+	if got := len(f.runner.modes); got != 1 {
+		t.Fatalf("cycle1: batch cap must bound recheck to 1, got %d", got)
+	}
+
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.lastCommittedHeight = 102 // 102-100 == 2 == ttl → all aged out
+	before := len(f.runner.modes)
+	f.a.RecheckTxs()
+
+	for _, tx := range txs {
+		if poolHas(f.pool, tx) {
+			t.Fatalf("aged tx %d must be evicted by TTL regardless of batch cap", tx.id)
+		}
+	}
+	if got := len(f.runner.modes) - before; got != 0 {
+		t.Fatalf("TTL-evicted txs must not be rechecked; got %d new RunTx", got)
+	}
+	if f.a.deferred != nil {
+		t.Fatalf("nothing should carry over once all aged out, got %d", len(f.a.deferred))
+	}
+}
+
+// A tx carried in the deferred queue that ages past the TTL is evicted by the
+// scan sweep and dropped from the carry, not rechecked.
+func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
+	const total = 4
+	f := newRecheckFixture()
+	f.a.ttlNumBlocks = 3
+	f.a.maxRecheckBatch = 1 // force overflow into deferred
+	txs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	f.a.lastCommittedHeight = 50 // arrival=50 for all
+	f.a.RecheckTxs()
+	if len(f.a.deferred) == 0 {
+		t.Fatal("precondition: batch cap must have carried overflow")
+	}
+
+	// Jump past TTL with empty pending: only the scan sweep runs. The deferred
+	// carryover must be evicted, not survive as stale candidates.
+	f.a.lastCommittedHeight = 53 // 53-50 == 3 == ttl
+	f.a.RecheckTxs()
+
+	for _, tx := range txs {
+		if poolHas(f.pool, tx) {
+			t.Fatalf("deferred tx %d must be TTL-evicted", tx.id)
+		}
+	}
+	if f.a.deferred != nil {
+		t.Fatalf("deferred queue must be empty after aged txs evicted, got %d", len(f.a.deferred))
+	}
+}
+
+// mempool.type=app with tx-decode-cache-size=0 builds an Admitter with a nil
+// encCache (app.go). A TTL/timeout eviction must not panic on encCache.Evict.
+func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
+	pool := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+		TxPriority:      sdkmempool.NewDefaultTxPriority(),
+		SignerExtractor: signer,
+	})
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil) // encCache nil
+	a.mpool = pool
+	a.signer = signer
+	a.ttlNumBlocks = 2
+
+	tx := &ptrTx{id: 1}
+	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	if err := pool.Insert(sdk.Context{}, tx); err != nil {
+		t.Fatal(err)
+	}
+
+	a.lastCommittedHeight = 10
+	a.RecheckTxs() // arrival=10
+	a.lastCommittedHeight = 12
+	a.RecheckTxs() // 12-10 == 2 → evict via nil encCache; must not panic
+
+	if poolHas(pool, tx) {
+		t.Fatal("aged tx must be evicted even with nil encCache")
+	}
+}
