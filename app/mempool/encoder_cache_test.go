@@ -7,7 +7,7 @@ import (
 
 func TestEncoderCache_EvictsAtCapacity(t *testing.T) {
 	const cap = 4
-	c := NewEncoderCache(cap)
+	c := NewEncoderCache(cap, 0)
 
 	txs := make([]*ptrTx, 0, cap*3)
 	for i := 0; i < cap*3; i++ {
@@ -39,9 +39,26 @@ func TestEncoderCache_EvictsAtCapacity(t *testing.T) {
 	}
 }
 
+func TestEncoderCache_SkipsOversizedBytes(t *testing.T) {
+	const maxTxBytes = 8
+	c := NewEncoderCache(4, maxTxBytes)
+
+	big := &ptrTx{id: 1}
+	c.Set(big, make([]byte, maxTxBytes+1)) // over ceiling → not cached
+	if _, ok := c.Get(big); ok {
+		t.Fatal("oversized tx should not be cached")
+	}
+
+	small := &ptrTx{id: 2}
+	c.Set(small, make([]byte, maxTxBytes)) // at ceiling → cached
+	if _, ok := c.Get(small); !ok {
+		t.Fatal("tx at the ceiling should be cached")
+	}
+}
+
 func TestEncoderCache_LRUPromotesOnRead(t *testing.T) {
 	const cap = 2
-	c := NewEncoderCache(cap)
+	c := NewEncoderCache(cap, 0)
 
 	a, b := &ptrTx{id: 1}, &ptrTx{id: 2}
 	c.Set(a, []byte{1})
@@ -74,7 +91,7 @@ func TestEncoderCache_NilReceiverMisses(t *testing.T) {
 }
 
 func TestEncoderCache_ReRegisterUpdatesBytes(t *testing.T) {
-	c := NewEncoderCache(4)
+	c := NewEncoderCache(4, 0)
 	tx := &ptrTx{id: 1}
 	c.Set(tx, []byte{1})
 	c.Set(tx, []byte{2, 2})
@@ -89,7 +106,7 @@ func TestEncoderCache_ReRegisterUpdatesBytes(t *testing.T) {
 }
 
 func TestEncoderCache_Evict(t *testing.T) {
-	c := NewEncoderCache(1)
+	c := NewEncoderCache(1, 0)
 	a, b := &ptrTx{id: 1}, &ptrTx{id: 2}
 	c.Set(a, []byte{1})
 	c.Set(b, []byte{2}) // evicts a (cap 1)
@@ -114,7 +131,7 @@ func TestEncoderCache_Evict(t *testing.T) {
 }
 
 func TestEncoderCache_HashTx(t *testing.T) {
-	c := NewEncoderCache(4)
+	c := NewEncoderCache(4, 0)
 	tx := &ptrTx{id: 1}
 	bz := []byte("canonical")
 	want := sha256.Sum256(bz)

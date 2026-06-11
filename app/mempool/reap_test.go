@@ -257,7 +257,7 @@ func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
 	uncached := &stubFeeTx{gas: 21_000, wire: []byte("ENCODER-FALLBACK-uncached")}
 	pool := &stubMempool{txs: []sdk.Tx{cached, uncached}}
 
-	enc := cronosmempool.NewEncoderCache(0)
+	enc := cronosmempool.NewEncoderCache(0, 0)
 	canonical := []byte("CANONICAL-from-cache")
 	enc.Set(cached, canonical)
 

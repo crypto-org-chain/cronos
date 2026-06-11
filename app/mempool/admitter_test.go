@@ -142,7 +142,7 @@ func assertPanics(t *testing.T, name string, fn func()) {
 }
 
 func TestNewAdmitter_PanicsOnMissingDeps(t *testing.T) {
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	noopDecoder := func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
 	assertPanics(t, "nil txEncoder with encCache", func() {
@@ -171,7 +171,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		}
 		return canonical, nil
 	}
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	resp, err := h(&abci.RequestInsertTx{Tx: raw})
@@ -194,7 +194,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 
 	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode fail") }
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
@@ -214,7 +214,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	var decoderCalled bool
 	decoder := func([]byte) (sdk.Tx, error) { decoderCalled = true; return tx, nil }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {
@@ -321,7 +321,7 @@ func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		return tx, nil
 	}
 	txEncoder := func(sdk.Tx) ([]byte, error) { return canonical, nil }
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	a := newAdmitter(&stubRunner{}, enc, txEncoder, decoder)
 	check := a.CheckTxHandler()
 
@@ -344,7 +344,7 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	tx := &ptrTx{}
 	var decoderCalled bool
 	decoder := func([]byte) (sdk.Tx, error) { decoderCalled = true; return tx, nil }
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	a := newAdmitter(&stubRunner{}, enc, noopEncoder, decoder)
 	check := a.CheckTxHandler()
 

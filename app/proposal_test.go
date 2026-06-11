@@ -118,7 +118,7 @@ func TestCacheProposalTxVerifier(t *testing.T) {
 	// Hit path only: encCache.Get returns cached bytes without touching BaseApp
 	// (nil here). The miss path is a trivial txv.TxEncode delegation.
 	t.Run("encCache hit returns cached bytes without encoding", func(t *testing.T) {
-		enc := cronosmempool.NewEncoderCache(0)
+		enc := cronosmempool.NewEncoderCache(0, 0)
 		tx := &gasOnlyTx{gas: 1}
 		enc.Set(tx, []byte("raw"))
 		v := &CacheProposalTxVerifier{encCache: enc}

@@ -12,10 +12,11 @@ import (
 
 // EncoderCache caches tx encoding
 type EncoderCache struct {
-	mu    sync.Mutex
-	cap   int
-	items map[sdk.Tx]*list.Element
-	lru   list.List // front = MRU, back = LRU; zero value is an empty list
+	mu         sync.Mutex
+	cap        int
+	maxTxBytes int // per-entry payload ceiling; bytes above it aren't cached
+	items      map[sdk.Tx]*list.Element
+	lru        list.List // front = MRU, back = LRU; zero value is an empty list
 }
 
 type item struct {
@@ -25,22 +26,28 @@ type item struct {
 	hashed bool // hash computed lazily on first HashTx call
 }
 
-// NewEncoderCache returns an LRU-bounded cache holding at most size entries.
-// Pass <=0 to fall back to cmdcfg.DefaultTxEncodeCacheSize.
-func NewEncoderCache(size int) *EncoderCache {
+// NewEncoderCache returns an LRU-bounded cache holding at most size entries,
+// skipping txs whose canonical bytes exceed maxTxBytes (mirrors decodeCache).
+// Pass <=0 for size/maxTxBytes to fall back to the cmdcfg defaults.
+func NewEncoderCache(size, maxTxBytes int) *EncoderCache {
 	if size <= 0 {
 		size = cmdcfg.DefaultTxEncodeCacheSize
 	}
+	if maxTxBytes <= 0 {
+		maxTxBytes = cmdcfg.DefaultTxDecodeCacheMaxTxBytes
+	}
 	return &EncoderCache{
-		cap:   size,
-		items: make(map[sdk.Tx]*list.Element, size),
+		cap:        size,
+		maxTxBytes: maxTxBytes,
+		items:      make(map[sdk.Tx]*list.Element, size),
 	}
 }
 
 // Set stores canonical proto bytes for a tx (raw req.Tx bytes on encode
-// error). Concurrency-safe. Evicts the LRU entry when at capacity.
+// error). Concurrency-safe. Evicts the LRU entry when at capacity. Bytes above
+// maxTxBytes aren't cached: EncodeTx re-encodes them on miss (rare; bounds heap).
 func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
-	if tx == nil {
+	if tx == nil || len(bz) > e.maxTxBytes {
 		return
 	}
 	e.mu.Lock()

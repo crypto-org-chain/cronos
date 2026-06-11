@@ -489,7 +489,7 @@ func New(
 
 		var encCache *cronosmempool.EncoderCache
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
-			encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
+			encCache = cronosmempool.NewEncoderCache(decodeCacheSize, maxTxBytes)
 		}
 
 		// baseFee gate source for the app-path selector; proposalFee is assigned

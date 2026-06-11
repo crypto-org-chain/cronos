@@ -66,7 +66,7 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
 		SignerExtractor: signer,
 	})
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	fail := make(map[string]bool, len(failBytes))
 	for _, b := range failBytes {
 		fail[b] = true
@@ -525,7 +525,7 @@ func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
 func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	pool := &lockTrackingMempool{}
 	signer := &lockObservingSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}, pool: pool}
-	enc := NewEncoderCache(0)
+	enc := NewEncoderCache(0, 0)
 	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	a := newAdmitter(runner, enc, txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
