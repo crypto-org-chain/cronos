@@ -20,11 +20,11 @@ type CronosConfig struct {
 	DisableTxReplacement bool `mapstructure:"disable-tx-replacement"`
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
-	// Capacity of the sharded LRU tx-decode cache. Set to 0 to disable.
-	TxDecodeCacheSize int `mapstructure:"tx-decode-cache-size"`
+	// Capacity of the sharded LRU tx encode/decode cache. Set to 0 to disable.
+	TxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max-tx-bytes.
-	TxDecodeCacheMaxTxBytes int `mapstructure:"tx-decode-cache-max-tx-bytes"`
+	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
@@ -42,9 +42,8 @@ type CronosConfig struct {
 // Defaults live here (not app/) because app/ imports this package and both
 // DefaultCronosConfig() and app's New() need them.
 const (
-	DefaultTxDecodeCacheSize       = 10000
-	DefaultTxDecodeCacheMaxTxBytes = 65536
-	DefaultTxEncodeCacheSize       = 10000
+	DefaultTxCacheSize       = 10000
+	DefaultTxCacheMaxTxBytes = 65536
 	// DefaultMempoolGossipTTL re-gossips a resident tx at most ~once per window;
 	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
 	DefaultMempoolGossipTTL = 15 * time.Second
@@ -86,8 +85,8 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxDecodeCacheSize:          DefaultTxDecodeCacheSize,
-		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
+		TxCacheSize:                DefaultTxCacheSize,
+		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,

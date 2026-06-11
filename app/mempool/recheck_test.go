@@ -700,7 +700,7 @@ func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 	}
 }
 
-// mempool.type=app with tx-decode-cache-size=0 builds an Admitter with a nil
+// mempool.type=app with tx-cache-size=0 builds an Admitter with a nil
 // encCache (app.go). A TTL/timeout eviction must not panic on encCache.Evict.
 func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}

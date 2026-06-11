@@ -179,8 +179,8 @@ const (
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
-	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
+	FlagTxCacheSize                = "cronos.tx-cache-size"
+	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
@@ -361,30 +361,30 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
 	var activeDecoder sdk.TxDecoder
-	decodeCacheSize := cmdcfg.DefaultTxDecodeCacheSize
-	if v := appOpts.Get(FlagTxDecodeCacheSize); v != nil {
+	txCacheSize := cmdcfg.DefaultTxCacheSize
+	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheSize, v, err))
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
 		}
-		decodeCacheSize = parsed
+		txCacheSize = parsed
 	}
-	maxTxBytes := cmdcfg.DefaultTxDecodeCacheMaxTxBytes
-	if v := appOpts.Get(FlagTxDecodeCacheMaxTxBytes); v != nil {
+	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
+	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheMaxTxBytes, v, err))
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
 		}
 		if parsed > 0 {
 			maxTxBytes = parsed
 		}
 	}
-	if decodeCacheSize <= 0 {
-		logger.Info("tx-decode cache disabled")
+	if txCacheSize <= 0 {
+		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		logger.Info("tx-decode cache enabled", "size", decodeCacheSize, "max-tx-bytes", maxTxBytes)
-		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(decodeCacheSize, maxTxBytes))
+		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
+		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(txCacheSize, maxTxBytes))
 	}
 	eip712.SetEncodingConfig(encodingConfig)
 
@@ -488,8 +488,8 @@ func New(
 		app.SetMempool(mpool)
 
 		var encCache *cronosmempool.EncoderCache
-		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
-			encCache = cronosmempool.NewEncoderCache(decodeCacheSize, maxTxBytes)
+		if mempoolType == cronosmempool.TypeApp && txCacheSize > 0 {
+			encCache = cronosmempool.NewEncoderCache(txCacheSize, maxTxBytes)
 		}
 
 		// baseFee gate source for the app-path selector; proposalFee is assigned
@@ -516,7 +516,7 @@ func New(
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
 			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
-				logger.Warn("mempool.type=app: tx-decode-cache-size=0 disables fast PrepareProposal; using slow default handler")
+				logger.Warn("mempool.type=app: tx-cache-size=0 disables fast PrepareProposal; using slow default handler")
 			}
 			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))

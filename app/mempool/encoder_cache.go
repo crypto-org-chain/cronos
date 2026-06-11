@@ -31,10 +31,10 @@ type item struct {
 // Pass <=0 for size/maxTxBytes to fall back to the cmdcfg defaults.
 func NewEncoderCache(size, maxTxBytes int) *EncoderCache {
 	if size <= 0 {
-		size = cmdcfg.DefaultTxEncodeCacheSize
+		size = cmdcfg.DefaultTxCacheSize
 	}
 	if maxTxBytes <= 0 {
-		maxTxBytes = cmdcfg.DefaultTxDecodeCacheMaxTxBytes
+		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
 	return &EncoderCache{
 		cap:        size,

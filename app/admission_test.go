@@ -80,10 +80,10 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	tb.Helper()
 
 	appOpts := MinimalOptionsMap{
-		flags.FlagHome:                tb.TempDir(),
-		"mempool.type":                "app",
-		"mempool.max-txs":             100000,
-		"cronos.tx-decode-cache-size": 200000,
+		flags.FlagHome:         tb.TempDir(),
+		"mempool.type":         "app",
+		"mempool.max-txs":      100000,
+		"cronos.tx-cache-size": 200000,
 	}
 	app := New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })

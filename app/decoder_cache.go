@@ -103,10 +103,10 @@ type decodeCache struct {
 // payload cap maxTxBytes. Pass <=0 for either to use defaults.
 func newDecodeCache(size, maxTxBytes int) *decodeCache {
 	if size <= 0 {
-		size = cmdcfg.DefaultTxDecodeCacheSize
+		size = cmdcfg.DefaultTxCacheSize
 	}
 	if maxTxBytes <= 0 {
-		maxTxBytes = cmdcfg.DefaultTxDecodeCacheMaxTxBytes
+		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
 	shardCap := (size + shardCount - 1) / shardCount
 	c := &decodeCache{maxTxBytes: maxTxBytes}
