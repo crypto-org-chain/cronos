@@ -86,7 +86,7 @@ func TestExtTxSelector(t *testing.T) {
 		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("a"))
 		ts.Clear()
 		require.Empty(t, ts.SelectedTxs(bg))
-		require.False(t, ts.feeReady)
+		require.Nil(t, ts.baseFee)
 	})
 }
 

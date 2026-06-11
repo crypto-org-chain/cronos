@@ -39,8 +39,8 @@ type ExtTxSelector struct {
 	totalBytes  int64
 	totalGas    uint64
 
-	// baseFee is constant within a proposal; cached on first Select, reset by Clear.
-	feeReady bool
+	// baseFee/evmDenom are constant within a proposal; fetched lazily on the first
+	// FeeTx (nil baseFee == not yet fetched, or gate disabled), reset by Clear.
 	baseFee  *big.Int
 	evmDenom string
 }
@@ -57,7 +57,6 @@ func (ts *ExtTxSelector) Clear() {
 	ts.selectedTxs = nil
 	ts.totalBytes = 0
 	ts.totalGas = 0
-	ts.feeReady = false
 	ts.baseFee = nil
 	ts.evmDenom = ""
 }
@@ -109,11 +108,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
 func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
-	if !ts.feeReady {
-		ts.feeReady = true
-		if ts.baseFeeRetriever != nil {
-			ts.baseFee, ts.evmDenom = ts.baseFeeRetriever(sdk.UnwrapSDKContext(goCtx))
-		}
+	if ts.baseFee == nil && ts.baseFeeRetriever != nil {
+		ts.baseFee, ts.evmDenom = ts.baseFeeRetriever(sdk.UnwrapSDKContext(goCtx))
 	}
 	return ts.baseFee, ts.evmDenom
 }
