@@ -114,14 +114,14 @@ func (t feeCapTx) GetFee() sdk.Coins                   { return t.fee }
 func (feeCapTx) FeePayer() []byte                      { return nil }
 func (feeCapTx) FeeGranter() []byte                    { return nil }
 
-func TestNoCheckProposalTxVerifier(t *testing.T) {
+func TestCacheProposalTxVerifier(t *testing.T) {
 	// Hit path only: encCache.Get returns cached bytes without touching BaseApp
 	// (nil here). The miss path is a trivial txv.TxEncode delegation.
 	t.Run("encCache hit returns cached bytes without encoding", func(t *testing.T) {
 		enc := cronosmempool.NewEncoderCache(0)
 		tx := &gasOnlyTx{gas: 1}
 		enc.Set(tx, []byte("raw"))
-		v := &NoCheckProposalTxVerifier{encCache: enc}
+		v := &CacheProposalTxVerifier{encCache: enc}
 		bz, err := v.PrepareProposalVerifyTx(tx)
 		require.NoError(t, err)
 		require.Equal(t, []byte("raw"), bz)

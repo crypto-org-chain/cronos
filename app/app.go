@@ -502,10 +502,10 @@ func New(
 		}
 
 		if encCache != nil {
-			// mempool.type=app: reuse the SDK default handler. NoCheck verifier
+			// mempool.type=app: reuse the SDK default handler. Cache verifier
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
 			// blocklist + baseFee gate.
-			h := baseapp.NewDefaultProposalHandler(mpool, NewNoCheckProposalTxVerifier(app, encCache))
+			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
 			h.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate))
 			if signerExtractor != nil {
 				h.SetSignerExtractionAdapter(signerExtractor)

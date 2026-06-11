@@ -32,8 +32,8 @@ var _ baseapp.TxSelector = &ExtTxSelector{}
 // then DefaultTxSelector-style byte/gas accounting using ProtoSizeForTx (no per-tx
 // alloc) and overflow-safe gas math.
 type ExtTxSelector struct {
-	validateTx  func(sdk.Tx, []byte) error
-	proposalFee func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
+	validateTx       func(sdk.Tx, []byte) error
+	baseFeeRetriever func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
 
 	selectedTxs [][]byte
 	totalBytes  int64
@@ -45,8 +45,8 @@ type ExtTxSelector struct {
 	evmDenom string
 }
 
-func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, proposalFee func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
-	return &ExtTxSelector{validateTx: validateTx, proposalFee: proposalFee}
+func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
+	return &ExtTxSelector{validateTx: validateTx, baseFeeRetriever: baseFeeRetriever}
 }
 
 func (ts *ExtTxSelector) SelectedTxs(_ context.Context) [][]byte {
@@ -111,30 +111,30 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	if !ts.feeReady {
 		ts.feeReady = true
-		if ts.proposalFee != nil {
-			ts.baseFee, ts.evmDenom = ts.proposalFee(sdk.UnwrapSDKContext(goCtx))
+		if ts.baseFeeRetriever != nil {
+			ts.baseFee, ts.evmDenom = ts.baseFeeRetriever(sdk.UnwrapSDKContext(goCtx))
 		}
 	}
 	return ts.baseFee, ts.evmDenom
 }
 
-var _ baseapp.ProposalTxVerifier = &NoCheckProposalTxVerifier{}
+var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
 
-// NoCheckProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
+// CacheProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
 // a full ante) with a cache lookup: ante already ran at admission and recheck
 // evicts stale txs, so PrepareProposal only needs canonical bytes. Cache hit ->
 // cached bytes; miss -> encode. Mirrors cosmos/evm. The skipped baseFee check for
 // idle senders is reapplied by ExtTxSelector's gate.
-type NoCheckProposalTxVerifier struct {
+type CacheProposalTxVerifier struct {
 	*baseapp.BaseApp
 	encCache *cronosmempool.EncoderCache
 }
 
-func NewNoCheckProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *NoCheckProposalTxVerifier {
-	return &NoCheckProposalTxVerifier{BaseApp: app, encCache: encCache}
+func NewCacheProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
+	return &CacheProposalTxVerifier{BaseApp: app, encCache: encCache}
 }
 
-func (txv *NoCheckProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
+func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, txv.TxEncode, tx)
 	result := "miss"
 	if hit {
