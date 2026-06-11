@@ -136,7 +136,7 @@ func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, 
 	if hit {
 		result = "hit"
 	}
-	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result) //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result)
 	return bz, err
 }
 

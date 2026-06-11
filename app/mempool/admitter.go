@@ -285,10 +285,10 @@ func (a *Admitter) RecheckTxs() {
 	}
 	a.arrival = newArrival
 	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
 	}
 	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
 	}
 
 	// Front-load last cycle's overflow (still in the pool) ahead of fresh
@@ -340,7 +340,7 @@ func (a *Admitter) RecheckTxs() {
 		}
 	}
 	if evicted > 0 {
-		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
 	}
 }
 

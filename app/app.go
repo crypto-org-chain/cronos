@@ -1048,7 +1048,6 @@ func New(
 	// Uncomment if you want to set a custom migration order here.
 	// app.mm.SetOrderMigrations(custom order)
 
-	//nolint:staticcheck
 	app.ModuleManager.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
@@ -1649,7 +1648,7 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 			}
 		}
 		if failed > 0 {
-			telemetry.IncrCounter(failed, "cronos", "finalize", "tx", "failed") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+			telemetry.IncrCounter(failed, "cronos", "finalize", "tx", "failed")
 		}
 	}
 	return resp, err
