@@ -21,7 +21,7 @@ tx-cache-size = {{ .Cronos.TxCacheSize }}
 # Per-entry raw payload byte cap for the tx encode/decode cache. Txs larger than this
 # are decoded normally but not cached, bounding heap use against large txs.
 # Worst-case raw-byte footprint is roughly tx-cache-size * this value.
-# Should not exceed mempool.max-tx-bytes. Default 65536 (64 KiB) covers >p99 of
+# Should not exceed mempool.max_tx_bytes. Default 65536 (64 KiB) covers >p99 of
 # EVM tx sizes.
 tx-cache-max-tx-bytes = {{ .Cronos.TxCacheMaxTxBytes }}
 

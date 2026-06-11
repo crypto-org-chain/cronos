@@ -23,7 +23,7 @@ type CronosConfig struct {
 	// Capacity of the sharded LRU tx encode/decode cache. Set to 0 to disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
-	// not cached, bounding heap impact. Should not exceed mempool.max-tx-bytes.
+	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
 	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the

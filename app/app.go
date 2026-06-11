@@ -176,7 +176,7 @@ const (
 
 	FlagMempoolFeeBump    = "mempool.feebump"
 	FlagMempoolType       = "mempool.type"
-	FlagMempoolMaxTxBytes = "mempool.max-tx-bytes"
+	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
