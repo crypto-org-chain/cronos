@@ -174,8 +174,9 @@ const (
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
 
-	FlagMempoolFeeBump = "mempool.feebump"
-	FlagMempoolType    = "mempool.type"
+	FlagMempoolFeeBump    = "mempool.feebump"
+	FlagMempoolType       = "mempool.type"
+	FlagMempoolMaxTxBytes = "mempool.max-tx-bytes"
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
@@ -383,6 +384,12 @@ func New(
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
+		// A per-tx cap above mempool.max-tx-bytes can never bind (no admitted tx
+		// is larger), so it's a misconfiguration — fail loud rather than silently
+		// caching nothing useful above the mempool ceiling.
+		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
+			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
+		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(txCacheSize, maxTxBytes))
 	}
