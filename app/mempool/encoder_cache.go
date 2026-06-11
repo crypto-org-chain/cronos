@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"bytes"
 	"container/list"
 	"crypto/sha256"
 	"sync"
@@ -118,14 +119,16 @@ func (e *EncoderCache) HashTx(tx sdk.Tx, bz []byte) [32]byte {
 	e.mu.Unlock()
 
 	h := sha256.Sum256(bz)
-	// Re-check: the entry may have been evicted while unlocked. The canonical
-	// bytes are deterministic, so h stays valid for any re-added entry.
+	// Re-check under lock: the entry may have been evicted or re-Set (new bytes)
+	// while unlocked. Only cache h if it.bz still matches the bytes we hashed,
+	// else a concurrent Set(newBz) would get tagged with sha256(oldBz).
 	e.mu.Lock()
 	if el, ok := e.items[tx]; ok {
-		it := el.Value.(*item)
-		it.hash = h
-		it.hashed = true
-		e.lru.MoveToFront(el)
+		if it := el.Value.(*item); bytes.Equal(it.bz, bz) {
+			it.hash = h
+			it.hashed = true
+			e.lru.MoveToFront(el)
+		}
 	}
 	e.mu.Unlock()
 	return h
