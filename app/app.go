@@ -388,7 +388,7 @@ func New(
 			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
 		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
-		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(txCacheSize, maxTxBytes))
+		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
 	eip712.SetEncodingConfig(encodingConfig)
 
@@ -493,7 +493,7 @@ func New(
 
 		var encCache *cronosmempool.EncoderCache
 		if mempoolType == cronosmempool.TypeApp && txCacheSize >= 0 {
-			encCache = cronosmempool.NewEncoderCache(txCacheSize, maxTxBytes)
+			encCache = cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
 		}
 
 		// baseFee gate source for the app-path selector; proposalFee is assigned

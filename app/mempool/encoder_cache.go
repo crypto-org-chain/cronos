@@ -28,18 +28,18 @@ type item struct {
 }
 
 // NewEncoderCache returns an LRU-bounded cache holding at most size entries,
-// skipping txs whose canonical bytes exceed maxTxBytes (mirrors decodeCache).
-// Pass <=0 for size/maxTxBytes to fall back to the cmdcfg defaults.
-func NewEncoderCache(size, maxTxBytes int) *EncoderCache {
-	if size <= 0 {
+// skipping txs whose canonical bytes exceed maxTxBytes (mirrors DecodeCache).
+// Pass 0 for size/maxTxBytes to fall back to the cmdcfg defaults.
+func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
+	if size == 0 {
 		size = cmdcfg.DefaultTxCacheSize
 	}
-	if maxTxBytes <= 0 {
+	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
 	return &EncoderCache{
-		cap:        size,
-		maxTxBytes: maxTxBytes,
+		cap:        int(size),
+		maxTxBytes: int(maxTxBytes),
 		items:      make(map[sdk.Tx]*list.Element, size),
 	}
 }

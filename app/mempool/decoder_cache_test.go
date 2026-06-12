@@ -279,7 +279,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	}
 }
 
-func TestDecodeCache_DefaultsOnNonPositive(t *testing.T) {
+func TestDecodeCache_DefaultsOnZero(t *testing.T) {
 	c := NewDecodeCache(0, 0)
 	if c.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
 		t.Fatalf("maxTxBytes = %d, want default %d", c.maxTxBytes, cmdcfg.DefaultTxCacheMaxTxBytes)
@@ -287,13 +287,5 @@ func TestDecodeCache_DefaultsOnNonPositive(t *testing.T) {
 	wantShardCap := (cmdcfg.DefaultTxCacheSize + shardCount - 1) / shardCount
 	if got := c.shards[0].cap; got != wantShardCap {
 		t.Fatalf("shard cap = %d, want %d (default size / shardCount)", got, wantShardCap)
-	}
-
-	c2 := NewDecodeCache(-5, -1)
-	if c2.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
-		t.Fatalf("negative maxTxBytes = %d, want default", c2.maxTxBytes)
-	}
-	if got := c2.shards[0].cap; got != wantShardCap {
-		t.Fatalf("negative size shard cap = %d, want %d", got, wantShardCap)
 	}
 }

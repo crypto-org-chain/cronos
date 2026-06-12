@@ -100,16 +100,16 @@ type DecodeCache struct {
 }
 
 // NewDecodeCache returns a cache with total capacity ~size and per-entry
-// payload cap maxTxBytes. Pass <=0 for either to use defaults.
-func NewDecodeCache(size, maxTxBytes int) *DecodeCache {
-	if size <= 0 {
+// payload cap maxTxBytes. Pass 0 for either to use defaults.
+func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
+	if size == 0 {
 		size = cmdcfg.DefaultTxCacheSize
 	}
-	if maxTxBytes <= 0 {
+	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
-	shardCap := (size + shardCount - 1) / shardCount
-	c := &DecodeCache{maxTxBytes: maxTxBytes}
+	shardCap := (int(size) + shardCount - 1) / shardCount
+	c := &DecodeCache{maxTxBytes: int(maxTxBytes)}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap
 		c.shards[i].items = make(map[uint64]*list.Element, shardCap)

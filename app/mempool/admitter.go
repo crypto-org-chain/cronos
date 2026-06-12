@@ -241,11 +241,8 @@ func (a *Admitter) RecheckTxs() {
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
-			arrived, seen := a.arrival[tx]
-			if !seen {
-				arrived = height // first sighting starts the TTL window
-			}
-			if height-arrived >= a.ttlNumBlocks {
+			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
+			if expired {
 				a.evict(tx)
 				ttlEvicted++
 				continue
@@ -335,6 +332,16 @@ func txTimedout(tx sdk.Tx, committedHeight int64) bool {
 	}
 	th := t.GetTimeoutHeight()
 	return th > 0 && uint64(committedHeight) >= th
+}
+
+// txTTLExpired reports whether tx has aged past ttlNumBlocks since first seen.
+// Returns arrived (for the caller's newArrival map) and whether the tx is expired.
+func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int64) (int64, bool) {
+	arrived, ok := arrival[tx]
+	if !ok {
+		arrived = height
+	}
+	return arrived, height-arrived >= ttlNumBlocks
 }
 
 // evict removes tx from the pool and encoder cache together, so the cache never
