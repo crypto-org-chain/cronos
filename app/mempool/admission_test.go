@@ -1,4 +1,4 @@
-package app
+package mempool_test
 
 import (
 	"encoding/json"
@@ -13,7 +13,8 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
-	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
+	cronos "github.com/crypto-org-chain/cronos/app"
+	mempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
@@ -26,6 +27,7 @@ import (
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -33,11 +35,26 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
+type testAccount struct {
+	Address common.Address
+	Priv    cryptotypes.PrivKey
+	Nonce   uint64
+}
+
+type minimalOptionsMap map[string]interface{}
+
+func (m minimalOptionsMap) Get(key string) interface{} {
+	if v, ok := m[key]; ok {
+		return v
+	}
+	return interface{}(nil)
+}
+
 // admissionFixture is a mempool.type=app App with funded EVM accounts and a
 // signer, set up for exercising the lock-free admission path (InsertTxHandler).
 type admissionFixture struct {
-	app         *App
-	accounts    []TestAccount
+	app         *cronos.App
+	accounts    []testAccount
 	consAddress sdk.ConsAddress
 	ethSigner   ethtypes.Signer
 }
@@ -45,10 +62,10 @@ type admissionFixture struct {
 // signTransfer builds and signs a plain EVM value-transfer tx from acc (to a
 // fixed EOA), incrementing acc.Nonce. The signature is valid; tamperFrom swaps
 // the From field to a different address post-sign so VerifyEthSig must reject.
-func (f *admissionFixture) signTransfer(tb testing.TB, acc *TestAccount, tamperFrom *common.Address) []byte {
+func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperFrom *common.Address) []byte {
 	tb.Helper()
 	tx := evmtypes.NewTx(
-		TestEthChainID,
+		cronos.TestEthChainID,
 		acc.Nonce,
 		&common.Address{0x1},     // to: arbitrary EOA
 		big.NewInt(0),            // value
@@ -79,20 +96,20 @@ func (f *admissionFixture) signTransfer(tb testing.TB, acc *TestAccount, tamperF
 func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	tb.Helper()
 
-	appOpts := MinimalOptionsMap{
+	appOpts := minimalOptionsMap{
 		flags.FlagHome:         tb.TempDir(),
 		"mempool.type":         "app",
 		"mempool.max-txs":      100000,
 		"cronos.tx-cache-size": 200000,
 	}
-	app := New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(TestAppChainID))
+	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })
 
-	testAccounts := make([]TestAccount, accounts)
+	testAccounts := make([]testAccount, accounts)
 	for i := range testAccounts {
 		priv, err := ethsecp256k1.GenerateKey()
 		require.NoError(tb, err)
-		testAccounts[i] = TestAccount{
+		testAccounts[i] = testAccount{
 			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
 			Priv:    priv,
 		}
@@ -119,11 +136,11 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	appState, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(tb, err)
 
-	consensusParams := *DefaultConsensusParams
+	consensusParams := *cronos.DefaultConsensusParams
 	blockParams := cmtproto.BlockParams{MaxBytes: math.MaxInt64, MaxGas: math.MaxInt64}
 	consensusParams.Block = &blockParams
 	_, err = app.InitChain(&abci.RequestInitChain{
-		ChainId:         TestAppChainID,
+		ChainId:         cronos.TestAppChainID,
 		AppStateBytes:   appState,
 		ConsensusParams: &consensusParams,
 	})
@@ -139,7 +156,7 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 		app:         app,
 		accounts:    testAccounts,
 		consAddress: consAddress,
-		ethSigner:   ethtypes.LatestSignerForChainID(TestEthChainID),
+		ethSigner:   ethtypes.LatestSignerForChainID(cronos.TestEthChainID),
 	}
 }
 
@@ -211,7 +228,7 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "empty block must not evict")
 
 	// nil encCache forces EncodeTx through the real marshal path, not a cache hit.
-	reap := cronosmempool.NewReapTxsHandler(
+	reap := mempool.NewReapTxsHandler(
 		f.app.Mempool(), f.app.TxConfig().TxEncoder(), nil,
 		time.Second, 0, log.NewNopLogger(),
 	)
@@ -221,8 +238,8 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		f.app.mempoolAdmitter.StageRecheckSenders(2, txBytes)
-		f.app.mempoolAdmitter.RecheckTxs()
+		f.app.MempoolAdmitter().StageRecheckSenders(2, txBytes)
+		f.app.MempoolAdmitter().RecheckTxs()
 	}()
 	for r := range reapers {
 		go func(r int) {

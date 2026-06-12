@@ -391,7 +391,7 @@ func New(
 			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
 		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
-		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(txCacheSize, maxTxBytes))
+		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(txCacheSize, maxTxBytes))
 	}
 	eip712.SetEncodingConfig(encodingConfig)
 
@@ -1282,6 +1282,9 @@ func (app *App) setPostHandler() {
 	}
 	app.SetPostHandler(postHandler)
 }
+
+// MempoolAdmitter returns the admission controller, or nil when mempool.type != app.
+func (app *App) MempoolAdmitter() *cronosmempool.Admitter { return app.mempoolAdmitter }
 
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }

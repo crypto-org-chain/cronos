@@ -1,4 +1,4 @@
-package app
+package mempool
 
 import (
 	"container/list"
@@ -42,8 +42,8 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	raw := makeRaw(42)
 
@@ -75,8 +75,8 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	bad := []byte{1, 2} // too short → error from base
 
@@ -93,8 +93,8 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	const n = 10
 	for i := uint64(0); i < n; i++ {
@@ -145,7 +145,7 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	}
 }
 
-func countEntries(c *decodeCache) int {
+func countEntries(c *DecodeCache) int {
 	total := 0
 	for i := range c.shards {
 		c.shards[i].mu.Lock()
@@ -157,8 +157,8 @@ func countEntries(c *decodeCache) int {
 
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	for i := uint64(0); i < 2*cmdcfg.DefaultTxCacheSize; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
@@ -177,8 +177,8 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	const goroutines = 16
 	const itersPerG = 200
@@ -216,8 +216,8 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(base, c)
 
 	big := make([]byte, cmdcfg.DefaultTxCacheMaxTxBytes+1)
 	for i := 0; i < 3; i++ {
@@ -250,8 +250,8 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := newDecodeCache(cmdcfg.DefaultTxCacheSize, customMax)
-	dec := newCachingDecoder(base, c)
+	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, customMax)
+	dec := NewCachingDecoder(base, c)
 
 	// Above cap: each call must miss.
 	above := make([]byte, customMax+1)
@@ -280,7 +280,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 }
 
 func TestDecodeCache_DefaultsOnNonPositive(t *testing.T) {
-	c := newDecodeCache(0, 0)
+	c := NewDecodeCache(0, 0)
 	if c.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
 		t.Fatalf("maxTxBytes = %d, want default %d", c.maxTxBytes, cmdcfg.DefaultTxCacheMaxTxBytes)
 	}
@@ -289,7 +289,7 @@ func TestDecodeCache_DefaultsOnNonPositive(t *testing.T) {
 		t.Fatalf("shard cap = %d, want %d (default size / shardCount)", got, wantShardCap)
 	}
 
-	c2 := newDecodeCache(-5, -1)
+	c2 := NewDecodeCache(-5, -1)
 	if c2.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
 		t.Fatalf("negative maxTxBytes = %d, want default", c2.maxTxBytes)
 	}

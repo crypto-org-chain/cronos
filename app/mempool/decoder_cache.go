@@ -1,4 +1,4 @@
-package app
+package mempool
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ var xxhashSeed = func() uint64 {
 	return binary.LittleEndian.Uint64(b[:])
 }()
 
-// shardCount is the number of independent LRU stripes in decodeCache. Must be a
+// shardCount is the number of independent LRU stripes in DecodeCache. Must be a
 // power of two so shardMask can replace modulo in shard selection.
 const shardCount = 16
 
@@ -39,7 +39,7 @@ type lruItem struct {
 	tx  sdk.Tx
 }
 
-// cacheShard is one LRU stripe of decodeCache with its own mutex, so access to
+// cacheShard is one LRU stripe of DecodeCache with its own mutex, so access to
 // different tx hashes is contention-free.
 type cacheShard struct {
 	mu    sync.Mutex
@@ -89,19 +89,19 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: bytes.Clone(bz), tx: tx})
 }
 
-// decodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
+// DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
 // NOT mutate them. Safe today because decode is the only writer: the EVM ante's
 // VerifySender only compares against MsgEthereumTx.From (set at proto-decode),
 // never writes it. A future ante that mutates a decoded msg would break sharing.
-type decodeCache struct {
+type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
 }
 
-// newDecodeCache returns a cache with total capacity ~size and per-entry
+// NewDecodeCache returns a cache with total capacity ~size and per-entry
 // payload cap maxTxBytes. Pass <=0 for either to use defaults.
-func newDecodeCache(size, maxTxBytes int) *decodeCache {
+func NewDecodeCache(size, maxTxBytes int) *DecodeCache {
 	if size <= 0 {
 		size = cmdcfg.DefaultTxCacheSize
 	}
@@ -109,7 +109,7 @@ func newDecodeCache(size, maxTxBytes int) *decodeCache {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
 	shardCap := (size + shardCount - 1) / shardCount
-	c := &decodeCache{maxTxBytes: maxTxBytes}
+	c := &DecodeCache{maxTxBytes: maxTxBytes}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap
 		c.shards[i].items = make(map[uint64]*list.Element, shardCap)
@@ -117,12 +117,12 @@ func newDecodeCache(size, maxTxBytes int) *decodeCache {
 	return c
 }
 
-func (c *decodeCache) get(bz []byte) (sdk.Tx, bool) {
+func (c *DecodeCache) get(bz []byte) (sdk.Tx, bool) {
 	h := xxhash.Sum64(bz) ^ xxhashSeed
 	return c.shards[h&shardMask].get(h, bz)
 }
 
-func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
+func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
 	if len(bz) > c.maxTxBytes {
 		return
 	}
@@ -130,9 +130,9 @@ func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
 	c.shards[h&shardMask].set(h, bz, tx)
 }
 
-// newCachingDecoder wraps base with the shared cache, so PrepareProposal and
+// NewCachingDecoder wraps base with the shared cache, so PrepareProposal and
 // BaseApp.runTx reuse each other's decodes.
-func newCachingDecoder(base sdk.TxDecoder, cache *decodeCache) sdk.TxDecoder {
+func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {
 			return tx, nil
