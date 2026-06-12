@@ -54,7 +54,7 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
-      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v9
+      - uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v9
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
       - uses: actions/cache@v5
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
@@ -95,7 +95,7 @@ jobs:
           go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./profile.txt
