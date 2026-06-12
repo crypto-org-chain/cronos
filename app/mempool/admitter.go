@@ -3,6 +3,7 @@ package mempool
 import (
 	"context"
 	"sync"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
@@ -234,8 +235,9 @@ func (a *Admitter) RecheckTxs() {
 	if a.ttlNumBlocks > 0 {
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
+	now := time.Now()
 	for _, tx := range snapshot {
-		if txTimedout(tx, height) {
+		if txExpired(tx, height, now) {
 			a.evict(tx)
 			expiredEvicted++
 			continue
@@ -325,13 +327,22 @@ func (a *Admitter) RecheckTxs() {
 	}
 }
 
-func txTimedout(tx sdk.Tx, committedHeight int64) bool {
-	t, ok := tx.(sdk.TxWithTimeoutHeight)
-	if !ok {
-		return false
+// txExpired reports whether tx should be evicted by its own declared timeout:
+// TxWithTimeoutHeight passed or TxWithTimeoutTimeStamp reached.
+func txExpired(tx sdk.Tx, height int64, now time.Time) bool {
+	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
+		th := t.GetTimeoutHeight()
+		if th > 0 && uint64(height) >= th {
+			return true
+		}
 	}
-	th := t.GetTimeoutHeight()
-	return th > 0 && uint64(committedHeight) >= th
+	if t, ok := tx.(sdk.TxWithTimeoutTimeStamp); ok {
+		ts := t.GetTimeoutTimeStamp()
+		if !ts.IsZero() && !now.Before(ts) {
+			return true
+		}
+	}
+	return false
 }
 
 // txTTLExpired reports whether tx has aged past ttlNumBlocks since first seen.
