@@ -192,18 +192,15 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 	a.pendingMu.Unlock()
 }
 
-// RecheckTxs evicts pool txs invalidated by the last block: those whose
-// TimeoutHeight has passed (any sender), and those of senders touched by the
-// block that now fail the AnteHandler in ReCheck mode. RunTx(ReCheck) work is
-// capped per cycle; overflow is carried (front-loaded) to the next cycle rather
-// than dropped, so a deep per-sender queue still drains over time.
+// RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
+// sender) and txs of block-touched senders that now fail ReCheck. Capped per
+// cycle; overflow carries to the next.
 func (a *Admitter) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
 	pending, height, deferred := a.drainStaging()
-	// Nothing to do before the first committed block (height 0) with no pending
-	// senders and no carryover. In steady state height > 0, so the sweep always scans.
+	// Before the first block (height 0) with no pending/carry there's nothing to scan.
 	if len(pending) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
@@ -214,8 +211,7 @@ func (a *Admitter) RecheckTxs() {
 	a.runRecheck(candidates)
 }
 
-// drainStaging atomically takes and clears the staged senders, committed height,
-// and the prior cycle's carried-over candidates.
+// drainStaging atomically takes and clears the staged senders, height, and carry.
 func (a *Admitter) drainStaging() (pending map[string]struct{}, height int64, deferred []sdk.Tx) {
 	a.pendingMu.Lock()
 	defer a.pendingMu.Unlock()
@@ -225,15 +221,12 @@ func (a *Admitter) drainStaging() (pending map[string]struct{}, height int64, de
 	return
 }
 
-// selectCandidates scans the snapshot once: evicting txs past their timeout or
-// TTL, rebuilding the arrival map, and collecting txs whose senders the last
-// block touched. Carried-over (deferred) candidates still in the pool are
-// front-loaded ahead of fresh ones: the snapshot is priority-ordered, so without
-// this the per-cycle cap would re-take the same prefix every cycle and the tail
-// would starve.
+// selectCandidates scans the snapshot once: evict timed-out/TTL-expired txs,
+// rebuild arrival, gather txs of block-touched senders. Deferred carryover still
+// in the pool is front-loaded ahead of fresh candidates — the snapshot is
+// priority-ordered, so otherwise the cap re-takes the same prefix and the tail starves.
 func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	// deferredLive maps each carried-over tx to whether it's still in the pool.
-	// Sized to the (small) carryover, not the whole snapshot; nil with no carryover.
+	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
 		deferredLive = make(map[sdk.Tx]bool, len(deferred))
@@ -309,8 +302,7 @@ func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct
 	return ordered
 }
 
-// capBatch bounds RunTx(ReCheck) per cycle, carrying the overflow to the next
-// cycle (front-loaded there) rather than dropping it.
+// capBatch bounds RunTx(ReCheck) per cycle; overflow carries forward.
 func (a *Admitter) capBatch(candidates []sdk.Tx) []sdk.Tx {
 	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
 		return candidates
@@ -323,9 +315,8 @@ func (a *Admitter) capBatch(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), evicting those that now
-// fail the AnteHandler. RunTx mutates checkState, so it serializes against
-// admission and the post-Commit reset for the batch only.
+// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. RunTx
+// mutates checkState, so mu serializes it against admission and the post-Commit reset.
 func (a *Admitter) runRecheck(candidates []sdk.Tx) {
 	if len(candidates) == 0 {
 		return
