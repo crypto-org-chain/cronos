@@ -237,7 +237,7 @@ func (a *Admitter) RecheckTxs() {
 	}
 	now := time.Now()
 	for _, tx := range snapshot {
-		if txExpired(tx, height, now) {
+		if txTimedout(tx, height, now) {
 			a.evict(tx)
 			expiredEvicted++
 			continue
@@ -327,9 +327,9 @@ func (a *Admitter) RecheckTxs() {
 	}
 }
 
-// txExpired reports whether tx should be evicted by its own declared timeout:
+// txTimedout reports whether tx should be evicted by its own declared timeout:
 // TxWithTimeoutHeight passed or TxWithTimeoutTimeStamp reached.
-func txExpired(tx sdk.Tx, height int64, now time.Time) bool {
+func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
 		th := t.GetTimeoutHeight()
 		if th > 0 && uint64(height) >= th {
