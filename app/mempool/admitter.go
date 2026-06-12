@@ -201,13 +201,7 @@ func (a *Admitter) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
-	a.pendingMu.Lock()
-	pending := a.pending
-	height := a.lastCommittedHeight
-	deferred := a.deferred
-	a.pending = nil
-	a.deferred = nil
-	a.pendingMu.Unlock()
+	pending, height, deferred := a.drainStaging()
 	// Nothing to do before the first committed block (height 0) with no pending
 	// senders and no carryover. In steady state height > 0, so the sweep always scans.
 	if len(pending) == 0 && len(deferred) == 0 && height == 0 {
@@ -215,6 +209,29 @@ func (a *Admitter) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
+	candidates := a.selectCandidates(snapshot, pending, height, deferred)
+	candidates = a.capBatch(candidates)
+	a.runRecheck(candidates)
+}
+
+// drainStaging atomically takes and clears the staged senders, committed height,
+// and the prior cycle's carried-over candidates.
+func (a *Admitter) drainStaging() (pending map[string]struct{}, height int64, deferred []sdk.Tx) {
+	a.pendingMu.Lock()
+	defer a.pendingMu.Unlock()
+	pending, height, deferred = a.pending, a.lastCommittedHeight, a.deferred
+	a.pending = nil
+	a.deferred = nil
+	return
+}
+
+// selectCandidates scans the snapshot once: evicting txs past their timeout or
+// TTL, rebuilding the arrival map, and collecting txs whose senders the last
+// block touched. Carried-over (deferred) candidates still in the pool are
+// front-loaded ahead of fresh ones: the snapshot is priority-ordered, so without
+// this the per-cycle cap would re-take the same prefix every cycle and the tail
+// would starve.
+func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive maps each carried-over tx to whether it's still in the pool.
 	// Sized to the (small) carryover, not the whole snapshot; nil with no carryover.
 	var deferredLive map[sdk.Tx]bool
@@ -274,41 +291,45 @@ func (a *Admitter) RecheckTxs() {
 		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
 	}
 
-	// Front-load last cycle's overflow (still in the pool) ahead of fresh
-	// candidates: the snapshot is priority-ordered, so without this the cap would
-	// re-take the same prefix every cycle and the tail would starve.
-	if len(deferred) > 0 {
-		ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
-		for _, tx := range deferred {
-			if deferredLive[tx] {
-				ordered = append(ordered, tx) // skip txs included/evicted since carry
-			}
-		}
-		for _, tx := range candidates {
-			if _, isDeferred := deferredLive[tx]; isDeferred {
-				continue // sender re-touched this cycle; avoid double recheck
-			}
-			ordered = append(ordered, tx)
-		}
-		candidates = ordered
+	if len(deferred) == 0 {
+		return candidates
 	}
-
-	// Bound RunTx(ReCheck) per cycle; carry the overflow forward.
-	if a.maxRecheckBatch > 0 && len(candidates) > a.maxRecheckBatch {
-		carried := make([]sdk.Tx, len(candidates)-a.maxRecheckBatch)
-		copy(carried, candidates[a.maxRecheckBatch:])
-		candidates = candidates[:a.maxRecheckBatch]
-		a.pendingMu.Lock()
-		a.deferred = carried
-		a.pendingMu.Unlock()
+	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
+	for _, tx := range deferred {
+		if deferredLive[tx] {
+			ordered = append(ordered, tx) // skip txs included/evicted since carry
+		}
 	}
+	for _, tx := range candidates {
+		if _, isDeferred := deferredLive[tx]; isDeferred {
+			continue // sender re-touched this cycle; avoid double recheck
+		}
+		ordered = append(ordered, tx)
+	}
+	return ordered
+}
 
+// capBatch bounds RunTx(ReCheck) per cycle, carrying the overflow to the next
+// cycle (front-loaded there) rather than dropping it.
+func (a *Admitter) capBatch(candidates []sdk.Tx) []sdk.Tx {
+	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
+		return candidates
+	}
+	carried := make([]sdk.Tx, len(candidates)-a.maxRecheckBatch)
+	copy(carried, candidates[a.maxRecheckBatch:])
+	a.pendingMu.Lock()
+	a.deferred = carried
+	a.pendingMu.Unlock()
+	return candidates[:a.maxRecheckBatch]
+}
+
+// runRecheck re-validates candidates via RunTx(ReCheck), evicting those that now
+// fail the AnteHandler. RunTx mutates checkState, so it serializes against
+// admission and the post-Commit reset for the batch only.
+func (a *Admitter) runRecheck(candidates []sdk.Tx) {
 	if len(candidates) == 0 {
 		return
 	}
-
-	// RunTx(ReCheck) mutates checkState; serialize against admission and the
-	// post-Commit reset for the batch only.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	var evicted float32
