@@ -128,17 +128,6 @@ def _parse_histogram_sum_count(lines, metric_name, label_filter=None):
     return total, count
 
 
-def _parse_histogram_avg(lines, metric_name, label_filter=None):
-    """Compute average from a Prometheus histogram's _sum and _count lines.
-
-    Returns (avg, count) or (None, 0) if not found.
-    """
-    total, count = _parse_histogram_sum_count(lines, metric_name, label_filter)
-    if total is not None and count > 0:
-        return total / count, count
-    return None, 0
-
-
 def scrape_blockstm_metrics(prom_text):
     """Parse block-stm gauges from Prometheus text."""
     result = {}

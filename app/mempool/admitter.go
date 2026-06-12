@@ -59,11 +59,13 @@ type Admitter struct {
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
-func NewAdmitter(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) *Admitter {
+func NewAdmitter(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Admitter {
 	a := newAdmitter(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
+	a.maxRecheckBatch = recheckBatchSize
+	a.ttlNumBlocks = ttlNumBlocks
 	return a
 }
 
@@ -104,19 +106,13 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 				return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
 			}
-			return reject(err), nil
+			_, code, _ := errorsmod.ABCIInfo(err, false)
+			return &abci.ResponseInsertTx{Code: code}, nil
 		}
 
 		a.cacheTx(req.Tx)
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
-}
-
-// reject maps a RunTx/pre-verify error to its ABCI code for an InsertTx
-// rejection. The ErrMempoolTxMaxCapacity retry case is handled at the call site.
-func reject(err error) *abci.ResponseInsertTx {
-	_, code, _ := errorsmod.ABCIInfo(err, false)
-	return &abci.ResponseInsertTx{Code: code}
 }
 
 // cacheTx registers tx in the encoder cache.
@@ -251,7 +247,7 @@ func (a *Admitter) RecheckTxs() {
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
 	for _, tx := range snapshot {
-		if txExpired(tx, height) {
+		if txTimedout(tx, height) {
 			a.evict(tx)
 			expiredEvicted++
 			continue
@@ -344,7 +340,7 @@ func (a *Admitter) RecheckTxs() {
 	}
 }
 
-func txExpired(tx sdk.Tx, committedHeight int64) bool {
+func txTimedout(tx sdk.Tx, committedHeight int64) bool {
 	t, ok := tx.(sdk.TxWithTimeoutHeight)
 	if !ok {
 		return false

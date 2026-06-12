@@ -20,7 +20,7 @@ type CronosConfig struct {
 	DisableTxReplacement bool `mapstructure:"disable-tx-replacement"`
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
-	// Capacity of the sharded LRU tx encode/decode cache. Set to 0 to disable.
+	// Capacity of the sharded LRU tx encode/decode cache. Set to -1 to disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.

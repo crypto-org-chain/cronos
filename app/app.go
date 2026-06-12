@@ -384,9 +384,6 @@ func New(
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		// A per-tx cap above mempool.max-tx-bytes can never bind (no admitted tx
-		// is larger), so it's a misconfiguration — fail loud rather than silently
-		// caching nothing useful above the mempool ceiling.
 		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
 			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
 		}
@@ -544,9 +541,7 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
-			admitter.SetRecheckBatchSize(txsPerBlock)
-			admitter.SetTTLNumBlocks(ttlNumBlocks)
+			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			mempoolAdmitter = admitter

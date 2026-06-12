@@ -56,7 +56,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
-			if !tracker.gossip(encCache.HashTx(tx, bz), now) {
+			if !tracker.gossiped(encCache.HashTx(tx, bz), now) {
 				deduped++
 				continue
 			}
