@@ -157,18 +157,6 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	}
 }
 
-// SetRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle. 0 = unlimited.
-func (a *Admitter) SetRecheckBatchSize(n int) {
-	a.maxRecheckBatch = n
-}
-
-// SetTTLNumBlocks evicts pool txs older than n blocks by arrival height; 0 disables.
-// Drains proposal-skipped txs (baseFee gate, blocklist) whose sender never commits;
-// they'd otherwise pin a slot forever (EVM txs carry TimeoutHeight 0 = never expire).
-func (a *Admitter) SetTTLNumBlocks(n int64) {
-	a.ttlNumBlocks = n
-}
-
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction.
