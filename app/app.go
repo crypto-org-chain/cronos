@@ -380,7 +380,7 @@ func New(
 			maxTxBytes = parsed
 		}
 	}
-	if txCacheSize <= 0 {
+	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
@@ -492,7 +492,7 @@ func New(
 		app.SetMempool(mpool)
 
 		var encCache *cronosmempool.EncoderCache
-		if mempoolType == cronosmempool.TypeApp && txCacheSize > 0 {
+		if mempoolType == cronosmempool.TypeApp && txCacheSize >= 0 {
 			encCache = cronosmempool.NewEncoderCache(txCacheSize, maxTxBytes)
 		}
 
@@ -520,7 +520,7 @@ func New(
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
 			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
-				logger.Warn("mempool.type=app: tx-cache-size=0 disables fast PrepareProposal; using slow default handler")
+				logger.Warn("mempool.type=app: tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}
 			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
