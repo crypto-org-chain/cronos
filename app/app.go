@@ -49,6 +49,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -470,16 +471,14 @@ func New(
 	}
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
-	_, mpoolIsNoOp := mpool.(mempool.NoOpMempool)
 	switch mempoolType {
-	case cronosmempool.TypeApp:
-		if mpoolIsNoOp {
-			panic("mempool.type=app requires mempool.max-txs >= 0 and mempool.fee-bump >= 0 (currently using NoOpMempool; ReapTxsHandler would produce empty blocks)")
-		}
-	case "", "flood":
-		// default flood path; no app-side hooks.
+	case "", "flood", cronosmempool.TypeApp:
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
+	}
+	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
+		// type=app builds blocks by reaping the app mempool; NoOpMempool can't propose.
+		panic("mempool.type=app is incompatible with NoOpMempool")
 	}
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
