@@ -377,13 +377,11 @@ def exec(c, tmp_path_factory):
     check_ibc_client_states(ports.api_port(base_port), ibc_snapshot)
 
     # Verify CroBridgeContractAddresses param was written by the upgrade handler.
-    # The var mainnetCroBridgeContractAddresses in app/upgrades.go must be set
-    # to the actual deployed CroBridge addresses before release; until then it is []
-    # and the SendCroToIbc hook is intentionally disabled (safe default).
     cronos_params = cli.query_params()
-    assert (
-        cronos_params.get("cro_bridge_contract_addresses", []) == []
-    ), f"unexpected cro_bridge_contract_addresses: {cronos_params}"
+    assert cronos_params.get("cro_bridge_contract_addresses", []) == [
+        "0x6b1b50c2223eb31E0d4683b046ea9C6CB0D0ea4F",
+        "0xCE13a6F3d4167CE958f4764D423e6D62a114c751",
+    ], f"unexpected cro_bridge_contract_addresses: {cronos_params}"
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
