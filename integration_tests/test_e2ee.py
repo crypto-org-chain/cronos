@@ -1,11 +1,12 @@
 import json
+from pathlib import Path
 
 import pytest
 from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
 
-from .network import Cronos
+from .network import Cronos, setup_custom_cronos
 from .utils import (
     ADDRS,
     KEYS,
@@ -19,6 +20,17 @@ from .utils import (
     wait_for_new_blocks,
     wait_for_port,
 )
+
+
+@pytest.fixture(scope="module")
+def cronos(tmp_path_factory):
+    # Shadow conftest's session `cronos` with a FLOOD network: these tests read
+    # the eth "pending" filter (CometBFT UnconfirmedTxs), which is empty under
+    # the default mempool.type=app. Port 27100 is free.
+    path = tmp_path_factory.mktemp("e2ee")
+    yield from setup_custom_cronos(
+        path, 27100, Path(__file__).parent / "configs/enable-indexer-flood.jsonnet"
+    )
 
 
 def test_register(cronos: Cronos):
