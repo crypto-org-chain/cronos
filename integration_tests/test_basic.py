@@ -30,6 +30,7 @@ from .utils import (
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
+    mempool_type,
     remove_cancun_prague_params,
     send_transaction,
     sign_transaction,
@@ -428,18 +429,22 @@ def test_transaction(cronos):
     initial_block_number = w3.eth.get_block_number()
 
     # tx already in mempool
-    with pytest.raises(exceptions.Web3RPCError) as exc:
-        send_transaction(
-            w3,
-            {
-                "to": ADDRS["community"],
-                "value": 10000,
-                "gasPrice": gas_price,
-                "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) - 1,
-            },
-            KEYS["validator"],
-        )
-    assert "tx already in mempool" in str(exc)
+    if mempool_type(cronos) == "flood":
+        # Flood returns ErrTxInCache ("tx already in mempool") for a dup tx.
+        # The app mempool replaces same-nonce txs silently / via the RBF rule,
+        # so this CometBFT-cache-specific error doesn't apply there.
+        with pytest.raises(exceptions.Web3RPCError) as exc:
+            send_transaction(
+                w3,
+                {
+                    "to": ADDRS["community"],
+                    "value": 10000,
+                    "gasPrice": gas_price,
+                    "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) - 1,
+                },
+                KEYS["validator"],
+            )
+        assert "tx already in mempool" in str(exc)
 
     # invalid sequence
     with pytest.raises(exceptions.Web3RPCError) as exc:

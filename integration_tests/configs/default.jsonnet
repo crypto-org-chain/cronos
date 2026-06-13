@@ -7,6 +7,9 @@
       db_backend: 'rocksdb',
       mempool: {
         version: 'v1',
+        type: 'app',
+        // cometbft v0.39 fork requires reap_interval>0 when type=app.
+        reap_interval: '500ms',
       },
     },
     'app-config': {
