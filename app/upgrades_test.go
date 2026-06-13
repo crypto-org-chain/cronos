@@ -63,15 +63,15 @@ func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
 }
 
 // TestUpgradeV18CroBridgeContractAddresses verifies that:
-//  1. mainnetCroBridgeContractAddresses are all valid EVM addresses.
+//  1. croBridgeContractAddresses are all valid EVM addresses.
 //  2. The upgrade handler param migration correctly persists the values via SetParams/GetParams.
 func TestUpgradeV18CroBridgeContractAddresses(t *testing.T) {
-	for _, addr := range mainnetCroBridgeContractAddresses {
+	for _, addr := range croBridgeContractAddresses {
 		require.True(t, common.IsHexAddress(addr),
-			"mainnetCroBridgeContractAddresses entry must be a valid EVM hex address, got: %s",
+			"croBridgeContractAddresses entry must be a valid EVM hex address, got: %s",
 			addr)
 		require.NotEqual(t, common.Address{}, common.HexToAddress(addr),
-			"mainnetCroBridgeContractAddresses entry must not be the zero address, got: %s",
+			"croBridgeContractAddresses entry must not be the zero address, got: %s",
 			addr)
 	}
 
@@ -81,10 +81,10 @@ func TestUpgradeV18CroBridgeContractAddresses(t *testing.T) {
 
 	// Apply the same mutation the upgrade handler performs.
 	params := a.CronosKeeper.GetParams(ctx)
-	params.CroBridgeContractAddresses = mainnetCroBridgeContractAddresses
+	params.CroBridgeContractAddresses = croBridgeContractAddresses
 	require.NoError(t, a.CronosKeeper.SetParams(ctx, params))
 
 	stored := a.CronosKeeper.GetParams(ctx)
-	require.ElementsMatch(t, mainnetCroBridgeContractAddresses, stored.CroBridgeContractAddresses,
+	require.ElementsMatch(t, croBridgeContractAddresses, stored.CroBridgeContractAddresses,
 		"CroBridgeContractAddresses not persisted by SetParams")
 }
