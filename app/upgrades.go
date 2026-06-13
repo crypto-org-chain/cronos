@@ -20,19 +20,21 @@ import (
 
 const planName = "v1.8"
 
-// mainnetCroBridgeContractAddresses are the EVM addresses of CroBridge
-// contracts authorized on Cronos mainnet. Must be set to the actual deployed
-// addresses before release; empty list disables the SendCroToIbc hook.
-var mainnetCroBridgeContractAddresses = []string{}
+// croBridgeContractAddresses are the EVM addresses of CroBridge contracts
+// authorized on Cronos mainnet. Empty list disables the SendCroToIbc hook.
+var croBridgeContractAddresses = []string{
+	"0x6b1b50c2223eb31E0d4683b046ea9C6CB0D0ea4F",
+	"0xCE13a6F3d4167CE958f4764D423e6D62a114c751",
+}
 
 // RegisterUpgradeHandlers returns if store loader is overridden.
 // No store-key churn from v0.53→v0.54 in this app, so the default
 // MaxVersionStoreLoader (set by the caller when this returns false)
 // covers both regular and upgrade-height boots.
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
-	for _, addr := range mainnetCroBridgeContractAddresses {
+	for _, addr := range croBridgeContractAddresses {
 		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
-			panic(fmt.Sprintf("invalid mainnetCroBridgeContractAddresses entry %q: must be a non-zero EVM hex address", addr))
+			panic(fmt.Sprintf("invalid croBridgeContractAddresses entry %q: must be a non-zero EVM hex address", addr))
 		}
 	}
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
@@ -65,7 +67,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 			// for the SendCroToIbc hook. This closes the unauthenticated-drain vulnerability
 			// where any contract emitting __CronosSendCroToIbc could drain CRO balances.
 			cronosParams := app.CronosKeeper.GetParams(sdkCtx)
-			cronosParams.CroBridgeContractAddresses = mainnetCroBridgeContractAddresses
+			cronosParams.CroBridgeContractAddresses = croBridgeContractAddresses
 			if err := app.CronosKeeper.SetParams(sdkCtx, cronosParams); err != nil {
 				return toVM, fmt.Errorf("set cro bridge contract addresses: %w", err)
 			}
