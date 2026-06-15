@@ -206,8 +206,8 @@ func (a *Admitter) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.selectCandidates(snapshot, pending, height, deferred)
-	candidates = a.capBatch(candidates)
+	candidates := a.selectTxs(snapshot, pending, height, deferred)
+	candidates = a.capRecheckTxs(candidates)
 	a.runRecheck(candidates)
 }
 
@@ -221,11 +221,8 @@ func (a *Admitter) drainStaging() (pending map[string]struct{}, height int64, de
 	return
 }
 
-// selectCandidates scans the snapshot once: evict timed-out/TTL-expired txs,
-// rebuild arrival, gather txs of block-touched senders. Deferred carryover still
-// in the pool is front-loaded ahead of fresh candidates — the snapshot is
-// priority-ordered, so otherwise the cap re-takes the same prefix and the tail starves.
-func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
+// selectTxs scans the pool to retrieve txs for recheck.
+func (a *Admitter) selectTxs(snapshot []sdk.Tx, pending map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
@@ -287,6 +284,8 @@ func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct
 	if len(deferred) == 0 {
 		return candidates
 	}
+	// Front-load surviving deferred ahead of fresh candidates: the snapshot is
+	// priority-ordered, so otherwise capRecheckTxs re-takes the same prefix and starves the tail.
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
 	for _, tx := range deferred {
 		if deferredLive[tx] {
@@ -302,8 +301,8 @@ func (a *Admitter) selectCandidates(snapshot []sdk.Tx, pending map[string]struct
 	return ordered
 }
 
-// capBatch bounds RunTx(ReCheck) per cycle; overflow carries forward.
-func (a *Admitter) capBatch(candidates []sdk.Tx) []sdk.Tx {
+// capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
+func (a *Admitter) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
 		return candidates
 	}
