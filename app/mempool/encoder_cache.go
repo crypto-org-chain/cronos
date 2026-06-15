@@ -83,8 +83,10 @@ func (e *EncoderCache) Evict(tx sdk.Tx) {
 	}
 }
 
-// Get returns the registered bytes for tx, promoting it to MRU. Safe to call
-// on a nil *EncoderCache (returns nil, false).
+// Get returns a copy of the registered bytes for tx, promoting it to MRU. Safe
+// on a nil *EncoderCache (returns nil, false). Copies because the bytes escape
+// into block proposals/reap/ReCheck; sharing the internal slice would let a
+// caller corrupt every hit.
 func (e *EncoderCache) Get(tx sdk.Tx) ([]byte, bool) {
 	if e == nil || tx == nil {
 		return nil, false
@@ -96,7 +98,10 @@ func (e *EncoderCache) Get(tx sdk.Tx) ([]byte, bool) {
 		return nil, false
 	}
 	e.lru.MoveToFront(el)
-	return el.Value.(*item).bz, true
+	bz := el.Value.(*item).bz
+	out := make([]byte, len(bz))
+	copy(out, bz)
+	return out, true
 }
 
 // HashTx returns sha256(bz), caching it on tx's entry so repeated reaps don't

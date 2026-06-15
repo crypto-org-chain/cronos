@@ -130,6 +130,23 @@ func TestEncoderCache_Evict(t *testing.T) {
 	nilCache.Evict(a) // nil receiver: no panic
 }
 
+func TestEncoderCache_GetReturnsCopy(t *testing.T) {
+	c := NewEncoderCache(4, 0)
+	tx := &ptrTx{id: 1}
+	c.Set(tx, []byte("canonical"))
+
+	got, ok := c.Get(tx)
+	if !ok {
+		t.Fatal("tx missing")
+	}
+	got[0] = 'X' // mutate the returned slice; must not touch the cache
+
+	again, _ := c.Get(tx)
+	if string(again) != "canonical" {
+		t.Fatalf("Get leaked its backing array: cache now %q, want %q", again, "canonical")
+	}
+}
+
 func TestEncoderCache_HashTx(t *testing.T) {
 	c := NewEncoderCache(4, 0)
 	tx := &ptrTx{id: 1}
