@@ -50,7 +50,9 @@ func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, baseFeeRetriever fu
 }
 
 func (ts *ExtTxSelector) SelectedTxs(_ context.Context) [][]byte {
-	return ts.selectedTxs
+	txs := make([][]byte, len(ts.selectedTxs))
+	copy(txs, ts.selectedTxs)
+	return txs
 }
 
 func (ts *ExtTxSelector) Clear() {
