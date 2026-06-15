@@ -134,7 +134,7 @@ func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 	survivor := f.add(2, "alice", 1, "alice-1")
 	untouched := f.add(3, "bob", 0, "bob-0")
 
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, stale) {
@@ -166,35 +166,35 @@ func TestRecheckTxs_EmptyPendingNoOp(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
 
-	f.a.RecheckTxs() // pending nil
+	f.a.RecheckTxs() // recheckSenders nil
 
 	if len(f.runner.modes) != 0 {
-		t.Fatalf("no RunTx expected with empty pending, got %d calls", len(f.runner.modes))
+		t.Fatalf("no RunTx expected with empty recheckSenders, got %d calls", len(f.runner.modes))
 	}
 }
 
 func TestRecheckTxs_DrainsPending(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.RecheckTxs()
 	first := len(f.runner.modes)
-	f.a.RecheckTxs() // pending consumed; second run is a no-op
+	f.a.RecheckTxs() // recheckSenders consumed; second run is a no-op
 
 	if len(f.runner.modes) != first {
-		t.Fatal("pending must be drained after one RecheckTxs")
+		t.Fatal("recheckSenders must be drained after one RecheckTxs")
 	}
 }
 
 // Timeout sweep evicts an expired tx even when its sender wasn't touched by the
-// last block (no pending entry, so the ante-recheck path never sees it).
+// last block (no recheckSenders entry, so the ante-recheck path never sees it).
 func TestRecheckTxs_EvictsExpiredUntouchedSender(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
-	f.a.RecheckTxs()            // pending nil: only the timeout sweep runs
+	f.a.RecheckTxs()            // recheckSenders nil: only the timeout sweep runs
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be evicted regardless of touched senders")
@@ -236,7 +236,7 @@ func TestRecheckTxs_SweepAndRecheckTogether(t *testing.T) {
 	expired := f.addTimeout(2, "carol", 0, "carol-0", 5)
 	survivor := f.add(3, "alice", 1, "alice-1")
 
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.lastCommittedHeight = 5
 	f.a.RecheckTxs()
 
@@ -261,7 +261,7 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
-	f.a.StageRecheckSenders(5, nil) // decoder nil: stages height, leaves pending nil
+	f.a.StageRecheckSenders(5, nil) // decoder nil: stages height, leaves recheckSenders nil
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
@@ -294,10 +294,10 @@ func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
 	a.StageRecheckSenders(10, [][]byte{[]byte("a")})
 	a.StageRecheckSenders(11, [][]byte{[]byte("b")}) // no drain between: must keep alice
 
-	if _, ok := a.pending[sdk.AccAddress("alice").String()]; !ok {
+	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
 		t.Fatal("block-10 sender lost after staging block 11 without a recheck drain")
 	}
-	if _, ok := a.pending[sdk.AccAddress("bob").String()]; !ok {
+	if _, ok := a.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
 		t.Fatal("block-11 sender missing")
 	}
 	if a.lastCommittedHeight != 11 {
@@ -318,7 +318,7 @@ func TestRecheckTxs_EncoderFallbackOnCacheMiss(t *testing.T) {
 	if _, ok := f.enc.Get(stale); ok {
 		t.Fatal("precondition: tx must not be in encCache")
 	}
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.RecheckTxs()
 
@@ -330,13 +330,13 @@ func TestRecheckTxs_EncoderFallbackOnCacheMiss(t *testing.T) {
 	}
 }
 
-// A multi-signer tx must be rechecked when ANY of its signers is in pending,
+// A multi-signer tx must be rechecked when ANY of its signers is in recheckSenders,
 // even though the pool keys it by the first signer only.
 func TestRecheckTxs_MultiSignerMatchesAnySigner(t *testing.T) {
 	f := newRecheckFixture("enc-1")
-	// pool key = alice (first signer); pending names only the second signer, bob.
+	// pool key = alice (first signer); recheckSenders names only the second signer, bob.
 	stale := f.insert(1, sdk.AccAddress("alice"), 0, sdk.AccAddress("bob"))
-	f.a.pending = map[string]struct{}{sdk.AccAddress("bob").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("bob").String(): {}}
 
 	f.a.RecheckTxs()
 
@@ -415,7 +415,7 @@ func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
 	f.a.maxRecheckBatch = batch
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.RecheckTxs()
 
@@ -435,9 +435,9 @@ func TestRecheckTxs_BatchCapCarriesOverflow(t *testing.T) {
 		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
 	f.a.maxRecheckBatch = batch
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	// Cycle 1 touches alice; cycles 2-3 have empty pending but must still drain
+	// Cycle 1 touches alice; cycles 2-3 have empty recheckSenders but must still drain
 	// the carried overflow.
 	f.a.RecheckTxs()
 	f.a.RecheckTxs()
@@ -464,7 +464,7 @@ func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
 		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
 	// maxRecheckBatch left at zero default
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.RecheckTxs()
 
@@ -482,9 +482,9 @@ func TestRecheckTxs_UntouchedSenderNeverRechecked(t *testing.T) {
 	f := newRecheckFixture()
 	idle := f.add(1, "carol", 0, "carol-0") // carol never lands in a committed block
 
-	// Three blocks each touch alice only; carol is never in pending.
+	// Three blocks each touch alice only; carol is never in recheckSenders.
 	for i := 0; i < 3; i++ {
-		f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+		f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 		f.a.RecheckTxs()
 	}
 
@@ -498,7 +498,7 @@ func TestRecheckTxs_UntouchedSenderNeverRechecked(t *testing.T) {
 
 // Known limitation: the timeout sweep evicts an expired middle nonce, but the
 // surviving higher nonce of the same (untouched) sender is left in the pool with
-// a nonce gap. Recheck won't catch it — the sender isn't in pending — so the
+// a nonce gap. Recheck won't catch it — the sender isn't in recheckSenders — so the
 // higher-nonce tx can still be reaped into a proposal and fail the AnteHandler at
 // FinalizeBlock. This test pins that behavior so a future fix is a deliberate change.
 func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
@@ -506,7 +506,7 @@ func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5) // nonce 0, times out at height 5
 	gapped := f.addTimeout(2, "carol", 1, "carol-1", 0)  // nonce 1, no timeout
 
-	f.a.lastCommittedHeight = 5 // sweep evicts nonce 0; carol not in pending
+	f.a.lastCommittedHeight = 5 // sweep evicts nonce 0; carol not in recheckSenders
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
@@ -535,7 +535,7 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
 	_ = pool.Insert(context.Background(), tx)
-	a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	a.RecheckTxs()
 
@@ -640,7 +640,7 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 	for i := 0; i < total; i++ {
 		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.lastCommittedHeight = 100 // first sighting: arrival=100
 	f.a.RecheckTxs()
@@ -648,7 +648,7 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 		t.Fatalf("cycle1: batch cap must bound recheck to 1, got %d", got)
 	}
 
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.lastCommittedHeight = 102 // 102-100 == 2 == ttl → all aged out
 	before := len(f.runner.modes)
 	f.a.RecheckTxs()
@@ -677,7 +677,7 @@ func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 	for i := 0; i < total; i++ {
 		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
-	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	f.a.lastCommittedHeight = 50 // arrival=50 for all
 	f.a.RecheckTxs()
@@ -685,7 +685,7 @@ func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 		t.Fatal("precondition: batch cap must have carried overflow")
 	}
 
-	// Jump past TTL with empty pending: only the scan sweep runs. The deferred
+	// Jump past TTL with empty recheckSenders: only the scan sweep runs. The deferred
 	// carryover must be evicted, not survive as stale candidates.
 	f.a.lastCommittedHeight = 53 // 53-50 == 3 == ttl
 	f.a.RecheckTxs()

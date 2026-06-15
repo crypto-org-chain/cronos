@@ -40,12 +40,12 @@ type Admitter struct {
 	decoder sdk.TxDecoder
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
-	// pendingMu guards the staging fields (pending, deferred, lastCommittedHeight).
+	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
 	// Separate from mu so FinalizeBlock staging never blocks behind mu's RunTx batches.
-	pendingMu sync.Mutex
-	// pending accumulates senders of committed blocks awaiting recheck; merged
+	stagingMu sync.Mutex
+	// recheckSenders accumulates senders of committed blocks awaiting recheck; merged
 	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
-	pending map[string]struct{}
+	recheckSenders map[string]struct{}
 	// deferred carries candidates past maxRecheckBatch to the next cycle, so a
 	// deep per-sender queue eventually drains instead of being silently dropped.
 	deferred            []sdk.Tx
@@ -181,7 +181,7 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 // committed height for TimeoutHeight eviction.
 func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
-	// and pending in one critical section so a reader never sees a torn update.
+	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
 	if a.signer != nil && a.decoder != nil {
 		senders = make(map[string]struct{}, len(txs))
@@ -196,18 +196,18 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 		}
 	}
 
-	a.pendingMu.Lock()
+	a.stagingMu.Lock()
 	a.lastCommittedHeight = height
-	if a.pending == nil {
-		a.pending = senders
+	if a.recheckSenders == nil {
+		a.recheckSenders = senders
 	} else {
 		// Merge, don't overwrite: a prior block whose Commit skipped RecheckTxs
 		// (e.g. Commit error) still has senders staged here that must not be lost.
 		for s := range senders {
-			a.pending[s] = struct{}{}
+			a.recheckSenders[s] = struct{}{}
 		}
 	}
-	a.pendingMu.Unlock()
+	a.stagingMu.Unlock()
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
@@ -217,30 +217,30 @@ func (a *Admitter) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
-	pending, height, deferred := a.drainStaging()
-	// Before the first block (height 0) with no pending/carry there's nothing to scan.
-	if len(pending) == 0 && len(deferred) == 0 && height == 0 {
+	recheckSenders, height, deferred := a.drainStaging()
+	// Before the first block (height 0) with no senders/carry there's nothing to scan.
+	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.selectTxs(snapshot, pending, height, deferred)
+	candidates := a.selectTxs(snapshot, recheckSenders, height, deferred)
 	candidates = a.capRecheckTxs(candidates)
 	a.runRecheck(candidates)
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
-func (a *Admitter) drainStaging() (pending map[string]struct{}, height int64, deferred []sdk.Tx) {
-	a.pendingMu.Lock()
-	defer a.pendingMu.Unlock()
-	pending, height, deferred = a.pending, a.lastCommittedHeight, a.deferred
-	a.pending = nil
+func (a *Admitter) drainStaging() (recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+	a.stagingMu.Lock()
+	defer a.stagingMu.Unlock()
+	recheckSenders, height, deferred = a.recheckSenders, a.lastCommittedHeight, a.deferred
+	a.recheckSenders = nil
 	a.deferred = nil
 	return
 }
 
 // selectTxs scans the pool to retrieve txs for recheck.
-func (a *Admitter) selectTxs(snapshot []sdk.Tx, pending map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
+func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
@@ -281,11 +281,11 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, pending map[string]struct{}, hei
 				deferredLive[tx] = true
 			}
 		}
-		if len(pending) == 0 {
+		if len(recheckSenders) == 0 {
 			continue
 		}
 		for _, s := range a.signers(tx) {
-			if _, ok := pending[s]; ok {
+			if _, ok := recheckSenders[s]; ok {
 				candidates = append(candidates, tx)
 				break
 			}
@@ -326,9 +326,9 @@ func (a *Admitter) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	}
 	carried := make([]sdk.Tx, len(candidates)-a.maxRecheckBatch)
 	copy(carried, candidates[a.maxRecheckBatch:])
-	a.pendingMu.Lock()
+	a.stagingMu.Lock()
 	a.deferred = carried
-	a.pendingMu.Unlock()
+	a.stagingMu.Unlock()
 	return candidates[:a.maxRecheckBatch]
 }
 
