@@ -314,21 +314,20 @@ func (a *Admitter) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. RunTx
-// mutates checkState, so mu serializes it against admission and the post-Commit reset.
+// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. mu is
+// locked per tx, not across the batch, so admission interleaves; EncodeTx/Evict
+// need no lock (encCache is self-synced).
 func (a *Admitter) runRecheck(candidates []sdk.Tx) {
-	if len(candidates) == 0 {
-		return
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	var evicted float32
 	for _, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
 			continue
 		}
-		if _, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil); err != nil {
+		a.mu.Lock()
+		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
+		a.mu.Unlock()
+		if err != nil {
 			a.encCache.Evict(tx)
 			evicted++
 		}
