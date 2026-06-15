@@ -102,7 +102,18 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 		a.mu.Lock()
 		defer a.mu.Unlock()
 
-		_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, req.Tx, nil, -1, nil, nil)
+		// Decode once when caching so RunTx and cacheTx share the tx instead of
+		// each re-decoding req.Tx; nil tx lets RunTx decode when there's no cache.
+		var tx sdk.Tx
+		if a.encCache != nil {
+			var err error
+			if tx, err = a.decoder(req.Tx); err != nil {
+				_, code, _ := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode.Wrap(err.Error()), false)
+				return &abci.ResponseInsertTx{Code: code}, nil
+			}
+		}
+
+		_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, req.Tx, tx, -1, nil, nil)
 		if err != nil {
 			if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 				return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
@@ -111,18 +122,15 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			return &abci.ResponseInsertTx{Code: code}, nil
 		}
 
-		a.cacheTx(req.Tx)
+		a.cacheTx(tx, req.Tx)
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
 }
 
-// cacheTx registers tx in the encoder cache.
-func (a *Admitter) cacheTx(raw []byte) {
+// cacheTx registers the already-decoded tx under its canonical bytes (raw
+// req.Tx bytes on encode error). No-op without a cache.
+func (a *Admitter) cacheTx(tx sdk.Tx, raw []byte) {
 	if a.encCache == nil {
-		return
-	}
-	tx, err := a.decoder(raw)
-	if err != nil {
 		return
 	}
 	bz := raw
@@ -139,12 +147,22 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 		a.mu.Lock()
 		defer a.mu.Unlock()
 
-		gasInfo, result, anteEvents, err := runTx(req.Tx, nil)
+		// Decode once when caching so runTx and cacheTx share the tx; nil tx lets
+		// runTx decode when there's no cache (see InsertTxHandler).
+		var tx sdk.Tx
+		if a.encCache != nil {
+			var err error
+			if tx, err = a.decoder(req.Tx); err != nil {
+				return sdkerrors.ResponseCheckTxWithEvents(sdkerrors.ErrTxDecode.Wrap(err.Error()), 0, 0, nil, a.trace), nil
+			}
+		}
+
+		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		a.cacheTx(req.Tx)
+		a.cacheTx(tx, req.Tx)
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.

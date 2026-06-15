@@ -211,17 +211,13 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
 	tx := &ptrTx{}
 
-	var decoderCalled bool
-	decoder := func([]byte) (sdk.Tx, error) { decoderCalled = true; return tx, nil }
+	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
 	enc := NewEncoderCache(0, 0)
 	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if decoderCalled {
-		t.Fatal("decoder must not run for a rejected tx")
 	}
 	if _, ok := enc.Get(tx); ok {
 		t.Fatal("rejected tx must not be registered in encCache")
@@ -342,8 +338,7 @@ func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
 
 func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	tx := &ptrTx{}
-	var decoderCalled bool
-	decoder := func([]byte) (sdk.Tx, error) { decoderCalled = true; return tx, nil }
+	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	enc := NewEncoderCache(0, 0)
 	a := newAdmitter(&stubRunner{}, enc, noopEncoder, decoder)
 	check := a.CheckTxHandler()
@@ -354,9 +349,6 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 	if _, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if decoderCalled {
-		t.Fatal("decoder must not run for a rejected tx")
 	}
 	if _, ok := enc.Get(tx); ok {
 		t.Fatal("rejected tx must not be registered")
