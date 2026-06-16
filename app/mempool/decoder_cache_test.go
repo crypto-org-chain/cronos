@@ -42,7 +42,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	raw := makeRaw(42)
@@ -75,7 +75,7 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	bad := []byte{1, 2} // too short → error from base
@@ -93,7 +93,7 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	const n = 10
@@ -116,7 +116,7 @@ func TestDecodeCache_DifferentPayloads(t *testing.T) {
 }
 
 func TestDecodeCache_LRUEviction(t *testing.T) {
-	const shardCacheSize = cmdcfg.DefaultTxCacheSize / shardCount
+	const shardCacheSize = 2 * cmdcfg.DefaultMempoolTxsPerBlock / shardCount
 	s := &cacheShard{cap: shardCacheSize, items: make(map[uint64]*list.Element, shardCacheSize)}
 
 	// Fill shard to capacity with keys 0..shardCacheSize-1.
@@ -157,10 +157,10 @@ func countEntries(c *DecodeCache) int {
 
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
-	for i := uint64(0); i < 2*cmdcfg.DefaultTxCacheSize; i++ {
+	for i := uint64(0); i < 2*2*cmdcfg.DefaultMempoolTxsPerBlock; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
 			t.Fatalf("insert %d: %v", i, err)
 		}
@@ -170,14 +170,14 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 	if got == 0 {
 		t.Fatal("cache is empty after inserts — no entries were cached")
 	}
-	if got > cmdcfg.DefaultTxCacheSize {
-		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, cmdcfg.DefaultTxCacheSize)
+	if got > 2*cmdcfg.DefaultMempoolTxsPerBlock {
+		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, 2*cmdcfg.DefaultMempoolTxsPerBlock)
 	}
 }
 
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	const goroutines = 16
@@ -216,7 +216,7 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	big := make([]byte, cmdcfg.DefaultTxCacheMaxTxBytes+1)
@@ -250,7 +250,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := NewDecodeCache(cmdcfg.DefaultTxCacheSize, customMax)
+	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, customMax)
 	dec := NewCachingDecoder(base, c)
 
 	// Above cap: each call must miss.
@@ -284,7 +284,7 @@ func TestDecodeCache_DefaultsOnZero(t *testing.T) {
 	if c.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
 		t.Fatalf("maxTxBytes = %d, want default %d", c.maxTxBytes, cmdcfg.DefaultTxCacheMaxTxBytes)
 	}
-	wantShardCap := (cmdcfg.DefaultTxCacheSize + shardCount - 1) / shardCount
+	wantShardCap := (2*cmdcfg.DefaultMempoolTxsPerBlock + shardCount - 1) / shardCount
 	if got := c.shards[0].cap; got != wantShardCap {
 		t.Fatalf("shard cap = %d, want %d (default size / shardCount)", got, wantShardCap)
 	}

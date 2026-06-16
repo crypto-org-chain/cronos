@@ -42,7 +42,6 @@ type CronosConfig struct {
 // Defaults live here (not app/) because app/ imports this package and both
 // DefaultCronosConfig() and app's New() need them.
 const (
-	DefaultTxCacheSize       = 10000
 	DefaultTxCacheMaxTxBytes = 65536
 	// DefaultMempoolGossipTTL re-gossips a resident tx at most ~once per window;
 	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
@@ -85,11 +84,12 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:                DefaultTxCacheSize,
-		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
-		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
-		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
+		// TxCacheSize 0 = derive at startup: 2×MempoolTxsPerBlock, or disabled when unlimited.
+		TxCacheSize:         0,
+		TxCacheMaxTxBytes:   DefaultTxCacheMaxTxBytes,
+		MempoolGossipTTL:    DefaultMempoolGossipTTL,
+		MempoolTxsPerBlock:  DefaultMempoolTxsPerBlock,
+		MempoolTTLNumBlocks: DefaultMempoolTTLNumBlocks,
 	}
 }
 

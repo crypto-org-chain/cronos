@@ -361,14 +361,31 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
+	// txsPerBlock must be resolved before txCacheSize: the default cache size
+	// derives from it (2×), and unlimited mempool (0) disables the cache.
+	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
+	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+		}
+		txsPerBlock = parsed
+	}
 	var activeDecoder sdk.TxDecoder
-	txCacheSize := cmdcfg.DefaultTxCacheSize
+	// Default: 2× txsPerBlock. 0 (unlimited mempool) → -1 (disabled).
+	defaultTxCacheSize := 2 * txsPerBlock
+	if txsPerBlock == 0 {
+		defaultTxCacheSize = -1
+	}
+	txCacheSize := defaultTxCacheSize
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
 			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
 		}
-		txCacheSize = parsed
+		if parsed != 0 { // 0 = unset/derive from txsPerBlock
+			txCacheSize = parsed
+		}
 	}
 	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
 	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
@@ -428,16 +445,6 @@ func New(
 			panic(fmt.Errorf("invalid %s %q: %w", FlagMempoolGossipTTL, v, err))
 		}
 		gossipTTL = parsed
-	}
-	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
-	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
-		// Parse strictly: a silent 0/negative would disable the gossip-reap and
-		// recheck-batch caps (both treat <=0 as unlimited), removing the DoS bound.
-		parsed, err := cast.ToIntE(v)
-		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
-		}
-		txsPerBlock = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
 	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {

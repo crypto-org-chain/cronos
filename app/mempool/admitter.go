@@ -236,7 +236,7 @@ func (a *Admitter) drainStaging() (recheckSenders map[string]struct{}, height in
 	recheckSenders, height, deferred = a.recheckSenders, a.lastCommittedHeight, a.deferred
 	a.recheckSenders = nil
 	a.deferred = nil
-	return
+	return recheckSenders, height, deferred
 }
 
 // selectTxs scans the pool to retrieve txs for recheck.

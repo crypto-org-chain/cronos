@@ -100,11 +100,8 @@ type DecodeCache struct {
 }
 
 // NewDecodeCache returns a cache with total capacity ~size and per-entry
-// payload cap maxTxBytes. Pass 0 for either to use defaults.
+// payload cap maxTxBytes. Pass 0 for maxTxBytes to use the config default.
 func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
-	if size == 0 {
-		size = cmdcfg.DefaultTxCacheSize
-	}
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}

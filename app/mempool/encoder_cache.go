@@ -29,11 +29,8 @@ type item struct {
 
 // NewEncoderCache returns an LRU-bounded cache holding at most size entries,
 // skipping txs whose canonical bytes exceed maxTxBytes (mirrors DecodeCache).
-// Pass 0 for size/maxTxBytes to fall back to the cmdcfg defaults.
+// Pass 0 for maxTxBytes to fall back to the cmdcfg default.
 func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
-	if size == 0 {
-		size = cmdcfg.DefaultTxCacheSize
-	}
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
