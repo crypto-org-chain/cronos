@@ -157,10 +157,11 @@ func countEntries(c *DecodeCache) int {
 
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
-	c := NewDecodeCache(2*cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
+	const size = 2 * cmdcfg.DefaultMempoolTxsPerBlock
+	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
-	for i := uint64(0); i < 2*2*cmdcfg.DefaultMempoolTxsPerBlock; i++ {
+	for i := uint64(0); i < 2*size; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
 			t.Fatalf("insert %d: %v", i, err)
 		}
@@ -170,8 +171,10 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 	if got == 0 {
 		t.Fatal("cache is empty after inserts — no entries were cached")
 	}
-	if got > 2*cmdcfg.DefaultMempoolTxsPerBlock {
-		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, 2*cmdcfg.DefaultMempoolTxsPerBlock)
+	// Actual capacity is shard-rounded up: shards each hold ceil(size/shardCount).
+	actualCap := shardCount * ((size + shardCount - 1) / shardCount)
+	if got > actualCap {
+		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, actualCap)
 	}
 }
 
