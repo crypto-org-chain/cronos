@@ -46,6 +46,9 @@
       },
       "json-rpc": {
         "enable-indexer": false
+      },
+      "cronos": {
+        "mempool-txs-per-block": 5000
       }
     },
     "genesis_patch": {
