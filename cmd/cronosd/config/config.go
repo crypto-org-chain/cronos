@@ -50,6 +50,10 @@ const (
 	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
 	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
 	DefaultMempoolTxsPerBlock = 2900
+	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
+	// is unset (0): two full blocks so the cache survives one proposal + one gossip
+	// reap cycle without eviction pressure.
+	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
