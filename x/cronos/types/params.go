@@ -145,26 +145,9 @@ func validateIsEvmAddresses(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 	for _, addr := range addrs {
-		if err := validateIsEvmAddress(addr); err != nil {
-			return err
+		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
+			return fmt.Errorf("invalid evm address: %s: must be a non-zero EVM hex address", addr)
 		}
-	}
-	return nil
-}
-
-func validateIsEvmAddress(i interface{}) error {
-	s, ok := i.(string)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-	if len(s) == 0 {
-		return nil
-	}
-	if !common.IsHexAddress(s) {
-		return fmt.Errorf("invalid evm address: %s", s)
-	}
-	if (common.HexToAddress(s) == common.Address{}) {
-		return fmt.Errorf("evm address must not be the zero address")
 	}
 	return nil
 }
