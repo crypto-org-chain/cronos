@@ -361,8 +361,6 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
-	// txsPerBlock must be resolved before txCacheSize: the default cache size
-	// derives from it (2×), and unlimited mempool (0) disables the cache.
 	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
 	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
 		parsed, err := cast.ToIntE(v)
@@ -372,7 +370,7 @@ func New(
 		txsPerBlock = parsed
 	}
 	var activeDecoder sdk.TxDecoder
-	// Default: 2× txsPerBlock. 0 (unlimited mempool) → -1 (disabled).
+	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
 	defaultTxCacheSize := 2 * txsPerBlock
 	if txsPerBlock == 0 {
 		defaultTxCacheSize = -1
@@ -383,7 +381,7 @@ func New(
 		if err != nil {
 			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
 		}
-		if parsed != 0 { // 0 = unset/derive from txsPerBlock
+		if parsed != 0 { // 0 = unset/derive
 			txCacheSize = parsed
 		}
 	}

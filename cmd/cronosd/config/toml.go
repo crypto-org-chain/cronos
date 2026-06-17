@@ -14,8 +14,8 @@ disable-tx-replacement = {{ .Cronos.DisableTxReplacement }}
 # Set to true to disable optimistic execution (not recommended on validator nodes).
 disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 
-# Capacity of the sharded LRU tx encode/decode cache. Set to 0 to disable the cache
-# entirely (raw decoder used). Default 10000.
+# Capacity of the sharded LRU tx encode/decode cache.
+# 0 = derive from mempool-txs-per-block at startup (2×, default 5800). -1 = disable entirely.
 tx-cache-size = {{ .Cronos.TxCacheSize }}
 
 # Per-entry raw payload byte cap for the tx encode/decode cache. Txs larger than this
