@@ -52,6 +52,7 @@ def test_evm_update_param(cronos, tmp_path):
 def test_gov_update_params(cronos):
     params = {
         "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
+        "cro_bridge_contract_addresses": [],
         "enable_auto_deployment": False,
         "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
         "A8988F9B7D5E7E233D8414DB6817F8F1A01600000",

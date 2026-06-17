@@ -8,6 +8,7 @@ import (
 
 	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -19,11 +20,23 @@ import (
 
 const planName = "v1.8"
 
+// croBridgeContractAddresses are the EVM addresses of CroBridge contracts
+// authorized on Cronos mainnet. Empty list disables the SendCroToIbc hook.
+var croBridgeContractAddresses = []string{
+	"0x6b1b50c2223eb31E0d4683b046ea9C6CB0D0ea4F",
+	"0xCE13a6F3d4167CE958f4764D423e6D62a114c751",
+}
+
 // RegisterUpgradeHandlers returns if store loader is overridden.
 // No store-key churn from v0.53→v0.54 in this app, so the default
 // MaxVersionStoreLoader (set by the caller when this returns false)
 // covers both regular and upgrade-height boots.
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
+	for _, addr := range croBridgeContractAddresses {
+		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
+			panic(fmt.Sprintf("invalid croBridgeContractAddresses entry %q: must be a non-zero EVM hex address", addr))
+		}
+	}
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			toVM, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
@@ -49,6 +62,14 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 				runtime.NewKVStoreService(app.keys[ibcexported.StoreKey]).OpenKVStore(sdkCtx),
 			)); err != nil {
 				return toVM, fmt.Errorf("prune stale ibc consensus state subkeys: %w", err)
+			}
+			// Set CroBridgeContractAddresses to authorize the canonical CroBridge contracts
+			// for the SendCroToIbc hook. This closes the unauthenticated-drain vulnerability
+			// where any contract emitting __CronosSendCroToIbc could drain CRO balances.
+			cronosParams := app.CronosKeeper.GetParams(sdkCtx)
+			cronosParams.CroBridgeContractAddresses = croBridgeContractAddresses
+			if err := app.CronosKeeper.SetParams(sdkCtx, cronosParams); err != nil {
+				return toVM, fmt.Errorf("set cro bridge contract addresses: %w", err)
 			}
 			return toVM, nil
 		},
