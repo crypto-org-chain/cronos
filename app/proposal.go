@@ -65,7 +65,10 @@ func (ts *ExtTxSelector) Clear() {
 	ts.totalGas = 0
 	ts.baseFee = nil
 	ts.evmDenom = ""
-	ts.gateSkipped = nil
+	// gateSkipped is intentionally NOT cleared here: DefaultProposalHandler
+	// defers Clear() inside inner(), so it runs before our wrapper calls
+	// DrainGateSkipped(). Lifecycle: SelectTxForProposal accumulates →
+	// inner returns (Clear fires) → DrainGateSkipped drains and nulls.
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the

@@ -496,13 +496,11 @@ func TestRecheckTxs_UntouchedSenderNeverRechecked(t *testing.T) {
 	}
 }
 
-// Known limitation: the timeout sweep evicts an expired middle nonce, but the
-// surviving higher nonce of the same (untouched) sender is left in the pool with
-// a nonce gap. Recheck won't catch it — the sender isn't in recheckSenders — so the
-// higher-nonce tx can still be reaped into a proposal and fail the AnteHandler at
-// FinalizeBlock. This test pins that behavior so a future fix is a deliberate change.
-func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
-	f := newRecheckFixture()
+func TestRecheckTxs_NonceGapAfterTimeoutEvictionRechecked(t *testing.T) {
+	// When a lower-nonce tx is timeout-evicted, the higher-nonce sibling must be
+	// rechecked even though the sender never committed a block tx. Without the fix
+	// the sibling would stay in the pool, enter proposals, and fail FinalizeBlock.
+	f := newRecheckFixture("carol-1") // carol-1 fails recheck (nonce gap)
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5) // nonce 0, times out at height 5
 	gapped := f.addTimeout(2, "carol", 1, "carol-1", 0)  // nonce 1, no timeout
 
@@ -510,13 +508,38 @@ func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
-		t.Fatal("expired middle nonce must be swept")
+		t.Fatal("expired tx must be swept")
 	}
-	if !poolHas(f.pool, gapped) {
-		t.Fatal("higher nonce survives the sweep, leaving a nonce gap recheck won't catch")
+	if !f.runner.seen["carol-1"] {
+		t.Fatal("gapped sibling must be rechecked after its predecessor was evicted")
 	}
-	if f.runner.seen["carol-1"] {
-		t.Fatal("untouched sender's surviving tx must not be rechecked")
+	if poolHas(f.pool, gapped) {
+		t.Fatal("gapped sibling must be evicted after failing recheck")
+	}
+}
+
+func TestRecheckTxs_NonceGapAfterTTLEvictionRechecked(t *testing.T) {
+	// Same class of bug as the TimeoutHeight variant: TTL-evicted lower-nonce tx
+	// must trigger recheck of the surviving higher-nonce sibling.
+	f := newRecheckFixture("carol-1") // carol-1 fails recheck (nonce gap)
+	f.a.ttlNumBlocks = 5
+	aged := f.add(1, "carol", 0, "carol-0")
+	gapped := f.add(2, "carol", 1, "carol-1")
+
+	// Seed arrival directly: aged has been in pool 5+ blocks; gapped just arrived.
+	f.a.arrival = map[sdk.Tx]int64{aged: 5, gapped: 10}
+
+	f.a.lastCommittedHeight = 10 // aged: 10-5=5 >= ttl → evicted; gapped: 10-10=0 → survives
+	f.a.RecheckTxs()
+
+	if poolHas(f.pool, aged) {
+		t.Fatal("TTL-expired tx must be swept")
+	}
+	if !f.runner.seen["carol-1"] {
+		t.Fatal("gapped sibling must be rechecked after its predecessor was TTL-evicted")
+	}
+	if poolHas(f.pool, gapped) {
+		t.Fatal("gapped sibling must be evicted after failing recheck")
 	}
 }
 

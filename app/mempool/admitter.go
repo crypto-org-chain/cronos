@@ -284,7 +284,6 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct
 	}
 
 	var (
-		candidates     []sdk.Tx
 		expiredEvicted float32
 		ttlEvicted     float32
 	)
@@ -293,21 +292,60 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct
 	if a.ttlNumBlocks > 0 {
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
+
+	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
+	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
+	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	now := time.Now()
 	for _, tx := range snapshot {
 		if txTimedout(tx, height, now) {
 			a.evict(tx)
+			if evictedSet == nil {
+				evictedSet = make(map[sdk.Tx]struct{})
+			}
+			evictedSet[tx] = struct{}{}
 			expiredEvicted++
+			for _, s := range a.signers(tx) {
+				if recheckSenders == nil {
+					recheckSenders = make(map[string]struct{})
+				}
+				recheckSenders[s] = struct{}{}
+			}
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
 				a.evict(tx)
+				if evictedSet == nil {
+					evictedSet = make(map[sdk.Tx]struct{})
+				}
+				evictedSet[tx] = struct{}{}
 				ttlEvicted++
+				for _, s := range a.signers(tx) {
+					if recheckSenders == nil {
+						recheckSenders = make(map[string]struct{})
+					}
+					recheckSenders[s] = struct{}{}
+				}
 				continue
 			}
 			newArrival[tx] = arrived
+		}
+	}
+	a.arrival = newArrival
+	if expiredEvicted > 0 {
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
+	}
+	if ttlEvicted > 0 {
+		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
+	}
+
+	// Pass 2: candidate selection over surviving (non-evicted) txs.
+	var candidates []sdk.Tx
+	for _, tx := range snapshot {
+		if _, wasEvicted := evictedSet[tx]; wasEvicted {
+			continue
 		}
 		if deferredLive != nil {
 			if _, isDeferred := deferredLive[tx]; isDeferred {
@@ -323,13 +361,6 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct
 				break
 			}
 		}
-	}
-	a.arrival = newArrival
-	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
-	}
-	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
 	}
 
 	if len(deferred) == 0 {

@@ -90,14 +90,17 @@ func TestExtTxSelector(t *testing.T) {
 		require.Nil(t, ts.DrainGateSkipped())
 	})
 
-	t.Run("Clear resets gateSkipped", func(t *testing.T) {
+	t.Run("Clear does NOT reset gateSkipped; only DrainGateSkipped does", func(t *testing.T) {
+		// DefaultProposalHandler defers Clear() inside inner(), so it fires before
+		// our wrapper calls DrainGateSkipped(). gateSkipped must survive Clear().
 		const denom = "basecro"
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
 		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
-		ts.Clear()
-		require.Nil(t, ts.DrainGateSkipped(), "Clear must reset gateSkipped so a failed proposal doesn't carry stale senders")
+		ts.Clear() // simulates the defer inside DefaultProposalHandler.PrepareProposalHandler
+		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped(), "gateSkipped must survive Clear()")
+		require.Nil(t, ts.DrainGateSkipped(), "DrainGateSkipped itself must null the slice")
 	})
 
 	t.Run("nil baseFee disables the gate", func(t *testing.T) {
