@@ -821,6 +821,7 @@ func TestStageSkippedSenders_TriggerRecheckNextCycle(t *testing.T) {
 		t.Fatal("evicted tx must be removed from encCache")
 	}
 }
+
 // encCache (app.go). A TTL/timeout eviction must not panic on encCache.Evict.
 func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
