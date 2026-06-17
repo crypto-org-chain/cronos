@@ -89,11 +89,11 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:         0, // 0 = derive: 2×MempoolTxsPerBlock at startup, -1 when unlimited
-		TxCacheMaxTxBytes:   DefaultTxCacheMaxTxBytes,
-		MempoolGossipTTL:    DefaultMempoolGossipTTL,
-		MempoolTxsPerBlock:  DefaultMempoolTxsPerBlock,
-		MempoolTTLNumBlocks: DefaultMempoolTTLNumBlocks,
+		TxCacheSize:                0, // 0 = derive: 2×MempoolTxsPerBlock at startup, -1 when unlimited
+		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
+		MempoolGossipTTL:           DefaultMempoolGossipTTL,
+		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
+		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
 	}
 }
 

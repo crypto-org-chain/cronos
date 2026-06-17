@@ -500,7 +500,7 @@ func TestRecheckTxs_NonceGapAfterTimeoutEvictionRechecked(t *testing.T) {
 	// When a lower-nonce tx is timeout-evicted, the higher-nonce sibling must be
 	// rechecked even though the sender never committed a block tx. Without the fix
 	// the sibling would stay in the pool, enter proposals, and fail FinalizeBlock.
-	f := newRecheckFixture("carol-1") // carol-1 fails recheck (nonce gap)
+	f := newRecheckFixture("carol-1")                    // carol-1 fails recheck (nonce gap)
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5) // nonce 0, times out at height 5
 	gapped := f.addTimeout(2, "carol", 1, "carol-1", 0)  // nonce 1, no timeout
 
