@@ -99,11 +99,8 @@ func (a *Admitter) AdmissionMutex() *sync.Mutex {
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		a.mu.Lock()
-		defer a.mu.Unlock()
-
-		// Decode once when caching so RunTx and cacheTx share the tx instead of
-		// each re-decoding req.Tx; nil tx lets RunTx decode when there's no cache.
+		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
+		// DecodeCache have their own locks. Bad txs return without acquiring mu.
 		var tx sdk.Tx
 		if a.encCache != nil {
 			var err error
@@ -112,6 +109,9 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 				return &abci.ResponseInsertTx{Code: code}, nil
 			}
 		}
+
+		a.mu.Lock()
+		defer a.mu.Unlock()
 
 		_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, req.Tx, tx, -1, nil, nil)
 		if err != nil {
@@ -144,11 +144,8 @@ func (a *Admitter) cacheTx(tx sdk.Tx, raw []byte) {
 // the exec mode; its panics are recovered inside BaseApp.RunTx.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-		a.mu.Lock()
-		defer a.mu.Unlock()
-
-		// Decode once when caching so runTx and cacheTx share the tx; nil tx lets
-		// runTx decode when there's no cache (see InsertTxHandler).
+		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
+		// DecodeCache have their own locks. Bad txs return without acquiring mu.
 		var tx sdk.Tx
 		if a.encCache != nil {
 			var err error
@@ -156,6 +153,9 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 				return sdkerrors.ResponseCheckTxWithEvents(sdkerrors.ErrTxDecode.Wrap(err.Error()), 0, 0, nil, a.trace), nil
 			}
 		}
+
+		a.mu.Lock()
+		defer a.mu.Unlock()
 
 		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
 		if err != nil {
