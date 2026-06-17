@@ -513,11 +513,22 @@ func New(
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
 			// blocklist + baseFee gate.
 			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
-			h.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate))
+			extSel := NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate)
+			h.SetTxSelector(extSel)
 			if signerExtractor != nil {
 				h.SetSignerExtractionAdapter(signerExtractor)
 			}
-			app.SetPrepareProposal(h.PrepareProposalHandler())
+			inner := h.PrepareProposalHandler()
+			// Stage gate-skipped senders for recheck so base-fee-stranded txs are
+			// evicted in ~1 block instead of waiting for the TTL.
+			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+				resp, err := inner(ctx, req)
+				skipped := extSel.DrainGateSkipped() // always drain; stale on error
+				if err == nil && mempoolAdmitter != nil && len(skipped) > 0 {
+					mempoolAdmitter.StageSkippedSenders(skipped)
+				}
+				return resp, err
+			})
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte

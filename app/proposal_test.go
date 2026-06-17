@@ -73,6 +73,33 @@ func TestExtTxSelector(t *testing.T) {
 		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
+	t.Run("gate-skipped bytes accumulated in gateSkipped, accepted bytes excluded", func(t *testing.T) {
+		const denom = "basecro"
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
+		ts := NewExtTxSelector(acceptAll, feeFn)
+		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))} // feeCap=10 < 20 → skip
+		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // feeCap=40 >= 20 → select
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
+		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped())
+		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
+	})
+
+	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
+		ts := NewExtTxSelector(acceptAll, nil)
+		require.Nil(t, ts.DrainGateSkipped())
+	})
+
+	t.Run("Clear resets gateSkipped", func(t *testing.T) {
+		const denom = "basecro"
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
+		ts := NewExtTxSelector(acceptAll, feeFn)
+		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.Clear()
+		require.Nil(t, ts.DrainGateSkipped(), "Clear must reset gateSkipped so a failed proposal doesn't carry stale senders")
+	})
+
 	t.Run("nil baseFee disables the gate", func(t *testing.T) {
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return nil, "basecro" }
 		ts := NewExtTxSelector(acceptAll, feeFn)

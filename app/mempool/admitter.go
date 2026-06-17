@@ -87,6 +87,38 @@ func newAdmitter(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncode
 	}
 }
 
+// StageSkippedSenders merges the senders of proposal-gate-rejected txs into
+// recheckSenders without touching lastCommittedHeight (which StageRecheckSenders owns).
+// Called from the PrepareProposal wrapper so stranded senders are re-validated at the
+// next RecheckTxs cycle (~1 block) instead of waiting for the TTL.
+func (a *Admitter) StageSkippedSenders(txs [][]byte) {
+	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
+		return
+	}
+	senders := make(map[string]struct{}, len(txs))
+	for _, bz := range txs {
+		tx, err := a.decoder(bz)
+		if err != nil {
+			continue
+		}
+		for _, s := range a.signers(tx) {
+			senders[s] = struct{}{}
+		}
+	}
+	if len(senders) == 0 {
+		return
+	}
+	a.stagingMu.Lock()
+	if a.recheckSenders == nil {
+		a.recheckSenders = senders
+	} else {
+		for s := range senders {
+			a.recheckSenders[s] = struct{}{}
+		}
+	}
+	a.stagingMu.Unlock()
+}
+
 // AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
 // against lock-free admission. The pointer is stable (Admitter is heap-allocated).
 func (a *Admitter) AdmissionMutex() *sync.Mutex {
@@ -227,6 +259,7 @@ func (a *Admitter) RecheckTxs() {
 	candidates := a.selectTxs(snapshot, recheckSenders, height, deferred)
 	candidates = a.capRecheckTxs(candidates)
 	a.runRecheck(candidates)
+	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.

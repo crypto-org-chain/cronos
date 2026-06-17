@@ -43,6 +43,10 @@ type ExtTxSelector struct {
 	// FeeTx (nil baseFee == not yet fetched, or gate disabled), reset by Clear.
 	baseFee  *big.Int
 	evmDenom string
+
+	// gateSkipped accumulates raw bytes of txs rejected by the baseFee gate this
+	// round. Drained after each proposal so stranded senders are staged for recheck.
+	gateSkipped [][]byte
 }
 
 func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
@@ -61,6 +65,16 @@ func (ts *ExtTxSelector) Clear() {
 	ts.totalGas = 0
 	ts.baseFee = nil
 	ts.evmDenom = ""
+	ts.gateSkipped = nil
+}
+
+// DrainGateSkipped returns and clears the raw bytes of txs rejected by the
+// baseFee gate this proposal round. Called after PrepareProposal to stage
+// stranded senders for the next RecheckTxs cycle.
+func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
+	out := ts.gateSkipped
+	ts.gateSkipped = nil
+	return out
 }
 
 func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
@@ -88,6 +102,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 			if gas := feeTx.GetGas(); gas > 0 {
 				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
 				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
+					ts.gateSkipped = append(ts.gateSkipped, txBz)
+					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped")
 					return isFull()
 				}
 			}

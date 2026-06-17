@@ -700,7 +700,127 @@ func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 	}
 }
 
-// mempool.type=app with tx-cache-size=0 builds an Admitter with a nil
+func TestStageSkippedSenders_MergesIntoRecheckSenders(t *testing.T) {
+	tx := &ptrTx{id: 1}
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		tx: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+	}}
+	decoder := func(b []byte) (sdk.Tx, error) {
+		if string(b) == "a" {
+			return tx, nil
+		}
+		return nil, errors.New("unknown")
+	}
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+
+	a.StageSkippedSenders([][]byte{[]byte("a")})
+
+	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+		t.Fatal("gate-skipped sender must appear in recheckSenders")
+	}
+}
+
+func TestStageSkippedSenders_DoesNotTouchLastCommittedHeight(t *testing.T) {
+	tx := &ptrTx{id: 1}
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		tx: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+	}}
+	decoder := func(b []byte) (sdk.Tx, error) {
+		if string(b) == "a" {
+			return tx, nil
+		}
+		return nil, errors.New("unknown")
+	}
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+	a.lastCommittedHeight = 42
+
+	a.StageSkippedSenders([][]byte{[]byte("a")})
+
+	if a.lastCommittedHeight != 42 {
+		t.Fatalf("StageSkippedSenders must not touch lastCommittedHeight: got %d, want 42", a.lastCommittedHeight)
+	}
+}
+
+// StageSkippedSenders (PrepareProposal) and StageRecheckSenders (FinalizeBlock) both
+// write to recheckSenders; the second call must merge, not overwrite.
+func TestStageSkippedSenders_MergesWithCommittedSenders(t *testing.T) {
+	txA, txB := &ptrTx{id: 1}, &ptrTx{id: 2}
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		txA: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+		txB: {sdkmempool.NewSignerData(sdk.AccAddress("bob"), 0)},
+	}}
+	decoder := func(b []byte) (sdk.Tx, error) {
+		switch string(b) {
+		case "a":
+			return txA, nil
+		case "b":
+			return txB, nil
+		}
+		return nil, errors.New("unknown")
+	}
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+
+	a.StageRecheckSenders(10, [][]byte{[]byte("a")}) // alice from committed block
+	a.StageSkippedSenders([][]byte{[]byte("b")})     // bob from gate skip
+
+	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+		t.Fatal("committed sender must be preserved after StageSkippedSenders")
+	}
+	if _, ok := a.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
+		t.Fatal("gate-skipped sender must be merged in")
+	}
+	if a.lastCommittedHeight != 10 {
+		t.Fatalf("height must stay at 10, got %d", a.lastCommittedHeight)
+	}
+}
+
+func TestStageSkippedSenders_NilDecoderNoop(t *testing.T) {
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+	a.StageSkippedSenders([][]byte{[]byte("x")}) // decoder nil → must not panic
+	if a.recheckSenders != nil {
+		t.Fatal("nil decoder must leave recheckSenders unchanged")
+	}
+}
+
+func TestStageSkippedSenders_EmptyIsNoop(t *testing.T) {
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil })
+	a.StageSkippedSenders(nil)
+	a.StageSkippedSenders([][]byte{})
+	if a.recheckSenders != nil {
+		t.Fatal("empty input must not allocate recheckSenders")
+	}
+}
+
+// Gate-skipped senders staged via StageSkippedSenders are rechecked by the next
+// RecheckTxs cycle — reducing residency from TTL (~60 s) to ~1 block.
+func TestStageSkippedSenders_TriggerRecheckNextCycle(t *testing.T) {
+	f := newRecheckFixture("alice-0") // alice's recheck bytes fail ante
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	// Replace the stub decoder with one that maps the gate-skipped raw bytes to
+	// the stale tx. The fakeSigner already has stale → alice, so
+	// StageSkippedSenders extracts alice and adds her to recheckSenders.
+	gateSkippedBz := []byte("gate-skipped-alice")
+	f.a.decoder = func(b []byte) (sdk.Tx, error) {
+		if string(b) == string(gateSkippedBz) {
+			return stale, nil
+		}
+		return nil, errors.New("unknown")
+	}
+
+	f.a.StageSkippedSenders([][]byte{gateSkippedBz})
+	f.a.RecheckTxs()
+
+	if poolHas(f.pool, stale) {
+		t.Fatal("gate-skipped and recheck-failed tx must be evicted in one cycle")
+	}
+	if _, ok := f.enc.Get(stale); ok {
+		t.Fatal("evicted tx must be removed from encCache")
+	}
+}
 // encCache (app.go). A TTL/timeout eviction must not panic on encCache.Evict.
 func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
