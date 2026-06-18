@@ -277,9 +277,9 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed_under.raw_transaction)
     msg = str(exc_info.value).lower()
-    assert "replacement rule" in msg or "replacement" in msg, (
-        f"expected feebump rejection but got: {msg}"
-    )
+    assert (
+        "replacement rule" in msg or "replacement" in msg
+    ), f"expected feebump rejection but got: {msg}"
 
     # Wait for original tx to mine so sender state is clean for subsequent tests.
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
@@ -351,12 +351,12 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     msg = str(exc_info.value).lower()
 
     # Must be a nonce/sequence error — NOT the feebump rule
-    assert any(s in msg for s in ("nonce", "sequence")), (
-        f"expected nonce/sequence error but got: {msg}"
-    )
-    assert "replacement" not in msg, (
-        f"got feebump rule error — cache skip fired when it should not: {msg}"
-    )
+    assert any(
+        s in msg for s in ("nonce", "sequence")
+    ), f"expected nonce/sequence error but got: {msg}"
+    assert (
+        "replacement" not in msg
+    ), f"got feebump rule error — cache skip fired when it should not: {msg}"
 
     # Original tx must still mine (chain is functional)
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
