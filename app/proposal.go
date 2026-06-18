@@ -102,7 +102,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
 				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
 					ts.gateSkipped = append(ts.gateSkipped, txBz)
-					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped")
+					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped") //nolint:staticcheck
 					return isFull()
 				}
 			}
@@ -153,7 +153,7 @@ func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, 
 	if hit {
 		result = "hit"
 	}
-	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result)
+	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result) //nolint:staticcheck
 	return bz, err
 }
 
