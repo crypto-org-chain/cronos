@@ -335,7 +335,7 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct
 	}
 	a.arrival = newArrival
 	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")  //nolint:staticcheck
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck
 	}
 	if ttlEvicted > 0 {
 		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired") //nolint:staticcheck
