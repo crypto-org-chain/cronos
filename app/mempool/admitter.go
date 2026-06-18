@@ -9,9 +9,10 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 
+	metrics "github.com/hashicorp/go-metrics"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
-	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -259,7 +260,7 @@ func (a *Admitter) RecheckTxs() {
 	candidates := a.selectTxs(snapshot, recheckSenders, height, deferred)
 	candidates = a.capRecheckTxs(candidates)
 	a.runRecheck(candidates)
-	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
+	metrics.SetGaugeWithLabels([]string{"cronos", "mempool", "pool", "size"}, float32(a.mpool.CountTx()), nil)
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
@@ -335,10 +336,10 @@ func (a *Admitter) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct
 	}
 	a.arrival = newArrival
 	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
+		metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "recheck", "expired"}, expiredEvicted, nil)
 	}
 	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
+		metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "recheck", "ttl_expired"}, ttlEvicted, nil)
 	}
 
 	// Pass 2: candidate selection over surviving (non-evicted) txs.
@@ -415,7 +416,7 @@ func (a *Admitter) runRecheck(candidates []sdk.Tx) {
 		}
 	}
 	if evicted > 0 {
-		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
+		metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "recheck", "evicted"}, evicted, nil)
 	}
 }
 

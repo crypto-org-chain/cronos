@@ -3,15 +3,17 @@ package mempool
 import (
 	"context"
 	"math/bits"
+	"time"
 
-	"github.com/cosmos/cosmos-sdk/telemetry"
+	metrics "github.com/hashicorp/go-metrics"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 // PoolSnapshot returns a snapshot of the current mempool transactions.
 func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
-	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "recheck", "snapshot")
+	defer metrics.MeasureSinceWithLabels([]string{"cronos", "mempool", "recheck", "snapshot"}, time.Now(), nil)
 	snap := make([]sdk.Tx, 0, mp.CountTx())
 	sdkmempool.SelectBy(ctx, mp, nil, func(tx sdk.Tx) bool {
 		snap = append(snap, tx)
