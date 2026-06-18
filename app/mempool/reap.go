@@ -69,16 +69,16 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 		}
 		tracker.prune(now)
 		if cacheHits > 0 {
-			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "reap", "encode_cache", "hit") //nolint:staticcheck
+			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "reap", "encode_cache", "hit")
 		}
 		if cacheMiss > 0 {
-			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "reap", "encode_cache", "miss") //nolint:staticcheck
+			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "reap", "encode_cache", "miss")
 		}
 		if len(txs) > 0 {
-			telemetry.IncrCounter(float32(len(txs)), "cronos", "mempool", "reap", "gossip", "sent") //nolint:staticcheck
+			telemetry.IncrCounter(float32(len(txs)), "cronos", "mempool", "reap", "gossip", "sent")
 		}
 		if deduped > 0 {
-			telemetry.IncrCounter(deduped, "cronos", "mempool", "reap", "gossip", "deduped") //nolint:staticcheck
+			telemetry.IncrCounter(deduped, "cronos", "mempool", "reap", "gossip", "deduped")
 		}
 		return &abci.ResponseReapTxs{Txs: txs}, nil
 	}
