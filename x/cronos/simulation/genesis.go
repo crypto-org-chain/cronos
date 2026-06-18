@@ -77,11 +77,11 @@ func RandomizedGenState(simState *module.SimulationState) {
 	)
 
 	simState.AppParams.GetOrGenerate(
-		maxCallbackGasKey, &ibcTimeout, simState.Rand,
-		func(r *rand.Rand) { maxCallbackGas = GenIbcTimeout(r) },
+		maxCallbackGasKey, &maxCallbackGas, simState.Rand,
+		func(r *rand.Rand) { maxCallbackGas = GenMaxCallbackGas(r) },
 	)
 
-	params := types.NewParams(ibcCroDenom, ibcTimeout, cronosAdmin, enableAutoDeployment, maxCallbackGas)
+	params := types.NewParams(ibcCroDenom, ibcTimeout, cronosAdmin, enableAutoDeployment, maxCallbackGas, []string{})
 	cronosGenesis := &types.GenesisState{
 		Params:            params,
 		ExternalContracts: nil,

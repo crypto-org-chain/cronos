@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	yaml "gopkg.in/yaml.v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,6 +21,8 @@ var (
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
 	// KeyMaxCallbackGas is store's key for the MaxCallbackGas
 	KeyMaxCallbackGas = []byte("MaxCallbackGas")
+	// KeyCroBridgeContractAddresses is store's key for the authorized CroBridge contract addresses
+	KeyCroBridgeContractAddresses = []byte("CroBridgeContractAddresses")
 )
 
 const (
@@ -34,13 +37,14 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64, croBridgeContractAddresses []string) Params {
 	return Params{
-		IbcCroDenom:          ibcCroDenom,
-		IbcTimeout:           ibcTimeout,
-		CronosAdmin:          cronosAdmin,
-		EnableAutoDeployment: enableAutoDeployment,
-		MaxCallbackGas:       maxCallbackGas,
+		IbcCroDenom:                ibcCroDenom,
+		IbcTimeout:                 ibcTimeout,
+		CronosAdmin:                cronosAdmin,
+		EnableAutoDeployment:       enableAutoDeployment,
+		MaxCallbackGas:             maxCallbackGas,
+		CroBridgeContractAddresses: croBridgeContractAddresses,
 	}
 }
 
@@ -71,6 +75,9 @@ func (p Params) Validate() error {
 	if err := validateIsUint64(p.MaxCallbackGas); err != nil {
 		return err
 	}
+	if err := validateIsEvmAddresses(p.CroBridgeContractAddresses); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -88,6 +95,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
 		paramtypes.NewParamSetPair(KeyMaxCallbackGas, &p.MaxCallbackGas, validateIsUint64),
+		paramtypes.NewParamSetPair(KeyCroBridgeContractAddresses, &p.CroBridgeContractAddresses, validateIsEvmAddresses),
 	}
 }
 
@@ -127,6 +135,19 @@ func validateIsBool(i interface{}) error {
 	_, ok := i.(bool)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	return nil
+}
+
+func validateIsEvmAddresses(i interface{}) error {
+	addrs, ok := i.([]string)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	for _, addr := range addrs {
+		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
+			return fmt.Errorf("invalid evm address: %s: must be a non-zero EVM hex address", addr)
+		}
 	}
 	return nil
 }
