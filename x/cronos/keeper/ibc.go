@@ -14,6 +14,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -65,10 +66,10 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				metrics.SetGaugeWithLabels(
+				telemetry.SetGaugeWithLabels(
 					[]string{"tx", "msg", "ConvertVouchersToEvmCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{{Name: "denom", Value: a.Denom}},
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
 			}
 		}
@@ -146,10 +147,10 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				metrics.SetGaugeWithLabels(
+				telemetry.SetGaugeWithLabels(
 					[]string{"tx", "msg", "IbcTransferCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{{Name: "denom", Value: a.Denom}},
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
 			}
 		}

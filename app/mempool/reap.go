@@ -8,8 +8,7 @@ import (
 
 	"cosmossdk.io/log/v2"
 
-	metrics "github.com/hashicorp/go-metrics"
-
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -70,16 +69,16 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 		}
 		tracker.prune(now)
 		if cacheHits > 0 {
-			metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "reap", "encode_cache", "hit"}, cacheHits, nil)
+			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "reap", "encode_cache", "hit")
 		}
 		if cacheMiss > 0 {
-			metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "reap", "encode_cache", "miss"}, cacheMiss, nil)
+			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "reap", "encode_cache", "miss")
 		}
 		if len(txs) > 0 {
-			metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "reap", "gossip", "sent"}, float32(len(txs)), nil)
+			telemetry.IncrCounter(float32(len(txs)), "cronos", "mempool", "reap", "gossip", "sent")
 		}
 		if deduped > 0 {
-			metrics.IncrCounterWithLabels([]string{"cronos", "mempool", "reap", "gossip", "deduped"}, deduped, nil)
+			telemetry.IncrCounter(deduped, "cronos", "mempool", "reap", "gossip", "deduped")
 		}
 		return &abci.ResponseReapTxs{Txs: txs}, nil
 	}
