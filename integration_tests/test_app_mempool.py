@@ -301,7 +301,7 @@ def cronos_app_no_replace(tmp_path_factory):
     """
     path = tmp_path_factory.mktemp("cronos-app-no-replace")
     yield from setup_custom_cronos(
-        path, 26401, Path(__file__).parent / "configs/mempool_app_no_replace.jsonnet"
+        path, 26450, Path(__file__).parent / "configs/mempool_app_no_replace.jsonnet"
     )
 
 
