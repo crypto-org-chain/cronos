@@ -51,9 +51,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
-// recheckFixture builds a real PriorityNonceMempool + admitter wired for recheck.
+// recheckFixture builds a real PriorityNonceMempool + manager wired for recheck.
 type recheckFixture struct {
-	a      *Admitter
+	a      *MempoolManager
 	pool   *sdkmempool.PriorityNonceMempool[int64]
 	enc    *EncoderCache
 	signer fakeSigner
@@ -75,7 +75,7 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 	// Per-tx encoder so the encCache-miss fallback yields deterministic bytes.
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	decoder := func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") }
-	a := newAdmitter(runner, enc, txEncoder, decoder)
+	a := newMempoolManager(runner, enc, txEncoder, decoder)
 	a.mpool = pool
 	a.signer = signer
 	return &recheckFixture{a: a, pool: pool, enc: enc, signer: signer, runner: runner}
@@ -288,7 +288,7 @@ func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
 		}
 		return nil, errors.New("unknown")
 	}
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, decoder)
 	a.signer = signer
 
 	a.StageRecheckSenders(10, [][]byte{[]byte("a")})
@@ -306,7 +306,7 @@ func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
 }
 
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
 	a.RecheckTxs()                                  // mpool nil → no-op
 }
@@ -551,7 +551,7 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	enc := NewEncoderCache(0, 0)
 	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
-	a := newAdmitter(runner, enc, txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
+	a := newMempoolManager(runner, enc, txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
 	a.mpool = pool
 	a.signer = signer
 
@@ -734,7 +734,7 @@ func TestStageSkippedSenders_MergesIntoRecheckSenders(t *testing.T) {
 		}
 		return nil, errors.New("unknown")
 	}
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, decoder)
 	a.signer = signer
 
 	a.StageSkippedSenders([][]byte{[]byte("a")})
@@ -755,7 +755,7 @@ func TestStageSkippedSenders_DoesNotTouchLastCommittedHeight(t *testing.T) {
 		}
 		return nil, errors.New("unknown")
 	}
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, decoder)
 	a.signer = signer
 	a.lastCommittedHeight = 42
 
@@ -783,7 +783,7 @@ func TestStageSkippedSenders_MergesWithCommittedSenders(t *testing.T) {
 		}
 		return nil, errors.New("unknown")
 	}
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, decoder)
 	a.signer = signer
 
 	a.StageRecheckSenders(10, [][]byte{[]byte("a")}) // alice from committed block
@@ -801,7 +801,7 @@ func TestStageSkippedSenders_MergesWithCommittedSenders(t *testing.T) {
 }
 
 func TestStageSkippedSenders_NilDecoderNoop(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageSkippedSenders([][]byte{[]byte("x")}) // decoder nil → must not panic
 	if a.recheckSenders != nil {
 		t.Fatal("nil decoder must leave recheckSenders unchanged")
@@ -809,7 +809,7 @@ func TestStageSkippedSenders_NilDecoderNoop(t *testing.T) {
 }
 
 func TestStageSkippedSenders_EmptyIsNoop(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil })
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil })
 	a.StageSkippedSenders(nil)
 	a.StageSkippedSenders([][]byte{})
 	if a.recheckSenders != nil {
@@ -852,7 +852,7 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
 		SignerExtractor: signer,
 	})
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil) // encCache nil
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil) // encCache nil
 	a.mpool = pool
 	a.signer = signer
 	a.ttlNumBlocks = 2

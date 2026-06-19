@@ -49,7 +49,7 @@ func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex
 }
 
 func insertHandler(runner txRunner) sdk.InsertTxHandler {
-	return newAdmitter(runner, nil, noopEncoder, nil).InsertTxHandler()
+	return newMempoolManager(runner, nil, noopEncoder, nil).InsertTxHandler()
 }
 
 func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
@@ -141,15 +141,15 @@ func assertPanics(t *testing.T, name string, fn func()) {
 	fn()
 }
 
-func TestNewAdmitter_PanicsOnMissingDeps(t *testing.T) {
+func TestNewMempoolManager_PanicsOnMissingDeps(t *testing.T) {
 	enc := NewEncoderCache(0, 0)
 	noopDecoder := func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
 	assertPanics(t, "nil txEncoder with encCache", func() {
-		newAdmitter(&stubRunner{}, enc, nil, noopDecoder)
+		newMempoolManager(&stubRunner{}, enc, nil, noopDecoder)
 	})
 	assertPanics(t, "nil decoder with encCache", func() {
-		newAdmitter(&stubRunner{}, enc, noopEncoder, nil)
+		newMempoolManager(&stubRunner{}, enc, noopEncoder, nil)
 	})
 }
 
@@ -172,7 +172,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		return canonical, nil
 	}
 	enc := NewEncoderCache(0, 0)
-	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
+	h := newMempoolManager(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	resp, err := h(&abci.RequestInsertTx{Tx: raw})
 	if err != nil || resp.Code != abci.CodeTypeOK {
@@ -195,7 +195,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode fail") }
 	enc := NewEncoderCache(0, 0)
-	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
+	h := newMempoolManager(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -214,7 +214,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
 	enc := NewEncoderCache(0, 0)
-	h := newAdmitter(runner, enc, txEncoder, decoder).InsertTxHandler()
+	h := newMempoolManager(runner, enc, txEncoder, decoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -226,7 +226,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 
 // raceRunner models the real txRunner: RunTx mutates shared, non-thread-safe
 // state (a plain Go map, standing in for baseapp's checkState multistore) with
-// NO internal lock, so the Admitter MUST serialize admission. Run under -race
+// NO internal lock, so the MempoolManager MUST serialize admission. Run under -race
 // to expose a missing mutex.
 type raceRunner struct {
 	state map[string]struct{} // intentionally lock-free
@@ -234,7 +234,7 @@ type raceRunner struct {
 
 func (r *raceRunner) RunTx(_ sdk.ExecMode, txBytes []byte, _ sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 	// Unsynchronized read+write, mirroring cacheTxContext + msCache.Write into
-	// the shared checkState. Safe only because the Admitter holds its mutex.
+	// the shared checkState. Safe only because the MempoolManager holds its mutex.
 	r.state[string(txBytes)] = struct{}{}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -267,7 +267,7 @@ func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
 }
 
 func TestCheckTxHandler_MapsSuccess(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
 
 	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -289,7 +289,7 @@ func TestCheckTxHandler_MapsSuccess(t *testing.T) {
 }
 
 func TestCheckTxHandler_MapsError(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
 
 	anteErr := errorsmod.Register("test-check", 1, "bad sig")
@@ -318,7 +318,7 @@ func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
 	}
 	txEncoder := func(sdk.Tx) ([]byte, error) { return canonical, nil }
 	enc := NewEncoderCache(0, 0)
-	a := newAdmitter(&stubRunner{}, enc, txEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, enc, txEncoder, decoder)
 	check := a.CheckTxHandler()
 
 	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -340,7 +340,7 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	tx := &ptrTx{}
 	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	enc := NewEncoderCache(0, 0)
-	a := newAdmitter(&stubRunner{}, enc, noopEncoder, decoder)
+	a := newMempoolManager(&stubRunner{}, enc, noopEncoder, decoder)
 	check := a.CheckTxHandler()
 
 	anteErr := errorsmod.Register("test-check-rej", 1, "bad")
@@ -355,9 +355,9 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 }
 
-func TestAdmitter_InsertAndCheckShareMutex(t *testing.T) {
+func TestMempoolManager_InsertAndCheckShareMutex(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
-	a := newAdmitter(runner, nil, noopEncoder, nil)
+	a := newMempoolManager(runner, nil, noopEncoder, nil)
 	insert := a.InsertTxHandler()
 	check := a.CheckTxHandler()
 
@@ -396,8 +396,8 @@ func TestAdmitter_InsertAndCheckShareMutex(t *testing.T) {
 	}
 }
 
-func TestAdmitter_AdmissionMutexGatesAdmission(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
+func TestMempoolManager_AdmissionMutexGatesAdmission(t *testing.T) {
+	a := newMempoolManager(&stubRunner{}, nil, noopEncoder, nil)
 	insert := a.InsertTxHandler()
 	mu := a.AdmissionMutex()
 

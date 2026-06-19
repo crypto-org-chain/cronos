@@ -339,7 +339,7 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
-	mempoolAdmitter *cronosmempool.Admitter
+	mempoolManager *cronosmempool.MempoolManager
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
@@ -486,7 +486,7 @@ func New(
 	}
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
-	var mempoolAdmitter *cronosmempool.Admitter
+	var mempoolManager *cronosmempool.MempoolManager
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -524,8 +524,8 @@ func New(
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				resp, err := inner(ctx, req)
 				skipped := extSel.DrainGateSkipped() // always drain; stale on error
-				if err == nil && mempoolAdmitter != nil && len(skipped) > 0 {
-					mempoolAdmitter.StageSkippedSenders(skipped)
+				if err == nil && mempoolManager != nil && len(skipped) > 0 {
+					mempoolManager.StageSkippedSenders(skipped)
 				}
 				return resp, err
 			})
@@ -555,10 +555,10 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
-			app.SetInsertTxHandler(admitter.InsertTxHandler())
-			app.SetCheckTxHandler(admitter.CheckTxHandler())
-			mempoolAdmitter = admitter
+			manager := cronosmempool.NewMempoolManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
+			app.SetInsertTxHandler(manager.InsertTxHandler())
+			app.SetCheckTxHandler(manager.CheckTxHandler())
+			mempoolManager = manager
 		}
 	})
 
@@ -603,7 +603,7 @@ func New(
 		tkeys:                tkeys,
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
-		mempoolAdmitter:      mempoolAdmitter,
+		mempoolManager:       mempoolManager,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1292,8 +1292,8 @@ func (app *App) setPostHandler() {
 	app.SetPostHandler(postHandler)
 }
 
-// MempoolAdmitter returns the admission controller, or nil when mempool.type != app.
-func (app *App) MempoolAdmitter() *cronosmempool.Admitter { return app.mempoolAdmitter }
+// MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
+func (app *App) MempoolManager() *cronosmempool.MempoolManager { return app.mempoolManager }
 
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
@@ -1621,7 +1621,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 func (app *App) Commit() (*abci.ResponseCommit, error) {
-	if app.mempoolAdmitter == nil {
+	if app.mempoolManager == nil {
 		return app.BaseApp.Commit()
 	}
 
@@ -1629,14 +1629,14 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 		// BaseApp.Commit resets checkState; upstream assumes CometBFT's mempool
 		// lock guards it, but AppMempool.Lock() is a no-op. This mutex serializes
 		// the reset against concurrent peer admission (InsertTx/CheckTx RunTx).
-		mu := app.mempoolAdmitter.AdmissionMutex()
+		mu := app.mempoolManager.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
 		return app.BaseApp.Commit()
 	}()
 
 	if err == nil {
-		app.mempoolAdmitter.RecheckTxs()
+		app.mempoolManager.RecheckTxs()
 	}
 	return resp, err
 }
@@ -1646,8 +1646,8 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 // Commit re-validates their remaining pending txs against the new state.
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	resp, err := app.BaseApp.FinalizeBlock(req)
-	if err == nil && app.mempoolAdmitter != nil {
-		app.mempoolAdmitter.StageRecheckSenders(req.Height, req.Txs)
+	if err == nil && app.mempoolManager != nil {
+		app.mempoolManager.StageRecheckSenders(req.Height, req.Txs)
 
 		// Residual waste from skipping PrepareProposalVerifyTx: txs that passed
 		// proposal but fail ante here (non-zero code; EVM reverts stay code 0).

@@ -238,8 +238,8 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		f.app.MempoolAdmitter().StageRecheckSenders(2, txBytes)
-		f.app.MempoolAdmitter().RecheckTxs()
+		f.app.MempoolManager().StageRecheckSenders(2, txBytes)
+		f.app.MempoolManager().RecheckTxs()
 	}()
 	for r := range reapers {
 		go func(r int) {
