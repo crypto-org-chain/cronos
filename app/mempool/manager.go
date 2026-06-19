@@ -23,9 +23,9 @@ type txRunner interface {
 
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
-// MempoolManager owns the app-side mempool for mempool.type=app: tx admission
+// Manager owns the app-side mempool for mempool.type=app: tx admission
 // (Insert/CheckTx) plus per-block recheck and TTL eviction.
-type MempoolManager struct {
+type Manager struct {
 	// mu guards BaseApp.checkState: every RunTx (admission Check, RPC CheckTx,
 	// the ReCheck batch) plus Commit's checkState reset (via AdmissionMutex).
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
@@ -59,10 +59,10 @@ type MempoolManager struct {
 	ttlNumBlocks int64
 }
 
-// NewMempoolManager builds the MempoolManager for mempool.type=app; register it via
+// NewManager builds the Manager for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
-func NewMempoolManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *MempoolManager {
-	a := newMempoolManager(app, encCache, txEncoder, decoder)
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
+	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
@@ -71,7 +71,7 @@ func NewMempoolManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder s
 	return a
 }
 
-func newMempoolManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder, decoder sdk.TxDecoder) *MempoolManager {
+func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder, decoder sdk.TxDecoder) *Manager {
 	if encCache != nil {
 		if decoder == nil {
 			panic("mempool: encCache requires decoder != nil")
@@ -80,7 +80,7 @@ func newMempoolManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.Tx
 			panic("mempool: encCache requires txEncoder != nil for canonical bytes")
 		}
 	}
-	return &MempoolManager{
+	return &Manager{
 		runner:    runner,
 		encCache:  encCache,
 		txEncoder: txEncoder,
@@ -92,7 +92,7 @@ func newMempoolManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.Tx
 // recheckSenders without touching lastCommittedHeight (which StageRecheckSenders owns).
 // Called from the PrepareProposal wrapper so stranded senders are re-validated at the
 // next RecheckTxs cycle (~1 block) instead of waiting for the TTL.
-func (a *MempoolManager) StageSkippedSenders(txs [][]byte) {
+func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
 		return
 	}
@@ -121,8 +121,8 @@ func (a *MempoolManager) StageSkippedSenders(txs [][]byte) {
 }
 
 // AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
-// against lock-free admission. The pointer is stable (MempoolManager is heap-allocated).
-func (a *MempoolManager) AdmissionMutex() *sync.Mutex {
+// against lock-free admission. The pointer is stable (Manager is heap-allocated).
+func (a *Manager) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
 
@@ -130,7 +130,7 @@ func (a *MempoolManager) AdmissionMutex() *sync.Mutex {
 // admitting them. Flood protection relies on CometBFT peer limits, not this
 // handler. Admitted txs register canonical bytes so ReapTxsHandler can skip
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
-func (a *MempoolManager) InsertTxHandler() sdk.InsertTxHandler {
+func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring mu.
@@ -162,7 +162,7 @@ func (a *MempoolManager) InsertTxHandler() sdk.InsertTxHandler {
 
 // cacheTx registers the already-decoded tx under its canonical bytes (raw
 // req.Tx bytes on encode error). No-op without a cache.
-func (a *MempoolManager) cacheTx(tx sdk.Tx, raw []byte) {
+func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	if a.encCache == nil {
 		return
 	}
@@ -175,7 +175,7 @@ func (a *MempoolManager) cacheTx(tx sdk.Tx, raw []byte) {
 
 // CheckTxHandler runs RPC CheckTx.The runTx closure comes from BaseApp bound to
 // the exec mode; its panics are recovered inside BaseApp.RunTx.
-func (a *MempoolManager) CheckTxHandler() sdk.CheckTxHandler {
+func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring mu.
@@ -212,7 +212,7 @@ func (a *MempoolManager) CheckTxHandler() sdk.CheckTxHandler {
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction.
-func (a *MempoolManager) StageRecheckSenders(height int64, txs [][]byte) {
+func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
@@ -246,7 +246,7 @@ func (a *MempoolManager) StageRecheckSenders(height int64, txs [][]byte) {
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
 // sender) and txs of block-touched senders that now fail ReCheck. Capped per
 // cycle; overflow carries to the next.
-func (a *MempoolManager) RecheckTxs() {
+func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
@@ -264,7 +264,7 @@ func (a *MempoolManager) RecheckTxs() {
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
-func (a *MempoolManager) drainStaging() (recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
 	a.stagingMu.Lock()
 	defer a.stagingMu.Unlock()
 	recheckSenders, height, deferred = a.recheckSenders, a.lastCommittedHeight, a.deferred
@@ -274,7 +274,7 @@ func (a *MempoolManager) drainStaging() (recheckSenders map[string]struct{}, hei
 }
 
 // selectTxs scans the pool to retrieve txs for recheck.
-func (a *MempoolManager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
+func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
@@ -385,7 +385,7 @@ func (a *MempoolManager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
-func (a *MempoolManager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
+func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
 		return candidates
 	}
@@ -400,7 +400,7 @@ func (a *MempoolManager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. mu is
 // locked per tx, not across the batch, so admission interleaves; EncodeTx/Evict
 // need no lock (encCache is self-synced).
-func (a *MempoolManager) runRecheck(candidates []sdk.Tx) {
+func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
@@ -450,12 +450,12 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 
 // evict removes tx from the pool and encoder cache together, so the cache never
 // outlives its pool entry.
-func (a *MempoolManager) evict(tx sdk.Tx) {
+func (a *Manager) evict(tx sdk.Tx) {
 	_ = a.mpool.Remove(tx)
 	a.encCache.Evict(tx)
 }
 
-func (a *MempoolManager) signers(tx sdk.Tx) []string {
+func (a *Manager) signers(tx sdk.Tx) []string {
 	sigs, err := a.signer.GetSigners(tx)
 	if err != nil {
 		return nil

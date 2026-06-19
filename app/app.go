@@ -339,7 +339,7 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
-	mempoolManager *cronosmempool.MempoolManager
+	mempoolManager *cronosmempool.Manager
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
@@ -486,7 +486,7 @@ func New(
 	}
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
-	var mempoolManager *cronosmempool.MempoolManager
+	var mempoolManager *cronosmempool.Manager
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -555,7 +555,7 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewMempoolManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
@@ -1293,7 +1293,7 @@ func (app *App) setPostHandler() {
 }
 
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
-func (app *App) MempoolManager() *cronosmempool.MempoolManager { return app.mempoolManager }
+func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
