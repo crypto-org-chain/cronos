@@ -53,10 +53,21 @@ type Manager struct {
 	lastCommittedHeight int64
 	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
 	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle (stale entries
-	// drop out) and touched only by RecheckTxs (serial per Commit), so it needs no lock.
+	// drop out); recheckMu keeps RecheckTxs single-writer, so arrival needs no lock.
 	arrival map[sdk.Tx]int64
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
+
+	// recheckMu makes RecheckTxs single-writer (worker, inline fallback, and direct
+	// callers all funnel through it), keeping the lock-free arrival map race-free.
+	// Acquired outermost — always before mu/stagingMu, never after — so no cycle.
+	recheckMu sync.Mutex
+	// recheckTrigger coalesces async recheck wakeups (buffered 1 so Commit never
+	// blocks); nil when built via newManager (tests run sync). stop ends the worker.
+	recheckTrigger chan struct{}
+	stop           chan struct{}
+	workerDone     chan struct{}
+	stopOnce       sync.Once
 }
 
 // NewManager builds the Manager for mempool.type=app; register it via
@@ -68,6 +79,12 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
+	// Public constructor runs the async worker; newManager (tests) leaves
+	// recheckTrigger nil and rechecks synchronously.
+	a.recheckTrigger = make(chan struct{}, 1)
+	a.stop = make(chan struct{})
+	a.workerDone = make(chan struct{})
+	go a.recheckWorker()
 	return a
 }
 
@@ -243,6 +260,44 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
+// TriggerRecheck schedules an async recheck off the consensus path. Non-blocking:
+// a queued run is reused (staging merges across blocks, so no senders are lost).
+// Inline when no worker (built via newManager).
+func (a *Manager) TriggerRecheck() {
+	if a.recheckTrigger == nil {
+		a.RecheckTxs()
+		return
+	}
+	select {
+	case a.recheckTrigger <- struct{}{}:
+	default:
+	}
+}
+
+// recheckWorker runs RecheckTxs off the Commit path. Single goroutine, so
+// worker-driven rechecks never overlap.
+func (a *Manager) recheckWorker() {
+	defer close(a.workerDone)
+	for {
+		select {
+		case <-a.stop:
+			return
+		case <-a.recheckTrigger:
+			a.RecheckTxs()
+		}
+	}
+}
+
+// Close stops the recheck worker and waits for it to exit. Idempotent; no-op
+// without a worker. Must run before store teardown so no recheck reads a closing store.
+func (a *Manager) Close() {
+	if a.stop == nil {
+		return
+	}
+	a.stopOnce.Do(func() { close(a.stop) })
+	<-a.workerDone
+}
+
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
 // sender) and txs of block-touched senders that now fail ReCheck. Capped per
 // cycle; overflow carries to the next.
@@ -250,6 +305,8 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
+	a.recheckMu.Lock() // single-writer; see recheckMu
+	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {

@@ -1575,6 +1575,11 @@ func VerifyAddressFormat(bz []byte) error {
 
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
+	// Stop the recheck worker before store teardown so no late recheck reads a closing store.
+	if app.mempoolManager != nil {
+		app.mempoolManager.Close()
+	}
+
 	errs := []error{app.BaseApp.Close()}
 
 	// flush the versiondb
@@ -1635,7 +1640,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}()
 
 	if err == nil {
-		app.mempoolManager.RecheckTxs()
+		app.mempoolManager.TriggerRecheck()
 	}
 	return resp, err
 }
