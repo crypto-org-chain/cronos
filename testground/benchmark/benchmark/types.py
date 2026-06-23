@@ -26,5 +26,6 @@ class PeerPacket(BaseModel):
     ip: str
     node_id: str
     peer_id: str
+    libp2p_id: Optional[str] = None
     accounts: List[GenesisAccount]
     gentx: Optional[dict] = None
