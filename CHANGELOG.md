@@ -6,6 +6,10 @@
 
 * [#2095](https://github.com/crypto-org-chain/cronos/pull/2095) feat: add hardcoded unblockable address list that is filtered out of both the mempool and consensus blocklists.
 
+### Bug fixes
+
+* [#2115](https://github.com/crypto-org-chain/cronos/pull/2115) fix: add optional `traceReplay` trace-config flag to skip gas deduction during tracing and bypass a legacy bug.
+
 ## v1.7.5
 
 ### Improvements
