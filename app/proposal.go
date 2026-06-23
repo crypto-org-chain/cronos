@@ -6,14 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
@@ -24,27 +28,133 @@ type BlockList struct {
 
 var _ baseapp.TxSelector = &ExtTxSelector{}
 
-// ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
+// ExtTxSelector is a self-contained baseapp.TxSelector: blocklist + baseFee gate,
+// then DefaultTxSelector-style byte/gas accounting using ProtoSizeForTx (no per-tx
+// alloc) and overflow-safe gas math.
 type ExtTxSelector struct {
-	baseapp.TxSelector
-	TxDecoder  sdk.TxDecoder
-	ValidateTx func(sdk.Tx, []byte) error
+	validateTx       func(sdk.Tx, []byte) error
+	baseFeeRetriever func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
+
+	selectedTxs [][]byte
+	totalBytes  int64
+	totalGas    uint64
+
+	// baseFee/evmDenom are constant within a proposal; fetched lazily on the first
+	// FeeTx (nil baseFee == not yet fetched, or gate disabled), reset by Clear.
+	baseFee  *big.Int
+	evmDenom string
+
+	// gateSkipped accumulates raw bytes of txs rejected by the baseFee gate this
+	// round. Drained after each proposal so stranded senders are staged for recheck.
+	gateSkipped [][]byte
 }
 
-func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx, []byte) error) *ExtTxSelector {
-	return &ExtTxSelector{
-		TxSelector: parent,
-		TxDecoder:  txDecoder,
-		ValidateTx: validateTx,
-	}
+func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
+	return &ExtTxSelector{validateTx: validateTx, baseFeeRetriever: baseFeeRetriever}
 }
 
-func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
-	if err := ts.ValidateTx(memTx, txBz); err != nil {
-		return false
+func (ts *ExtTxSelector) SelectedTxs(_ context.Context) [][]byte {
+	txs := make([][]byte, len(ts.selectedTxs))
+	copy(txs, ts.selectedTxs)
+	return txs
+}
+
+func (ts *ExtTxSelector) Clear() {
+	ts.selectedTxs = nil
+	ts.totalBytes = 0
+	ts.totalGas = 0
+	ts.baseFee = nil
+	ts.evmDenom = ""
+}
+
+// DrainGateSkipped returns and clears the raw bytes of txs rejected by the
+// baseFee gate this proposal round. Called after PrepareProposal to stage
+// stranded senders for the next RecheckTxs cycle.
+func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
+	out := ts.gateSkipped
+	ts.gateSkipped = nil
+	return out
+}
+
+func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+	// returned bool = stop iterating; true once the block is full.
+	isFull := func() bool {
+		return uint64(ts.totalBytes) >= maxTxBytes || (maxBlockGas > 0 && ts.totalGas >= maxBlockGas)
 	}
 
-	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
+	if err := ts.validateTx(memTx, txBz); err != nil {
+		return isFull() // blocked/invalid: skip, keep scanning
+	}
+
+	txSize := cronosmempool.ProtoSizeForTx(txBz)
+	if uint64(ts.totalBytes)+uint64(txSize) > maxTxBytes {
+		return isFull() // too large: try smaller txs unless already full
+	}
+
+	feeTx, isFeeTx := memTx.(sdk.FeeTx)
+
+	// baseFee gate: drop txs whose feeCap fell below a risen baseFee (idle senders
+	// InsertTx ante + recheck miss); else they'd fail ante at FinalizeBlock. Skip,
+	// don't evict: feeCap may clear next block.
+	if isFeeTx {
+		if bf, denom := ts.gateBaseFee(goCtx); bf != nil && denom != "" {
+			if gas := feeTx.GetGas(); gas > 0 {
+				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
+				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
+					ts.gateSkipped = append(ts.gateSkipped, txBz)
+					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped")
+					return isFull()
+				}
+			}
+		}
+	}
+
+	if maxBlockGas > 0 && isFeeTx {
+		gasWanted := feeTx.GetGas()
+		// Overflow-safe: totalGas <= maxBlockGas by induction.
+		if gasWanted > maxBlockGas-ts.totalGas {
+			return isFull()
+		}
+		ts.totalGas += gasWanted
+	}
+
+	ts.selectedTxs = append(ts.selectedTxs, txBz)
+	ts.totalBytes += txSize
+	return isFull()
+}
+
+// gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
+func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
+	if ts.baseFee == nil && ts.baseFeeRetriever != nil {
+		ts.baseFee, ts.evmDenom = ts.baseFeeRetriever(sdk.UnwrapSDKContext(goCtx))
+	}
+	return ts.baseFee, ts.evmDenom
+}
+
+var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
+
+// CacheProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
+// a full ante) with a cache lookup: ante already ran at admission and recheck
+// evicts stale txs, so PrepareProposal only needs canonical bytes. Cache hit ->
+// cached bytes; miss -> encode. Mirrors cosmos/evm. The skipped baseFee check for
+// idle senders is reapplied by ExtTxSelector's gate.
+type CacheProposalTxVerifier struct {
+	*baseapp.BaseApp
+	encCache *cronosmempool.EncoderCache
+}
+
+func NewCacheProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
+	return &CacheProposalTxVerifier{BaseApp: app, encCache: encCache}
+}
+
+func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
+	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, txv.TxEncode, tx)
+	result := "miss"
+	if hit {
+		result = "hit"
+	}
+	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result)
+	return bz, err
 }
 
 type ProposalHandler struct {

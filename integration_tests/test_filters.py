@@ -1,5 +1,9 @@
+from pathlib import Path
+
+import pytest
 from web3 import Web3
 
+from .network import setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -9,8 +13,23 @@ from .utils import (
 )
 
 
-def test_pending_transaction_filter(cluster):
-    w3: Web3 = cluster.w3
+@pytest.fixture(scope="module")
+def flood_cronos(tmp_path_factory):
+    # Pending filter reads CometBFT UnconfirmedTxs, empty under the default
+    # mempool.type=app; boot a FLOOD network for it. Port 27110 is free.
+    path = tmp_path_factory.mktemp("filters-flood")
+    yield from setup_custom_cronos(
+        path, 27110, Path(__file__).parent / "configs/enable-indexer-flood.jsonnet"
+    )
+
+
+@pytest.fixture(params=["flood_cronos", "geth"])
+def pending_filter_provider(request, flood_cronos, geth):
+    return flood_cronos if request.param == "flood_cronos" else geth
+
+
+def test_pending_transaction_filter(pending_filter_provider):
+    w3: Web3 = pending_filter_provider.w3
     flt = w3.eth.filter("pending")
     assert flt.get_new_entries() == []
     receipt = send_transaction(w3, {"to": ADDRS["community"], "value": 1000})

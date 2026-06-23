@@ -27,8 +27,13 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .stats import _fetch_prometheus, dump_block_stats, scrape_blockstm_metrics
-from .topology import connect_all
+from .stats import (
+    _fetch_prometheus,
+    dump_block_stats,
+    scrape_blockstm_metrics,
+    scrape_consensus_raw,
+)
+from .topology import connect_all, connect_all_libp2p
 from .types import PeerPacket
 from .utils import (
     Tee,
@@ -552,6 +557,9 @@ def do_run(
     monitor.start()
     stm_monitor = BlockSTMMonitor()
     stm_monitor.start()
+    # Snapshot cumulative consensus histograms so dump_block_stats can report
+    # load-period averages (delta) instead of node-lifetime averages.
+    consensus_baseline = scrape_consensus_raw(_fetch_prometheus())
 
     if txs:
         # Send in a background thread so blocks are produced concurrently.
@@ -586,6 +594,7 @@ def do_run(
             Tee(logfile, sys.stdout),
             mempool_data=monitor.data,
             stm_data=stm_monitor.data,
+            consensus_baseline=consensus_baseline,
         )
 
     if cfg.get("node_overrides", {}).get(str(global_seq)):
@@ -697,7 +706,10 @@ def patch_configs_local(
     home = outdir / group / str(i)
     (home / "config" / "genesis.json").write_text(json.dumps(genesis))
     p2p_peers = connect_all(peers[i], peers)
-    patch_configs(home, p2p_peers, config_patch, app_patch)
+    libp2p_peers = None
+    if config_patch and config_patch.get("p2p", {}).get("libp2p", {}).get("enabled"):
+        libp2p_peers = connect_all_libp2p(peers[i], peers)
+    patch_configs(home, p2p_peers, config_patch, app_patch, libp2p_peers=libp2p_peers)
 
 
 def node_index() -> int:
@@ -715,6 +727,13 @@ def node_index() -> int:
 
 def wait_for_peers(home: Path):
     cfg = tomlkit.parse((home / "config" / "config.toml").read_text())
+    libp2p = cfg.get("p2p", {}).get("libp2p", {})
+    if libp2p.get("enabled"):
+        for bp in libp2p.get("bootstrap_peers", []):
+            host = bp["host"].split(":", 1)[0]
+            print("wait for peer to be ready:", host)
+            wait_for_port(ECHO_SERVER_PORT, host=host, timeout=2400)
+        return
     peers = cfg["p2p"]["persistent_peers"]
     for peer in peers.split(","):
         parts = peer.split("@", 1)

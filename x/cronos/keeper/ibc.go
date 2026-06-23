@@ -66,10 +66,10 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				telemetry.SetGaugeWithLabels( //nolint:staticcheck
+				telemetry.SetGaugeWithLabels(
 					[]string{"tx", "msg", "ConvertVouchersToEvmCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)}, //nolint:staticcheck
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
 			}
 		}
@@ -147,10 +147,10 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				telemetry.SetGaugeWithLabels( //nolint:staticcheck
+				telemetry.SetGaugeWithLabels(
 					[]string{"tx", "msg", "IbcTransferCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)}, //nolint:staticcheck
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
 			}
 		}

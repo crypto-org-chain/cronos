@@ -12,9 +12,11 @@
 * [#1978](https://github.com/crypto-org-chain/cronos/pull/1978) feat(cosmos-sdk): Optimize staking end-block queue through using pending queue slots instead of iterators.
 * [#2089](https://github.com/crypto-org-chain/cronos/pull/2089) feat: upgrade to cosmos-sdk v0.54.3 + ibc-go v11 + cometbft v0.39.
 * [#2081](https://github.com/crypto-org-chain/cronos/pull/2081) Upgrade go-ethereum version to `v1.16.9`, enable Osaka hardfork.
+* [#2091](https://github.com/crypto-org-chain/cronos/pull/2091) feat(app): v0.54 upgrade perf optimizations + app-mempool feature.
 
 ### Bug fixes
 
+* [#2104](https://github.com/crypto-org-chain/cronos/pull/2104) fix(baseapp): insert into mempool before committing ante state in CheckTx.
 * [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
 * [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
 * [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
