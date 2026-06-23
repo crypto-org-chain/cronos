@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,7 +41,9 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v11/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v11/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/crypto-org-chain/cronos/client/docs"
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -99,6 +102,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -170,10 +174,17 @@ const (
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
 
-	FlagMempoolFeeBump = "mempool.feebump"
+	FlagMempoolFeeBump    = "mempool.feebump"
+	FlagMempoolType       = "mempool.type"
+	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
+	FlagTxCacheSize                = "cronos.tx-cache-size"
+	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
+	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
+	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
+	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
 )
 
 var Forks = []Fork{}
@@ -328,6 +339,8 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
+	mempoolManager *cronosmempool.Manager
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -348,6 +361,50 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
+	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
+	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+		}
+		txsPerBlock = parsed
+	}
+	var activeDecoder sdk.TxDecoder
+	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
+	defaultTxCacheSize := 2 * txsPerBlock
+	if txsPerBlock == 0 {
+		defaultTxCacheSize = -1
+	}
+	txCacheSize := defaultTxCacheSize
+	if v := appOpts.Get(FlagTxCacheSize); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
+		}
+		if parsed != 0 { // 0 = unset/derive
+			txCacheSize = parsed
+		}
+	}
+	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
+	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
+		}
+		if parsed > 0 {
+			maxTxBytes = parsed
+		}
+	}
+	if txCacheSize < 0 {
+		logger.Info("tx encode/decode cache disabled")
+		activeDecoder = txDecoder
+	} else {
+		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
+			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
+		}
+		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
+		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
+	}
 	eip712.SetEncodingConfig(encodingConfig)
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
@@ -376,15 +433,34 @@ func New(
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
 	var mpool mempool.Mempool
+	var signerExtractor mempool.SignerExtractionAdapter
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
+	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
+	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
+		parsed, err := cast.ToDurationE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: %w", FlagMempoolGossipTTL, v, err))
+		}
+		gossipTTL = parsed
+	}
+	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
+	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {
+		// Strict parse: a silent negative is meaningless; 0 explicitly disables.
+		parsed, err := cast.ToInt64E(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTTLNumBlocks, v))
+		}
+		ttlNumBlocks = parsed
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
 				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
@@ -397,23 +473,93 @@ func New(
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
-	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
+	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
+	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
+	switch mempoolType {
+	case "", "flood", cronosmempool.TypeApp:
+	default:
+		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
+	}
+	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
+		// type=app builds blocks by reaping the app mempool; NoOpMempool can't propose.
+		panic("mempool.type=app is incompatible with NoOpMempool")
+	}
+	// Set inside the closure below, assigned to the App after construction;
+	// non-nil only for mempool.type=app.
+	var mempoolManager *cronosmempool.Manager
+	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
+	// now, assigned once EVM keepers exist (below); the handler only runs
+	// post-startup, so the nil window during construction is never hit.
+	var proposalFee func(sdk.Context) (*big.Int, string)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		// Re-use the default prepare proposal handler, extend the transaction validation logic
-		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			txDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+		var encCache *cronosmempool.EncoderCache
+		if mempoolType == cronosmempool.TypeApp && txCacheSize >= 0 {
+			encCache = cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
+		}
 
-		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+		// baseFee gate source for the app-path selector; proposalFee is assigned
+		// once EVM keepers exist (the handler only runs post-startup).
+		feeGate := func(ctx sdk.Context) (*big.Int, string) {
+			if proposalFee == nil {
+				return nil, ""
+			}
+			return proposalFee(ctx)
+		}
+
+		if encCache != nil {
+			// mempool.type=app: reuse the SDK default handler. Cache verifier
+			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
+			// blocklist + baseFee gate.
+			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
+			extSel := NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate)
+			h.SetTxSelector(extSel)
+			if signerExtractor != nil {
+				h.SetSignerExtractionAdapter(signerExtractor)
+			}
+			inner := h.PrepareProposalHandler()
+			// Stage gate-skipped senders for recheck so base-fee-stranded txs are
+			// evicted in ~1 block instead of waiting for the TTL.
+			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+				resp, err := inner(ctx, req)
+				skipped := extSel.DrainGateSkipped() // always drain; stale on error
+				if err == nil && mempoolManager != nil && len(skipped) > 0 {
+					mempoolManager.StageSkippedSenders(skipped)
+				}
+				return resp, err
+			})
+		} else {
+			// flood mempool, or mempool.type=app with cache disabled: full-ante
+			// default handler. ExtTxSelector still applies the blocklist + gas/byte
+			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
+			if mempoolType == cronosmempool.TypeApp {
+				logger.Warn("mempool.type=app: tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+			}
+			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
+			if signerExtractor != nil {
+				defaultProposalHandler.SetSignerExtractionAdapter(signerExtractor)
+			}
+			app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+		}
 
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
+
+		// Wire app-side mempool ABCI hooks for mempool.type=app.
+		// InsertTxHandler runs ante via RunTx(execModeCheck) at admission;
+		// ReapTxsHandler honors MaxBytes/MaxGas hints from the CometBFT AppReactor.
+		if mempoolType == cronosmempool.TypeApp {
+			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
+
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
+			app.SetInsertTxHandler(manager.InsertTxHandler())
+			app.SetCheckTxHandler(manager.CheckTxHandler())
+			mempoolManager = manager
+		}
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
@@ -434,8 +580,9 @@ func New(
 		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
 
-	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
-	bApp := baseapp.NewBaseApp(Name, logger, db, txConfig.TxDecoder(), baseAppOptions...)
+	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx.
+	// Pass activeDecoder so any sub-component captured during NewBaseApp benefits from the decode cache.
+	bApp := baseapp.NewBaseApp(Name, logger, db, activeDecoder, baseAppOptions...)
 
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
@@ -448,7 +595,7 @@ func New(
 		BaseApp:              bApp,
 		cdc:                  cdc,
 		txConfig:             txConfig,
-		txDecoder:            txDecoder,
+		txDecoder:            activeDecoder,
 		appCodec:             appCodec,
 		interfaceRegistry:    interfaceRegistry,
 		invCheckPeriod:       invCheckPeriod,
@@ -456,6 +603,7 @@ func New(
 		tkeys:                tkeys,
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
+		mempoolManager:       mempoolManager,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -643,6 +791,11 @@ func New(
 		cast.ToUint64(appOpts.Get(server.FlagQueryGasLimit)),
 	)
 
+	// Assign now that the EVM keepers exist (handler captured proposalFee above).
+	proposalFee = func(ctx sdk.Context) (*big.Int, string) {
+		return app.FeeMarketKeeper.GetBaseFee(ctx), app.EvmKeeper.GetParams(ctx).EvmDenom
+	}
+
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	app.CronosKeeper = *cronoskeeper.NewKeeper(
@@ -700,6 +853,7 @@ func New(
 		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
+	// Hoist EVM signature verification (ecrecover) out of the app-mempool
 	var icaControllerStack porttypes.IBCModule
 	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
 	icaCallbacks := ibccallbacks.NewIBCMiddleware(app.CronosKeeper, math.MaxUint64)
@@ -744,7 +898,7 @@ func New(
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
 	// we prefer to be more strict in what arguments the modules expect.
-	skipGenesisInvariants := cast.ToBool(appOpts.Get(crisis.FlagSkipGenesisInvariants)) //nolint:staticcheck
+	skipGenesisInvariants := cast.ToBool(appOpts.Get(crisis.FlagSkipGenesisInvariants))
 
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
@@ -758,7 +912,7 @@ func New(
 		auth.NewAppModule(appCodec, app.AccountKeeper, authsims.RandomGenesisAccounts, app.GetSubspace(authtypes.ModuleName)),
 		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
 		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper, app.GetSubspace(banktypes.ModuleName)),
-		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)), //nolint:staticcheck
+		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)),
 		feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
 		gov.NewAppModule(appCodec, &app.GovKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(govtypes.ModuleName)),
 		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper, nil, app.GetSubspace(minttypes.ModuleName)),
@@ -903,8 +1057,6 @@ func New(
 	// Uncomment if you want to set a custom migration order here.
 	// app.mm.SetOrderMigrations(custom order)
 
-	//nolint:staticcheck
-	app.ModuleManager.RegisterInvariants(&app.CrisisKeeper)
 	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
 		panic(err)
@@ -1048,7 +1200,7 @@ func New(
 		}
 		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
 			txnrunner.NewSTMRunner(
-				app.txConfig.TxDecoder(),
+				activeDecoder,
 				app.GetStoreKeys(),
 				workers,
 				preEstimate,
@@ -1138,6 +1290,9 @@ func (app *App) setPostHandler() {
 	}
 	app.SetPostHandler(postHandler)
 }
+
+// MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
+func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
@@ -1462,4 +1617,50 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	return app.BaseApp.CheckTx(req)
+}
+
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	if app.mempoolManager == nil {
+		return app.BaseApp.Commit()
+	}
+
+	resp, err := func() (*abci.ResponseCommit, error) {
+		// BaseApp.Commit resets checkState; upstream assumes CometBFT's mempool
+		// lock guards it, but AppMempool.Lock() is a no-op. This mutex serializes
+		// the reset against concurrent peer admission (InsertTx/CheckTx RunTx).
+		mu := app.mempoolManager.AdmissionMutex()
+		mu.Lock()
+		defer mu.Unlock()
+		return app.BaseApp.Commit()
+	}()
+
+	if err == nil {
+		app.mempoolManager.RecheckTxs()
+	}
+	return resp, err
+}
+
+// FinalizeBlock stages the committed block's senders for post-commit recheck
+// (mempool.type=app only). Senders are known regardless of execution outcome;
+// Commit re-validates their remaining pending txs against the new state.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	resp, err := app.BaseApp.FinalizeBlock(req)
+	if err == nil && app.mempoolManager != nil {
+		app.mempoolManager.StageRecheckSenders(req.Height, req.Txs)
+
+		// Residual waste from skipping PrepareProposalVerifyTx: txs that passed
+		// proposal but fail ante here (non-zero code; EVM reverts stay code 0).
+		// Watch to validate the baseFee gate + no-ante tradeoff; a rising value
+		// flags a stale-tx mode the gate + RecheckTxs miss.
+		var failed float32
+		for _, r := range resp.TxResults {
+			if r.Code != abci.CodeTypeOK {
+				failed++
+			}
+		}
+		if failed > 0 {
+			telemetry.IncrCounter(failed, "cronos", "finalize", "tx", "failed")
+		}
+	}
+	return resp, err
 }

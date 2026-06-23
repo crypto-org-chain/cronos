@@ -2,6 +2,10 @@ local config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
+    // Old upgrade binaries predate the app-side mempool ABCI; keep flood.
+    config+: {
+      mempool: { version: 'v1' },
+    },
     'app-config'+: {
       'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '100000000000basetcro',
