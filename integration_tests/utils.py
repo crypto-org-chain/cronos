@@ -112,6 +112,16 @@ def wait_for_fn(name, fn, *, timeout=240, interval=1):
         raise TimeoutError(f"wait for {name} timeout")
 
 
+def mempool_type(cronos, i=0) -> str:
+    """Mempool type from node i's rendered config.toml. Absent type == flood.
+
+    Under mempool.type=app txs live in the SDK pool, so CometBFT's UnconfirmedTxs
+    RPC (eth "pending" filter, dup-tx detection) behaves differently from flood.
+    """
+    cfg = toml.load(cronos.node_home(i) / "config" / "config.toml")
+    return cfg.get("mempool", {}).get("type") or "flood"
+
+
 def get_sync_info(s):
     return s.get("SyncInfo") or s.get("sync_info")
 

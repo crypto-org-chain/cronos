@@ -266,8 +266,8 @@ github.com/cockroachdb/redact v1.1.8/go.mod h1:GceHHpJ0rMDpYARL5In88Alq/xMBUtVlz
 github.com/cockroachdb/tokenbucket v0.0.0-20250429170803-42689b6311bb h1:3bCgBvB8PbJVMX1ouCcSIxvsqKPYM7gs72o0zC76n9g=
 github.com/cockroachdb/tokenbucket v0.0.0-20250429170803-42689b6311bb/go.mod h1:7nc4anLGjupUW/PeY5qiNYsdNXj7zopG+eqsS7To5IQ=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
-github.com/cometbft/cometbft v0.39.3 h1:UegHXskZNomsijmm29nL5NkeXtnzkme6fg+q1hPQnEI=
-github.com/cometbft/cometbft v0.39.3/go.mod h1:PmNfvtw256BC41ad0FABts236CSZnvZ0kjPOciBwTdM=
+github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540 h1:jdV08C/OxZQ8HLSYzW5oux/FZ9Pp2FePt9uuOv6kHAQ=
+github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540/go.mod h1:PmNfvtw256BC41ad0FABts236CSZnvZ0kjPOciBwTdM=
 github.com/cometbft/cometbft-db v1.0.4 h1:cezb8yx/ZWcF124wqUtAFjAuDksS1y1yXedvtprUFxs=
 github.com/cometbft/cometbft-db v1.0.4/go.mod h1:M+BtHAGU2XLrpUxo3Nn1nOCcnVCiLM9yx5OuT0u5SCA=
 github.com/consensys/gnark-crypto v0.18.1 h1:RyLV6UhPRoYYzaFnPQA4qK3DyuDgkTgskDdoGqFt3fI=

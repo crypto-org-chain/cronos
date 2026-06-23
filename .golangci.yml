@@ -97,6 +97,15 @@ linters:
           - staticcheck
         text: 'SA1019: params.SendEnabled is deprecated'
       - linters:
+          - staticcheck
+        text: 'SA1019: telemetry\.' # telemetry wrappers deprecated upstream with no replacement
+      - linters:
+          - staticcheck
+        text: 'SA1019: govcli.FlagDescription' # only used by the deprecated legacy-proposal command
+      - linters:
+          - staticcheck
+        text: 'SA1019: crisis\.' # x/crisis is deprecated upstream but still wired in
+      - linters:
           - gosec
         text: 'G115: integer overflow conversion'
       - linters:

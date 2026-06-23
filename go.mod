@@ -11,7 +11,7 @@ require (
 	cosmossdk.io/tools/confix v0.1.2
 	filippo.io/age v1.3.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.39.3
+	github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.54.3
@@ -202,7 +202,7 @@ require (
 	github.com/bytedance/sonic v1.15.1 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect

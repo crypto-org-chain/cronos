@@ -12,7 +12,11 @@
     "send_interval": 0.2,
     "config_patch": {
       "mempool": {
-        "size": 10000
+        "size": 10000,
+        "type": "app",
+        "broadcast": true,
+        "reap_max_gas": 105000000,
+        "reap_interval": "500ms"
       },
       "consensus": {
         "timeout_commit": "20ms",
@@ -20,15 +24,21 @@
         "timeout_prevote": "300ms",
         "timeout_precommit": "300ms"
       },
-      "db_backend": "rocksdb"
+      "db_backend": "rocksdb",
+      "event_bus_buffer_capacity": 128,
+      "p2p": {
+        "libp2p": {
+          "enabled": true
+        }
+      }
     },
     "app_patch": {
       "async-check-tx": true,
       "mempool": {
-        "max-txs": -1
+        "max-txs": 10000
       },
       "evm": {
-        "block-stm-pre-estimate": false,
+        "block-stm-pre-estimate": true,
         "block-executor": "block-stm"
       },
       "memiavl": {
@@ -36,6 +46,9 @@
       },
       "json-rpc": {
         "enable-indexer": false
+      },
+      "cronos": {
+        "mempool-txs-per-block": 5000
       }
     },
     "genesis_patch": {

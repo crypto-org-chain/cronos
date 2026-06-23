@@ -49,9 +49,10 @@ RUN if [ -f /tmp/corp-ca.crt ]; then \
         update-ca-certificates; \
     fi
 
-# Build RocksDB 10.6.2 (same version as nix/rocksdb.nix)
+# Build RocksDB 10.10.0 — grocksdb v1.10.8 needs newer C API symbols
+# (rocksdb_livefiles_largest_seqno, rocksdb_pinnable_handle_*) added after 10.6.
 WORKDIR /rocksdb
-RUN git clone --depth 1 --branch v10.6.2 https://github.com/facebook/rocksdb.git . \
+RUN git clone --depth 1 --branch v10.10.1 https://github.com/facebook/rocksdb.git . \
     && sed -i 's/std::memcpy(this, &other, sizeof(\*this));/std::memcpy(static_cast<void*>(this), static_cast<const void*>(\&other), sizeof(*this));/' port/mmap.cc \
     && mkdir build && cd build \
     && cmake .. -G Ninja \
@@ -80,7 +81,7 @@ RUN git clone --depth 1 --branch v10.6.2 https://github.com/facebook/rocksdb.git
 # =============================================================================
 # Stage 2: Build cronosd
 # =============================================================================
-FROM golang:1.25.8-bookworm AS cronosd-builder
+FROM golang:1.25.9-bookworm AS cronosd-builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -118,13 +119,17 @@ RUN if [ -f nix/testground-cronosd.patch ]; then \
     fi
 
 # Build cronosd
-# Use -mod=mod to allow dependency resolution (vendor may be out of sync)
+# Use -mod=vendor: vendor has grocksdb's bundled c.h (which defines
+# rocksdb_slice_t — a grocksdb-specific type not in upstream rocksdb).
+# The `rocksdb -> .` symlink lets `#include "rocksdb/c.h"` resolve to
+# vendor/github.com/linxGnu/grocksdb/c.h.
 ARG VERSION=docker
 ARG COMMIT=docker
-ENV CGO_CFLAGS="-I/usr/include"
+ENV CGO_CFLAGS="-I/src/vendor/github.com/linxGnu/grocksdb"
 ENV CGO_LDFLAGS="-L/usr/lib -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
-RUN CGO_ENABLED=1 go build \
-    -mod=mod \
+RUN ln -sfn . vendor/github.com/linxGnu/grocksdb/rocksdb \
+    && CGO_ENABLED=1 go build \
+    -mod=vendor \
     -tags "netgo objstore pebbledb rocksdb grocksdb_clean_link mainnet nativebyteorder" \
     -ldflags "-w -s -X github.com/cosmos/cosmos-sdk/version.Name=cronos \
               -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd \
