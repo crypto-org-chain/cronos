@@ -52,18 +52,15 @@ type Manager struct {
 	deferred            []sdk.Tx
 	lastCommittedHeight int64
 	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
-	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle (stale entries
-	// drop out); recheckMu keeps RecheckTxs single-writer, so arrival needs no lock.
+	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle; recheckMu keeps it single-writer.
 	arrival map[sdk.Tx]int64
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
 
-	// recheckMu makes RecheckTxs single-writer (worker, inline fallback, and direct
-	// callers all funnel through it), keeping the lock-free arrival map race-free.
-	// Acquired outermost — always before mu/stagingMu, never after — so no cycle.
+	// recheckMu serializes RecheckTxs so the lock-free arrival map has one writer.
+	// Always acquired before mu/stagingMu, never after.
 	recheckMu sync.Mutex
-	// recheckTrigger coalesces async recheck wakeups (buffered 1 so Commit never
-	// blocks); nil when built via newManager (tests run sync). stop ends the worker.
+	// recheckTrigger wakes the async worker (buffered-1, coalescing); nil in tests (sync path).
 	recheckTrigger chan struct{}
 	stop           chan struct{}
 	workerDone     chan struct{}
