@@ -43,7 +43,10 @@ jobs:
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v9
-        if: steps.changed-files.outputs.any_changed == 'true'
+        # magic-nix-cache v0.2.0 is archived/unmaintained and its arm64-darwin
+        # binary crashes on the macos-14 runner (missing libc++ symbol), which
+        # hangs the step forever. Restrict it to Linux; macOS relies on cachix.
+        if: runner.os == 'Linux' && steps.changed-files.outputs.any_changed == 'true'
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
