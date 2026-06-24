@@ -475,6 +475,7 @@ func New(
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
+	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
 	switch mempoolType {
 	case "", "flood", cronosmempool.TypeApp:
@@ -557,6 +558,8 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
+			// SetPreVerify before InsertTxHandler so the snapshot captures the non-nil verifier.
+			manager.SetPreVerify(ethante.NewEVMSigPreVerifier(chainId, activeDecoder))
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
@@ -571,7 +574,6 @@ func New(
 		// only enable memiavl cache if neither block-stm nor optimistic execution is enabled, because it's not concurrency-safe.
 		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	}
-	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, chainId, baseAppOptions)
 
 	// The default value of optimisticExecution is enabled.
@@ -606,10 +608,6 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
-	}
-
-	if mempoolManager != nil {
-		mempoolManager.SetPreVerify(ethante.NewEVMSigPreVerifier(chainId, activeDecoder))
 	}
 
 	app.SetDisableBlockGasMeter(true)
