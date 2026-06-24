@@ -291,6 +291,11 @@ func TestAppMempoolInsertGate(t *testing.T) {
 	t.Cleanup(func() { _ = flood.Close() })
 	require.False(t, flood.MempoolInsertEnabled())
 	require.Nil(t, flood.MempoolManager())
+
+	// Defense-in-depth: a stray call with no app mempool must return a code, not panic.
+	resp, err := flood.InsertMempoolTx([]byte("tx"))
+	require.NoError(t, err)
+	require.NotEqual(t, uint32(abci.CodeTypeOK), resp.Code)
 }
 
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current

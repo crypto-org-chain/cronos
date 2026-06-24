@@ -483,6 +483,17 @@ func TestManagerInsertTx_RetryOnMempoolFull(t *testing.T) {
 	}
 }
 
+func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
+	runner := &stubRunner{runTx: func([]byte) error {
+		return errors.Join(errors.New("outer"), sdkmempool.ErrMempoolTxMaxCapacity)
+	}}
+	a := newManager(runner, nil, noopEncoder, nil)
+
+	if code, _, _ := a.InsertTx([]byte("tx")); code != abci.CodeTypeRetry {
+		t.Fatalf("expected CodeTypeRetry for wrapped ErrMempoolTxMaxCapacity, got %d", code)
+	}
+}
+
 func TestManagerInsertTx_RegistersCanonicalBytes(t *testing.T) {
 	runner := &stubRunner{}
 	tx := &ptrTx{}

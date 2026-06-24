@@ -1300,10 +1300,18 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 func (app *App) MempoolInsertEnabled() bool { return app.mempoolManager != nil }
 
 // InsertMempoolTx admits an EVM RPC tx into the app mempool and returns the sync
-// ABCI result. The name avoids the promoted BaseApp.InsertTx. Only called when
-// MempoolInsertEnabled() is true, so mempoolManager is non-nil; err is always nil
-// (failures map to a non-zero Code with codespace/log).
+// ABCI result. The name avoids the promoted BaseApp.InsertTx. ethermint only calls
+// this when MempoolInsertEnabled() is true; the nil guard is defense-in-depth, as
+// that contract lives across the repo boundary. err is always nil (failures map to
+// a non-zero Code with codespace/log).
 func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
+	if app.mempoolManager == nil {
+		return &sdk.TxResponse{
+			Code:      sdkerrors.ErrNotSupported.ABCICode(),
+			Codespace: sdkerrors.ErrNotSupported.Codespace(),
+			RawLog:    "app mempool insert not enabled",
+		}, nil
+	}
 	code, codespace, log := app.mempoolManager.InsertTx(txBytes)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
