@@ -76,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Github API Request
         id: request
-        uses: octokit/request-action@45eef13998ff762839b0a0de9bbcf41970fd056d # v2.4.0
+        uses: octokit/request-action@b66ca9cd744693e9c29b490fc08831ab66c4a970 # v2.4.0
         if: github.event_name == 'issue_comment'
         with:
           route: ${{ github.event.issue.pull_request.url }}
@@ -96,7 +96,7 @@ jobs:
             echo "ref=${comment_hash}" >> $GITHUB_OUTPUT # use comment provided ref
           fi
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -104,7 +104,7 @@ jobs:
           repository: ${{ steps.pr_data.outputs.repo_name }}
           ref: ${{ steps.pr_data.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: true
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
@@ -157,7 +157,7 @@ jobs:
     needs: [build, install-runsim]
     steps:
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -165,7 +165,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
@@ -214,7 +214,7 @@ jobs:
     needs: [build, install-runsim]
     steps:
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -222,7 +222,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
@@ -271,7 +271,7 @@ jobs:
     needs: [build, install-runsim]
     steps:
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -279,7 +279,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
@@ -328,7 +328,7 @@ jobs:
     needs: [build, install-runsim]
     steps:
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -336,7 +336,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
