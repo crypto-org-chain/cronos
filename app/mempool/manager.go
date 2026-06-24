@@ -35,6 +35,8 @@ type Manager struct {
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	trace     bool
+	// preVerify runs lock-free before the admission mutex; nil means skip.
+	preVerify func([]byte) error
 
 	mpool   sdkmempool.Mempool
 	signer  sdkmempool.SignerExtractionAdapter
@@ -126,12 +128,26 @@ func (a *Manager) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
 
+// SetPreVerify wires the lock-free pre-verification hook for mempool.type=app.
+func (a *Manager) SetPreVerify(fn func([]byte) error) {
+	a.preVerify = fn
+}
+
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
 // admitting them. Flood protection relies on CometBFT peer limits, not this
 // handler. Admitted txs register canonical bytes so ReapTxsHandler can skip
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
+		// Pre-verify EVM sig lock-free: ecrecover dominates admission cost and
+		// touches no store. Non-EVM txs and decode failures return nil and fall
+		// through to the locked RunTx below.
+		if a.preVerify != nil {
+			if err := a.preVerify(req.Tx); err != nil {
+				_, code, _ := errorsmod.ABCIInfo(err, false)
+				return &abci.ResponseInsertTx{Code: code}, nil
+			}
+		}
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring mu.
 		var tx sdk.Tx

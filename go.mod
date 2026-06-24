@@ -66,7 +66,7 @@ require (
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/btcsuite/btcd v0.25.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
-	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
+	github.com/btcsuite/btcd/btcutil v1.2.0 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cosmos/btree v1.0.0 // indirect
@@ -80,6 +80,7 @@ require (
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.72 // indirect
 	github.com/ipfs/go-cid v0.5.0 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
+	github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee // indirect
 	github.com/koron/go-ssdp v0.0.6 // indirect
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
@@ -131,7 +132,7 @@ require (
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.4 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
@@ -265,7 +266,7 @@ require (
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
-	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
+	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.15 // indirect
@@ -365,7 +366,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.26.0 // indirect
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
@@ -400,7 +401,7 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260528204018-f6683e1e255b
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260624022300-3247d33cbe46
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

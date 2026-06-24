@@ -60,6 +60,7 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	"github.com/evmos/ethermint/ante/cache"
+	ethante "github.com/evmos/ethermint/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
 	evmapp "github.com/evmos/ethermint/evmd"
@@ -605,6 +606,10 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
+	}
+
+	if mempoolManager != nil {
+		mempoolManager.SetPreVerify(ethante.NewEVMSigPreVerifier(chainId, activeDecoder))
 	}
 
 	app.SetDisableBlockGasMeter(true)
