@@ -137,19 +137,17 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// InsertTx admits a tx submitted directly via RPC (the ethermint EVM backends
-// under mempool.type=app) and returns the sync ABCI result. It shares admit with
-// the p2p InsertTxHandler so both paths run one admission implementation; unlike
-// the gossip handler it also surfaces the codespace and log so the JSON-RPC
-// caller gets a real error reason. err is always nil (failures map to a code).
+// InsertTx admits an RPC-submitted EVM tx (mempool.type=app) and returns the sync
+// ABCI result. Shares admit() with the gossip InsertTxHandler, but also returns the
+// codespace and log so the JSON-RPC caller gets a real error reason. err is always
+// nil: admission failures map to a code.
 func (a *Manager) InsertTx(txBytes []byte) (code uint32, codespace, log string) {
 	return a.admit(txBytes)
 }
 
-// admit runs the shared app-mempool admission: decode (when caching, so bad txs
-// return before taking mu), then under mu RunTx(ExecModeCheck) and, on success,
-// cacheTx. Capacity rejection maps to CodeTypeRetry for back-pressure; other
-// failures carry the ABCI codespace/code/log.
+// admit is the shared admission path: decode unlocked (bad txs return before taking
+// mu), then RunTx(ExecModeCheck) and, on success, cacheTx under mu. Over-capacity
+// maps to CodeTypeRetry for back-pressure; other failures carry the ABCI fields.
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 	// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 	// DecodeCache have their own locks. Bad txs return without acquiring mu.
