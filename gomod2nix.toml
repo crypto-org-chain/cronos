@@ -189,8 +189,8 @@ schema = 3
     version = "v2.3.5"
     hash = "sha256-stpoaGQ1PNPqtLYIQc96YH24s8owcV+PoSo6xREi9LI="
   [mod."github.com/btcsuite/btcd/btcutil"]
-    version = "v1.1.6"
-    hash = "sha256-TYbwJLNX/+63nm+b3RqPH3ZIvTBnsm9peqJP05v9Z90="
+    version = "v1.2.0"
+    hash = "sha256-XT3GG5PoTBNhnRDnmj1kf6YsYoVW6MJB/XJq0aKxtys="
   [mod."github.com/btcsuite/btcd/chaincfg/chainhash"]
     version = "v1.1.0"
     hash = "sha256-F+EqvufC+KBslZV/vL8ph6MqDoVD5ic5rVaM27reDqo="
@@ -379,8 +379,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260528204018-f6683e1e255b"
-    hash = "sha256-OwIpJInlYV89RUMIMs67SjtjfujtgoFsB0R6AVe+/d8="
+    version = "v0.22.1-0.20260624013701-b8b15b395864"
+    hash = "sha256-0X86Kuw1tcyCHl2g2oEp3QUX9+akvWR5QSgUFzYr1I8="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
@@ -458,8 +458,8 @@ schema = 3
     version = "v0.0.1"
     hash = "sha256-KrExYovtUQrHGI1mPQf57jGw8soz7eWOC2xqEaV0uGk="
   [mod."github.com/google/pprof"]
-    version = "v0.0.0-20260115054156-294ebfa9ad83"
-    hash = "sha256-fhalKl/thSt1gdsHZmFyNGF1Gwxb0YLXV0pBv65EZjE="
+    version = "v0.0.0-20260402051712-545e8a4df936"
+    hash = "sha256-DBaCmfVLei1HComa+xJN76IpPFTUaDfUEhc1U9gmW8g="
   [mod."github.com/google/s2a-go"]
     version = "v0.1.9"
     hash = "sha256-0AdSpSTso4bATmM/9qamWzKrVtOLDf7afvDhoiT/UpA="
@@ -562,6 +562,9 @@ schema = 3
   [mod."github.com/jmhodges/levigo"]
     version = "v1.0.0"
     hash = "sha256-xEd0mDBeq3eR/GYeXjoTVb2sPs8sTCosn5ayWkcgENI="
+  [mod."github.com/kcalvinalvin/anet"]
+    version = "v0.0.0-20251112173137-d8ddc1f6dbee"
+    hash = "sha256-GBQuTXh6oQI4caoM6gJgWXolh7c/fTCNiYnFNfGeRaU="
   [mod."github.com/klauspost/compress"]
     version = "v1.18.6"
     hash = "sha256-gULc+A2Clg2HnwR9UNXSIHVGdFY/aGqhf0zlvMxqaSY="
@@ -876,8 +879,8 @@ schema = 3
     version = "v1.8.1"
     hash = "sha256-QsYonFnbD/zaxUYAJMzDNI3ju0TjcBJrh8/DBhaJfbM="
   [mod."github.com/tidwall/gjson"]
-    version = "v1.18.0"
-    hash = "sha256-CO6hqDu8Y58Po6A01e5iTpwiUBQ5khUZsw7czaJHw0I="
+    version = "v1.19.0"
+    hash = "sha256-H0tqaftwuKVjuvlPov1Fr1a5W0JZmWUkOlPxY5qtSTE="
   [mod."github.com/tidwall/match"]
     version = "v1.1.1"
     hash = "sha256-M2klhPId3Q3T3VGkSbOkYl/2nLHnsG+yMbXkPkyrRdg="
@@ -1056,8 +1059,8 @@ schema = 3
     version = "v0.36.0"
     hash = "sha256-ZhyOvy9ptbV+pna/CNyQFr5cKRn5O+B2QzkQAISKgco="
   [mod."golang.org/x/net"]
-    version = "v0.55.0"
-    hash = "sha256-Phi2mSmBGOJcvqPPAit3uqF3UP8SKRI9dHj6yTM3s5s="
+    version = "v0.56.0"
+    hash = "sha256-JUORjxDZqZanYWo2yunaDpQ2/zvHiFb0TnF1Jw6D+30="
   [mod."golang.org/x/oauth2"]
     version = "v0.36.0"
     hash = "sha256-evS7WkMrpgonmTcqtWFpC5rSKZN8O+vnAhNUs1MS9kw="

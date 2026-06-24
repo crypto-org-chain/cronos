@@ -267,14 +267,14 @@ func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
 	valid := f.signTransfer(t, &f.accounts[0], nil)
 	resp, err := f.app.InsertMempoolTx(valid)
 	require.NoError(t, err)
-	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code, "valid tx rejected: %s", resp.RawLog)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, "valid tx rejected: %s", resp.RawLog)
 	require.Equal(t, 1, f.app.Mempool().CountTx(), "admitted tx must land in the pool")
 
 	tampered := common.Address{0x9}
 	bz := f.signTransfer(t, &f.accounts[0], &tampered) // recovered sender != From
 	resp, err = f.app.InsertMempoolTx(bz)
 	require.NoError(t, err, "admission failures map to a code, not a transport error")
-	require.NotEqual(t, uint32(abci.CodeTypeOK), resp.Code, "tampered tx must be rejected")
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered tx must be rejected")
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
@@ -295,7 +295,7 @@ func TestAppMempoolInsertGate(t *testing.T) {
 	// Defense-in-depth: a stray call with no app mempool must return a code, not panic.
 	resp, err := flood.InsertMempoolTx([]byte("tx"))
 	require.NoError(t, err)
-	require.NotEqual(t, uint32(abci.CodeTypeOK), resp.Code)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 }
 
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current
