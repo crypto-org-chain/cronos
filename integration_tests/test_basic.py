@@ -565,9 +565,9 @@ def assert_receipt_transaction_and_block(w3, futures):
     # check block receipts
 
     receipts.sort(key=lambda receipt: receipt["transactionIndex"])
-    block_receipts = w3.provider.make_request("eth_getBlockReceipts", [block_number])[
-        "result"
-    ]
+    block_receipts = w3.provider.make_request(
+        "eth_getBlockReceipts", [hex(block_number)]
+    )["result"]
     assert len(block_receipts) == 4
     for i, block_receipt in enumerate(block_receipts):
         assert block_receipt["blockNumber"] == hex(receipts[i]["blockNumber"])
