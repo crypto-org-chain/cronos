@@ -160,8 +160,7 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	}
 }
 
-// TestPreVerifyRejectsTamperedSig checks that the lock-free pre-verifier rejects
-// an EVM tx whose From field was tampered after signing, without reaching RunTx.
+// TestPreVerifyRejectsTamperedSig: tampered From rejected lock-free before RunTx.
 func TestPreVerifyRejectsTamperedSig(t *testing.T) {
 	f := setupAdmissionApp(t, 2)
 	other := f.accounts[1].Address
@@ -171,13 +170,9 @@ func TestPreVerifyRejectsTamperedSig(t *testing.T) {
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered From must be rejected by pre-verifier")
 }
 
-// TestPreVerifyPassesThroughNonEVMTx checks that a non-EVM tx is not rejected
-// by the pre-verifier (returns nil) and proceeds to the locked RunTx path.
-// A bare bank MsgSend with no signature fails antehandler, not pre-verifier.
+// TestPreVerifyPassesThroughNonEVMTx: non-EVM tx skips pre-verifier, fails antehandler.
 func TestPreVerifyPassesThroughNonEVMTx(t *testing.T) {
 	f := setupAdmissionApp(t, 1)
-	// Build an unsigned Cosmos tx (bank send). Pre-verify must not reject it;
-	// RunTx rejects it with a signature error, not the pre-verifier code.
 	builder := f.app.TxConfig().NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(&banktypes.MsgSend{
 		FromAddress: sdk.AccAddress(f.accounts[0].Address.Bytes()).String(),
@@ -188,9 +183,7 @@ func TestPreVerifyPassesThroughNonEVMTx(t *testing.T) {
 	require.NoError(t, err)
 	resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
 	require.NoError(t, err)
-	// RunTx rejects the unsigned tx, but the code must not be the pre-verifier's
-	// signature-invalid code — it falls through to the locked antehandler path.
-	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "unsigned tx must be rejected")
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "unsigned tx must be rejected by antehandler")
 }
 
 // TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
