@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"math"
 	"math/big"
 	"net/http"
@@ -1529,9 +1530,7 @@ func RegisterSwaggerAPI(_ client.Context, rtr *mux.Router) {
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
 	dupMaccPerms := make(map[string][]string)
-	for k, v := range maccPerms {
-		dupMaccPerms[k] = v
-	}
+	maps.Copy(dupMaccPerms, maccPerms)
 	return dupMaccPerms
 }
 
