@@ -258,6 +258,41 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
 }
 
+// TestAppInsertMempoolTx_AcceptsAndRejects exercises the ethermint EVM RPC entry
+// point App.InsertMempoolTx: a valid tx returns code 0, a tampered one returns a
+// non-zero code with a populated RawLog (the codespace/log the JSON-RPC caller needs).
+func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
+	f := setupAdmissionApp(t, 1)
+
+	valid := f.signTransfer(t, &f.accounts[0], nil)
+	resp, err := f.app.InsertMempoolTx(valid)
+	require.NoError(t, err)
+	require.Equal(t, uint32(abci.CodeTypeOK), resp.Code, "valid tx rejected: %s", resp.RawLog)
+	require.Equal(t, 1, f.app.Mempool().CountTx(), "admitted tx must land in the pool")
+
+	tampered := common.Address{0x9}
+	bz := f.signTransfer(t, &f.accounts[0], &tampered) // recovered sender != From
+	resp, err = f.app.InsertMempoolTx(bz)
+	require.NoError(t, err, "admission failures map to a code, not a transport error")
+	require.NotEqual(t, uint32(abci.CodeTypeOK), resp.Code, "tampered tx must be rejected")
+	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
+}
+
+// TestAppMempoolInsertGate confirms the registration predicate: app-mempool nodes
+// enable direct insert, the default flood mempool does not (so its EVM submission
+// stays on the unchanged BroadcastTx path).
+func TestAppMempoolInsertGate(t *testing.T) {
+	appMempool := setupAdmissionApp(t, 1).app
+	require.True(t, appMempool.MempoolInsertEnabled())
+	require.NotNil(t, appMempool.MempoolManager())
+
+	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
+	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
+	t.Cleanup(func() { _ = flood.Close() })
+	require.False(t, flood.MempoolInsertEnabled())
+	require.Nil(t, flood.MempoolManager())
+}
+
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current
 // single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
 // RunTx is serialized by the admission mutex.

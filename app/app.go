@@ -1294,6 +1294,22 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
+// MempoolInsertEnabled reports whether direct app-mempool insertion is active
+// (mempool.type=app). The ethermint JSON-RPC server gates registration of the
+// EVM direct-insert path on this, so the default flood mempool keeps the
+// unchanged BroadcastTx submission path. Satisfies ethermint server.MempoolTxInserter.
+func (app *App) MempoolInsertEnabled() bool { return app.mempoolManager != nil }
+
+// InsertMempoolTx admits an EVM RPC tx straight into the app mempool, returning the
+// synchronous ABCI result. The ethermint backends call it only after
+// MempoolInsertEnabled() reports true, so mempoolManager is non-nil here. The
+// returned error is always nil — admission failures map to a non-zero Code with
+// codespace/log, which the caller turns into an ABCI error.
+func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
+	code, codespace, log := app.mempoolManager.InsertTx(txBytes)
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
+}
+
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
 

@@ -132,32 +132,50 @@ func (a *Manager) AdmissionMutex() *sync.Mutex {
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
-		// DecodeCache have their own locks. Bad txs return without acquiring mu.
-		var tx sdk.Tx
-		if a.encCache != nil {
-			var err error
-			if tx, err = a.decoder(req.Tx); err != nil {
-				_, code, _ := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode.Wrap(err.Error()), false)
-				return &abci.ResponseInsertTx{Code: code}, nil
-			}
-		}
-
-		a.mu.Lock()
-		defer a.mu.Unlock()
-
-		_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, req.Tx, tx, -1, nil, nil)
-		if err != nil {
-			if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
-				return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
-			}
-			_, code, _ := errorsmod.ABCIInfo(err, false)
-			return &abci.ResponseInsertTx{Code: code}, nil
-		}
-
-		a.cacheTx(tx, req.Tx)
-		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
+		code, _, _ := a.admit(req.Tx)
+		return &abci.ResponseInsertTx{Code: code}, nil
 	}
+}
+
+// InsertTx admits a tx submitted directly via RPC (the ethermint EVM backends
+// under mempool.type=app) and returns the sync ABCI result. It shares admit with
+// the p2p InsertTxHandler so both paths run one admission implementation; unlike
+// the gossip handler it also surfaces the codespace and log so the JSON-RPC
+// caller gets a real error reason. err is always nil (failures map to a code).
+func (a *Manager) InsertTx(txBytes []byte) (code uint32, codespace, log string) {
+	return a.admit(txBytes)
+}
+
+// admit runs the shared app-mempool admission: decode (when caching, so bad txs
+// return before taking mu), then under mu RunTx(ExecModeCheck) and, on success,
+// cacheTx. Capacity rejection maps to CodeTypeRetry for back-pressure; other
+// failures carry the ABCI codespace/code/log.
+func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
+	// Decode before locking: proto unmarshal is CPU-intensive; decoder and
+	// DecodeCache have their own locks. Bad txs return without acquiring mu.
+	var tx sdk.Tx
+	if a.encCache != nil {
+		var err error
+		if tx, err = a.decoder(txBytes); err != nil {
+			cs, c, l := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode.Wrap(err.Error()), false)
+			return c, cs, l
+		}
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil)
+	if err != nil {
+		if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
+			return abci.CodeTypeRetry, "", "mempool is full"
+		}
+		cs, c, l := errorsmod.ABCIInfo(err, false)
+		return c, cs, l
+	}
+
+	a.cacheTx(tx, txBytes)
+	return abci.CodeTypeOK, "", ""
 }
 
 // cacheTx registers the already-decoded tx under its canonical bytes (raw
