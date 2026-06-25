@@ -13,7 +13,7 @@
 * [#2089](https://github.com/crypto-org-chain/cronos/pull/2089) feat: upgrade to cosmos-sdk v0.54.3 + ibc-go v11 + cometbft v0.39.
 * [#2081](https://github.com/crypto-org-chain/cronos/pull/2081) Upgrade go-ethereum version to `v1.16.9`, enable Osaka hardfork.
 * [#2091](https://github.com/crypto-org-chain/cronos/pull/2091) feat(app): v0.54 upgrade perf optimizations + app-mempool feature.
-* [#2119](https://github.com/crypto-org-chain/cronos/pull/2119) feat(mempool): submit EVM RPC txs via app-mempool direct insert.
+* [#2119](https://github.com/crypto-org-chain/cronos/pull/2119) feat(mempool): support direct insert tx via app mempool.
 
 ### Bug fixes
 
