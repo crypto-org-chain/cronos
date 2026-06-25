@@ -258,9 +258,6 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
 }
 
-// TestAppInsertMempoolTx_AcceptsAndRejects exercises the ethermint EVM RPC entry
-// point App.InsertMempoolTx: a valid tx returns code 0, a tampered one returns a
-// non-zero code with a populated RawLog (the codespace/log the JSON-RPC caller needs).
 func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
 	f := setupAdmissionApp(t, 1)
 
@@ -278,9 +275,6 @@ func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
-// TestAppInsertMempoolTxDeclinesWithoutAppMempool confirms the default flood mempool
-// declines direct insert with a nil response, so ethermint keeps EVM submission on
-// the BroadcastTx path. App-mempool nodes return a real response (see AcceptsAndRejects).
 func TestAppInsertMempoolTxDeclinesWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
 	require.NotNil(t, appMempool.MempoolManager())

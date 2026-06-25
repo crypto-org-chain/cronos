@@ -146,8 +146,6 @@ func (a *Manager) InsertTx(txBytes []byte) (code uint32, codespace, log string) 
 // admit is the shared admission path: decode unlocked (bad txs skip mu), then
 // RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to CodeTypeRetry.
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
-	// Decode before locking: proto unmarshal is CPU-intensive; decoder and
-	// DecodeCache have their own locks. Bad txs return without acquiring mu.
 	var tx sdk.Tx
 	if a.encCache != nil {
 		var err error

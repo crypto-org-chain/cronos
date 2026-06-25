@@ -49,6 +49,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -1295,8 +1296,7 @@ func (app *App) setPostHandler() {
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
 // InsertMempoolTx admits an EVM RPC tx into the app mempool and returns the sync
-// ABCI result. Named to avoid the promoted BaseApp.InsertTx. A nil response declines
-// when mempool.type != app, so ethermint falls back to BroadcastTx; err stays nil.
+// ABCI result.
 func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
 	if app.mempoolManager == nil {
 		return nil, nil // decline; ethermint falls back to BroadcastTx

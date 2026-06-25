@@ -459,8 +459,6 @@ func TestManagerInsertTx_RejectsInvalidTx(t *testing.T) {
 	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
 	a := newManager(runner, nil, noopEncoder, nil)
 
-	// The RPC path surfaces codespace+log (unlike the gossip handler) so the
-	// JSON-RPC caller gets a real ABCI error reason.
 	code, codespace, log := a.InsertTx([]byte("bad-tx"))
 	if code == abci.CodeTypeOK {
 		t.Fatal("expected non-OK code for rejected tx")
