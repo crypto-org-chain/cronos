@@ -134,22 +134,18 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
-// admitting them. Flood protection relies on CometBFT peer limits, not this
-// handler. Admitted txs register canonical bytes so ReapTxsHandler can skip
-// proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
+// admitting them. Admitted txs register canonical bytes so ReapTxsHandler can
+// skip proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	preVerify := a.preVerify
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		// Run pre-verifier lock-free before the admission mutex; nil means skip.
-		// Non-verifiable txs return nil and fall through to the locked RunTx below.
 		if preVerify != nil {
 			if err := preVerify(req.Tx); err != nil {
 				_, code, _ := errorsmod.ABCIInfo(err, false)
 				return &abci.ResponseInsertTx{Code: code}, nil
 			}
 		}
-		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
-		// DecodeCache have their own locks. Bad txs return without acquiring mu.
+		// Decode before locking: proto unmarshal is CPU-intensive.
 		var tx sdk.Tx
 		if a.encCache != nil {
 			var err error
