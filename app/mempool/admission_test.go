@@ -278,24 +278,22 @@ func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
-// TestAppMempoolInsertGate confirms the registration predicate: app-mempool nodes
-// enable direct insert, the default flood mempool does not (so its EVM submission
-// stays on the unchanged BroadcastTx path).
-func TestAppMempoolInsertGate(t *testing.T) {
+// TestAppInsertMempoolTxDeclinesWithoutAppMempool confirms the default flood mempool
+// declines direct insert with a nil response, so ethermint keeps EVM submission on
+// the BroadcastTx path. App-mempool nodes return a real response (see AcceptsAndRejects).
+func TestAppInsertMempoolTxDeclinesWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
-	require.True(t, appMempool.MempoolInsertEnabled())
 	require.NotNil(t, appMempool.MempoolManager())
 
 	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
 	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	t.Cleanup(func() { _ = flood.Close() })
-	require.False(t, flood.MempoolInsertEnabled())
 	require.Nil(t, flood.MempoolManager())
 
-	// Defense-in-depth: a stray call with no app mempool must return a code, not panic.
+	// No app mempool → decline via nil response; ethermint then uses BroadcastTx.
 	resp, err := flood.InsertMempoolTx([]byte("tx"))
 	require.NoError(t, err)
-	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	require.Nil(t, resp)
 }
 
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current

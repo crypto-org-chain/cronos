@@ -1294,20 +1294,12 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
-// MempoolInsertEnabled reports whether mempool.type=app. ethermint registers the
-// direct-insert path only when this is true, so flood mode keeps using BroadcastTx.
-func (app *App) MempoolInsertEnabled() bool { return app.mempoolManager != nil }
-
 // InsertMempoolTx admits an EVM RPC tx into the app mempool and returns the sync
-// ABCI result. Named to avoid the promoted BaseApp.InsertTx. The nil guard covers
-// the cross-repo gate contract; err stays nil (failures map to a non-zero Code).
+// ABCI result. Named to avoid the promoted BaseApp.InsertTx. A nil response declines
+// when mempool.type != app, so ethermint falls back to BroadcastTx; err stays nil.
 func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
 	if app.mempoolManager == nil {
-		return &sdk.TxResponse{
-			Code:      sdkerrors.ErrNotSupported.ABCICode(),
-			Codespace: sdkerrors.ErrNotSupported.Codespace(),
-			RawLog:    "app mempool insert not enabled",
-		}, nil
+		return nil, nil // decline; ethermint falls back to BroadcastTx
 	}
 	code, codespace, log := app.mempoolManager.InsertTx(txBytes)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
