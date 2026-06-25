@@ -138,12 +138,10 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 // handler. Admitted txs register canonical bytes so ReapTxsHandler can skip
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
-	// Snapshot preVerify once; safe for concurrent InsertTx callers.
 	preVerify := a.preVerify
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		// Pre-verify EVM sig lock-free: ecrecover dominates admission cost and
-		// touches no store. Non-EVM txs and decode failures return nil and fall
-		// through to the locked RunTx below.
+		// Run pre-verifier lock-free before the admission mutex; nil means skip.
+		// Non-verifiable txs return nil and fall through to the locked RunTx below.
 		if preVerify != nil {
 			if err := preVerify(req.Tx); err != nil {
 				_, code, _ := errorsmod.ABCIInfo(err, false)
