@@ -57,19 +57,16 @@ type Manager struct {
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
 
-	// recheckMu serializes RecheckTxs so the lock-free arrival map has one writer.
-	// Always acquired before mu/stagingMu, never after.
-	recheckMu sync.Mutex
-	// async holds the lifecycle state of the async recheck worker.
-	// All fields are nil/zero when Manager is built via newManager (test path runs sync).
+	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
+	// async is nil/zero for managers built via newManager (tests run sync).
 	async recheckAsync
 }
 
-// recheckAsync holds channels and sync state for the async recheck worker.
+// recheckAsync holds lifecycle state for the async recheck worker.
 type recheckAsync struct {
-	trigger  chan struct{} // buffered-1, coalescing; wakes recheckWorker
-	stop     chan struct{} // closed by Close to request worker exit
-	done     chan struct{} // closed by recheckWorker on exit
+	trigger  chan struct{} // buffered-1, coalescing wakeup
+	stop     chan struct{} // closed on Close
+	done     chan struct{} // closed when worker exits
 	stopOnce sync.Once
 }
 
@@ -82,8 +79,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
-	// Public constructor runs the async worker; newManager (tests) leaves
-	// async zero and rechecks synchronously.
+	// newManager (tests) leaves async zero and runs RecheckTxs synchronously.
 	a.async.trigger = make(chan struct{}, 1)
 	a.async.stop = make(chan struct{})
 	a.async.done = make(chan struct{})
@@ -263,13 +259,10 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// TriggerRecheck schedules an async recheck off the consensus path. Non-blocking:
-// a queued run is reused (staging merges across blocks, so no senders are lost).
-// Inline when no worker (built via newManager).
-//
-// Note: PrepareProposal for the next block may run before the worker drains the
-// trigger. Stale txs that slip through will be rejected by EVM execution; this
-// matches CometBFT flood-mempool behavior (also rechecks async after Commit).
+// TriggerRecheck schedules an async recheck off the Commit path (non-blocking,
+// coalescing). Falls back to inline when no worker (newManager / test path).
+// PrepareProposal may race the worker; stale txs rejected at EVM execution —
+// same window as CometBFT flood-mempool.
 func (a *Manager) TriggerRecheck() {
 	if a.async.trigger == nil {
 		a.RecheckTxs()
@@ -281,8 +274,7 @@ func (a *Manager) TriggerRecheck() {
 	}
 }
 
-// recheckWorker runs RecheckTxs off the Commit path. Single goroutine, so
-// worker-driven rechecks never overlap.
+// recheckWorker drains triggers on a single goroutine (no overlapping rechecks).
 func (a *Manager) recheckWorker() {
 	defer close(a.async.done)
 	for {
@@ -290,8 +282,7 @@ func (a *Manager) recheckWorker() {
 		case <-a.async.stop:
 			return
 		case <-a.async.trigger:
-			// Re-check stop to avoid a spurious RecheckTxs if stop was closed
-			// while a trigger was already buffered.
+			// Priority-check stop: skip recheck if Close raced a buffered trigger.
 			select {
 			case <-a.async.stop:
 				return
@@ -303,7 +294,7 @@ func (a *Manager) recheckWorker() {
 }
 
 // Close stops the recheck worker and waits for it to exit. Idempotent; no-op
-// without a worker. Must run before store teardown so no recheck reads a closing store.
+// without a worker. Call before store teardown.
 func (a *Manager) Close() {
 	if a.async.stop == nil {
 		return
