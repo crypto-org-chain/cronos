@@ -23,7 +23,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-metrics v0.5.4
+	github.com/hashicorp/go-metrics v0.6.0
 	github.com/linxGnu/grocksdb v1.10.8
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
@@ -401,7 +401,7 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 	// develop + appmempool refactor (#1016 EVM direct-insert, #1019 txpool, #1011 sig pre-verifier).
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260626163648-562fa2a2a6da
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260626203154-c7614153ea01
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
