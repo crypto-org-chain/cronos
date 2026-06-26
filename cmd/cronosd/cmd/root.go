@@ -14,6 +14,7 @@ import (
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
+	"github.com/evmos/ethermint/appmempool"
 	ethermintclient "github.com/evmos/ethermint/client"
 	"github.com/evmos/ethermint/crypto/hd"
 	ethermintserver "github.com/evmos/ethermint/server"
@@ -149,9 +150,9 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
-// *app.App must satisfy ethermint's MempoolTxInserter so the JSON-RPC server
+// *app.App must satisfy ethermint's appmempool.Inserter so the JSON-RPC server
 // routes EVM tx submission through the app mempool when mempool.type=app.
-var _ ethermintserver.MempoolTxInserter = (*app.App)(nil)
+var _ appmempool.Inserter = (*app.App)(nil)
 
 func initRootCmd(
 	rootCmd *cobra.Command,

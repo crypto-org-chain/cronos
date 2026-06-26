@@ -306,8 +306,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3c/go.mod h1:eEPLLeFOhRINMGIQTDjXuahaDkQgfSUvHTzSuuEl4V0=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260529153812-1f2f45ec5a3c h1:oTFxyhmD5ax3Cec3L2XKu/rMDL2CdFLflS/7BPmjJzw=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260529153812-1f2f45ec5a3c/go.mod h1:AVLgSeljZFwhfVzbeeEu15ejtK2q2PLyqJsPKxbU05I=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260625185556-d21dea061ff6 h1:UDt2Qrd2B3aOmD+OI85t9B+nnkBA9MChX2WqL9RhE4c=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260625185556-d21dea061ff6/go.mod h1:j7z7SCEajplRa6d06/KIEojCPDispDP+YthV4hWq50E=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260626163648-562fa2a2a6da h1:dVXNbF4YyTgylf2hRoLWODAQ1lSLkvSJlJUIJIvGNOU=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260626163648-562fa2a2a6da/go.mod h1:enttvb9MOYj/d9BBqRlz/J7Mj/TLkbEO+2Dt3N7Xi90=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
@@ -855,8 +855,8 @@ github.com/onsi/ginkgo/v2 v2.32.0/go.mod h1:+aXOY+vzZ5mu2iI2HpTZUPmM//oQfsNFX6gU
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
-github.com/onsi/gomega v1.40.0 h1:Vtol0e1MghCD2ZVIilPDIg44XSL9l2QAn8ZNaljWcJc=
-github.com/onsi/gomega v1.40.0/go.mod h1:M/Uqpu/8qTjtzCLUA2zJHX9Iilrau25x1PdoSRbWh5A=
+github.com/onsi/gomega v1.42.1 h1:iN1rCUX+44NZ1Dc97MPoeFYbFR0vh8zxoxMFwKdyZ6I=
+github.com/onsi/gomega v1.42.1/go.mod h1:REff/hsDsodHoKlWsP2mAPhu1+5/6hVYNf9rIEBpeSg=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7/go.mod h1:HzydrMdWErDVzsI23lYNej1Htcns9BCg93Dk0bBINWk=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
