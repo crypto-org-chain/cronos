@@ -1296,11 +1296,8 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
-// MempoolInserter exposes the app mempool as ethermint's appmempool.Inserter so
-// the JSON-RPC server routes EVM tx submission through it, or returns nil under
-// mempool.type != app so ethermint keeps the BroadcastTx path. Satisfies
-// appmempool.InserterProvider. The method lives on the manager (not *App) to avoid
-// colliding with the promoted BaseApp.InsertTx.
+// MempoolInserter returns the inserter (the manager, not *App) to avoid colliding
+// with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
 func (app *App) MempoolInserter() appmempool.Inserter {
 	if app.mempoolManager == nil {
 		return nil
