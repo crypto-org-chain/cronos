@@ -1295,14 +1295,14 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
-// InsertMempoolTx admits an EVM RPC tx into the app mempool and returns the sync
-// ABCI result.
+// InsertMempoolTx forwards an EVM RPC tx to the app mempool, or returns (nil, nil)
+// when mempool.type != app so ethermint falls back to BroadcastTx. Satisfies
+// ethermint's appmempool.Inserter.
 func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
 	if app.mempoolManager == nil {
 		return nil, nil // decline; ethermint falls back to BroadcastTx
 	}
-	code, codespace, log := app.mempoolManager.InsertTx(txBytes)
-	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
+	return app.mempoolManager.InsertTx(txBytes), nil
 }
 
 // Name returns the name of the App

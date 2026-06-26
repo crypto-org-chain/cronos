@@ -137,10 +137,12 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// InsertTx admits an RPC-submitted EVM tx, returning codespace+log (unlike the gossip
-// handler) so the JSON-RPC caller gets a real error reason. Shares admit().
-func (a *Manager) InsertTx(txBytes []byte) (code uint32, codespace, log string) {
-	return a.admit(txBytes)
+// InsertTx admits an RPC-submitted EVM tx and returns the sync ABCI result,
+// carrying codespace+log (unlike the gossip handler) so the JSON-RPC caller gets a
+// real error reason. Shares admit().
+func (a *Manager) InsertTx(txBytes []byte) *sdk.TxResponse {
+	code, codespace, log := a.admit(txBytes)
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}
 }
 
 // admit is the shared admission path: decode unlocked (bad txs skip mu), then
