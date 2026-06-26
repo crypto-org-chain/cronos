@@ -442,7 +442,7 @@ func TestManagerInsertTx_AcceptsValidTx(t *testing.T) {
 	runner := &stubRunner{}
 	a := newManager(runner, nil, noopEncoder, nil)
 
-	resp := a.InsertTx([]byte("good-tx"))
+	resp, _ := a.InsertMempoolTx([]byte("good-tx"))
 	if resp.Code != abci.CodeTypeOK {
 		t.Fatalf("expected CodeTypeOK, got %d (codespace=%q log=%q)", resp.Code, resp.Codespace, resp.RawLog)
 	}
@@ -459,7 +459,7 @@ func TestManagerInsertTx_RejectsInvalidTx(t *testing.T) {
 	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
 	a := newManager(runner, nil, noopEncoder, nil)
 
-	resp := a.InsertTx([]byte("bad-tx"))
+	resp, _ := a.InsertMempoolTx([]byte("bad-tx"))
 	if resp.Code == abci.CodeTypeOK {
 		t.Fatal("expected non-OK code for rejected tx")
 	}
@@ -472,7 +472,7 @@ func TestManagerInsertTx_RetryOnMempoolFull(t *testing.T) {
 	runner := &stubRunner{runTx: func([]byte) error { return sdkmempool.ErrMempoolTxMaxCapacity }}
 	a := newManager(runner, nil, noopEncoder, nil)
 
-	resp := a.InsertTx([]byte("any-tx"))
+	resp, _ := a.InsertMempoolTx([]byte("any-tx"))
 	if resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry, got %d", resp.Code)
 	}
@@ -487,7 +487,7 @@ func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
 	}}
 	a := newManager(runner, nil, noopEncoder, nil)
 
-	if resp := a.InsertTx([]byte("tx")); resp.Code != abci.CodeTypeRetry {
+	if resp, _ := a.InsertMempoolTx([]byte("tx")); resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry for wrapped ErrMempoolTxMaxCapacity, got %d", resp.Code)
 	}
 }
@@ -503,7 +503,7 @@ func TestManagerInsertTx_RegistersCanonicalBytes(t *testing.T) {
 	enc := NewEncoderCache(0, 0)
 	a := newManager(runner, enc, txEncoder, decoder)
 
-	if resp := a.InsertTx(raw); resp.Code != abci.CodeTypeOK {
+	if resp, _ := a.InsertMempoolTx(raw); resp.Code != abci.CodeTypeOK {
 		t.Fatalf("admit failed: code=%d", resp.Code)
 	}
 	got, ok := enc.Get(tx)
@@ -521,7 +521,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 	enc := NewEncoderCache(0, 0)
 	a := newManager(runner, enc, txEncoder, decoder)
 
-	if resp := a.InsertTx([]byte("bad")); resp.Code == abci.CodeTypeOK {
+	if resp, _ := a.InsertMempoolTx([]byte("bad")); resp.Code == abci.CodeTypeOK {
 		t.Fatal("expected non-OK code")
 	}
 	if _, ok := enc.Get(tx); ok {
@@ -529,7 +529,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 	}
 }
 
-// TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
+// TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertMempoolTx and the
 // gossip InsertTxHandler run the same admission body under one mutex: both drive
 // the lock-free raceRunner concurrently, which -race flags if a path skips a.mu.
 func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
@@ -551,7 +551,7 @@ func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 						t.Errorf("g%d i%d: gossip insert error: %v", g, i, err)
 						return
 					}
-				} else if resp := a.InsertTx(tx); resp.Code != abci.CodeTypeOK {
+				} else if resp, _ := a.InsertMempoolTx(tx); resp.Code != abci.CodeTypeOK {
 					t.Errorf("g%d i%d: rpc insert code=%d", g, i, resp.Code)
 					return
 				}

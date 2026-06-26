@@ -262,32 +262,31 @@ func TestAppInsertMempoolTx_AcceptsAndRejects(t *testing.T) {
 	f := setupAdmissionApp(t, 1)
 
 	valid := f.signTransfer(t, &f.accounts[0], nil)
-	resp, err := f.app.InsertMempoolTx(valid)
+	resp, err := f.app.MempoolInserter().InsertMempoolTx(valid)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, "valid tx rejected: %s", resp.RawLog)
 	require.Equal(t, 1, f.app.Mempool().CountTx(), "admitted tx must land in the pool")
 
 	tampered := common.Address{0x9}
 	bz := f.signTransfer(t, &f.accounts[0], &tampered) // recovered sender != From
-	resp, err = f.app.InsertMempoolTx(bz)
+	resp, err = f.app.MempoolInserter().InsertMempoolTx(bz)
 	require.NoError(t, err, "admission failures map to a code, not a transport error")
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered tx must be rejected")
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
-func TestAppInsertMempoolTxDeclinesWithoutAppMempool(t *testing.T) {
+func TestAppMempoolInserterNilWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
 	require.NotNil(t, appMempool.MempoolManager())
+	require.NotNil(t, appMempool.MempoolInserter(), "app mempool exposes an inserter")
 
 	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
 	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	t.Cleanup(func() { _ = flood.Close() })
 	require.Nil(t, flood.MempoolManager())
 
-	// No app mempool → decline via nil response; ethermint then uses BroadcastTx.
-	resp, err := flood.InsertMempoolTx([]byte("tx"))
-	require.NoError(t, err)
-	require.Nil(t, resp)
+	// No app mempool → MempoolInserter() returns nil; ethermint then uses BroadcastTx.
+	require.Nil(t, flood.MempoolInserter())
 }
 
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current

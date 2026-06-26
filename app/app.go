@@ -61,6 +61,7 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	"github.com/evmos/ethermint/ante/cache"
+	"github.com/evmos/ethermint/appmempool"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
 	evmapp "github.com/evmos/ethermint/evmd"
@@ -1295,14 +1296,16 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
-// InsertMempoolTx forwards an EVM RPC tx to the app mempool, or returns (nil, nil)
-// when mempool.type != app so ethermint falls back to BroadcastTx. Satisfies
-// ethermint's appmempool.Inserter.
-func (app *App) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
+// MempoolInserter exposes the app mempool as ethermint's appmempool.Inserter so
+// the JSON-RPC server routes EVM tx submission through it, or returns nil under
+// mempool.type != app so ethermint keeps the BroadcastTx path. Satisfies
+// appmempool.InserterProvider. The method lives on the manager (not *App) to avoid
+// colliding with the promoted BaseApp.InsertTx.
+func (app *App) MempoolInserter() appmempool.Inserter {
 	if app.mempoolManager == nil {
-		return nil, nil // decline; ethermint falls back to BroadcastTx
+		return nil
 	}
-	return app.mempoolManager.InsertTx(txBytes), nil
+	return app.mempoolManager
 }
 
 // Name returns the name of the App

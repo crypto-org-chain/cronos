@@ -137,12 +137,13 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// InsertTx admits an RPC-submitted EVM tx and returns the sync ABCI result,
+// InsertMempoolTx admits an RPC-submitted EVM tx and returns the sync ABCI result,
 // carrying codespace+log (unlike the gossip handler) so the JSON-RPC caller gets a
-// real error reason. Shares admit().
-func (a *Manager) InsertTx(txBytes []byte) *sdk.TxResponse {
+// real error reason. Shares admit(). Satisfies ethermint's appmempool.Inserter; the
+// error is always nil since all failures map to an ABCI code in the response.
+func (a *Manager) InsertMempoolTx(txBytes []byte) (*sdk.TxResponse, error) {
 	code, codespace, log := a.admit(txBytes)
-	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
 // admit is the shared admission path: decode unlocked (bad txs skip mu), then

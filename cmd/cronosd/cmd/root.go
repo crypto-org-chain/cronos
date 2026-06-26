@@ -150,9 +150,11 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
-// *app.App must satisfy ethermint's appmempool.Inserter so the JSON-RPC server
-// routes EVM tx submission through the app mempool when mempool.type=app.
-var _ appmempool.Inserter = (*app.App)(nil)
+// *app.App must satisfy ethermint's appmempool.InserterProvider so the JSON-RPC
+// server routes EVM tx submission through the app mempool when mempool.type=app.
+// App provides the inserter (the manager) rather than implementing it directly,
+// avoiding a clash with the promoted BaseApp.InsertTx.
+var _ appmempool.InserterProvider = (*app.App)(nil)
 
 func initRootCmd(
 	rootCmd *cobra.Command,
