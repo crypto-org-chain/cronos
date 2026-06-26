@@ -59,8 +59,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
-	ethante "github.com/evmos/ethermint/ante"
 	"github.com/evmos/ethermint/ante/cache"
+	"github.com/evmos/ethermint/appmempool"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
 	evmapp "github.com/evmos/ethermint/evmd"
@@ -559,7 +559,7 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
 			// SetPreVerify before InsertTxHandler so the snapshot captures the non-nil verifier.
-			manager.SetPreVerify(ethante.NewEVMSigPreVerifier(chainId, activeDecoder))
+			manager.SetPreVerify(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder))
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
