@@ -525,6 +525,7 @@ func New(
 					mempoolManager.WaitForRecheck(ctx)
 					if ctx.Err() != nil {
 						// recheck timed out; empty proposal preferred over stale-pool selection.
+						telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
 						extSel.DrainGateSkipped() // drain to keep extSel state clean
 						return &abci.ResponsePrepareProposal{}, nil
 					}
