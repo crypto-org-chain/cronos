@@ -15,12 +15,7 @@ import (
 func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 	t.Helper()
 	f := newRecheckFixture(failBytes...)
-	f.a.async.trigger = make(chan chan struct{}, 1)
-	f.a.async.stop = make(chan struct{})
-	f.a.async.done = make(chan struct{})
-	f.a.async.ready = make(chan struct{})
-	close(f.a.async.ready) // idle at start
-	go f.a.recheckWorker()
+	startAsyncWorker(f)
 	t.Cleanup(func() { f.a.Close() })
 	return f
 }
@@ -36,6 +31,19 @@ func startAsyncWorker(f *recheckFixture) {
 	go f.a.recheckWorker()
 }
 
+// waitUntil polls cond every millisecond, fataling after timeout.
+func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string) {
+	t.Helper()
+	deadline := time.After(timeout)
+	for !cond() {
+		select {
+		case <-deadline:
+			t.Fatal(msg)
+		case <-time.After(time.Millisecond):
+		}
+	}
+}
+
 // TestTriggerRecheck_WakesWorker verifies that TriggerRecheck causes the async
 // worker to run RecheckTxs and evict stale txs without blocking the caller.
 func TestTriggerRecheck_WakesWorker(t *testing.T) {
@@ -46,14 +54,8 @@ func TestTriggerRecheck_WakesWorker(t *testing.T) {
 	f.a.TriggerRecheck()
 
 	// Poll until the worker evicts the stale tx (t.Cleanup calls Close).
-	deadline := time.After(2 * time.Second)
-	for poolHas(f.pool, stale) {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: async worker did not evict stale tx")
-		case <-time.After(time.Millisecond):
-		}
-	}
+	waitUntil(t, func() bool { return !poolHas(f.pool, stale) }, 2*time.Second,
+		"timeout: async worker did not evict stale tx")
 }
 
 // TestTriggerRecheck_CoalescedPreservesSenders fires TriggerRecheck many times
@@ -73,14 +75,8 @@ func TestTriggerRecheck_CoalescedPreservesSenders(t *testing.T) {
 	}
 
 	// Poll until stale tx is gone; t.Cleanup calls Close.
-	deadline := time.After(2 * time.Second)
-	for poolHas(f.pool, stale) {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: async worker did not evict stale tx")
-		case <-time.After(time.Millisecond):
-		}
-	}
+	waitUntil(t, func() bool { return !poolHas(f.pool, stale) }, 2*time.Second,
+		"timeout: async worker did not evict stale tx")
 	if !poolHas(f.pool, survivor) {
 		t.Fatal("valid tx must survive recheck")
 	}
@@ -130,14 +126,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	f.a.TriggerRecheck()
 
 	// Wait until the worker is actually inside RunTx.
-	deadline := time.After(2 * time.Second)
-	for !inFlight.Load() {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: worker never entered RunTx")
-		case <-time.After(time.Millisecond):
-		}
-	}
+	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
 
 	closed := make(chan struct{})
 	go func() {
@@ -185,14 +174,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	f.a.TriggerRecheck()
 
 	// Wait until the worker is actually inside RunTx.
-	deadline := time.After(2 * time.Second)
-	for !inFlight.Load() {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: worker never entered RunTx")
-		case <-time.After(time.Millisecond):
-		}
-	}
+	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
 
 	waited := make(chan struct{})
 	go func() {
