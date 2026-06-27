@@ -14,9 +14,11 @@ import (
 func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 	t.Helper()
 	f := newRecheckFixture(failBytes...)
-	f.a.async.trigger = make(chan struct{}, 1)
+	f.a.async.trigger = make(chan chan struct{}, 1)
 	f.a.async.stop = make(chan struct{})
 	f.a.async.done = make(chan struct{})
+	f.a.async.ready = make(chan struct{})
+	close(f.a.async.ready) // idle at start
 	go f.a.recheckWorker()
 	t.Cleanup(func() { f.a.Close() })
 	return f
@@ -109,9 +111,11 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 
 	f := newRecheckFixture()
 	f.a.runner = runner
-	f.a.async.trigger = make(chan struct{}, 1)
+	f.a.async.trigger = make(chan chan struct{}, 1)
 	f.a.async.stop = make(chan struct{})
 	f.a.async.done = make(chan struct{})
+	f.a.async.ready = make(chan struct{})
+	close(f.a.async.ready) // idle at start
 	go f.a.recheckWorker()
 
 	f.add(1, "alice", 0, "alice-0")
@@ -148,5 +152,65 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 		// expected
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout: Close did not return after in-flight RecheckTxs finished")
+	}
+}
+
+// TestWaitForRecheck_BlocksUntilWorkerDone verifies that WaitForRecheck blocks
+// until the in-progress RecheckTxs call completes, then returns.
+func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
+	unblock := make(chan struct{})
+	var inFlight atomic.Bool
+	runner := &stubRunner{
+		runTx: func(_ []byte) error {
+			inFlight.Store(true)
+			<-unblock
+			return nil
+		},
+	}
+
+	f := newRecheckFixture()
+	f.a.runner = runner
+	f.a.async.trigger = make(chan chan struct{}, 1)
+	f.a.async.stop = make(chan struct{})
+	f.a.async.done = make(chan struct{})
+	f.a.async.ready = make(chan struct{})
+	close(f.a.async.ready)
+	go f.a.recheckWorker()
+	defer f.a.Close()
+
+	f.add(1, "alice", 0, "alice-0")
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.TriggerRecheck()
+
+	// Wait until the worker is actually inside RunTx.
+	deadline := time.After(2 * time.Second)
+	for !inFlight.Load() {
+		select {
+		case <-deadline:
+			t.Fatal("timeout: worker never entered RunTx")
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	waited := make(chan struct{})
+	go func() {
+		f.a.WaitForRecheck()
+		close(waited)
+	}()
+
+	// WaitForRecheck must not return while RunTx is still blocking.
+	select {
+	case <-waited:
+		t.Fatal("WaitForRecheck returned before in-flight RecheckTxs finished")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(unblock) // let RunTx return
+
+	select {
+	case <-waited:
+		// expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout: WaitForRecheck did not return after RecheckTxs finished")
 	}
 }

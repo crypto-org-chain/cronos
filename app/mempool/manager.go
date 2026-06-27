@@ -64,10 +64,12 @@ type Manager struct {
 
 // recheckAsync holds lifecycle state for the async recheck worker.
 type recheckAsync struct {
-	trigger  chan struct{} // buffered-1, coalescing wakeup
-	stop     chan struct{} // closed on Close
-	done     chan struct{} // closed when worker exits
+	trigger  chan chan struct{} // buffered-1, coalescing; each value is the caller's ready gate
+	stop     chan struct{}     // closed on Close
+	done     chan struct{}     // closed when worker exits
 	stopOnce sync.Once
+	readyMu  sync.Mutex
+	ready    chan struct{} // most recently queued gate; pre-closed (idle) at init
 }
 
 // NewManager builds the Manager for mempool.type=app; register it via
@@ -80,9 +82,11 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
 	// newManager (tests) leaves async zero and runs RecheckTxs synchronously.
-	a.async.trigger = make(chan struct{}, 1)
+	a.async.trigger = make(chan chan struct{}, 1)
 	a.async.stop = make(chan struct{})
 	a.async.done = make(chan struct{})
+	a.async.ready = make(chan struct{})
+	close(a.async.ready) // idle at start
 	go a.recheckWorker()
 	return a
 }
@@ -261,17 +265,22 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 
 // TriggerRecheck schedules an async recheck off the Commit path (non-blocking,
 // coalescing). Falls back to inline when no worker (newManager / test path).
-// PrepareProposal may race the worker; stale txs rejected at EVM execution —
-// same window as CometBFT flood-mempool.
 func (a *Manager) TriggerRecheck() {
 	if a.async.trigger == nil {
 		a.RecheckTxs()
 		return
 	}
+	// Each trigger carries its own ready gate so the worker can close exactly
+	// the right channel without racing against the next trigger's gate.
+	ready := make(chan struct{})
+	a.async.readyMu.Lock()
 	select {
-	case a.async.trigger <- struct{}{}:
+	case a.async.trigger <- ready:
+		a.async.ready = ready // track the latest gate for WaitForRecheck
 	default:
+		// coalesced: trigger already buffered; existing gate covers this wakeup
 	}
+	a.async.readyMu.Unlock()
 }
 
 // recheckWorker drains triggers on a single goroutine (no overlapping rechecks).
@@ -281,13 +290,15 @@ func (a *Manager) recheckWorker() {
 		select {
 		case <-a.async.stop:
 			return
-		case <-a.async.trigger:
+		case ready := <-a.async.trigger:
 			// Priority-check stop: skip recheck if Close raced a buffered trigger.
 			select {
 			case <-a.async.stop:
+				close(ready) // unblock any WaitForRecheck
 				return
 			default:
 				a.RecheckTxs()
+				close(ready)
 			}
 		}
 	}
@@ -301,6 +312,18 @@ func (a *Manager) Close() {
 	}
 	a.async.stopOnce.Do(func() { close(a.async.stop) })
 	<-a.async.done
+}
+
+// WaitForRecheck blocks until any pending post-Commit recheck completes.
+// Call at the start of PrepareProposal so stale txs are evicted before selection.
+func (a *Manager) WaitForRecheck() {
+	if a.async.trigger == nil {
+		return // sync path; already ran inline in TriggerRecheck
+	}
+	a.async.readyMu.Lock()
+	ready := a.async.ready
+	a.async.readyMu.Unlock()
+	<-ready
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any

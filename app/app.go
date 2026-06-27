@@ -522,6 +522,9 @@ func New(
 			// Stage gate-skipped senders for recheck so base-fee-stranded txs are
 			// evicted in ~1 block instead of waiting for the TTL.
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+				if mempoolManager != nil {
+					mempoolManager.WaitForRecheck()
+				}
 				resp, err := inner(ctx, req)
 				skipped := extSel.DrainGateSkipped() // always drain; stale on error
 				if err == nil && mempoolManager != nil && len(skipped) > 0 {
