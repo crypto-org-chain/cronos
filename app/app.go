@@ -524,6 +524,13 @@ func New(
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if mempoolManager != nil {
 					mempoolManager.WaitForRecheck(ctx)
+					if ctx.Err() != nil {
+						// Recheck didn't finish before the proposal deadline.
+						// Return an empty proposal rather than selecting from a
+						// potentially-stale pool.
+						extSel.DrainGateSkipped() // drain to keep extSel state clean
+						return &abci.ResponsePrepareProposal{}, nil
+					}
 				}
 				resp, err := inner(ctx, req)
 				skipped := extSel.DrainGateSkipped() // always drain; stale on error
