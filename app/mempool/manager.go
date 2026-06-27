@@ -65,8 +65,8 @@ type Manager struct {
 // recheckAsync holds lifecycle state for the async recheck worker.
 type recheckAsync struct {
 	trigger  chan chan struct{} // buffered-1, coalescing; each value is the caller's ready gate
-	stop     chan struct{}     // closed on Close
-	done     chan struct{}     // closed when worker exits
+	stop     chan struct{}      // closed on Close
+	done     chan struct{}      // closed when worker exits
 	stopOnce sync.Once
 	readyMu  sync.Mutex
 	ready    chan struct{} // most recently queued gate; pre-closed (idle) at init

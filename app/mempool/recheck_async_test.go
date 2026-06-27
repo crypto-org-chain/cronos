@@ -108,6 +108,8 @@ func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 func TestClose_WaitsForInFlight(t *testing.T) {
 	// blockingRunner delays RunTx until unblocked.
 	unblock := make(chan struct{})
+	var unblockOnce sync.Once
+	unblockRunner := func() { unblockOnce.Do(func() { close(unblock) }) }
 	var inFlight atomic.Bool
 	runner := &stubRunner{
 		runTx: func(_ []byte) error {
@@ -120,6 +122,11 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.runner = runner
 	startAsyncWorker(f)
+	// Ensure the worker is always released and stopped even on early failure.
+	t.Cleanup(func() {
+		unblockRunner()
+		f.a.Close()
+	})
 
 	f.add(1, "alice", 0, "alice-0")
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
@@ -141,7 +148,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 
-	close(unblock) // let RunTx return
+	unblockRunner() // let RunTx return
 
 	select {
 	case <-closed:
@@ -155,6 +162,8 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 // until the in-progress RecheckTxs call completes, then returns.
 func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	unblock := make(chan struct{})
+	var unblockOnce sync.Once
+	unblockRunner := func() { unblockOnce.Do(func() { close(unblock) }) }
 	var inFlight atomic.Bool
 	runner := &stubRunner{
 		runTx: func(_ []byte) error {
@@ -167,7 +176,11 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.runner = runner
 	startAsyncWorker(f)
-	defer f.a.Close()
+	// Ensure the worker is released and stopped even if an assertion fails.
+	defer func() {
+		unblockRunner()
+		f.a.Close()
+	}()
 
 	f.add(1, "alice", 0, "alice-0")
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
@@ -189,7 +202,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 
-	close(unblock) // let RunTx return
+	unblockRunner() // let RunTx return
 
 	select {
 	case <-waited:
