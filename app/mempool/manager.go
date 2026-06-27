@@ -316,14 +316,19 @@ func (a *Manager) Close() {
 
 // WaitForRecheck blocks until any pending post-Commit recheck completes.
 // Call at the start of PrepareProposal so stale txs are evicted before selection.
-func (a *Manager) WaitForRecheck() {
+// ctx should be the PrepareProposal context; cancellation (deadline) unblocks the
+// call so a stuck worker cannot halt block production indefinitely.
+func (a *Manager) WaitForRecheck(ctx context.Context) {
 	if a.async.trigger == nil {
 		return // sync path; already ran inline in TriggerRecheck
 	}
 	a.async.readyMu.Lock()
 	ready := a.async.ready
 	a.async.readyMu.Unlock()
-	<-ready
+	select {
+	case <-ready:
+	case <-ctx.Done():
+	}
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any

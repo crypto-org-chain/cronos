@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,6 +23,17 @@ func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 	go f.a.recheckWorker()
 	t.Cleanup(func() { f.a.Close() })
 	return f
+}
+
+// startAsyncWorker wires the async fields onto an existing recheckFixture and
+// starts the worker. Does NOT register a Cleanup — caller owns Close().
+func startAsyncWorker(f *recheckFixture) {
+	f.a.async.trigger = make(chan chan struct{}, 1)
+	f.a.async.stop = make(chan struct{})
+	f.a.async.done = make(chan struct{})
+	f.a.async.ready = make(chan struct{})
+	close(f.a.async.ready) // idle at start
+	go f.a.recheckWorker()
 }
 
 // TestTriggerRecheck_WakesWorker verifies that TriggerRecheck causes the async
@@ -111,12 +123,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 
 	f := newRecheckFixture()
 	f.a.runner = runner
-	f.a.async.trigger = make(chan chan struct{}, 1)
-	f.a.async.stop = make(chan struct{})
-	f.a.async.done = make(chan struct{})
-	f.a.async.ready = make(chan struct{})
-	close(f.a.async.ready) // idle at start
-	go f.a.recheckWorker()
+	startAsyncWorker(f)
 
 	f.add(1, "alice", 0, "alice-0")
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
@@ -170,12 +177,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 
 	f := newRecheckFixture()
 	f.a.runner = runner
-	f.a.async.trigger = make(chan chan struct{}, 1)
-	f.a.async.stop = make(chan struct{})
-	f.a.async.done = make(chan struct{})
-	f.a.async.ready = make(chan struct{})
-	close(f.a.async.ready)
-	go f.a.recheckWorker()
+	startAsyncWorker(f)
 	defer f.a.Close()
 
 	f.add(1, "alice", 0, "alice-0")
@@ -194,7 +196,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 
 	waited := make(chan struct{})
 	go func() {
-		f.a.WaitForRecheck()
+		f.a.WaitForRecheck(context.Background())
 		close(waited)
 	}()
 

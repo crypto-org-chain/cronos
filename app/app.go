@@ -523,7 +523,7 @@ func New(
 			// evicted in ~1 block instead of waiting for the TTL.
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if mempoolManager != nil {
-					mempoolManager.WaitForRecheck()
+					mempoolManager.WaitForRecheck(ctx)
 				}
 				resp, err := inner(ctx, req)
 				skipped := extSel.DrainGateSkipped() // always drain; stale on error
