@@ -10,8 +10,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// newAsyncRecheckFixture builds a recheckFixture whose Manager runs the async
-// recheck worker. Registers t.Cleanup(Close) so each test is self-contained.
 func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 	t.Helper()
 	f := newRecheckFixture(failBytes...)
@@ -20,8 +18,7 @@ func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 	return f
 }
 
-// startAsyncWorker wires the async fields onto an existing recheckFixture and
-// starts the worker. Does NOT register a Cleanup — caller owns Close().
+// startAsyncWorker does NOT register a Cleanup — caller owns Close().
 func startAsyncWorker(f *recheckFixture) {
 	f.a.async.trigger = make(chan chan struct{}, 1)
 	f.a.async.stop = make(chan struct{})
@@ -31,7 +28,6 @@ func startAsyncWorker(f *recheckFixture) {
 	go f.a.recheckWorker()
 }
 
-// waitUntil polls cond every millisecond, fataling after timeout.
 func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string) {
 	t.Helper()
 	deadline := time.After(timeout)
@@ -44,8 +40,6 @@ func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string
 	}
 }
 
-// TestTriggerRecheck_WakesWorker verifies that TriggerRecheck causes the async
-// worker to run RecheckTxs and evict stale txs without blocking the caller.
 func TestTriggerRecheck_WakesWorker(t *testing.T) {
 	f := newAsyncRecheckFixture(t, "alice-0")
 	stale := f.add(1, "alice", 0, "alice-0")
@@ -53,14 +47,10 @@ func TestTriggerRecheck_WakesWorker(t *testing.T) {
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
-	// Poll until the worker evicts the stale tx (t.Cleanup calls Close).
 	waitUntil(t, func() bool { return !poolHas(f.pool, stale) }, 2*time.Second,
 		"timeout: async worker did not evict stale tx")
 }
 
-// TestTriggerRecheck_CoalescedPreservesSenders fires TriggerRecheck many times
-// rapidly. Coalescing may collapse several triggers into one run, but staging
-// merges across blocks so no senders are lost.
 func TestTriggerRecheck_CoalescedPreservesSenders(t *testing.T) {
 	f := newAsyncRecheckFixture(t, "alice-0")
 	stale := f.add(1, "alice", 0, "alice-0")
@@ -68,13 +58,11 @@ func TestTriggerRecheck_CoalescedPreservesSenders(t *testing.T) {
 
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.lastCommittedHeight = 2
-	// Fire more triggers than the buffer; all but one are dropped by the coalescing
-	// select, but the single run still sees all staged senders.
+	// many triggers coalesce to one run; staging merges so no senders are lost.
 	for i := 0; i < 10; i++ {
 		f.a.TriggerRecheck()
 	}
 
-	// Poll until stale tx is gone; t.Cleanup calls Close.
 	waitUntil(t, func() bool { return !poolHas(f.pool, stale) }, 2*time.Second,
 		"timeout: async worker did not evict stale tx")
 	if !poolHas(f.pool, survivor) {
@@ -82,8 +70,6 @@ func TestTriggerRecheck_CoalescedPreservesSenders(t *testing.T) {
 	}
 }
 
-// TestTriggerRecheck_ConcurrentCommits exercises concurrent StageRecheckSenders
-// and TriggerRecheck from multiple goroutines. Run with -race.
 func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 	f := newAsyncRecheckFixture(t)
 	f.add(1, "alice", 0, "alice-0")
@@ -99,14 +85,10 @@ func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 		}(int64(i + 1))
 	}
 	wg.Wait()
-	// Close drains any in-flight recheck cleanly.
 	f.a.Close()
 }
 
-// TestClose_WaitsForInFlight verifies Close blocks until an in-progress
-// RecheckTxs call completes, preventing store teardown races.
 func TestClose_WaitsForInFlight(t *testing.T) {
-	// blockingRunner delays RunTx until unblocked.
 	unblock := make(chan struct{})
 	var unblockOnce sync.Once
 	unblockRunner := func() { unblockOnce.Do(func() { close(unblock) }) }
@@ -122,7 +104,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.runner = runner
 	startAsyncWorker(f)
-	// Ensure the worker is always released and stopped even on early failure.
+	// unblock before Close so a failed assertion can't hang the cleanup.
 	t.Cleanup(func() {
 		unblockRunner()
 		f.a.Close()
@@ -132,7 +114,6 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
-	// Wait until the worker is actually inside RunTx.
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
 
 	closed := make(chan struct{})
@@ -141,7 +122,6 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 		close(closed)
 	}()
 
-	// Close must not return while RunTx is still blocking.
 	select {
 	case <-closed:
 		t.Fatal("Close returned before in-flight RecheckTxs finished")
@@ -152,14 +132,11 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 
 	select {
 	case <-closed:
-		// expected
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout: Close did not return after in-flight RecheckTxs finished")
 	}
 }
 
-// TestWaitForRecheck_BlocksUntilWorkerDone verifies that WaitForRecheck blocks
-// until the in-progress RecheckTxs call completes, then returns.
 func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	unblock := make(chan struct{})
 	var unblockOnce sync.Once
@@ -176,7 +153,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.runner = runner
 	startAsyncWorker(f)
-	// Ensure the worker is released and stopped even if an assertion fails.
+	// unblock before Close so a failed assertion can't hang the cleanup.
 	defer func() {
 		unblockRunner()
 		f.a.Close()
@@ -186,7 +163,6 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
-	// Wait until the worker is actually inside RunTx.
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
 
 	waited := make(chan struct{})
@@ -195,7 +171,6 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 		close(waited)
 	}()
 
-	// WaitForRecheck must not return while RunTx is still blocking.
 	select {
 	case <-waited:
 		t.Fatal("WaitForRecheck returned before in-flight RecheckTxs finished")
@@ -206,7 +181,6 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 
 	select {
 	case <-waited:
-		// expected
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout: WaitForRecheck did not return after RecheckTxs finished")
 	}

@@ -519,15 +519,12 @@ func New(
 				h.SetSignerExtractionAdapter(signerExtractor)
 			}
 			inner := h.PrepareProposalHandler()
-			// Stage gate-skipped senders for recheck so base-fee-stranded txs are
-			// evicted in ~1 block instead of waiting for the TTL.
+			// re-stage gate-skipped senders; evicted in ~1 block vs TTL wait.
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if mempoolManager != nil {
 					mempoolManager.WaitForRecheck(ctx)
 					if ctx.Err() != nil {
-						// Recheck didn't finish before the proposal deadline.
-						// Return an empty proposal rather than selecting from a
-						// potentially-stale pool.
+						// recheck timed out; empty proposal preferred over stale-pool selection.
 						extSel.DrainGateSkipped() // drain to keep extSel state clean
 						return &abci.ResponsePrepareProposal{}, nil
 					}
@@ -1640,9 +1637,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// BaseApp.Commit resets checkState; upstream assumes CometBFT's mempool
-		// lock guards it, but AppMempool.Lock() is a no-op. This mutex serializes
-		// the reset against concurrent peer admission (InsertTx/CheckTx RunTx).
+		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
 		mu := app.mempoolManager.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
@@ -1655,9 +1650,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	return resp, err
 }
 
-// FinalizeBlock stages the committed block's senders for post-commit recheck
-// (mempool.type=app only). Senders are known regardless of execution outcome;
-// Commit re-validates their remaining pending txs against the new state.
+// FinalizeBlock stages committed senders for async recheck regardless of execution outcome.
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	resp, err := app.BaseApp.FinalizeBlock(req)
 	if err == nil && app.mempoolManager != nil {
