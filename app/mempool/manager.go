@@ -6,6 +6,7 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -15,8 +16,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
-
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 type txRunner interface {
