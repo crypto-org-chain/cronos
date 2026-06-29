@@ -20,7 +20,7 @@ if [[ -z "$COMMIT" ]]; then
 fi
 
 VERSION=$(
-  curl -fsSL "https://proxy.golang.org/${ETHERMINT_REPO}/@v/${COMMIT}.info" \
+  GONOSUMDB='*' GOPROXY=direct go list -m -json "${ETHERMINT_REPO}@${COMMIT}" \
     | jq -r .Version
 )
 if [[ -z "$VERSION" || "$VERSION" == "null" ]]; then
