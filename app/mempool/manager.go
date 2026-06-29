@@ -63,16 +63,6 @@ type Manager struct {
 	worker recheckWorker
 }
 
-// recheckAsync holds lifecycle state for the async recheck worker.
-type recheckAsync struct {
-	trigger  chan chan struct{} // buffered-1 coalescing; each value is the caller's ready gate
-	stop     chan struct{}
-	done     chan struct{}
-	stopOnce sync.Once
-	readyMu  sync.Mutex
-	ready    chan struct{} // latest queued gate; pre-closed (idle) at init
-}
-
 // NewManager builds the Manager for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
 func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
