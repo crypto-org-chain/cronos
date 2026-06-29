@@ -59,7 +59,7 @@ type Manager struct {
 
 	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
 	// zero in the test path (newManager); sync recheck used there.
-	async recheckAsync
+	worker recheckWorker
 }
 
 // recheckAsync holds lifecycle state for the async recheck worker.
@@ -81,13 +81,13 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
-	// newManager (tests) leaves async zero and runs RecheckTxs synchronously.
-	a.async.trigger = make(chan chan struct{}, 1)
-	a.async.stop = make(chan struct{})
-	a.async.done = make(chan struct{})
-	a.async.ready = make(chan struct{})
-	close(a.async.ready) // idle at start
-	go a.recheckWorker()
+	// newManager (tests) leaves worker zero and runs RecheckTxs synchronously.
+	a.worker.trigger = make(chan chan struct{}, 1)
+	a.worker.quit = make(chan struct{})
+	a.worker.done = make(chan struct{})
+	a.worker.ready = make(chan struct{})
+	close(a.worker.ready) // idle at start
+	go a.worker.run(a.RecheckTxs)
 	return a
 }
 
@@ -265,65 +265,25 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 
 // TriggerRecheck schedules async recheck (non-blocking, coalescing). Runs inline when no worker (test path).
 func (a *Manager) TriggerRecheck() {
-	if a.async.trigger == nil {
+	if a.worker.trigger == nil {
 		a.RecheckTxs()
 		return
 	}
-	// own gate per trigger: worker closes exactly what it received, no shared-field race.
-	ready := make(chan struct{})
-	a.async.readyMu.Lock()
-	select {
-	case a.async.trigger <- ready:
-		a.async.ready = ready // track the latest gate for WaitForRecheck
-	default:
-		// coalesced: trigger already buffered; existing gate covers this wakeup
-	}
-	a.async.readyMu.Unlock()
-}
-
-// recheckWorker — single goroutine, no concurrent rechecks.
-func (a *Manager) recheckWorker() {
-	defer close(a.async.done)
-	for {
-		select {
-		case <-a.async.stop:
-			return
-		case ready := <-a.async.trigger:
-			// re-check stop: Close may race a buffered trigger.
-			select {
-			case <-a.async.stop:
-				close(ready) // unblock any WaitForRecheck
-				return
-			default:
-				a.RecheckTxs()
-				close(ready)
-			}
-		}
-	}
+	a.worker.recheck()
 }
 
 // Close stops the recheck worker. Idempotent; call before store teardown.
 func (a *Manager) Close() {
-	if a.async.stop == nil {
-		return
-	}
-	a.async.stopOnce.Do(func() { close(a.async.stop) })
-	<-a.async.done
+	a.worker.stop()
 }
 
 // WaitForRecheck blocks until any in-progress recheck completes. ctx cancellation
 // unblocks it so a stuck worker cannot stall block production.
 func (a *Manager) WaitForRecheck(ctx context.Context) {
-	if a.async.trigger == nil {
+	if a.worker.trigger == nil {
 		return // sync path
 	}
-	a.async.readyMu.Lock()
-	ready := a.async.ready
-	a.async.readyMu.Unlock()
-	select {
-	case <-ready:
-	case <-ctx.Done():
-	}
+	a.worker.wait(ctx)
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
