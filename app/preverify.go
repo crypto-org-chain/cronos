@@ -4,11 +4,6 @@ package app
 // modules. The app composes them and hands Verify to the mempool manager, which
 // runs it before the admission mutex (mempool.type=app). First rejection wins; a
 // nil result defers to the locked admission path.
-//
-// Each module supplies its own verifier (e.g. ethermint's
-// appmempool.NewEVMSigPreVerifier for EVM txs) and registers it in New. The
-// registry is deliberately untyped (plain func) so it stays independent of any
-// single module.
 type PreVerifierRegistry struct {
 	verifiers []func([]byte) error
 }
