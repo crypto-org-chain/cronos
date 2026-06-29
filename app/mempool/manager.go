@@ -58,7 +58,7 @@ type Manager struct {
 	ttlNumBlocks int64
 
 	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
-	// zero in the test path (newManager); sync recheck used there.
+	// nil trigger (newManager/tests) means TriggerRecheck runs RecheckTxs inline.
 	worker recheckWorker
 }
 
