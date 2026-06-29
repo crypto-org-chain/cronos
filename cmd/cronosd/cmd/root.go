@@ -150,9 +150,9 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
-// App provides the inserter via InserterProvider rather than implementing Inserter
-// directly, avoiding a clash with the promoted BaseApp.InsertTx.
-var _ appmempool.InserterProvider = (*app.App)(nil)
+// App provides the client via MempoolClientProvider rather than implementing
+// MempoolClient directly, avoiding a clash with the promoted BaseApp.InsertTx.
+var _ appmempool.MempoolClientProvider = (*app.App)(nil)
 
 func initRootCmd(
 	rootCmd *cobra.Command,
