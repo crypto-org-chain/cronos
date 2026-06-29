@@ -558,8 +558,11 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
-			// SetPreVerify before InsertTxHandler so the snapshot captures the non-nil verifier.
-			manager.SetPreVerify(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder))
+			// Compose per-module admission pre-verifiers; the app owns the registry.
+			// SetPreVerify before InsertTxHandler so the handler snapshots the non-nil hook.
+			var preVerifiers PreVerifierRegistry
+			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder))
+			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
