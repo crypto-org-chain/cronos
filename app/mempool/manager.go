@@ -137,10 +137,9 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 // admitting them. Admitted txs register canonical bytes so ReapTxsHandler can
 // skip proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
-	preVerify := a.preVerify
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		if preVerify != nil {
-			if err := preVerify(req.Tx); err != nil {
+		if a.preVerify != nil {
+			if err := a.preVerify(req.Tx); err != nil {
 				_, code, _ := errorsmod.ABCIInfo(err, false)
 				return &abci.ResponseInsertTx{Code: code}, nil
 			}
