@@ -52,11 +52,15 @@ type Manager struct {
 	deferred            []sdk.Tx
 	lastCommittedHeight int64
 	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
-	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle (stale entries
-	// drop out) and touched only by RecheckTxs (serial per Commit), so it needs no lock.
+	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle; recheckMu keeps it single-writer.
 	arrival map[sdk.Tx]int64
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
+
+	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
+	// when built via newManager() (test constructor), worker.trigger is nil, so
+	// TriggerRecheck detects nil and calls RecheckTxs() inline.
+	worker recheckWorker
 }
 
 // NewManager builds the Manager for mempool.type=app; register it via
@@ -68,6 +72,13 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
+	// newManager (tests) leaves worker zero and runs RecheckTxs synchronously.
+	a.worker.trigger = make(chan chan struct{}, 1)
+	a.worker.quit = make(chan struct{})
+	a.worker.done = make(chan struct{})
+	a.worker.ready = make(chan struct{})
+	close(a.worker.ready) // idle at start
+	go a.worker.run(a.RecheckTxs)
 	return a
 }
 
@@ -243,6 +254,29 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
+// TriggerRecheck schedules async recheck (non-blocking, coalescing). Runs inline when no worker (test path).
+func (a *Manager) TriggerRecheck() {
+	if a.worker.trigger == nil {
+		a.RecheckTxs()
+		return
+	}
+	a.worker.recheck()
+}
+
+// Close stops the recheck worker. Idempotent; call before store teardown.
+func (a *Manager) Close() {
+	a.worker.stop()
+}
+
+// WaitForRecheck blocks until any in-progress recheck completes. ctx cancellation
+// unblocks it so a stuck worker cannot stall block production.
+func (a *Manager) WaitForRecheck(ctx context.Context) {
+	if a.worker.trigger == nil {
+		return // sync path
+	}
+	a.worker.wait(ctx)
+}
+
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
 // sender) and txs of block-touched senders that now fail ReCheck. Capped per
 // cycle; overflow carries to the next.
@@ -250,6 +284,8 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
+	a.recheckMu.Lock() // single-writer; see recheckMu
+	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
