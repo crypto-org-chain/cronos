@@ -1,4 +1,4 @@
-package app
+package mempool
 
 // PreVerifierRegistry collects lock-free admission pre-verifiers contributed by
 // modules. The app composes them and hands Verify to the mempool manager, which

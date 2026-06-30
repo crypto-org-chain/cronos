@@ -35,7 +35,7 @@ type Manager struct {
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	trace     bool
-	// preVerify runs lock-free before the admission mutex; nil means skip.
+	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
 	mpool   sdkmempool.Mempool
@@ -145,7 +145,6 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 				return &abci.ResponseInsertTx{Code: code}, nil
 			}
 		}
-		// Decode before locking: proto unmarshal is CPU-intensive.
 		var tx sdk.Tx
 		if a.encCache != nil {
 			var err error
