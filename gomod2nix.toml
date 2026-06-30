@@ -379,8 +379,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260629183810-d61c063f75b5"
-    hash = "sha256-1ZT0uSvCq+OHGv5OXu6ZeWY2RCMkZfPYnxhUjyn+Aes="
+    version = "v0.22.1-0.20260630172316-66efb289ef4d"
+    hash = "sha256-Sno/MM2+WlWgyeXGfhGZMIk6vIneXKxH2fmTlmaUMVM="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
@@ -509,8 +509,8 @@ schema = 3
     version = "v1.3.1"
     hash = "sha256-65+A2HiVfS/GV9G+6/TkXXjzXhI/V98e6RlJWjxy+mg="
   [mod."github.com/hashicorp/go-metrics"]
-    version = "v0.5.4"
-    hash = "sha256-WQGb38CuijG9YxHfqgKn1U655BmxLYhNXXdSw0MRiGc="
+    version = "v0.6.0"
+    hash = "sha256-EJ6FZlQpPBQrPT0E2SNrKsqLu7APJPO/XVt9M/+FZp8="
   [mod."github.com/hashicorp/go-plugin"]
     version = "v1.7.0"
     hash = "sha256-nPTlKEssbp3/uDRZ2kkdO8z5mbu3j417Bra4FpBceHk="
