@@ -14,7 +14,6 @@ import (
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
-	"github.com/evmos/ethermint/appmempool"
 	ethermintclient "github.com/evmos/ethermint/client"
 	"github.com/evmos/ethermint/crypto/hd"
 	ethermintserver "github.com/evmos/ethermint/server"
@@ -149,10 +148,6 @@ func NewRootCmd() *cobra.Command {
 
 	return rootCmd
 }
-
-// App provides the client via MempoolClientProvider rather than implementing
-// MempoolClient directly, avoiding a clash with the promoted BaseApp.InsertTx.
-var _ appmempool.MempoolClientProvider = (*app.App)(nil)
 
 func initRootCmd(
 	rootCmd *cobra.Command,
