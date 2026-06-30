@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
 	errorsmod "cosmossdk.io/errors"
@@ -562,5 +564,45 @@ func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 
 	if got := len(runner.state); got != goroutines*perG {
 		t.Fatalf("expected %d distinct txs admitted, got %d", goroutines*perG, got)
+	}
+}
+
+// fakePool is a minimal ExtMempool: PoolSnapshot iterates it via SelectBy.
+type fakePool struct{ txs []sdk.Tx }
+
+func (p *fakePool) Insert(context.Context, sdk.Tx) error                 { return nil }
+func (p *fakePool) Select(context.Context, [][]byte) sdkmempool.Iterator { return nil }
+func (p *fakePool) CountTx() int                                         { return len(p.txs) }
+func (p *fakePool) Remove(sdk.Tx) error                                  { return nil }
+func (p *fakePool) RemoveWithReason(context.Context, sdk.Tx, sdkmempool.RemoveReason) error {
+	return nil
+}
+func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+	for _, tx := range p.txs {
+		if !cb(tx) {
+			return
+		}
+	}
+}
+
+// evmTx wraps a single MsgEthereumTx, the only shape PendingTxs reports.
+type evmTx struct{ msg *evmtypes.MsgEthereumTx }
+
+func (e *evmTx) GetMsgs() []sdk.Msg                    { return []sdk.Msg{e.msg} }
+func (e *evmTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+
+func TestManagerPendingTxs(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	if got := a.PendingTxs(); got != nil {
+		t.Fatalf("nil mpool must report no pending txs, got %d", len(got))
+	}
+
+	msg := &evmtypes.MsgEthereumTx{}
+	// ptrTx (GetMsgs nil) stands in for a non-EVM tx and must be skipped.
+	a.mpool = &fakePool{txs: []sdk.Tx{&evmTx{msg: msg}, &ptrTx{}}}
+
+	got := a.PendingTxs()
+	if len(got) != 1 || got[0] != msg {
+		t.Fatalf("want exactly the one EVM msg, got %d", len(got))
 	}
 }
