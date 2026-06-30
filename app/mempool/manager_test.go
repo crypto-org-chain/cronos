@@ -10,7 +10,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
 	errorsmod "cosmossdk.io/errors"
@@ -577,6 +576,7 @@ func (p *fakePool) Remove(sdk.Tx) error                                  { retur
 func (p *fakePool) RemoveWithReason(context.Context, sdk.Tx, sdkmempool.RemoveReason) error {
 	return nil
 }
+
 func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
 	for _, tx := range p.txs {
 		if !cb(tx) {
@@ -585,24 +585,17 @@ func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool)
 	}
 }
 
-// evmTx wraps a single MsgEthereumTx, the only shape PendingTxs reports.
-type evmTx struct{ msg *evmtypes.MsgEthereumTx }
-
-func (e *evmTx) GetMsgs() []sdk.Msg                    { return []sdk.Msg{e.msg} }
-func (e *evmTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
-
 func TestManagerPendingTxs(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	if got := a.PendingTxs(); got != nil {
 		t.Fatalf("nil mpool must report no pending txs, got %d", len(got))
 	}
 
-	msg := &evmtypes.MsgEthereumTx{}
-	// ptrTx (GetMsgs nil) stands in for a non-EVM tx and must be skipped.
-	a.mpool = &fakePool{txs: []sdk.Tx{&evmTx{msg: msg}, &ptrTx{}}}
+	tx1, tx2 := &ptrTx{}, &ptrTx{}
+	a.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
 
 	got := a.PendingTxs()
-	if len(got) != 1 || got[0] != msg {
-		t.Fatalf("want exactly the one EVM msg, got %d", len(got))
+	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
+		t.Fatalf("want both pool txs, got %d", len(got))
 	}
 }
