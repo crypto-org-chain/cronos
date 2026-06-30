@@ -150,7 +150,10 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 }
 
 func (a *Manager) PendingTxs() []sdk.Tx {
-	return nil
+	if a.mpool == nil {
+		return nil
+	}
+	return PoolSnapshot(context.Background(), a.mpool)
 }
 
 // admit is the shared admission path: preVerify + decode unlocked (bad txs skip
