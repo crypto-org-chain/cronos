@@ -258,6 +258,39 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
 }
 
+func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
+	f := setupAdmissionApp(t, 2)
+
+	valid := f.signTransfer(t, &f.accounts[0], nil)
+	resp, err := f.app.MempoolClient().InsertTx(valid)
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, "valid tx rejected: %s", resp.RawLog)
+	require.Equal(t, 1, f.app.Mempool().CountTx(), "admitted tx must land in the pool")
+
+	tampered := common.Address{0x9}
+	// Tamper a fresh account so rejection is the forged From (sig mismatch), not
+	// nonce/check-state mutated by the prior accepted tx.
+	bz := f.signTransfer(t, &f.accounts[1], &tampered) // recovered sender != From
+	resp, err = f.app.MempoolClient().InsertTx(bz)
+	require.NoError(t, err, "admission failures map to a code, not a transport error")
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered tx must be rejected")
+	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
+}
+
+func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
+	appMempool := setupAdmissionApp(t, 1).app
+	require.NotNil(t, appMempool.MempoolManager())
+	require.NotNil(t, appMempool.MempoolClient(), "app mempool exposes a client")
+
+	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
+	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
+	t.Cleanup(func() { _ = flood.Close() })
+	require.Nil(t, flood.MempoolManager())
+
+	// No app mempool → MempoolClient() returns nil; ethermint then uses BroadcastTx.
+	require.Nil(t, flood.MempoolClient())
+}
+
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current
 // single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
 // RunTx is serialized by the admission mutex.

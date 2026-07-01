@@ -437,3 +437,130 @@ func BenchmarkInsertTxHandler_Admit(b *testing.B) {
 		h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
 	}
 }
+
+func TestManagerInsertTx_AcceptsValidTx(t *testing.T) {
+	runner := &stubRunner{}
+	a := newManager(runner, nil, noopEncoder, nil)
+
+	resp, _ := a.InsertTx([]byte("good-tx"))
+	if resp.Code != abci.CodeTypeOK {
+		t.Fatalf("expected CodeTypeOK, got %d (codespace=%q log=%q)", resp.Code, resp.Codespace, resp.RawLog)
+	}
+	if resp.Codespace != "" || resp.RawLog != "" {
+		t.Fatalf("expected empty codespace/log on success, got %q/%q", resp.Codespace, resp.RawLog)
+	}
+	if runner.calls.Load() != 1 {
+		t.Fatalf("expected 1 RunTx call, got %d", runner.calls.Load())
+	}
+}
+
+func TestManagerInsertTx_RejectsInvalidTx(t *testing.T) {
+	anteErr := errorsmod.Register("test-inserttx-rej", 1, "bad sig")
+	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
+	a := newManager(runner, nil, noopEncoder, nil)
+
+	resp, _ := a.InsertTx([]byte("bad-tx"))
+	if resp.Code == abci.CodeTypeOK {
+		t.Fatal("expected non-OK code for rejected tx")
+	}
+	if resp.Codespace == "" || resp.RawLog == "" {
+		t.Fatalf("expected codespace+log on reject, got %q/%q", resp.Codespace, resp.RawLog)
+	}
+}
+
+func TestManagerInsertTx_RetryOnMempoolFull(t *testing.T) {
+	runner := &stubRunner{runTx: func([]byte) error { return sdkmempool.ErrMempoolTxMaxCapacity }}
+	a := newManager(runner, nil, noopEncoder, nil)
+
+	resp, _ := a.InsertTx([]byte("any-tx"))
+	if resp.Code != abci.CodeTypeRetry {
+		t.Fatalf("expected CodeTypeRetry, got %d", resp.Code)
+	}
+	if resp.RawLog != "mempool is full" {
+		t.Fatalf("expected back-pressure log, got %q", resp.RawLog)
+	}
+}
+
+func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
+	runner := &stubRunner{runTx: func([]byte) error {
+		return errors.Join(errors.New("outer"), sdkmempool.ErrMempoolTxMaxCapacity)
+	}}
+	a := newManager(runner, nil, noopEncoder, nil)
+
+	if resp, _ := a.InsertTx([]byte("tx")); resp.Code != abci.CodeTypeRetry {
+		t.Fatalf("expected CodeTypeRetry for wrapped ErrMempoolTxMaxCapacity, got %d", resp.Code)
+	}
+}
+
+func TestManagerInsertTx_RegistersCanonicalBytes(t *testing.T) {
+	runner := &stubRunner{}
+	tx := &ptrTx{}
+	raw := []byte("non-canonical-rpc-bytes")
+	canonical := []byte("canonical")
+
+	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
+	txEncoder := func(sdk.Tx) ([]byte, error) { return canonical, nil }
+	enc := NewEncoderCache(0, 0)
+	a := newManager(runner, enc, txEncoder, decoder)
+
+	if resp, _ := a.InsertTx(raw); resp.Code != abci.CodeTypeOK {
+		t.Fatalf("admit failed: code=%d", resp.Code)
+	}
+	got, ok := enc.Get(tx)
+	if !ok || string(got) != string(canonical) {
+		t.Fatalf("expected canonical %q registered, got %q (ok=%v)", canonical, got, ok)
+	}
+}
+
+func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
+	anteErr := errorsmod.Register("test-inserttx-encreg", 1, "bad sig")
+	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
+	tx := &ptrTx{}
+	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
+	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
+	enc := NewEncoderCache(0, 0)
+	a := newManager(runner, enc, txEncoder, decoder)
+
+	if resp, _ := a.InsertTx([]byte("bad")); resp.Code == abci.CodeTypeOK {
+		t.Fatal("expected non-OK code")
+	}
+	if _, ok := enc.Get(tx); ok {
+		t.Fatal("rejected tx must not be registered in encCache")
+	}
+}
+
+// TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
+// gossip InsertTxHandler run the same admission body under one mutex: both drive
+// the lock-free raceRunner concurrently, which -race flags if a path skips a.mu.
+func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
+	runner := &raceRunner{state: make(map[string]struct{})}
+	a := newManager(runner, nil, noopEncoder, nil)
+	insert := a.InsertTxHandler()
+
+	const goroutines = 16
+	const perG = 64
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := range goroutines {
+		go func(g int) {
+			defer wg.Done()
+			for i := range perG {
+				tx := []byte(strconv.Itoa(g) + ":" + strconv.Itoa(i))
+				if g%2 == 0 {
+					if _, err := insert(&abci.RequestInsertTx{Tx: tx}); err != nil {
+						t.Errorf("g%d i%d: gossip insert error: %v", g, i, err)
+						return
+					}
+				} else if resp, _ := a.InsertTx(tx); resp.Code != abci.CodeTypeOK {
+					t.Errorf("g%d i%d: rpc insert code=%d", g, i, resp.Code)
+					return
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	if got := len(runner.state); got != goroutines*perG {
+		t.Fatalf("expected %d distinct txs admitted, got %d", goroutines*perG, got)
+	}
+}
