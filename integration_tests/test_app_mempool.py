@@ -413,7 +413,9 @@ def test_txpool_inspect_shape(cronos_app_mempool):
 
 def test_txpool_content_from_shape(cronos_app_mempool):
     """txpool_contentFrom(addr) returns {pending: {nonce: tx}, queued: {…}}."""
-    _assert_pool_dict_shape(_txpool_content_from(cronos_app_mempool.w3, ADDRS["validator"]))
+    _assert_pool_dict_shape(
+        _txpool_content_from(cronos_app_mempool.w3, ADDRS["validator"])
+    )
 
 
 @pytest.mark.flaky(max_runs=3)
@@ -451,20 +453,26 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
         pytest.xfail("tx already mined before pool query (timing race; retry)")
 
     nonce_key = str(nonce)
-    assert nonce_key in content_sender, f"nonce {nonce} missing from content: {content_sender}"
+    assert (
+        nonce_key in content_sender
+    ), f"nonce {nonce} missing from content: {content_sender}"
     tx_entry = content_sender[nonce_key]
     assert isinstance(tx_entry, dict), "content entry must be a tx object dict"
 
     # inspect entry is a human-readable summary string
     inspect_sender = _pending_for(inspect["pending"])
     if inspect_sender is None:
-        pytest.xfail("inspect pending missing sender — timing race or address casing mismatch")
-    assert isinstance(inspect_sender.get(nonce_key), str), (
-        f"inspect entry must be a string summary, got: {inspect_sender.get(nonce_key)}"
-    )
+        pytest.xfail(
+            "inspect pending missing sender — timing race or address casing mismatch"
+        )
+    assert isinstance(
+        inspect_sender.get(nonce_key), str
+    ), f"inspect entry must be a string summary, got: {inspect_sender.get(nonce_key)}"
 
     # status pending count >= 1
     assert int(status["pending"], 16) >= 1, f"status pending should be >= 1: {status}"
 
     # contentFrom for this sender shows the same tx (keyed by nonce only, no address)
-    assert nonce_key in cf["pending"], f"contentFrom missing nonce {nonce}: {cf['pending']}"
+    assert (
+        nonce_key in cf["pending"]
+    ), f"contentFrom missing nonce {nonce}: {cf['pending']}"
