@@ -154,6 +154,7 @@ func (a *Manager) PendingTxs() []sdk.Tx {
 
 // admit is the shared admission path: decode unlocked (bad txs skip mu), then
 // RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to CodeTypeRetry.
+// tx stays nil when encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 	var tx sdk.Tx
 	if a.encCache != nil {
