@@ -400,8 +400,8 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
-	// ethermint #1016: appmempool.MempoolClient + MempoolClientProvider for EVM direct-insert (PR head).
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260701023501-2f1ceeab1a02
+	// ethermint #1019: txpool RPC backed by MempoolClient.PendingTxs (stacked on #1016).
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260701030357-4e88503db061
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

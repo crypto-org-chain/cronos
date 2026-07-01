@@ -146,10 +146,13 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
-// PendingTxs satisfies appmempool.MempoolClient for the txpool namespace. The app
-// mempool holds generic sdk.Txs rather than decoded MsgEthereumTx, so it reports none.
+// PendingTxs backs the txpool RPC namespace. The txpool layer on the ethermint side
+// filters these to EVM transactions; we return the full pool snapshot.
 func (a *Manager) PendingTxs() []sdk.Tx {
-	return nil
+	if a.mpool == nil {
+		return nil
+	}
+	return PoolSnapshot(context.Background(), a.mpool)
 }
 
 // admit is the shared admission path: decode unlocked (bad txs skip mu), then
