@@ -6,7 +6,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -149,7 +148,7 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 
 // PendingTxs satisfies appmempool.MempoolClient for the txpool namespace. The app
 // mempool holds generic sdk.Txs rather than decoded MsgEthereumTx, so it reports none.
-func (a *Manager) PendingTxs() []*evmtypes.MsgEthereumTx {
+func (a *Manager) PendingTxs() []sdk.Tx {
 	return nil
 }
 
