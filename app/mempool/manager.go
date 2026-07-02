@@ -137,17 +137,12 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// InsertTx admits an RPC-submitted EVM tx and returns the sync ABCI result,
-// carrying codespace+log (unlike the gossip handler) so the JSON-RPC caller gets a
-// real error reason. Shares admit(). Satisfies ethermint's appmempool.MempoolClient;
-// the error is always nil since all failures map to an ABCI code in the response.
+// InsertTx returns the sync ABCI result; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 	code, codespace, log := a.admit(txBytes)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
-// PendingTxs satisfies appmempool.MempoolClient for the txpool namespace. The app
-// mempool holds generic sdk.Txs rather than decoded MsgEthereumTx, so it reports none.
 func (a *Manager) PendingTxs() []sdk.Tx {
 	return nil
 }
