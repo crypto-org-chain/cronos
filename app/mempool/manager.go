@@ -73,12 +73,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
 	// newManager (tests) leaves worker zero and runs RecheckTxs synchronously.
-	a.worker.trigger = make(chan chan struct{}, 1)
-	a.worker.quit = make(chan struct{})
-	a.worker.done = make(chan struct{})
-	a.worker.ready = make(chan struct{})
-	close(a.worker.ready) // idle at start
-	go a.worker.run(a.RecheckTxs)
+	a.worker.init(a.RecheckTxs)
 	return a
 }
 

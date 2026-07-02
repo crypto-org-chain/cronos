@@ -16,6 +16,16 @@ type recheckWorker struct {
 	ready    chan struct{} // latest queued gate; pre-closed (idle) at init
 }
 
+// init allocates channels and launches the worker goroutine.
+func (w *recheckWorker) init(fn func()) {
+	w.trigger = make(chan chan struct{}, 1)
+	w.quit = make(chan struct{})
+	w.done = make(chan struct{})
+	w.ready = make(chan struct{})
+	close(w.ready) // idle at start
+	go w.run(fn)
+}
+
 // recheck coalesces an async recheck wakeup (non-blocking).
 // own gate per trigger: worker closes exactly what it received, no shared-field race.
 func (w *recheckWorker) recheck() {
