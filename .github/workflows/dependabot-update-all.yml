@@ -59,7 +59,71 @@ jobs:
       - name: Update gomod2nix.toml
         run: nix develop -c gomod2nix
       - name: Commit changes
-        uses: EndBug/add-and-commit@v10
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY_NAME_WITH_OWNER: ${{ github.event.pull_request.head.repo.full_name }}
         with:
-          default_author: user_info
-          message: "${{ github.event.pull_request.title }} for all modules"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execFileSync } = require('node:child_process');
+            const fs = require('node:fs');
+
+            const lines = (args) =>
+              execFileSync('git', args, { encoding: 'utf8' })
+                .trim()
+                .split('\n')
+                .filter(Boolean);
+
+            const additions = [...new Set([
+              ...lines(['diff', '--name-only', '--diff-filter=ACMRTUXB', 'HEAD']),
+              ...lines(['ls-files', '--others', '--exclude-standard']),
+            ])]
+              .sort()
+              .map((path) => ({
+                path,
+                contents: fs.readFileSync(path).toString('base64'),
+              }));
+
+            const deletions = lines(['diff', '--name-only', '--diff-filter=D', 'HEAD'])
+              .sort()
+              .map((path) => ({ path }));
+
+            if (!additions.length && !deletions.length) {
+              core.info('No changes to commit.');
+              return;
+            }
+
+            const input = {
+              branch: {
+                repositoryNameWithOwner: process.env.REPOSITORY_NAME_WITH_OWNER,
+                branchName: process.env.BRANCH_NAME,
+              },
+              message: {
+                headline: `${process.env.PR_TITLE} for all modules`,
+              },
+              expectedHeadOid: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+              fileChanges: {},
+            };
+
+            if (additions.length) {
+              input.fileChanges.additions = additions;
+            }
+            if (deletions.length) {
+              input.fileChanges.deletions = deletions;
+            }
+
+            const result = await github.graphql(
+              `mutation ($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit {
+                    oid
+                    url
+                  }
+                }
+              }`,
+              { input },
+            );
+
+            core.info(`Created commit ${result.createCommitOnBranch.commit.oid}`);
+            core.info(result.createCommitOnBranch.commit.url);
