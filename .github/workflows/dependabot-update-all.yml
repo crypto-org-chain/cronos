@@ -62,6 +62,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
           REPOSITORY_NAME_WITH_OWNER: ${{ github.event.pull_request.head.repo.full_name }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -102,7 +103,7 @@ jobs:
               message: {
                 headline: `${process.env.PR_TITLE} for all modules`,
               },
-              expectedHeadOid: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+              expectedHeadOid: lines(['rev-parse', 'HEAD'])[0],
               fileChanges: {},
             };
 
