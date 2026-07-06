@@ -70,8 +70,16 @@ jobs:
             const { execFileSync } = require('node:child_process');
             const fs = require('node:fs');
 
+            const git = (args) => {
+              try {
+                return execFileSync('git', args, { encoding: 'utf8' });
+              } catch (error) {
+                throw new Error(`git ${args.join(' ')} failed: ${error.message}`);
+              }
+            };
+
             const lines = (args) =>
-              execFileSync('git', args, { encoding: 'utf8' })
+              git(args)
                 .trim()
                 .split('\n')
                 .filter(Boolean);
@@ -81,10 +89,16 @@ jobs:
               ...lines(['ls-files', '--others', '--exclude-standard']),
             ])]
               .sort()
-              .map((path) => ({
-                path,
-                contents: fs.readFileSync(path).toString('base64'),
-              }));
+              .map((path) => {
+                try {
+                  return {
+                    path,
+                    contents: fs.readFileSync(path).toString('base64'),
+                  };
+                } catch (error) {
+                  throw new Error(`Failed to read ${path}: ${error.message}`);
+                }
+              });
 
             const deletions = lines(['diff', '--name-only', '--diff-filter=D', 'HEAD'])
               .sort()
