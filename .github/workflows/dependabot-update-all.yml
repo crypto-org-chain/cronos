@@ -69,6 +69,7 @@ jobs:
           script: |
             const { execFileSync } = require('node:child_process');
             const fs = require('node:fs');
+            const MAX_GITHUB_BLOB_SIZE = 40 * 1024 * 1024;
 
             const git = (args) => {
               try {
@@ -85,15 +86,21 @@ jobs:
                 .filter(Boolean);
 
             const additions = [...new Set([
-              ...lines(['diff', '--name-only', '--diff-filter=ACMRTUXB', 'HEAD']),
+              ...lines(['diff', '--name-only', '--diff-filter=ACMRTUX', 'HEAD']),
               ...lines(['ls-files', '--others', '--exclude-standard']),
             ])]
               .sort()
               .map((path) => {
                 try {
+                  const contents = fs.readFileSync(path);
+                  if (contents.length > MAX_GITHUB_BLOB_SIZE) {
+                    throw new Error(
+                      `${path} is ${contents.length} bytes, which exceeds GitHub's 40 MiB blob limit for API-created commits`,
+                    );
+                  }
                   return {
                     path,
-                    contents: fs.readFileSync(path).toString('base64'),
+                    contents: contents.toString('base64'),
                   };
                 } catch (error) {
                   throw new Error(`Failed to read ${path}: ${error.message}`);
