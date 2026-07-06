@@ -3,11 +3,13 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethermint "github.com/evmos/ethermint/types"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"google.golang.org/grpc/codes"
@@ -16,6 +18,16 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+	// MaxReplayBlockMsgs caps the eth messages one ReplayBlock query may execute.
+	// A real block never holds this many, so legitimate replay is unaffected.
+	MaxReplayBlockMsgs = 10000
+
+	// DefaultReplayBlockGasCap caps per-message EVM gas when the chain reports no
+	// block gas limit. Mirrors ethermint's default JSON-RPC gas cap.
+	DefaultReplayBlockGasCap = 25_000_000
 )
 
 var _ types.QueryServer = Keeper{}
@@ -52,6 +64,12 @@ func (k Keeper) DenomByContract(goCtx context.Context, req *types.DenomByContrac
 
 // ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
 func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest) (*types.ReplayBlockResponse, error) {
+	// bound the batch size on this public gRPC endpoint
+	if len(req.Msgs) > MaxReplayBlockMsgs {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"too many messages in ReplayBlock request: %d (max %d)", len(req.Msgs), MaxReplayBlockMsgs)
+	}
+
 	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
 
 	// prepare the block context, the multistore version should be setup already in grpc query context.
@@ -59,6 +77,14 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 		WithBlockHeight(req.BlockNumber).
 		WithBlockTime(req.BlockTime).
 		WithHeaderHash(common.Hex2Bytes(req.BlockHash))
+
+	// Per-message gas cap. A committed tx already fits within the block gas
+	// limit, so legitimate replay is unaffected, while a caller can't burn
+	// unbounded CPU with an oversized gas limit on this unmetered query path.
+	gasCap := ethermint.BlockGasLimit(ctx)
+	if gasCap == 0 || gasCap == math.MaxUint64 {
+		gasCap = DefaultReplayBlockGasCap
+	}
 
 	// load parameters
 	params := k.evmKeeper.GetParams(ctx)
@@ -75,6 +101,12 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 	// we assume the message executions are successful, they are filtered in json-rpc api
 	for _, msg := range req.Msgs {
+		// reject oversized messages before doing any EVM work
+		if gas := msg.GetGas(); gas > gasCap {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"message gas limit %d exceeds ReplayBlock cap %d", gas, gasCap)
+		}
+
 		// deduct fee
 		// populate the `From` field
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {
