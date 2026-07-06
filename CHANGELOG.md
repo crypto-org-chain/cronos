@@ -32,7 +32,7 @@
 * [#2069](https://github.com/crypto-org-chain/cronos/pull/2069) fix(test): flaky test_mempool integration test.
 * [#2071](https://github.com/crypto-org-chain/cronos/pull/2071) fix(test): fix flaky ibc and versiondb integration tests.
 * [#2099](https://github.com/crypto-org-chain/cronos/pull/2099) fix(cronos): add contract authorization check to SendCroToIbcHandler
-* [#XXXX](https://github.com/crypto-org-chain/cronos/pull/XXXX) fix(cronos): bound message count and per-message gas in the ReplayBlock gRPC query.
+* [#2131](https://github.com/crypto-org-chain/cronos/pull/2131) fix(cronos): bound message count and per-message gas in the ReplayBlock gRPC query.
 
 
 ### Chores:
