@@ -160,6 +160,32 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	}
 }
 
+// TestPreVerifyRejectsTamperedSig: tampered From rejected lock-free before RunTx.
+func TestPreVerifyRejectsTamperedSig(t *testing.T) {
+	f := setupAdmissionApp(t, 2)
+	other := f.accounts[1].Address
+	bad := f.signTransfer(t, &f.accounts[0], &other)
+	resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bad})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered From must be rejected by pre-verifier")
+}
+
+// TestPreVerifyPassesThroughNonEVMTx: non-EVM tx skips pre-verifier, fails antehandler.
+func TestPreVerifyPassesThroughNonEVMTx(t *testing.T) {
+	f := setupAdmissionApp(t, 1)
+	builder := f.app.TxConfig().NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(&banktypes.MsgSend{
+		FromAddress: sdk.AccAddress(f.accounts[0].Address.Bytes()).String(),
+		ToAddress:   sdk.AccAddress(f.accounts[0].Address.Bytes()).String(),
+		Amount:      sdk.NewCoins(),
+	}))
+	bz, err := f.app.TxConfig().TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "unsigned tx must be rejected by antehandler")
+}
+
 // TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
 // (pre-verify lock-free, then RunTx under the admission mutex). Run with -race
 // to prove the path is concurrency-safe: the signer is pure and the decode cache

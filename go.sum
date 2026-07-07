@@ -302,8 +302,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3c/go.mod h1:eEPLLeFOhRINMGIQTDjXuahaDkQgfSUvHTzSuuEl4V0=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260529153812-1f2f45ec5a3c h1:oTFxyhmD5ax3Cec3L2XKu/rMDL2CdFLflS/7BPmjJzw=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260529153812-1f2f45ec5a3c/go.mod h1:AVLgSeljZFwhfVzbeeEu15ejtK2q2PLyqJsPKxbU05I=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260702163919-6f932cde4455 h1:DbSddjhsZtQlggj9tp0ToxpEZntpqe1Cm26tDQq7cZw=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260702163919-6f932cde4455/go.mod h1:FcXgK9DUW2h3MB5lC3jdZBMQlF0+kpWfmZYTsAI8zk8=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260707200522-de2396e91b19 h1:Mu1bvqemtP7fadpgBtHJuCU/h5EHeCYrN0JPj9HhAh4=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260707200522-de2396e91b19/go.mod h1:AtIzmPJgmhCvRAo59Go6p5VH+2GZPtb8+OjHDW2fuWY=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
@@ -1493,8 +1493,8 @@ google.golang.org/grpc v1.33.1/go.mod h1:fr5YgcSWrqhRRxogOsw7RzIpsmvOZ6IcH4kBYTp
 google.golang.org/grpc v1.36.0/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAGRRjU=
 google.golang.org/grpc v1.45.0/go.mod h1:lN7owxKUQEqMfSyQikvvk5tf/6zMPsrK+ONuO11+0rQ=
 google.golang.org/grpc v1.49.0/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
-google.golang.org/grpc v1.81.1 h1:VnnIIZ88UzOOKLukQi+ImGz8O1Wdp8nAGGnvOfEIWQQ=
-google.golang.org/grpc v1.81.1/go.mod h1:xGH9GfzOyMTGIOXBJmXt+BX/V0kcdQbdcuwQ/zNw42I=
+google.golang.org/grpc v1.82.0 h1:vguDnZUPjE26w09A63VoxZPnvPjB5Riyc0mkXPFmAIU=
+google.golang.org/grpc v1.82.0/go.mod h1:yzTZ1TB1Z3SG+LIYaI+WiE8D5+PZ3ArnrSp8zF3+/ZA=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
 google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
