@@ -22,7 +22,6 @@ import (
 
 const (
 	// MaxReplayBlockMsgs caps the eth messages one ReplayBlock query may execute.
-	// A real block never holds this many, so legitimate replay is unaffected.
 	MaxReplayBlockMsgs = 10000
 
 	// DefaultReplayBlockGasCap caps per-message EVM gas when the chain reports no
