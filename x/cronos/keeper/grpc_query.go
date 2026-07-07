@@ -79,7 +79,6 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 	// Per-message gas cap. A committed tx already fits within the block gas
 	// limit, so legitimate replay is unaffected, while a caller can't burn
-	// unbounded CPU with an oversized gas limit on this unmetered query path.
 	gasCap := ethermint.BlockGasLimit(ctx)
 	if gasCap == 0 || gasCap == math.MaxUint64 {
 		gasCap = DefaultReplayBlockGasCap
