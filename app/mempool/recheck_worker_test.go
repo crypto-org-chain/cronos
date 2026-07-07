@@ -2,11 +2,7 @@ package mempool
 
 import "testing"
 
-// TestRun_QuitRaceClosesBufferedGate covers the outer select in run(): when
-// stop() closes quit while a trigger is already buffered, Go's select may
-// pick either case. Both must end with the buffered gate closed — otherwise
-// a wait() blocked on it (e.g. WaitForRecheck in PrepareProposal) hangs
-// forever after the worker has already exited.
+// quit racing an already-buffered trigger must still close that gate.
 func TestRun_QuitRaceClosesBufferedGate(t *testing.T) {
 	w := &recheckWorker{
 		trigger: make(chan chan struct{}, 1),

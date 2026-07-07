@@ -186,11 +186,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	}
 }
 
-// TestWaitForRecheck_CtxTimeoutUnblocks guards the fix in app.go's
-// PrepareProposal wrapper: cosmos-sdk's ctx carries no deadline of its own,
-// so the caller must wrap it with context.WithTimeout. This proves
-// WaitForRecheck actually honors that deadline instead of blocking forever
-// on a stuck recheck.
+// WaitForRecheck must honor a ctx deadline even when the recheck itself never returns.
 func TestWaitForRecheck_CtxTimeoutUnblocks(t *testing.T) {
 	unblock := make(chan struct{})
 	var unblockOnce sync.Once
