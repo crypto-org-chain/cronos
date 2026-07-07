@@ -185,3 +185,50 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 		t.Fatal("timeout: WaitForRecheck did not return after RecheckTxs finished")
 	}
 }
+
+// TestWaitForRecheck_CtxTimeoutUnblocks guards the fix in app.go's
+// PrepareProposal wrapper: cosmos-sdk's ctx carries no deadline of its own,
+// so the caller must wrap it with context.WithTimeout. This proves
+// WaitForRecheck actually honors that deadline instead of blocking forever
+// on a stuck recheck.
+func TestWaitForRecheck_CtxTimeoutUnblocks(t *testing.T) {
+	unblock := make(chan struct{})
+	var unblockOnce sync.Once
+	unblockRunner := func() { unblockOnce.Do(func() { close(unblock) }) }
+	var inFlight atomic.Bool
+	runner := &stubRunner{
+		runTx: func(_ []byte) error {
+			inFlight.Store(true)
+			<-unblock // never unblocked until cleanup: simulates a stuck recheck
+			return nil
+		},
+	}
+
+	f := newRecheckFixture()
+	f.a.runner = runner
+	startAsyncWorker(f)
+	t.Cleanup(func() {
+		unblockRunner()
+		f.a.Close()
+	})
+
+	f.add(1, "alice", 0, "alice-0")
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.TriggerRecheck()
+
+	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	f.a.WaitForRecheck(ctx)
+	elapsed := time.Since(start)
+
+	if ctx.Err() == nil {
+		t.Fatal("expected ctx to be timed out; recheck is still stuck")
+	}
+	if elapsed > 1*time.Second {
+		t.Fatalf("WaitForRecheck did not respect ctx deadline, blocked for %v", elapsed)
+	}
+}

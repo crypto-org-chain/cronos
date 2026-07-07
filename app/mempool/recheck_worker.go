@@ -46,6 +46,12 @@ func (w *recheckWorker) run(fn func()) {
 	for {
 		select {
 		case <-w.quit:
+			// drain a racing buffered trigger so its gate isn't orphaned unclosed.
+			select {
+			case ready := <-w.trigger:
+				close(ready)
+			default:
+			}
 			return
 		case ready := <-w.trigger:
 			// re-check quit: stop() may race a buffered trigger.

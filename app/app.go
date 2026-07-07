@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
+	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -187,6 +189,11 @@ const (
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
 )
+
+// recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight
+// async recheck; below CometBFT's default timeout_propose (3s) so a stuck
+// recheck yields an empty proposal instead of hanging the ABCI connection.
+const recheckWaitTimeout = 1500 * time.Millisecond
 
 var Forks = []Fork{}
 
@@ -524,8 +531,12 @@ func New(
 			// re-stage gate-skipped senders; evicted in ~1 block vs TTL wait.
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if mempoolManager != nil {
-					mempoolManager.WaitForRecheck(ctx)
-					if ctx.Err() != nil {
+					// ctx from cosmos-sdk carries no deadline; bound the wait ourselves
+					// so a stuck recheck can't hang this validator's PrepareProposal forever.
+					waitCtx, cancel := context.WithTimeout(ctx, recheckWaitTimeout)
+					mempoolManager.WaitForRecheck(waitCtx)
+					cancel()
+					if waitCtx.Err() != nil {
 						// recheck timed out; empty proposal preferred over stale-pool selection.
 						telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
 						extSel.DrainGateSkipped() // drain to keep extSel state clean
