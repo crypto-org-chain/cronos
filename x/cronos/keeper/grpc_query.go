@@ -25,7 +25,7 @@ const (
 	MaxReplayBlockMsgs = 10000
 
 	// DefaultReplayBlockGasCap caps per-message EVM gas when the chain reports no
-	// block gas limit. Mirrors ethermint's default JSON-RPC gas cap.
+	// block gas limit.
 	DefaultReplayBlockGasCap = 25_000_000
 )
 
