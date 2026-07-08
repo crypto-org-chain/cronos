@@ -30,3 +30,10 @@ func TestRun_QuitRaceClosesBufferedGate(t *testing.T) {
 		t.Fatal("done was not closed on return")
 	}
 }
+
+func TestStop_Idempotent(t *testing.T) {
+	w := &recheckWorker{}
+	w.init(func() {})
+	w.stop()
+	w.stop() // must not panic or hang
+}
