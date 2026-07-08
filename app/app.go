@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -533,11 +532,7 @@ func New(
 				if mempoolManager != nil {
 					// ctx from cosmos-sdk carries no deadline; bound the wait ourselves
 					// so a stuck recheck can't hang this validator's PrepareProposal forever.
-					waitCtx, cancel := context.WithTimeout(ctx, recheckWaitTimeout)
-					mempoolManager.WaitForRecheck(waitCtx)
-					timedOut := waitCtx.Err() != nil
-					cancel()
-					if timedOut {
+					if mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
 						// recheck timed out; empty proposal preferred over stale-pool selection.
 						telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
 						extSel.DrainGateSkipped() // drain to keep extSel state clean

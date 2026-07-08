@@ -281,6 +281,17 @@ func (a *Manager) WaitForRecheck(ctx context.Context) {
 	a.worker.wait(ctx)
 }
 
+// WaitForRecheckTimedOut waits like WaitForRecheck but bounds the wait to timeout,
+// reporting whether it timed out. timedOut must be read before cancel(), since cancel()
+// unconditionally sets the derived context's error.
+func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	a.WaitForRecheck(waitCtx)
+	timedOut := waitCtx.Err() != nil
+	cancel()
+	return timedOut
+}
+
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
 // sender) and txs of block-touched senders that now fail ReCheck. Capped per
 // cycle; overflow carries to the next.

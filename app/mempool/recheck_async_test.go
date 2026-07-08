@@ -228,3 +228,50 @@ func TestWaitForRecheck_CtxTimeoutUnblocks(t *testing.T) {
 		t.Fatalf("WaitForRecheck did not respect ctx deadline, blocked for %v", elapsed)
 	}
 }
+
+func TestWaitForRecheckTimedOut_ReturnsFalseWhenCompletedInTime(t *testing.T) {
+	f := newAsyncRecheckFixture(t, "alice-0")
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.TriggerRecheck()
+
+	if f.a.WaitForRecheckTimedOut(context.Background(), 2*time.Second) {
+		t.Fatal("expected timedOut=false; recheck completed well within the deadline")
+	}
+	if poolHas(f.pool, stale) {
+		t.Fatal("stale tx should have been evicted by the completed recheck")
+	}
+}
+
+func TestWaitForRecheckTimedOut_ReturnsTrueWhenStuck(t *testing.T) {
+	unblock := make(chan struct{})
+	var unblockOnce sync.Once
+	unblockRunner := func() { unblockOnce.Do(func() { close(unblock) }) }
+	var inFlight atomic.Bool
+	runner := &stubRunner{
+		runTx: func(_ []byte) error {
+			inFlight.Store(true)
+			<-unblock // never unblocked until cleanup: simulates a stuck recheck
+			return nil
+		},
+	}
+
+	f := newRecheckFixture()
+	f.a.runner = runner
+	startAsyncWorker(f)
+	t.Cleanup(func() {
+		unblockRunner()
+		f.a.Close()
+	})
+
+	f.add(1, "alice", 0, "alice-0")
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.TriggerRecheck()
+
+	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
+
+	if !f.a.WaitForRecheckTimedOut(context.Background(), 50*time.Millisecond) {
+		t.Fatal("expected timedOut=true; recheck is still stuck")
+	}
+}
