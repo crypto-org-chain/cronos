@@ -118,6 +118,14 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 		return
 	}
 	a.stagingMu.Lock()
+	a.mergeRecheckSenders(senders)
+	a.stagingMu.Unlock()
+}
+
+// mergeRecheckSenders folds senders into a.recheckSenders. Merge, don't overwrite: a
+// prior block whose Commit skipped RecheckTxs (e.g. Commit error) still has senders
+// staged here that must not be lost. Caller holds stagingMu.
+func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	if a.recheckSenders == nil {
 		a.recheckSenders = senders
 	} else {
@@ -125,7 +133,6 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 			a.recheckSenders[s] = struct{}{}
 		}
 	}
-	a.stagingMu.Unlock()
 }
 
 // AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
@@ -247,15 +254,7 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 
 	a.stagingMu.Lock()
 	a.lastCommittedHeight = height
-	if a.recheckSenders == nil {
-		a.recheckSenders = senders
-	} else {
-		// Merge, don't overwrite: a prior block whose Commit skipped RecheckTxs
-		// (e.g. Commit error) still has senders staged here that must not be lost.
-		for s := range senders {
-			a.recheckSenders[s] = struct{}{}
-		}
-	}
+	a.mergeRecheckSenders(senders)
 	a.stagingMu.Unlock()
 }
 
@@ -341,35 +340,15 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	now := time.Now()
 	for _, tx := range snapshot {
 		if txTimedout(tx, height, now) {
-			a.evict(tx)
-			if evictedSet == nil {
-				evictedSet = make(map[sdk.Tx]struct{})
-			}
-			evictedSet[tx] = struct{}{}
+			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
 			expiredEvicted++
-			for _, s := range a.signers(tx) {
-				if recheckSenders == nil {
-					recheckSenders = make(map[string]struct{})
-				}
-				recheckSenders[s] = struct{}{}
-			}
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
-				a.evict(tx)
-				if evictedSet == nil {
-					evictedSet = make(map[sdk.Tx]struct{})
-				}
-				evictedSet[tx] = struct{}{}
+				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
 				ttlEvicted++
-				for _, s := range a.signers(tx) {
-					if recheckSenders == nil {
-						recheckSenders = make(map[string]struct{})
-					}
-					recheckSenders[s] = struct{}{}
-				}
 				continue
 			}
 			newArrival[tx] = arrived
@@ -423,6 +402,23 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		ordered = append(ordered, tx)
 	}
 	return ordered
+}
+
+// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
+// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
+func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
+	a.evict(tx)
+	if evictedSet == nil {
+		evictedSet = make(map[sdk.Tx]struct{})
+	}
+	evictedSet[tx] = struct{}{}
+	for _, s := range a.signers(tx) {
+		if recheckSenders == nil {
+			recheckSenders = make(map[string]struct{})
+		}
+		recheckSenders[s] = struct{}{}
+	}
+	return evictedSet, recheckSenders
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
