@@ -28,11 +28,9 @@ func (f fakeSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	return sd, nil
 }
 
-// recheckRunner records the ExecMode and bytes of each RunTx call. failBytes
-// mirrors BaseApp.RunTx(ExecModeReCheck) on ante failure, which removes the tx
-// from the pool itself. failNoRemoveBytes mirrors a msg-execution-level
-// recheck failure (post-ante): BaseApp returns an error but does not touch
-// the pool, so runRecheck's own eviction is what removes it.
+// recheckRunner records RunTx calls. failBytes mirrors BaseApp's ante-failure
+// auto-eviction; failNoRemoveBytes mirrors a msg-exec failure, which BaseApp
+// leaves in the pool for runRecheck to evict.
 type recheckRunner struct {
 	mu                sync.Mutex
 	pool              sdkmempool.Mempool
@@ -168,10 +166,6 @@ func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 	}
 }
 
-// BaseApp only auto-evicts from the pool on ante-handler recheck failure; a
-// msg-execution-level failure returns an error but leaves the pool untouched.
-// runRecheck must remove the tx itself in that case, not just the encoder
-// cache, or the invalid tx lingers and can be reselected into a proposal.
 func TestRecheckTxs_MsgExecFailureEvictsFromPool(t *testing.T) {
 	f := newRecheckFixture()
 	f.runner.failNoRemoveBytes = map[string]bool{"alice-0": true}
