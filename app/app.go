@@ -495,6 +495,9 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolManager *cronosmempool.Manager
+	// Set inside the closure below, only when mempool.type=app has the encoder
+	// cache enabled (the fast PrepareProposal path); nil otherwise.
+	var ppHandler *AppMempoolProposalHandler
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -527,24 +530,8 @@ func New(
 				h.SetSignerExtractionAdapter(signerExtractor)
 			}
 			inner := h.PrepareProposalHandler()
-			// re-stage gate-skipped senders; evicted in ~1 block vs TTL wait.
-			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-				if mempoolManager != nil {
-					// ctx carries no deadline from cosmos-sdk; bound the wait ourselves.
-					if mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
-						// recheck timed out; empty proposal preferred over stale-pool selection.
-						telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
-						extSel.DrainGateSkipped() // drain to keep extSel state clean
-						return &abci.ResponsePrepareProposal{}, nil
-					}
-				}
-				resp, err := inner(ctx, req)
-				skipped := extSel.DrainGateSkipped() // always drain; stale on error
-				if err == nil && mempoolManager != nil && len(skipped) > 0 {
-					mempoolManager.StageSkippedSenders(skipped)
-				}
-				return resp, err
-			})
+			ppHandler = NewAppMempoolProposalHandler(extSel, inner)
+			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
@@ -579,6 +566,9 @@ func New(
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
+			if ppHandler != nil {
+				ppHandler.SetMempoolManager(manager)
+			}
 		}
 	})
 

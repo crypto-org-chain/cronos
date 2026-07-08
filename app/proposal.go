@@ -131,6 +131,45 @@ func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	return ts.baseFee, ts.evmDenom
 }
 
+// AppMempoolProposalHandler wraps the SDK default PrepareProposal handler for
+// mempool.type=app: waits out any in-flight async recheck first, then restages
+// gate-skipped senders after. mempoolManager starts nil and is wired later via
+// SetMempoolManager once the manager exists; PrepareProposal only runs
+// post-startup, so that nil window is never observed at call time.
+type AppMempoolProposalHandler struct {
+	mempoolManager *cronosmempool.Manager
+	extSel         *ExtTxSelector
+	inner          sdk.PrepareProposalHandler
+}
+
+func NewAppMempoolProposalHandler(extSel *ExtTxSelector, inner sdk.PrepareProposalHandler) *AppMempoolProposalHandler {
+	return &AppMempoolProposalHandler{extSel: extSel, inner: inner}
+}
+
+func (h *AppMempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
+	h.mempoolManager = m
+}
+
+func (h *AppMempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		if h.mempoolManager != nil {
+			// ctx has no deadline from cosmos-sdk, so we set our own bound.
+			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
+				// Recheck is still running: better to propose an empty block than pick txs from a stale pool.
+				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
+				h.extSel.DrainGateSkipped() // keep extSel's state clean for the next round
+				return &abci.ResponsePrepareProposal{}, nil
+			}
+		}
+		resp, err := h.inner(ctx, req)
+		skipped := h.extSel.DrainGateSkipped() // drain every round, even on error, so it never goes stale
+		if err == nil && h.mempoolManager != nil && len(skipped) > 0 {
+			h.mempoolManager.StageSkippedSenders(skipped)
+		}
+		return resp, err
+	}
+}
+
 var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
 
 // CacheProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
