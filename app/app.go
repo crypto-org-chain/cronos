@@ -530,8 +530,7 @@ func New(
 			// re-stage gate-skipped senders; evicted in ~1 block vs TTL wait.
 			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 				if mempoolManager != nil {
-					// ctx from cosmos-sdk carries no deadline; bound the wait ourselves
-					// so a stuck recheck can't hang this validator's PrepareProposal forever.
+					// ctx carries no deadline from cosmos-sdk; bound the wait ourselves.
 					if mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
 						// recheck timed out; empty proposal preferred over stale-pool selection.
 						telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")

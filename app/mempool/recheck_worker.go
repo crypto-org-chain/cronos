@@ -26,8 +26,7 @@ func (w *recheckWorker) init(fn func()) {
 	go w.run(fn)
 }
 
-// recheck coalesces an async recheck wakeup (non-blocking).
-// own gate per trigger: worker closes exactly what it received, no shared-field race.
+// recheck coalesces an async wakeup (non-blocking); own gate per trigger avoids a shared-close race.
 func (w *recheckWorker) recheck() {
 	ready := make(chan struct{})
 	w.readyMu.Lock()
@@ -76,8 +75,7 @@ func (w *recheckWorker) stop() {
 	<-w.done
 }
 
-// wait blocks until the latest in-progress recheck completes. ctx cancellation
-// unblocks it so a stuck worker cannot stall block production.
+// wait blocks until the latest queued gate closes, or ctx is done.
 func (w *recheckWorker) wait(ctx context.Context) {
 	w.readyMu.Lock()
 	ready := w.ready

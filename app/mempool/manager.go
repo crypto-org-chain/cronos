@@ -60,8 +60,7 @@ type Manager struct {
 	ttlNumBlocks int64
 
 	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
-	// when built via newManager() (test constructor), worker.trigger is nil, so
-	// TriggerRecheck detects nil and calls RecheckTxs() inline.
+	// zero-value (trigger nil) via newManager() test ctor; TriggerRecheck then runs RecheckTxs inline.
 	worker recheckWorker
 }
 
@@ -122,9 +121,8 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// mergeRecheckSenders folds senders into a.recheckSenders. Merge, don't overwrite: a
-// prior block whose Commit skipped RecheckTxs (e.g. Commit error) still has senders
-// staged here that must not be lost. Caller holds stagingMu.
+// mergeRecheckSenders folds senders into a.recheckSenders without overwriting, so a
+// block whose Commit skipped RecheckTxs doesn't lose its staged senders. Caller holds stagingMu.
 func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	if a.recheckSenders == nil {
 		a.recheckSenders = senders
@@ -281,9 +279,8 @@ func (a *Manager) WaitForRecheck(ctx context.Context) {
 	a.worker.wait(ctx)
 }
 
-// WaitForRecheckTimedOut waits like WaitForRecheck but bounds the wait to timeout,
-// reporting whether it timed out. timedOut must be read before cancel(), since cancel()
-// unconditionally sets the derived context's error.
+// WaitForRecheckTimedOut is WaitForRecheck bounded by timeout; reports whether it timed out.
+// Must snapshot Err() before cancel(), which unconditionally sets the context's error.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	a.WaitForRecheck(waitCtx)
