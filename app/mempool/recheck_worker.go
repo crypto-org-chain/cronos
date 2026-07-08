@@ -75,13 +75,22 @@ func (w *recheckWorker) stop() {
 	<-w.done
 }
 
-// wait blocks until the latest queued gate closes, or ctx is done.
-func (w *recheckWorker) wait(ctx context.Context) {
+// wait blocks until the latest queued gate closes, or ctx is done. Returns
+// whether ctx fired first (timed out); ready is rechecked non-blocking after
+// ctx fires so a near-simultaneous completion isn't misreported as a timeout.
+func (w *recheckWorker) wait(ctx context.Context) bool {
 	w.readyMu.Lock()
 	ready := w.ready
 	w.readyMu.Unlock()
 	select {
 	case <-ready:
+		return false
 	case <-ctx.Done():
+		select {
+		case <-ready:
+			return false
+		default:
+			return true
+		}
 	}
 }

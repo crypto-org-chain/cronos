@@ -280,13 +280,13 @@ func (a *Manager) WaitForRecheck(ctx context.Context) {
 }
 
 // WaitForRecheckTimedOut is WaitForRecheck bounded by timeout; reports whether it timed out.
-// Must snapshot Err() before cancel(), which unconditionally sets the context's error.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
+	if a.worker.trigger == nil {
+		return false // sync path always completes inline
+	}
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	a.WaitForRecheck(waitCtx)
-	timedOut := waitCtx.Err() != nil
-	cancel()
-	return timedOut
+	defer cancel()
+	return a.worker.wait(waitCtx)
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any

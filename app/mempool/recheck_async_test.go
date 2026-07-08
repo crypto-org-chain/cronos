@@ -20,12 +20,7 @@ func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 
 // startAsyncWorker does NOT register a Cleanup — caller owns Close().
 func startAsyncWorker(f *recheckFixture) {
-	f.a.worker.trigger = make(chan chan struct{}, 1)
-	f.a.worker.quit = make(chan struct{})
-	f.a.worker.done = make(chan struct{})
-	f.a.worker.ready = make(chan struct{})
-	close(f.a.worker.ready) // idle at start
-	go f.a.worker.run(f.a.RecheckTxs)
+	f.a.worker.init(f.a.RecheckTxs)
 }
 
 func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string) {
