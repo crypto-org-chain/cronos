@@ -497,7 +497,7 @@ func New(
 	var mempoolManager *cronosmempool.Manager
 	// Set inside the closure below, only when mempool.type=app has the encoder
 	// cache enabled (the fast PrepareProposal path); nil otherwise.
-	var ppHandler *AppMempoolProposalHandler
+	var ppHandler *MempoolProposalHandler
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -530,7 +530,7 @@ func New(
 				h.SetSignerExtractionAdapter(signerExtractor)
 			}
 			inner := h.PrepareProposalHandler()
-			ppHandler = NewAppMempoolProposalHandler(extSel, inner)
+			ppHandler = NewMempoolProposalHandler(extSel, inner)
 			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
