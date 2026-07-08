@@ -59,8 +59,9 @@ type Manager struct {
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
 
-	recheckMu sync.Mutex // serializes RecheckTxs; acquired before mu/stagingMu, never after
-	// zero-value (trigger nil) via newManager() test ctor; TriggerRecheck then runs RecheckTxs inline.
+	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before mu and stagingMu, never after
+	// Zero-value (trigger nil) when built via the newManager() test constructor;
+	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
 }
 
@@ -256,7 +257,9 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// TriggerRecheck schedules async recheck (non-blocking, coalescing). Runs inline when no worker (test path).
+// TriggerRecheck schedules an async recheck without blocking; repeated calls
+// coalesce into one run. Falls back to running RecheckTxs inline when there's
+// no worker (the test path).
 func (a *Manager) TriggerRecheck() {
 	if a.worker.trigger == nil {
 		a.RecheckTxs()
@@ -279,7 +282,8 @@ func (a *Manager) WaitForRecheck(ctx context.Context) {
 	a.worker.wait(ctx)
 }
 
-// WaitForRecheckTimedOut is WaitForRecheck bounded by timeout; reports whether it timed out.
+// WaitForRecheckTimedOut works like WaitForRecheck but bounded by timeout,
+// and reports whether the timeout was hit.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
 	if a.worker.trigger == nil {
 		return false // sync path always completes inline
@@ -296,7 +300,7 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
-	a.recheckMu.Lock() // single-writer; see recheckMu
+	a.recheckMu.Lock() // only one recheck runs at a time; see the recheckMu field comment for lock ordering
 	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
