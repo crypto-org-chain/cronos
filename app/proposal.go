@@ -131,11 +131,10 @@ func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	return ts.baseFee, ts.evmDenom
 }
 
-// MempoolProposalHandler wraps the SDK default PrepareProposal handler for
-// mempool.type=app: waits out any in-flight async recheck first, then restages
-// gate-skipped senders after. mempoolManager starts nil and is wired later via
-// SetMempoolManager once the manager exists; PrepareProposal only runs
-// post-startup, so that nil window is never observed at call time.
+// MempoolProposalHandler wraps PrepareProposal for mempool.type=app: waits
+// out any in-flight recheck, then restages gate-skipped senders after.
+// mempoolManager is wired in later via SetMempoolManager, once the manager
+// exists — safe since PrepareProposal never runs before that.
 type MempoolProposalHandler struct {
 	mempoolManager *cronosmempool.Manager
 	extSel         *ExtTxSelector
