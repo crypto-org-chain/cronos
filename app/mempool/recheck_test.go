@@ -28,15 +28,18 @@ func (f fakeSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	return sd, nil
 }
 
-// recheckRunner records the ExecMode and bytes of each RunTx call. It mirrors
-// BaseApp.RunTx(ExecModeReCheck): on ante failure it removes the tx from the
-// pool, which is what RecheckTxs relies on (it only evicts encCache itself).
+// recheckRunner records the ExecMode and bytes of each RunTx call. failBytes
+// mirrors BaseApp.RunTx(ExecModeReCheck) on ante failure, which removes the tx
+// from the pool itself. failNoRemoveBytes mirrors a msg-execution-level
+// recheck failure (post-ante): BaseApp returns an error but does not touch
+// the pool, so runRecheck's own eviction is what removes it.
 type recheckRunner struct {
-	mu        sync.Mutex
-	pool      sdkmempool.Mempool
-	failBytes map[string]bool
-	modes     []sdk.ExecMode
-	seen      map[string]bool
+	mu                sync.Mutex
+	pool              sdkmempool.Mempool
+	failBytes         map[string]bool
+	failNoRemoveBytes map[string]bool
+	modes             []sdk.ExecMode
+	seen              map[string]bool
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -45,8 +48,11 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
 	if r.failBytes[string(txBytes)] {
-		_ = r.pool.Remove(tx) // baseapp removes on recheck failure
+		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
+	}
+	if r.failNoRemoveBytes[string(txBytes)] {
+		return sdk.GasInfo{}, nil, nil, errors.New("msg execution failed on recheck")
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -159,6 +165,26 @@ func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 		if m != sdk.ExecModeReCheck {
 			t.Fatalf("recheck must use ExecModeReCheck, got %v", m)
 		}
+	}
+}
+
+// BaseApp only auto-evicts from the pool on ante-handler recheck failure; a
+// msg-execution-level failure returns an error but leaves the pool untouched.
+// runRecheck must remove the tx itself in that case, not just the encoder
+// cache, or the invalid tx lingers and can be reselected into a proposal.
+func TestRecheckTxs_MsgExecFailureEvictsFromPool(t *testing.T) {
+	f := newRecheckFixture()
+	f.runner.failNoRemoveBytes = map[string]bool{"alice-0": true}
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.RecheckTxs()
+
+	if poolHas(f.pool, stale) {
+		t.Fatal("tx failing recheck at msg execution (not ante) must still be removed from the pool")
+	}
+	if _, ok := f.enc.Get(stale); ok {
+		t.Fatal("tx failing recheck must be evicted from encCache")
 	}
 }
 

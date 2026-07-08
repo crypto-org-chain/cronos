@@ -442,9 +442,9 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. mu is
-// locked per tx, not across the batch, so admission interleaves; EncodeTx/Evict
-// need no lock (encCache is self-synced).
+// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures from both
+// the pool and encoder cache. mu is locked per tx, not across the batch, so admission
+// interleaves; EncodeTx/evict need no lock (mpool and encCache are self-synced).
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
@@ -456,7 +456,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		a.mu.Unlock()
 		if err != nil {
-			a.encCache.Evict(tx)
+			a.evict(tx)
 			evicted++
 		}
 	}
