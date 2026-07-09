@@ -524,13 +524,7 @@ func New(
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
 			// blocklist + baseFee gate.
 			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
-			extSel := NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate)
-			h.SetTxSelector(extSel)
-			if signerExtractor != nil {
-				h.SetSignerExtractionAdapter(signerExtractor)
-			}
-			inner := h.PrepareProposalHandler()
-			ppHandler = NewMempoolProposalHandler(extSel, inner)
+			ppHandler = NewMempoolProposalHandler(h, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
 			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante

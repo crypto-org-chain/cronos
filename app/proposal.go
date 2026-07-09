@@ -19,6 +19,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -131,18 +132,21 @@ func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	return ts.baseFee, ts.evmDenom
 }
 
-// MempoolProposalHandler wraps PrepareProposal for mempool.type=app: waits
-// out any in-flight recheck, then restages gate-skipped senders after.
-// mempoolManager is wired in later via SetMempoolManager, once the manager
-// exists — safe since PrepareProposal never runs before that.
+// MempoolProposalHandler defines a custom PrepareProposal for cronos.
 type MempoolProposalHandler struct {
 	mempoolManager *cronosmempool.Manager
 	extSel         *ExtTxSelector
 	inner          sdk.PrepareProposalHandler
 }
 
-func NewMempoolProposalHandler(extSel *ExtTxSelector, inner sdk.PrepareProposalHandler) *MempoolProposalHandler {
-	return &MempoolProposalHandler{extSel: extSel, inner: inner}
+// NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
+func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string), signerExtractor mempool.SignerExtractionAdapter) *MempoolProposalHandler {
+	extSel := NewExtTxSelector(validateTx, baseFeeRetriever)
+	h.SetTxSelector(extSel)
+	if signerExtractor != nil {
+		h.SetSignerExtractionAdapter(signerExtractor)
+	}
+	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
 }
 
 func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
@@ -152,7 +156,8 @@ func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
 func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if h.mempoolManager != nil {
-			// ctx has no deadline from cosmos-sdk, so we set our own bound.
+			// Recheck now runs off the consensus path (async), so bound the wait
+			// here instead of blocking proposal time on it indefinitely.
 			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
 				// Recheck is still running: better to propose an empty block than pick txs from a stale pool.
 				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
