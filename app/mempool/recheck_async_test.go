@@ -20,7 +20,8 @@ func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 
 // startAsyncWorker does NOT register a Cleanup — caller owns Close().
 func startAsyncWorker(f *recheckFixture) {
-	f.a.worker.init(f.a.RecheckTxs)
+	f.a.worker = newRecheckWorker(f.a.RecheckTxs)
+	f.a.worker.start()
 }
 
 func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string) {
