@@ -165,11 +165,7 @@ func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 
 var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
 
-// CacheProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
-// a full ante) with a cache lookup: ante already ran at admission and recheck
-// evicts stale txs, so PrepareProposal only needs canonical bytes. Cache hit ->
-// cached bytes; miss -> encode. Mirrors cosmos/evm. The skipped baseFee check for
-// idle senders is reapplied by ExtTxSelector's gate.
+// CacheProposalTxVerifier is used to cache encoded transactions to avoid cpu overhead during proposal.
 type CacheProposalTxVerifier struct {
 	*baseapp.BaseApp
 	encCache *cronosmempool.EncoderCache

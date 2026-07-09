@@ -28,9 +28,7 @@ func (f fakeSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	return sd, nil
 }
 
-// recheckRunner records RunTx calls. failBytes mirrors BaseApp's ante-failure
-// auto-eviction; failNoRemoveBytes mirrors a msg-exec failure, which BaseApp
-// leaves in the pool for runRecheck to evict.
+// recheckRunner records RunTx calls.
 type recheckRunner struct {
 	mu                sync.Mutex
 	pool              sdkmempool.Mempool
@@ -275,8 +273,7 @@ func TestRecheckTxs_SweepAndRecheckTogether(t *testing.T) {
 }
 
 // StageRecheckSenders must stage the committed height (not just senders) so the
-// timeout sweep fires on the next RecheckTxs. The fixture's decoder is nil, so
-// staging returns after recording height — exercising height independently.
+// timeout sweep fires on the next RecheckTxs.
 func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
