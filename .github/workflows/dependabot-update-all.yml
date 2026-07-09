@@ -59,7 +59,93 @@ jobs:
       - name: Update gomod2nix.toml
         run: nix develop -c gomod2nix
       - name: Commit changes
-        uses: EndBug/add-and-commit@v10
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPOSITORY_NAME_WITH_OWNER: ${{ github.event.pull_request.head.repo.full_name }}
         with:
-          default_author: user_info
-          message: "${{ github.event.pull_request.title }} for all modules"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execFileSync } = require('node:child_process');
+            const fs = require('node:fs');
+            const MAX_GITHUB_BLOB_SIZE = 40 * 1024 * 1024;
+
+            const git = (args) => {
+              try {
+                return execFileSync('git', args, { encoding: 'utf8' });
+              } catch (error) {
+                throw new Error(`git ${args.join(' ')} failed: ${error.message}`);
+              }
+            };
+
+            const lines = (args) =>
+              git(args)
+                .trim()
+                .split('\n')
+                .filter(Boolean);
+
+            const additions = [...new Set([
+              ...lines(['diff', '--name-only', '--diff-filter=ACMRTUX', 'HEAD']),
+              ...lines(['ls-files', '--others', '--exclude-standard']),
+            ])]
+              .sort()
+              .map((path) => {
+                try {
+                  const contents = fs.readFileSync(path);
+                  if (contents.length > MAX_GITHUB_BLOB_SIZE) {
+                    throw new Error(
+                      `${path} is ${contents.length} bytes, which exceeds GitHub's 40 MiB blob limit for API-created commits`,
+                    );
+                  }
+                  return {
+                    path,
+                    contents: contents.toString('base64'),
+                  };
+                } catch (error) {
+                  throw new Error(`Failed to read ${path}: ${error.message}`);
+                }
+              });
+
+            const deletions = lines(['diff', '--name-only', '--diff-filter=D', 'HEAD'])
+              .sort()
+              .map((path) => ({ path }));
+
+            if (!additions.length && !deletions.length) {
+              core.info('No changes to commit.');
+              return;
+            }
+
+            const input = {
+              branch: {
+                repositoryNameWithOwner: process.env.REPOSITORY_NAME_WITH_OWNER,
+                branchName: process.env.BRANCH_NAME,
+              },
+              message: {
+                headline: `${process.env.PR_TITLE} for all modules`,
+              },
+              expectedHeadOid: lines(['rev-parse', 'HEAD'])[0],
+              fileChanges: {},
+            };
+
+            if (additions.length) {
+              input.fileChanges.additions = additions;
+            }
+            if (deletions.length) {
+              input.fileChanges.deletions = deletions;
+            }
+
+            const result = await github.graphql(
+              `mutation ($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit {
+                    oid
+                    url
+                  }
+                }
+              }`,
+              { input },
+            );
+
+            core.info(`Created commit ${result.createCommitOnBranch.commit.oid}`);
+            core.info(result.createCommitOnBranch.commit.url);
