@@ -11,6 +11,9 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/shirou/gopsutil/v4/process"
 	"github.com/stretchr/testify/require"
 
@@ -24,10 +27,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-
-	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
-	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // numOpenFDs returns the number of file descriptors held open by this process.
