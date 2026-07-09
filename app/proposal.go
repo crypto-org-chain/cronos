@@ -173,8 +173,8 @@ type CacheProposalTxVerifier struct {
 	encCache *cronosmempool.EncoderCache
 }
 
-func NewCacheProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
-	return &CacheProposalTxVerifier{ProposalTxVerifier: app, encCache: encCache}
+func NewCacheProposalTxVerifier(verifier baseapp.ProposalTxVerifier, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
+	return &CacheProposalTxVerifier{ProposalTxVerifier: verifier, encCache: encCache}
 }
 
 func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
