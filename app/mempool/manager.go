@@ -71,7 +71,8 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
-	a.worker.init(a.RecheckTxs)
+	a.worker = newRecheckWorker(a.RecheckTxs)
+	a.worker.start()
 	return a
 }
 
@@ -411,10 +412,11 @@ func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, rec
 		evictedSet = make(map[sdk.Tx]struct{})
 	}
 	evictedSet[tx] = struct{}{}
-	for _, s := range a.signers(tx) {
-		if recheckSenders == nil {
-			recheckSenders = make(map[string]struct{})
-		}
+	sigs := a.signers(tx)
+	if len(sigs) > 0 && recheckSenders == nil {
+		recheckSenders = make(map[string]struct{})
+	}
+	for _, s := range sigs {
 		recheckSenders[s] = struct{}{}
 	}
 	return evictedSet, recheckSenders

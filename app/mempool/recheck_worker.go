@@ -5,24 +5,37 @@ import (
 	"sync"
 )
 
-// recheckWorker is use to manage the recheck workflow.
+// recheckWorker manages the async recheck lifecycle: coalescing triggers,
+// running RecheckTxs on a single goroutine, and gating PrepareProposal.
 type recheckWorker struct {
-	trigger  chan chan struct{} // holds the pending run's ready gate
+	fn       func()             // bound recheck function, invoked once per drained trigger
+	trigger  chan chan struct{} // buffered-1: holds the pending run's ready gate
 	quit     chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
-	readyMu  sync.Mutex
-	ready    chan struct{}
+	// readyMu guards ready and also serializes recheck()'s trigger-send against
+	// stop()'s quit-close; narrowing it to just guard ready would reopen a race
+	// where a gate gets buffered after quit closes and is never closed.
+	readyMu sync.Mutex
+	ready   chan struct{} // latest queued gate; pre-closed (idle) at construction
 }
 
-// init allocates channels and launches the worker goroutine.
-func (w *recheckWorker) init(fn func()) {
-	w.trigger = make(chan chan struct{}, 1)
-	w.quit = make(chan struct{})
-	w.done = make(chan struct{})
-	w.ready = make(chan struct{})
-	close(w.ready)
-	go w.run(fn)
+// newRecheckWorker builds a worker bound to fn. Call start to launch its goroutine.
+func newRecheckWorker(fn func()) recheckWorker {
+	ready := make(chan struct{})
+	close(ready) // idle at start
+	return recheckWorker{
+		fn:      fn,
+		trigger: make(chan chan struct{}, 1),
+		quit:    make(chan struct{}),
+		done:    make(chan struct{}),
+		ready:   ready,
+	}
+}
+
+// start launches the worker goroutine. Call once, after construction.
+func (w *recheckWorker) start() {
+	go w.run()
 }
 
 // recheck requests a run without blocking. Each wakeup carries its own gate rather
@@ -44,8 +57,9 @@ func (w *recheckWorker) recheck() {
 	}
 }
 
-// run executes the recheck workflow.
-func (w *recheckWorker) run(fn func()) {
+// run executes queued runs one at a time. quit is re-checked before starting a run so
+// stop() is never delayed by a fresh one.
+func (w *recheckWorker) run() {
 	defer close(w.done)
 	for {
 		select {
@@ -59,7 +73,7 @@ func (w *recheckWorker) run(fn func()) {
 				w.drainTrigger()
 				return
 			default:
-				fn()
+				w.fn()
 				close(ready)
 			}
 		}
