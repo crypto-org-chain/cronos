@@ -151,6 +151,7 @@ func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if h.mempoolManager != nil {
 			// On timeout, propose from the current pool instead of an empty block
+			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
 				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
 			}
 		}
