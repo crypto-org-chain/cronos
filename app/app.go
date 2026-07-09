@@ -189,10 +189,10 @@ const (
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
 )
 
-// recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight
-// async recheck; below CometBFT's default timeout_propose (3s) so a stuck
-// recheck yields an empty proposal instead of hanging the ABCI connection.
-const recheckWaitTimeout = 1500 * time.Millisecond
+// recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
+// recheck before proposing from the current (possibly slightly stale) pool rather
+// than blocking proposal time on it.
+const recheckWaitTimeout = 500 * time.Millisecond
 
 var Forks = []Fork{}
 

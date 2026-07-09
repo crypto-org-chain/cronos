@@ -257,9 +257,12 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// TriggerRecheck schedules an async recheck without blocking; repeated calls
-// coalesce into one run. Falls back to running RecheckTxs inline when there's
-// no worker (the test path).
+// TriggerRecheck schedules an async recheck, coalescing repeated calls into one run;
+// with no worker (test path) it runs RecheckTxs inline.
+//
+// Call only from the consensus path (App.Commit). PrepareProposal reaps the pool
+// lock-free and trusts WaitForRecheckTimedOut to tell it the worker is idle, which
+// holds only while Commit and PrepareProposal are serialized on one goroutine.
 func (a *Manager) TriggerRecheck() {
 	if a.worker.trigger == nil {
 		a.RecheckTxs()
@@ -273,20 +276,20 @@ func (a *Manager) Close() {
 	a.worker.stop()
 }
 
-// WaitForRecheck blocks until any in-progress recheck completes. ctx cancellation
-// unblocks it so a stuck worker cannot stall block production.
+// WaitForRecheck blocks until the pending recheck finishes; ctx cancellation unblocks
+// it so a stuck worker cannot stall block production.
 func (a *Manager) WaitForRecheck(ctx context.Context) {
 	if a.worker.trigger == nil {
-		return // sync path
+		return
 	}
 	a.worker.wait(ctx)
 }
 
-// WaitForRecheckTimedOut works like WaitForRecheck but bounded by timeout,
-// and reports whether the timeout was hit.
+// WaitForRecheckTimedOut is WaitForRecheck bounded by timeout, reporting whether the
+// timeout was hit. See TriggerRecheck for what a false return does and doesn't imply.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
 	if a.worker.trigger == nil {
-		return false // sync path always completes inline
+		return false
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -300,7 +303,7 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
-	a.recheckMu.Lock() // only one recheck runs at a time; see the recheckMu field comment for lock ordering
+	a.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.

@@ -156,13 +156,12 @@ func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
 func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if h.mempoolManager != nil {
-			// Recheck now runs off the consensus path (async), so bound the wait
-			// here instead of blocking proposal time on it indefinitely.
+			// Recheck runs async, so bound the wait rather than let a slow one stall proposal.
+			// On timeout, propose from the current pool instead of an empty block: only the
+			// last block's senders can be stale, those txs fail cheaply at execution, and
+			// ProcessProposal accepts them — cheaper than dropping a whole block of valid txs.
 			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
-				// Recheck is still running: better to propose an empty block than pick txs from a stale pool.
 				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
-				h.extSel.DrainGateSkipped() // keep extSel's state clean for the next round
-				return &abci.ResponsePrepareProposal{}, nil
 			}
 		}
 		resp, err := h.inner(ctx, req)

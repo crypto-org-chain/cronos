@@ -5,15 +5,15 @@ import (
 	"sync"
 )
 
-// recheckWorker manages the async recheck lifecycle: coalescing triggers,
-// running RecheckTxs on a single goroutine, and gating PrepareProposal.
+// recheckWorker runs RecheckTxs on one background goroutine, coalescing bursts of
+// triggers into a single pending run and letting PrepareProposal wait for it.
 type recheckWorker struct {
-	trigger  chan chan struct{} // buffered-1 coalescing; each value is the caller's ready gate
+	trigger  chan chan struct{} // buffered-1: holds the pending run's ready gate
 	quit     chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
 	readyMu  sync.Mutex
-	ready    chan struct{} // latest queued gate; pre-closed (idle) at init
+	ready    chan struct{} // gate of the latest run; closed when idle
 }
 
 // init allocates channels and launches the worker goroutine.
@@ -22,41 +22,43 @@ func (w *recheckWorker) init(fn func()) {
 	w.quit = make(chan struct{})
 	w.done = make(chan struct{})
 	w.ready = make(chan struct{})
-	close(w.ready) // idle at start
+	close(w.ready) // start idle: a wait with nothing pending returns at once
 	go w.run(fn)
 }
 
-// recheck coalesces an async wakeup (non-blocking); own gate per trigger avoids a shared-close race.
+// recheck requests a run without blocking. Each wakeup carries its own gate rather
+// than sharing one, sidestepping close races; wakeups while a run is pending coalesce
+// onto it. Skipped once stopped so no gate outlives the worker.
 func (w *recheckWorker) recheck() {
 	ready := make(chan struct{})
 	w.readyMu.Lock()
+	defer w.readyMu.Unlock()
+	select {
+	case <-w.quit:
+		return
+	default:
+	}
 	select {
 	case w.trigger <- ready:
-		w.ready = ready // track the latest gate for wait
+		w.ready = ready
 	default:
-		// coalesced: trigger already buffered; existing gate covers this wakeup
 	}
-	w.readyMu.Unlock()
 }
 
-// run is the worker loop — single goroutine, no concurrent rechecks.
+// run executes queued runs one at a time. quit is re-checked before starting a run so
+// stop() is never delayed by a fresh one.
 func (w *recheckWorker) run(fn func()) {
 	defer close(w.done)
 	for {
 		select {
 		case <-w.quit:
-			// Drain a racing buffered trigger so its gate isn't left unclosed.
-			select {
-			case ready := <-w.trigger:
-				close(ready)
-			default:
-			}
+			w.drainTrigger()
 			return
 		case ready := <-w.trigger:
-			// Check quit again: stop() may have raced in after a trigger was already buffered.
 			select {
 			case <-w.quit:
-				close(ready) // unblock any wait()
+				close(ready)
+				w.drainTrigger()
 				return
 			default:
 				fn()
@@ -66,17 +68,36 @@ func (w *recheckWorker) run(fn func()) {
 	}
 }
 
+// drainTrigger closes any pending gate so a waiter never blocks on a run that will
+// never happen. Correct only on exit: recheck() stops enqueuing once quit is closed.
+func (w *recheckWorker) drainTrigger() {
+	for {
+		select {
+		case ready := <-w.trigger:
+			close(ready)
+		default:
+			return
+		}
+	}
+}
+
 // stop signals the worker and waits for it to exit. Idempotent.
 func (w *recheckWorker) stop() {
 	if w.quit == nil {
 		return
 	}
-	w.stopOnce.Do(func() { close(w.quit) })
+	// Close under readyMu so recheck() either enqueues before it (worker still drains
+	// the gate) or observes it and skips — the two can't interleave to strand a gate.
+	w.stopOnce.Do(func() {
+		w.readyMu.Lock()
+		close(w.quit)
+		w.readyMu.Unlock()
+	})
 	<-w.done
 }
 
-// wait blocks until the gate closes or ctx is done, returning whether ctx won.
-// Rechecks ready after ctx fires so a tie isn't misreported as a timeout.
+// wait reports whether ctx expired before the pending run finished. On expiry it
+// re-checks the gate so a run finishing at the deadline isn't misreported as a timeout.
 func (w *recheckWorker) wait(ctx context.Context) bool {
 	w.readyMu.Lock()
 	ready := w.ready
