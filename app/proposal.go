@@ -63,6 +63,7 @@ func (ts *ExtTxSelector) Clear() {
 	ts.totalGas = 0
 	ts.baseFee = nil
 	ts.evmDenom = ""
+	ts.gateSkipped = nil
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the
@@ -168,12 +169,12 @@ var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
 
 // CacheProposalTxVerifier is used to cache encoded transactions to avoid cpu overhead during proposal.
 type CacheProposalTxVerifier struct {
-	*baseapp.BaseApp
+	baseapp.ProposalTxVerifier
 	encCache *cronosmempool.EncoderCache
 }
 
 func NewCacheProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
-	return &CacheProposalTxVerifier{BaseApp: app, encCache: encCache}
+	return &CacheProposalTxVerifier{ProposalTxVerifier: app, encCache: encCache}
 }
 
 func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
