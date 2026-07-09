@@ -401,7 +401,7 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 	// develop + appmempool refactor (#1016 EVM direct-insert, #1019 txpool, #1011 sig pre-verifier).
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260702171011-a639532d9759
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260708082528-e44451aa85d6
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
