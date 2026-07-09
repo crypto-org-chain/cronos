@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -190,8 +191,7 @@ const (
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
-// recheck before proposing from the current (possibly slightly stale) pool rather
-// than blocking proposal time on it.
+// recheck before proposing from the current pool
 const recheckWaitTimeout = 500 * time.Millisecond
 
 var Forks = []Fork{}

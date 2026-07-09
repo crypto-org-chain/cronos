@@ -23,11 +23,9 @@ type txRunner interface {
 
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
-// Manager owns the app-side mempool for mempool.type=app: tx admission
-// (Insert/CheckTx) plus per-block recheck and TTL eviction.
+// Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
-	// mu guards BaseApp.checkState: every RunTx (admission Check, RPC CheckTx,
-	// the ReCheck batch) plus Commit's checkState reset (via AdmissionMutex).
+	// mu guards BaseApp.checkState
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
 	// normally relies on. Held only around RunTx, never the lock-free pool scan.
 	mu        sync.Mutex
@@ -65,8 +63,7 @@ type Manager struct {
 	worker recheckWorker
 }
 
-// NewManager builds the Manager for mempool.type=app; register it via
-// BaseApp.SetInsertTxHandler before Seal.
+// NewManager builds the Manager for mempool.type=app;
 func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
@@ -74,7 +71,6 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
-	// newManager (tests) leaves worker zero and runs RecheckTxs synchronously.
 	a.worker.init(a.RecheckTxs)
 	return a
 }
@@ -97,9 +93,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 }
 
 // StageSkippedSenders merges the senders of proposal-gate-rejected txs into
-// recheckSenders without touching lastCommittedHeight (which StageRecheckSenders owns).
-// Called from the PrepareProposal wrapper so stranded senders are re-validated at the
-// next RecheckTxs cycle (~1 block) instead of waiting for the TTL.
+// recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
 		return
@@ -122,9 +116,9 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// mergeRecheckSenders folds senders into a.recheckSenders without overwriting, so a
-// block whose Commit skipped RecheckTxs doesn't lose its staged senders. Caller holds stagingMu.
 func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
+	// mergeRecheckSenders folds senders into a.recheckSenders without overwriting, so a
+	// block whose Commit skipped RecheckTxs doesn't lose its staged senders.
 	if a.recheckSenders == nil {
 		a.recheckSenders = senders
 	} else {
@@ -135,19 +129,18 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 }
 
 // AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
-// against lock-free admission. The pointer is stable (Manager is heap-allocated).
+// against lock-free admission.
 func (a *Manager) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
 
-// SetPreVerify wires the lock-free pre-verification hook for mempool.type=app.
+// SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.preVerify = fn
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
-// admitting them. Admitted txs register canonical bytes so ReapTxsHandler can
-// skip proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
+// admitting them.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		if a.preVerify != nil {
@@ -182,8 +175,7 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// cacheTx registers the already-decoded tx under its canonical bytes (raw
-// req.Tx bytes on encode error). No-op without a cache.
+// cacheTx is used to cache encoded transaction
 func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	if a.encCache == nil {
 		return
@@ -195,8 +187,7 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	a.encCache.Set(tx, bz)
 }
 
-// CheckTxHandler runs RPC CheckTx.The runTx closure comes from BaseApp bound to
-// the exec mode; its panics are recovered inside BaseApp.RunTx.
+// CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
@@ -233,7 +224,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height for TimeoutHeight eviction.
+// committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
@@ -257,12 +248,8 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// TriggerRecheck schedules an async recheck, coalescing repeated calls into one run;
-// with no worker (test path) it runs RecheckTxs inline.
-//
-// Call only from the consensus path (App.Commit). PrepareProposal reaps the pool
-// lock-free and trusts WaitForRecheckTimedOut to tell it the worker is idle, which
-// holds only while Commit and PrepareProposal are serialized on one goroutine.
+// TriggerRecheck schedules an async recheck.
+// Call only from the consensus path (App.Commit).
 func (a *Manager) TriggerRecheck() {
 	if a.worker.trigger == nil {
 		a.RecheckTxs()
@@ -271,13 +258,12 @@ func (a *Manager) TriggerRecheck() {
 	a.worker.recheck()
 }
 
-// Close stops the recheck worker. Idempotent; call before store teardown.
+// Close stops the recheck worker.
 func (a *Manager) Close() {
 	a.worker.stop()
 }
 
-// WaitForRecheck blocks until the pending recheck finishes; ctx cancellation unblocks
-// it so a stuck worker cannot stall block production.
+// WaitForRecheck blocks until the pending recheck finishes;
 func (a *Manager) WaitForRecheck(ctx context.Context) {
 	if a.worker.trigger == nil {
 		return
@@ -286,7 +272,7 @@ func (a *Manager) WaitForRecheck(ctx context.Context) {
 }
 
 // WaitForRecheckTimedOut is WaitForRecheck bounded by timeout, reporting whether the
-// timeout was hit. See TriggerRecheck for what a false return does and doesn't imply.
+// timeout was hit.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
 	if a.worker.trigger == nil {
 		return false
@@ -296,9 +282,7 @@ func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Durat
 	return a.worker.wait(waitCtx)
 }
 
-// RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
-// sender) and txs of block-touched senders that now fail ReCheck. Capped per
-// cycle; overflow carries to the next.
+// RecheckTxs evicts pool txs invalidated by the last block.
 func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
@@ -449,9 +433,7 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures from both
-// the pool and encoder cache. mu is locked per tx, not across the batch, so admission
-// interleaves; EncodeTx/evict need no lock (mpool and encCache are self-synced).
+// runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
@@ -473,7 +455,6 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 }
 
 // txTimedout reports whether tx should be evicted by its own declared timeout:
-// TxWithTimeoutHeight passed or TxWithTimeoutTimeStamp reached.
 func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
 		th := t.GetTimeoutHeight()
@@ -491,7 +472,6 @@ func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 }
 
 // txTTLExpired reports whether tx has aged past ttlNumBlocks since first seen.
-// Returns arrived (for the caller's newArrival map) and whether the tx is expired.
 func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int64) (int64, bool) {
 	arrived, ok := arrival[tx]
 	if !ok {

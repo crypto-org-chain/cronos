@@ -29,9 +29,7 @@ type BlockList struct {
 
 var _ baseapp.TxSelector = &ExtTxSelector{}
 
-// ExtTxSelector is a self-contained baseapp.TxSelector: blocklist + baseFee gate,
-// then DefaultTxSelector-style byte/gas accounting using ProtoSizeForTx (no per-tx
-// alloc) and overflow-safe gas math.
+// ExtTxSelector is a custom tx selector for cronos
 type ExtTxSelector struct {
 	validateTx       func(sdk.Tx, []byte) error
 	baseFeeRetriever func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
@@ -40,8 +38,7 @@ type ExtTxSelector struct {
 	totalBytes  int64
 	totalGas    uint64
 
-	// baseFee/evmDenom are constant within a proposal; fetched lazily on the first
-	// FeeTx (nil baseFee == not yet fetched, or gate disabled), reset by Clear.
+	// baseFee/evmDenom are constant within a proposal
 	baseFee  *big.Int
 	evmDenom string
 
@@ -69,8 +66,7 @@ func (ts *ExtTxSelector) Clear() {
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the
-// baseFee gate this proposal round. Called after PrepareProposal to stage
-// stranded senders for the next RecheckTxs cycle.
+// baseFee gate this proposal round.
 func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
 	out := ts.gateSkipped
 	ts.gateSkipped = nil
@@ -94,9 +90,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 
 	feeTx, isFeeTx := memTx.(sdk.FeeTx)
 
-	// baseFee gate: drop txs whose feeCap fell below a risen baseFee (idle senders
-	// InsertTx ante + recheck miss); else they'd fail ante at FinalizeBlock. Skip,
-	// don't evict: feeCap may clear next block.
+	// baseFee gate: drop txs whose feeCap fell below a risen baseFee
 	if isFeeTx {
 		if bf, denom := ts.gateBaseFee(goCtx); bf != nil && denom != "" {
 			if gas := feeTx.GetGas(); gas > 0 {
@@ -156,11 +150,7 @@ func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
 func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		if h.mempoolManager != nil {
-			// Recheck runs async, so bound the wait rather than let a slow one stall proposal.
-			// On timeout, propose from the current pool instead of an empty block: only the
-			// last block's senders can be stale, those txs fail cheaply at execution, and
-			// ProcessProposal accepts them — cheaper than dropping a whole block of valid txs.
-			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
+			// On timeout, propose from the current pool instead of an empty block
 				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
 			}
 		}
