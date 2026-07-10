@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "if": "Bash(git commit*)",
+            "statusMessage": "Checking if CLAUDE.md needs updating",
+            "timeout": 180,
+            "model": "claude-sonnet-5",
+            "prompt": "A `git commit` is about to run in the cronos repo. Run `git diff --cached --stat` and `git diff --cached` to see exactly what is being committed. Then read CLAUDE.md.\n\nDecide whether those staged changes made any FACTUAL statement in CLAUDE.md wrong or incomplete — specifically: build/test/lint commands, required build tags, module architecture (app wiring, custom store backends, x/cronos, x/e2ee), the dependency/fork table and pinned versions, or documented conventions. Ignore ordinary feature work, bug fixes, and test edits that don't change any of those facts.\n\nIf nothing documented in CLAUDE.md is now inaccurate, do NOTHING and stop — do not edit or stage anything. Only when a documented fact is genuinely stale, make the smallest precise edit to CLAUDE.md to correct it (preserving the existing structure, tone, and section layout; never rewrite sections wholesale or add speculative content), then run `git add CLAUDE.md` so the correction is included in this commit. Never touch or stage any file other than CLAUDE.md."
+          }
+        ]
+      }
+    ]
+  }
+}
