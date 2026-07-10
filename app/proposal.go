@@ -63,7 +63,6 @@ func (ts *ExtTxSelector) Clear() {
 	ts.totalGas = 0
 	ts.baseFee = nil
 	ts.evmDenom = ""
-	ts.gateSkipped = nil
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the
@@ -178,7 +177,9 @@ func NewCacheProposalTxVerifier(verifier baseapp.ProposalTxVerifier, encCache *c
 }
 
 func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
-	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, txv.TxEncode, tx)
+	// Wrapped in a closure so a cache hit never forms a bound method value off
+	// the embedded interface; that panics if it's nil (unlike a nil pointer embed).
+	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, func(t sdk.Tx) ([]byte, error) { return txv.TxEncode(t) }, tx)
 	result := "miss"
 	if hit {
 		result = "hit"
