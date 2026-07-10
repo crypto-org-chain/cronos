@@ -156,6 +156,13 @@ func (a *Manager) PendingTxs() []sdk.Tx {
 	return PoolSnapshot(context.Background(), a.mpool)
 }
 
+func (a *Manager) CountTx() int {
+	if a.mpool == nil {
+		return 0
+	}
+	return a.mpool.CountTx()
+}
+
 // admit is the shared admission path: preVerify + decode unlocked (bad txs skip
 // mu), then RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil

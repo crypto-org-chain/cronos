@@ -1,6 +1,6 @@
 module github.com/crypto-org-chain/cronos
 
-go 1.25.9
+go 1.25.11
 
 require (
 	cosmossdk.io/api v1.0.0
@@ -400,8 +400,8 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
-	// ethermint #1034: txpool namespace (content/inspect/status/contentFrom) backed by app mempool.
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260707200522-de2396e91b19
+	// ethermint #1051: txpool namespace (content/inspect/status/contentFrom) backed by app mempool.
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260710224242-ea6791fbb8f0
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
