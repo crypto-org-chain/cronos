@@ -19,6 +19,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -28,9 +29,7 @@ type BlockList struct {
 
 var _ baseapp.TxSelector = &ExtTxSelector{}
 
-// ExtTxSelector is a self-contained baseapp.TxSelector: blocklist + baseFee gate,
-// then DefaultTxSelector-style byte/gas accounting using ProtoSizeForTx (no per-tx
-// alloc) and overflow-safe gas math.
+// ExtTxSelector is a custom tx selector for cronos
 type ExtTxSelector struct {
 	validateTx       func(sdk.Tx, []byte) error
 	baseFeeRetriever func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
@@ -39,8 +38,7 @@ type ExtTxSelector struct {
 	totalBytes  int64
 	totalGas    uint64
 
-	// baseFee/evmDenom are constant within a proposal; fetched lazily on the first
-	// FeeTx (nil baseFee == not yet fetched, or gate disabled), reset by Clear.
+	// baseFee/evmDenom are constant within a proposal
 	baseFee  *big.Int
 	evmDenom string
 
@@ -68,8 +66,7 @@ func (ts *ExtTxSelector) Clear() {
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the
-// baseFee gate this proposal round. Called after PrepareProposal to stage
-// stranded senders for the next RecheckTxs cycle.
+// baseFee gate this proposal round.
 func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
 	out := ts.gateSkipped
 	ts.gateSkipped = nil
@@ -93,9 +90,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 
 	feeTx, isFeeTx := memTx.(sdk.FeeTx)
 
-	// baseFee gate: drop txs whose feeCap fell below a risen baseFee (idle senders
-	// InsertTx ante + recheck miss); else they'd fail ante at FinalizeBlock. Skip,
-	// don't evict: feeCap may clear next block.
+	// baseFee gate: drop txs whose feeCap fell below a risen baseFee
 	if isFeeTx {
 		if bf, denom := ts.gateBaseFee(goCtx); bf != nil && denom != "" {
 			if gas := feeTx.GetGas(); gas > 0 {
@@ -131,24 +126,60 @@ func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	return ts.baseFee, ts.evmDenom
 }
 
+// MempoolProposalHandler defines a custom PrepareProposal for cronos.
+type MempoolProposalHandler struct {
+	mempoolManager *cronosmempool.Manager
+	extSel         *ExtTxSelector
+	inner          sdk.PrepareProposalHandler
+}
+
+// NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
+func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string), signerExtractor mempool.SignerExtractionAdapter) *MempoolProposalHandler {
+	extSel := NewExtTxSelector(validateTx, baseFeeRetriever)
+	h.SetTxSelector(extSel)
+	if signerExtractor != nil {
+		h.SetSignerExtractionAdapter(signerExtractor)
+	}
+	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
+}
+
+func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
+	h.mempoolManager = m
+}
+
+func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		if h.mempoolManager != nil {
+			// On timeout, propose from the current pool instead of an empty block
+			if h.mempoolManager.WaitForRecheckTimedOut(ctx, recheckWaitTimeout) {
+				telemetry.IncrCounter(1, "cronos", "mempool", "recheck", "proposal_timeout")
+			}
+		}
+		resp, err := h.inner(ctx, req)
+		skipped := h.extSel.DrainGateSkipped() // drain every round, even on error, so it never goes stale
+		if err == nil && h.mempoolManager != nil && len(skipped) > 0 {
+			h.mempoolManager.StageSkippedSenders(skipped)
+		}
+		return resp, err
+	}
+}
+
 var _ baseapp.ProposalTxVerifier = &CacheProposalTxVerifier{}
 
-// CacheProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
-// a full ante) with a cache lookup: ante already ran at admission and recheck
-// evicts stale txs, so PrepareProposal only needs canonical bytes. Cache hit ->
-// cached bytes; miss -> encode. Mirrors cosmos/evm. The skipped baseFee check for
-// idle senders is reapplied by ExtTxSelector's gate.
+// CacheProposalTxVerifier is used to cache encoded transactions to avoid cpu overhead during proposal.
 type CacheProposalTxVerifier struct {
-	*baseapp.BaseApp
+	baseapp.ProposalTxVerifier
 	encCache *cronosmempool.EncoderCache
 }
 
-func NewCacheProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
-	return &CacheProposalTxVerifier{BaseApp: app, encCache: encCache}
+func NewCacheProposalTxVerifier(verifier baseapp.ProposalTxVerifier, encCache *cronosmempool.EncoderCache) *CacheProposalTxVerifier {
+	return &CacheProposalTxVerifier{ProposalTxVerifier: verifier, encCache: encCache}
 }
 
 func (txv *CacheProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
-	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, txv.TxEncode, tx)
+	// Wrapped in a closure so a cache hit never forms a bound method value off
+	// the embedded interface; that panics if it's nil (unlike a nil pointer embed).
+	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, func(t sdk.Tx) ([]byte, error) { return txv.TxEncode(t) }, tx)
 	result := "miss"
 	if hit {
 		result = "hit"

@@ -23,11 +23,9 @@ type txRunner interface {
 
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
-// Manager owns the app-side mempool for mempool.type=app: tx admission
-// (Insert/CheckTx) plus per-block recheck and TTL eviction.
+// Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
-	// mu guards BaseApp.checkState: every RunTx (admission Check, RPC CheckTx,
-	// the ReCheck batch) plus Commit's checkState reset (via AdmissionMutex).
+	// mu guards BaseApp.checkState
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
 	// normally relies on. Held only around RunTx, never the lock-free pool scan.
 	mu        sync.Mutex
@@ -54,15 +52,18 @@ type Manager struct {
 	deferred            []sdk.Tx
 	lastCommittedHeight int64
 	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
-	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle (stale entries
-	// drop out) and touched only by RecheckTxs (serial per Commit), so it needs no lock.
+	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle; recheckMu keeps it single-writer.
 	arrival map[sdk.Tx]int64
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
+
+	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before mu and stagingMu, never after
+	// Zero-value (trigger nil) when built via the newManager() test constructor;
+	// TriggerRecheck then runs RecheckTxs inline instead of async.
+	worker recheckWorker
 }
 
-// NewManager builds the Manager for mempool.type=app; register it via
-// BaseApp.SetInsertTxHandler before Seal.
+// NewManager builds the Manager for mempool.type=app;
 func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
@@ -70,6 +71,8 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
+	a.worker = newRecheckWorker(a.RecheckTxs)
+	a.worker.start()
 	return a
 }
 
@@ -91,9 +94,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 }
 
 // StageSkippedSenders merges the senders of proposal-gate-rejected txs into
-// recheckSenders without touching lastCommittedHeight (which StageRecheckSenders owns).
-// Called from the PrepareProposal wrapper so stranded senders are re-validated at the
-// next RecheckTxs cycle (~1 block) instead of waiting for the TTL.
+// recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
 		return
@@ -112,6 +113,13 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 		return
 	}
 	a.stagingMu.Lock()
+	a.mergeRecheckSenders(senders)
+	a.stagingMu.Unlock()
+}
+
+func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
+	// mergeRecheckSenders folds senders into a.recheckSenders without overwriting, so a
+	// block whose Commit skipped RecheckTxs doesn't lose its staged senders.
 	if a.recheckSenders == nil {
 		a.recheckSenders = senders
 	} else {
@@ -119,23 +127,21 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 			a.recheckSenders[s] = struct{}{}
 		}
 	}
-	a.stagingMu.Unlock()
 }
 
 // AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
-// against lock-free admission. The pointer is stable (Manager is heap-allocated).
+// against lock-free admission.
 func (a *Manager) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
 
-// SetPreVerify wires the lock-free pre-verification hook for mempool.type=app.
+// SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.preVerify = fn
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
-// admitting them. Admitted txs register canonical bytes so ReapTxsHandler can
-// skip proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
+// admitting them.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		code, _, _ := a.admit(req.Tx)
@@ -213,8 +219,7 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	a.encCache.Set(tx, bz)
 }
 
-// CheckTxHandler runs RPC CheckTx.The runTx closure comes from BaseApp bound to
-// the exec mode; its panics are recovered inside BaseApp.RunTx.
+// CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
@@ -251,7 +256,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height for TimeoutHeight eviction.
+// committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
@@ -271,25 +276,51 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 
 	a.stagingMu.Lock()
 	a.lastCommittedHeight = height
-	if a.recheckSenders == nil {
-		a.recheckSenders = senders
-	} else {
-		// Merge, don't overwrite: a prior block whose Commit skipped RecheckTxs
-		// (e.g. Commit error) still has senders staged here that must not be lost.
-		for s := range senders {
-			a.recheckSenders[s] = struct{}{}
-		}
-	}
+	a.mergeRecheckSenders(senders)
 	a.stagingMu.Unlock()
 }
 
-// RecheckTxs evicts pool txs invalidated by the last block: timed-out txs (any
-// sender) and txs of block-touched senders that now fail ReCheck. Capped per
-// cycle; overflow carries to the next.
+// TriggerRecheck schedules an async recheck.
+// Call only from the consensus path (App.Commit).
+func (a *Manager) TriggerRecheck() {
+	if a.worker.trigger == nil {
+		a.RecheckTxs()
+		return
+	}
+	a.worker.recheck()
+}
+
+// Close stops the recheck worker.
+func (a *Manager) Close() {
+	a.worker.stop()
+}
+
+// WaitForRecheck blocks until the pending recheck finishes;
+func (a *Manager) WaitForRecheck(ctx context.Context) {
+	if a.worker.trigger == nil {
+		return
+	}
+	a.worker.wait(ctx)
+}
+
+// WaitForRecheckTimedOut is WaitForRecheck bounded by timeout, reporting whether the
+// timeout was hit.
+func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
+	if a.worker.trigger == nil {
+		return false
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	return a.worker.wait(waitCtx)
+}
+
+// RecheckTxs evicts pool txs invalidated by the last block.
 func (a *Manager) RecheckTxs() {
 	if a.mpool == nil {
 		return
 	}
+	a.recheckMu.Lock() // lock order: see the recheckMu field comment
+	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
@@ -340,35 +371,15 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	now := time.Now()
 	for _, tx := range snapshot {
 		if txTimedout(tx, height, now) {
-			a.evict(tx)
-			if evictedSet == nil {
-				evictedSet = make(map[sdk.Tx]struct{})
-			}
-			evictedSet[tx] = struct{}{}
+			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
 			expiredEvicted++
-			for _, s := range a.signers(tx) {
-				if recheckSenders == nil {
-					recheckSenders = make(map[string]struct{})
-				}
-				recheckSenders[s] = struct{}{}
-			}
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
-				a.evict(tx)
-				if evictedSet == nil {
-					evictedSet = make(map[sdk.Tx]struct{})
-				}
-				evictedSet[tx] = struct{}{}
+				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
 				ttlEvicted++
-				for _, s := range a.signers(tx) {
-					if recheckSenders == nil {
-						recheckSenders = make(map[string]struct{})
-					}
-					recheckSenders[s] = struct{}{}
-				}
 				continue
 			}
 			newArrival[tx] = arrived
@@ -424,6 +435,24 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
+// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
+// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
+func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
+	a.evict(tx)
+	if evictedSet == nil {
+		evictedSet = make(map[sdk.Tx]struct{})
+	}
+	evictedSet[tx] = struct{}{}
+	sigs := a.signers(tx)
+	if len(sigs) > 0 && recheckSenders == nil {
+		recheckSenders = make(map[string]struct{})
+	}
+	for _, s := range sigs {
+		recheckSenders[s] = struct{}{}
+	}
+	return evictedSet, recheckSenders
+}
+
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
 func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
@@ -437,9 +466,7 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), evicting failures. mu is
-// locked per tx, not across the batch, so admission interleaves; EncodeTx/Evict
-// need no lock (encCache is self-synced).
+// runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
@@ -451,7 +478,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		a.mu.Unlock()
 		if err != nil {
-			a.encCache.Evict(tx)
+			a.evict(tx)
 			evicted++
 		}
 	}
@@ -461,7 +488,6 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 }
 
 // txTimedout reports whether tx should be evicted by its own declared timeout:
-// TxWithTimeoutHeight passed or TxWithTimeoutTimeStamp reached.
 func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
 		th := t.GetTimeoutHeight()
@@ -479,7 +505,6 @@ func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 }
 
 // txTTLExpired reports whether tx has aged past ttlNumBlocks since first seen.
-// Returns arrived (for the caller's newArrival map) and whether the tx is expired.
 func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int64) (int64, bool) {
 	arrived, ok := arrival[tx]
 	if !ok {
