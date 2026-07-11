@@ -1296,6 +1296,15 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
+// MempoolClient returns the client (the manager, not *App) to avoid colliding
+// with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
+func (app *App) MempoolClient() appmempool.MempoolClient {
+	if app.mempoolManager == nil {
+		return nil
+	}
+	return app.mempoolManager
+}
+
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
 
