@@ -428,6 +428,7 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
     w3 = cronos_app_mempool.w3
     sender = ADDRS["validator"]
     nonce = w3.eth.get_transaction_count(sender)
+    pending_before = int(_txpool_status(w3)["pending"], 16)
 
     tx = {
         "to": ADDRS["community"],
@@ -469,8 +470,12 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
         inspect_sender.get(nonce_key), str
     ), f"inspect entry must be a string summary, got: {inspect_sender.get(nonce_key)}"
 
-    # status pending count >= 1
-    assert int(status["pending"], 16) >= 1, f"status pending should be >= 1: {status}"
+    # status pending count reflects this tx via Manager.CountTx()
+    pending_after = int(status["pending"], 16)
+    assert pending_after >= pending_before + 1, (
+        f"status pending should grow by >= 1: before={pending_before} "
+        f"after={pending_after}"
+    )
 
     # contentFrom for this sender shows the same tx (keyed by nonce only, no address)
     assert (

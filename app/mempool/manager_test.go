@@ -599,3 +599,15 @@ func TestManagerPendingTxs(t *testing.T) {
 		t.Fatalf("want both pool txs, got %d", len(got))
 	}
 }
+
+func TestManagerCountTx(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	if got := a.CountTx(); got != 0 {
+		t.Fatalf("nil mpool must report 0, got %d", got)
+	}
+
+	a.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
+	if got := a.CountTx(); got != 3 {
+		t.Fatalf("want 3, got %d", got)
+	}
+}
