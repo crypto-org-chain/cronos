@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"sync"
@@ -562,5 +563,51 @@ func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 
 	if got := len(runner.state); got != goroutines*perG {
 		t.Fatalf("expected %d distinct txs admitted, got %d", goroutines*perG, got)
+	}
+}
+
+// fakePool is a minimal ExtMempool: PoolSnapshot iterates it via SelectBy.
+type fakePool struct{ txs []sdk.Tx }
+
+func (p *fakePool) Insert(context.Context, sdk.Tx) error                 { return nil }
+func (p *fakePool) Select(context.Context, [][]byte) sdkmempool.Iterator { return nil }
+func (p *fakePool) CountTx() int                                         { return len(p.txs) }
+func (p *fakePool) Remove(sdk.Tx) error                                  { return nil }
+func (p *fakePool) RemoveWithReason(context.Context, sdk.Tx, sdkmempool.RemoveReason) error {
+	return nil
+}
+
+func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+	for _, tx := range p.txs {
+		if !cb(tx) {
+			return
+		}
+	}
+}
+
+func TestManagerPendingTxs(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	if got := a.PendingTxs(); got != nil {
+		t.Fatalf("nil mpool must report no pending txs, got %d", len(got))
+	}
+
+	tx1, tx2 := &ptrTx{}, &ptrTx{}
+	a.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
+
+	got := a.PendingTxs()
+	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
+		t.Fatalf("want both pool txs, got %d", len(got))
+	}
+}
+
+func TestManagerCountTx(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	if got := a.CountTx(); got != 0 {
+		t.Fatalf("nil mpool must report 0, got %d", got)
+	}
+
+	a.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
+	if got := a.CountTx(); got != 3 {
+		t.Fatalf("want 3, got %d", got)
 	}
 }

@@ -17,5 +17,11 @@ default {
         timeout_commit: '5s',
       },
     },
+    'app-config'+: {
+      'json-rpc'+: {
+        // default.jsonnet's api list omits txpool; this suite tests it.
+        api: 'eth,net,web3,debug,cronos,txpool',
+      },
+    },
   },
 }
