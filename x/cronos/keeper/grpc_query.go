@@ -97,14 +97,24 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	evmDenom := params.EvmDenom
 	baseFee := k.evmKeeper.GetBaseFee(ctx, ethCfg)
 
-	// we assume the message executions are successful, they are filtered in json-rpc api
+	// gas budget is 2 times the gas cap because the last transaction can be overload the gas limit in case of legacy blocks
+	gasBudget := gasCap * 2
+	var cumulativeGas uint64
 	for _, msg := range req.Msgs {
-		// reject oversized messages before doing any EVM work
-		if gas := msg.GetGas(); gas > gasCap {
+		gas := msg.GetGas()
+		if gas > gasCap {
 			return nil, status.Errorf(codes.InvalidArgument,
 				"message gas limit %d exceeds ReplayBlock cap %d", gas, gasCap)
 		}
+		if gas > gasBudget-cumulativeGas {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"cumulative message gas exceeds ReplayBlock budget %d", gasBudget)
+		}
+		cumulativeGas += gas
+	}
 
+	// we assume the message executions are successful, they are filtered in json-rpc api
+	for _, msg := range req.Msgs {
 		// deduct fee
 		// populate the `From` field
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {
