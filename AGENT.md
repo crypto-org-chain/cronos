@@ -1,13 +1,13 @@
 # AGENT.md
 
 This file provides guidance to coding agents (Claude Code, and others via `@AGENT.md`) when working
-with code in this repository. Claude Code loads it through the `CLAUDE.md` import stub at the repo root.
+with code in this repository.
 
 ## What this is
 
 Cronos is an EVM-compatible Cosmos SDK blockchain (the Crypto.org EVM chain). It is built on top of
 **Ethermint** (EVM execution, imported from `github.com/crypto-org-chain/ethermint`, a fork) and the
-**Cosmos SDK** (v0.54.x), with **CometBFT** consensus and **IBC-go v11**. The daemon binary is `cronosd`.
+**Cosmos SDK**, with **CometBFT** consensus and **IBC-go**. The daemon binary is `cronosd`.
 
 ## Development workflow
 
@@ -196,3 +196,11 @@ The rules below are the ones the linters actually enforce here:
   `app/upgrades.go` — do not change deterministic behavior unconditionally.
 - Ethermint is a pinned fork; bumping it uses `scripts/go-update-ethermint.sh`. After any Go dep change,
   regenerate `gomod2nix.toml`.
+
+## Style guide reference
+
+The canonical written style reference for this repo is the **Uber Go Style Guide**
+(https://github.com/uber-go/guide/blob/master/style.md). Treat **Go Code Review Comments**
+(https://go.dev/wiki/CodeReviewComments) as the assumed baseline, since much of it is already encoded in
+the linters (e.g. `revive`'s exported-doc-comment rule). `.golangci.yml` remains the actual source of
+truth for enforcement; the Uber guide just explains the intent behind those rules.
