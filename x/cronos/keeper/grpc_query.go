@@ -3,13 +3,11 @@ package keeper
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	ethermint "github.com/evmos/ethermint/types"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"google.golang.org/grpc/codes"
@@ -24,9 +22,9 @@ const (
 	// MaxReplayBlockMsgs caps the eth messages one ReplayBlock query may execute.
 	MaxReplayBlockMsgs = 10000
 
-	// DefaultReplayBlockGasCap caps per-message EVM gas when the chain reports no
-	// block gas limit.
-	DefaultReplayBlockGasCap = 25_000_000
+	// ReplayBlockGasCap caps per-message EVM gas in a ReplayBlock query.
+	// Since historical blocks may have used different limits, we use a fixed upper bound value.
+	ReplayBlockGasCap = 60_000_000
 )
 
 var _ types.QueryServer = Keeper{}
@@ -79,10 +77,7 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 	// Per-message gas cap. A committed tx already fits within the block gas
 	// limit, so legitimate replay is unaffected.
-	gasCap := ethermint.BlockGasLimit(ctx)
-	if gasCap == 0 || gasCap == math.MaxUint64 {
-		gasCap = DefaultReplayBlockGasCap
-	}
+	gasCap := uint64(ReplayBlockGasCap)
 
 	// load parameters
 	params := k.evmKeeper.GetParams(ctx)

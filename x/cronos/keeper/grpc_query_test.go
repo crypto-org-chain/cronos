@@ -3,7 +3,6 @@ package keeper_test
 import (
 	"math/big"
 
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -13,13 +12,9 @@ import (
 // gRPC query: the message-count cap, the per-message gas cap, and the
 // cumulative gas budget.
 func (suite *KeeperTestSuite) TestReplayBlockBounds() {
-	const maxGas = 10_000_000
-
-	// pin the block gas limit so gasCap is deterministic regardless of the
-	// ambient consensus params.
-	ctx := suite.ctx.WithConsensusParams(tmproto.ConsensusParams{
-		Block: &tmproto.BlockParams{MaxGas: maxGas},
-	})
+	// The block gas limit is unavailable in the query context, so the gas cap
+	// is the fixed ReplayBlockGasCap constant.
+	const gasCap = cronoskeeper.ReplayBlockGasCap
 
 	newMsg := func(gas uint64) *evmtypes.MsgEthereumTx {
 		return evmtypes.NewTx(big.NewInt(1), 0, &suite.address, big.NewInt(0), gas, big.NewInt(1), nil, nil, nil, nil)
@@ -39,14 +34,14 @@ func (suite *KeeperTestSuite) TestReplayBlockBounds() {
 		},
 		{
 			name:     "per-message gas cap",
-			msgs:     []*evmtypes.MsgEthereumTx{newMsg(maxGas + 1)},
+			msgs:     []*evmtypes.MsgEthereumTx{newMsg(gasCap + 1)},
 			errMatch: "exceeds ReplayBlock cap",
 		},
 		{
 			name: "cumulative gas budget",
 			// each message is within the per-message cap, but together they
 			// exceed the 2*gasCap cumulative budget.
-			msgs:     []*evmtypes.MsgEthereumTx{newMsg(maxGas), newMsg(maxGas), newMsg(maxGas)},
+			msgs:     []*evmtypes.MsgEthereumTx{newMsg(gasCap), newMsg(gasCap), newMsg(gasCap)},
 			errMatch: "cumulative message gas exceeds",
 		},
 		{
@@ -54,7 +49,7 @@ func (suite *KeeperTestSuite) TestReplayBlockBounds() {
 			// a real block sums to at most 2*gasCap (block limit plus one final
 			// boundary tx); such a batch must pass all the bounds and only fail
 			// later in the EVM execution path.
-			msgs:     []*evmtypes.MsgEthereumTx{newMsg(maxGas), newMsg(maxGas)},
+			msgs:     []*evmtypes.MsgEthereumTx{newMsg(gasCap), newMsg(gasCap)},
 			errMatch: "",
 		},
 	}
@@ -64,9 +59,9 @@ func (suite *KeeperTestSuite) TestReplayBlockBounds() {
 			req := &types.ReplayBlockRequest{
 				Msgs:        tc.msgs,
 				BlockNumber: 1,
-				BlockTime:   ctx.BlockTime(),
+				BlockTime:   suite.ctx.BlockTime(),
 			}
-			_, err := suite.app.CronosKeeper.ReplayBlock(ctx, req)
+			_, err := suite.app.CronosKeeper.ReplayBlock(suite.ctx, req)
 			suite.Require().Error(err)
 			if tc.errMatch != "" {
 				suite.Require().Contains(err.Error(), tc.errMatch)
