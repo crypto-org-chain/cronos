@@ -16,6 +16,7 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
+	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -187,6 +188,10 @@ const (
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
 )
+
+// recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
+// recheck before proposing from the current pool
+const recheckWaitTimeout = 500 * time.Millisecond
 
 var Forks = []Fork{}
 
@@ -489,6 +494,9 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolManager *cronosmempool.Manager
+	// Set inside the closure below, only when mempool.type=app has the encoder
+	// cache enabled (the fast PrepareProposal path); nil otherwise.
+	var ppHandler *MempoolProposalHandler
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -515,22 +523,8 @@ func New(
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
 			// blocklist + baseFee gate.
 			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
-			extSel := NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate)
-			h.SetTxSelector(extSel)
-			if signerExtractor != nil {
-				h.SetSignerExtractionAdapter(signerExtractor)
-			}
-			inner := h.PrepareProposalHandler()
-			// Stage gate-skipped senders for recheck so base-fee-stranded txs are
-			// evicted in ~1 block instead of waiting for the TTL.
-			app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-				resp, err := inner(ctx, req)
-				skipped := extSel.DrainGateSkipped() // always drain; stale on error
-				if err == nil && mempoolManager != nil && len(skipped) > 0 {
-					mempoolManager.StageSkippedSenders(skipped)
-				}
-				return resp, err
-			})
+			ppHandler = NewMempoolProposalHandler(h, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
+			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
@@ -565,6 +559,9 @@ func New(
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
+			if ppHandler != nil {
+				ppHandler.SetMempoolManager(manager)
+			}
 		}
 	})
 
@@ -1299,6 +1296,15 @@ func (app *App) setPostHandler() {
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
+// MempoolClient returns the client (the manager, not *App) to avoid colliding
+// with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
+func (app *App) MempoolClient() appmempool.MempoolClient {
+	if app.mempoolManager == nil {
+		return nil
+	}
+	return app.mempoolManager
+}
+
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
 
@@ -1580,6 +1586,11 @@ func VerifyAddressFormat(bz []byte) error {
 
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
+	// Stop the recheck worker before store teardown so no late recheck reads a closing store.
+	if app.mempoolManager != nil {
+		app.mempoolManager.Close()
+	}
+
 	errs := []error{app.BaseApp.Close()}
 
 	// flush the versiondb
@@ -1630,9 +1641,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// BaseApp.Commit resets checkState; upstream assumes CometBFT's mempool
-		// lock guards it, but AppMempool.Lock() is a no-op. This mutex serializes
-		// the reset against concurrent peer admission (InsertTx/CheckTx RunTx).
+		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
 		mu := app.mempoolManager.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
@@ -1640,14 +1649,12 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}()
 
 	if err == nil {
-		app.mempoolManager.RecheckTxs()
+		app.mempoolManager.TriggerRecheck()
 	}
 	return resp, err
 }
 
-// FinalizeBlock stages the committed block's senders for post-commit recheck
-// (mempool.type=app only). Senders are known regardless of execution outcome;
-// Commit re-validates their remaining pending txs against the new state.
+// FinalizeBlock stages committed senders for async recheck regardless of execution outcome.
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	resp, err := app.BaseApp.FinalizeBlock(req)
 	if err == nil && app.mempoolManager != nil {
