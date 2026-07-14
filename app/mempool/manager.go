@@ -61,16 +61,27 @@ type Manager struct {
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
+	// recheckDisabled mirrors mempool.recheck=false: skip RunTx(ReCheck) reval;
+	// TTL/expiry eviction still runs. A sibling invalidated by another's
+	// eviction (nonce gap) isn't caught until its own TTL/timeout — or never,
+	// if ttlNumBlocks=0 and it declares no timeout itself.
+	recheckDisabled bool
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
+	a.recheckDisabled = !recheckEnabled
+	recheckEnabledGauge := float32(0)
+	if recheckEnabled {
+		recheckEnabledGauge = 1
+	}
+	telemetry.SetGauge(recheckEnabledGauge, "cronos", "mempool", "recheck", "enabled")
 	a.worker = newRecheckWorker(a.RecheckTxs)
 	a.worker.start()
 	return a
@@ -93,10 +104,15 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 	}
 }
 
+// recheckDecodingEnabled gates StageSkippedSenders/StageRecheckSenders's decoding.
+func (a *Manager) recheckDecodingEnabled() bool {
+	return !a.recheckDisabled && a.signer != nil && a.decoder != nil
+}
+
 // StageSkippedSenders merges the senders of proposal-gate-rejected txs into
 // recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
-	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
+	if !a.recheckDecodingEnabled() || len(txs) == 0 {
 		return
 	}
 	senders := make(map[string]struct{}, len(txs))
@@ -167,6 +183,11 @@ func (a *Manager) CountTx() int {
 		return 0
 	}
 	return a.mpool.CountTx()
+}
+
+// RecheckDisabled reports whether mempool.recheck=false was wired in.
+func (a *Manager) RecheckDisabled() bool {
+	return a.recheckDisabled
 }
 
 // admit is the shared admission path: preVerify + decode unlocked (bad txs skip
@@ -259,9 +280,10 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 // committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
-	// and recheckSenders in one critical section so a reader never sees a torn update.
+	// and recheckSenders together so a reader never sees a torn update. Height
+	// always stages (TTL eviction needs it every cycle); decode skips when recheckDisabled.
 	var senders map[string]struct{}
-	if a.signer != nil && a.decoder != nil {
+	if a.recheckDecodingEnabled() {
 		senders = make(map[string]struct{}, len(txs))
 		for _, bz := range txs {
 			tx, err := a.decoder(bz)
@@ -328,8 +350,8 @@ func (a *Manager) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.selectTxs(snapshot, recheckSenders, height, deferred)
-	candidates = a.capRecheckTxs(candidates)
+	// selectTxs always runs Pass 1 (TTL/expiry eviction); it returns nil when recheckDisabled.
+	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
@@ -392,6 +414,10 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	if ttlEvicted > 0 {
 		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
 	}
+	if a.recheckDisabled {
+		// Pass 2 output would only be discarded by the caller.
+		return nil
+	}
 
 	// Pass 2: candidate selection over surviving (non-evicted) txs.
 	var candidates []sdk.Tx
@@ -435,10 +461,14 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
-// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
+// evictForRecheck evicts tx, folding its signers into recheckSenders so Pass 2
+// can recheck them — skipped entirely when recheckDisabled, since Pass 2 never
+// runs. evictedSet/recheckSenders allocate lazily so a no-eviction cycle stays alloc-free.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	a.evict(tx)
+	if a.recheckDisabled {
+		return evictedSet, recheckSenders
+	}
 	if evictedSet == nil {
 		evictedSet = make(map[sdk.Tx]struct{})
 	}

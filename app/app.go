@@ -179,6 +179,7 @@ const (
 	FlagMempoolFeeBump    = "mempool.feebump"
 	FlagMempoolType       = "mempool.type"
 	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
+	FlagMempoolRecheck    = "mempool.recheck"      // CometBFT's own recheck toggle; app-mempool recheck honors it too
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
@@ -459,6 +460,22 @@ func New(
 		}
 		ttlNumBlocks = parsed
 	}
+	// recheckEnabled mirrors CometBFT's mempool.recheck (default true).
+	recheckEnabled := true
+	if v := appOpts.Get(FlagMempoolRecheck); v != nil {
+		// cast.ToBoolE silently coerces nonzero numbers (e.g. 2) to true.
+		switch v.(type) {
+		case bool, string:
+		default:
+			panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", FlagMempoolRecheck, v, v))
+		}
+		parsed, err := cast.ToBoolE(v)
+		if err != nil {
+			// v is a string here (bool never errors, other types panicked above).
+			panic(fmt.Errorf("invalid %s %q: must be a boolean", FlagMempoolRecheck, v))
+		}
+		recheckEnabled = parsed
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -549,9 +566,15 @@ func New(
 		// ReapTxsHandler honors MaxBytes/MaxGas hints from the CometBFT AppReactor.
 		if mempoolType == cronosmempool.TypeApp {
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
+			if !recheckEnabled {
+				logger.Warn("mempool.recheck=false: post-commit re-validation disabled; a tx invalidated by a sibling's eviction is only caught by its own TTL/timeout, if any")
+				if ttlNumBlocks == 0 {
+					logger.Warn("mempool.recheck=false with mempool.ttl-num-blocks=0: an invalidated tx with no declared timeout is never evicted and may be reproposed indefinitely")
+				}
+			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, recheckEnabled)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder))
