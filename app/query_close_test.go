@@ -129,7 +129,7 @@ func TestHistoricalQueryClosesMemIAVLDB(t *testing.T) {
 	after := numOpenFDs(t)
 	t.Logf("fd delta over %d historical queries: %d (before=%d after=%d)", iters, after-before, before, after)
 
-	require.LessOrEqualf(t, after-before, 16,
+	require.LessOrEqualf(t, after-before, 2,
 		"historical queries leaked file descriptors: read-only memiavl DB not closed")
 }
 
