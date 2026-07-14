@@ -15,8 +15,10 @@ import (
 )
 
 // newAppWithMempoolRecheck tests app.go's flag parsing without a full Setup().
+// mempool.recheck is only parsed under mempool.type=app, so that's set here too.
 func newAppWithMempoolRecheck(v interface{}) func() {
 	opts := baseTestAppOpts(0)
+	opts[FlagMempoolType] = cronosmempool.TypeApp
 	if v != nil {
 		opts[FlagMempoolRecheck] = v
 	}
@@ -44,6 +46,16 @@ func TestNewApp_MempoolRecheckFlagInvalid(t *testing.T) {
 			newAppWithMempoolRecheck(v)()
 		})
 	}
+}
+
+// mempool.recheck is irrelevant outside mempool.type=app, so an invalid value
+// there must not panic.
+func TestNewApp_MempoolRecheckFlagInvalidIgnoredWithoutAppMempool(t *testing.T) {
+	opts := baseTestAppOpts(0)
+	opts[FlagMempoolRecheck] = "not-a-bool"
+	require.NotPanics(t, func() {
+		New(log.NewNopLogger(), dbm.NewMemDB(), true, opts, baseapp.SetChainID(TestAppChainID))
+	})
 }
 
 // Unlike the parse-only tests above, this checks the flag actually reaches Manager.
