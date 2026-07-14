@@ -13,8 +13,11 @@
 * [#2089](https://github.com/crypto-org-chain/cronos/pull/2089) feat: upgrade to cosmos-sdk v0.54.3 + ibc-go v11 + cometbft v0.39.
 * [#2081](https://github.com/crypto-org-chain/cronos/pull/2081) Upgrade go-ethereum version to `v1.16.9`, enable Osaka hardfork.
 * [#2091](https://github.com/crypto-org-chain/cronos/pull/2091) feat(app): v0.54 upgrade perf optimizations + app-mempool feature.
+* [#2118](https://github.com/crypto-org-chain/cronos/pull/2118) perf(mempool): run post-Commit recheck async off consensus path.
+* [#2119](https://github.com/crypto-org-chain/cronos/pull/2119) feat(mempool): support direct insert tx via app mempool.
 * [#2120](https://github.com/crypto-org-chain/cronos/pull/2120) feat(ante): wire ethermint NewEVMSigPreVerifier for lock-free admission, via an app-owned PreVerifierRegistry that composes per-module verifiers.
 * [#2133](https://github.com/crypto-org-chain/cronos/pull/2133) test(app): reproduce historical-query memiavl fd leak.
+* [#2127](https://github.com/crypto-org-chain/cronos/pull/2127) feat(mempool): back txpool RPC with app mempool PendingTxs.
 
 ### Bug fixes
 

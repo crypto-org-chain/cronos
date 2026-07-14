@@ -28,15 +28,14 @@ func (f fakeSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	return sd, nil
 }
 
-// recheckRunner records the ExecMode and bytes of each RunTx call. It mirrors
-// BaseApp.RunTx(ExecModeReCheck): on ante failure it removes the tx from the
-// pool, which is what RecheckTxs relies on (it only evicts encCache itself).
+// recheckRunner records RunTx calls.
 type recheckRunner struct {
-	mu        sync.Mutex
-	pool      sdkmempool.Mempool
-	failBytes map[string]bool
-	modes     []sdk.ExecMode
-	seen      map[string]bool
+	mu                sync.Mutex
+	pool              sdkmempool.Mempool
+	failBytes         map[string]bool
+	failNoRemoveBytes map[string]bool
+	modes             []sdk.ExecMode
+	seen              map[string]bool
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -45,8 +44,11 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
 	if r.failBytes[string(txBytes)] {
-		_ = r.pool.Remove(tx) // baseapp removes on recheck failure
+		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
+	}
+	if r.failNoRemoveBytes[string(txBytes)] {
+		return sdk.GasInfo{}, nil, nil, errors.New("msg execution failed on recheck")
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -162,6 +164,22 @@ func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 	}
 }
 
+func TestRecheckTxs_MsgExecFailureEvictsFromPool(t *testing.T) {
+	f := newRecheckFixture()
+	f.runner.failNoRemoveBytes = map[string]bool{"alice-0": true}
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.RecheckTxs()
+
+	if poolHas(f.pool, stale) {
+		t.Fatal("tx failing recheck at msg execution (not ante) must still be removed from the pool")
+	}
+	if _, ok := f.enc.Get(stale); ok {
+		t.Fatal("tx failing recheck must be evicted from encCache")
+	}
+}
+
 func TestRecheckTxs_EmptyPendingNoOp(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
@@ -255,8 +273,7 @@ func TestRecheckTxs_SweepAndRecheckTogether(t *testing.T) {
 }
 
 // StageRecheckSenders must stage the committed height (not just senders) so the
-// timeout sweep fires on the next RecheckTxs. The fixture's decoder is nil, so
-// staging returns after recording height — exercising height independently.
+// timeout sweep fires on the next RecheckTxs.
 func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
