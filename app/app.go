@@ -570,10 +570,7 @@ func New(
 		if mempoolType == cronosmempool.TypeApp {
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 			if !recheckEnabled {
-				logger.Warn("mempool.recheck=false: post-commit re-validation disabled; a tx invalidated by a sibling's eviction is only caught by its own TTL/timeout, if any")
-				if ttlNumBlocks == 0 {
-					logger.Warn("mempool.recheck=false with mempool.ttl-num-blocks=0: an invalidated tx with no declared timeout is never evicted and may be reproposed indefinitely")
-				}
+				logger.Warn("mempool.recheck=false: all post-commit rechecking is disabled, including TTL/timeout eviction; a tx invalidated by a sibling's eviction is never evicted and may be reproposed indefinitely")
 			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))

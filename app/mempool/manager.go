@@ -61,8 +61,9 @@ type Manager struct {
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
-	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking.
-	// Not recommended for production.
+	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
+	// including TTL/expiry eviction, so nothing evicts stale or invalidated
+	// txs from the pool between blocks.
 	recheckDisabled bool
 }
 
@@ -346,9 +347,11 @@ func (a *Manager) RecheckTxs() {
 		return
 	}
 
-	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
-	a.runRecheck(candidates)
+	if !a.recheckDisabled {
+		snapshot := PoolSnapshot(context.Background(), a.mpool)
+		candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
+		a.runRecheck(candidates)
+	}
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
@@ -362,12 +365,9 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 	return recheckSenders, height, deferred
 }
 
-// selectTxs scans the pool to retrieve txs for recheck.
+// selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
+// only invokes this when recheck is enabled.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	if a.recheckDisabled {
-		return nil
-	}
-
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
