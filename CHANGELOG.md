@@ -16,6 +16,7 @@
 * [#2118](https://github.com/crypto-org-chain/cronos/pull/2118) perf(mempool): run post-Commit recheck async off consensus path.
 * [#2119](https://github.com/crypto-org-chain/cronos/pull/2119) feat(mempool): support direct insert tx via app mempool.
 * [#2120](https://github.com/crypto-org-chain/cronos/pull/2120) feat(ante): wire ethermint NewEVMSigPreVerifier for lock-free admission, via an app-owned PreVerifierRegistry that composes per-module verifiers.
+* [#2133](https://github.com/crypto-org-chain/cronos/pull/2133) test(app): reproduce historical-query memiavl fd leak.
 * [#2127](https://github.com/crypto-org-chain/cronos/pull/2127) feat(mempool): back txpool RPC with app mempool PendingTxs.
 * [#2139](https://github.com/crypto-org-chain/cronos/pull/2139) feat(mempool): honor CometBFT's mempool.recheck config in app mempool.
 
@@ -36,6 +37,7 @@
 * [#2069](https://github.com/crypto-org-chain/cronos/pull/2069) fix(test): flaky test_mempool integration test.
 * [#2071](https://github.com/crypto-org-chain/cronos/pull/2071) fix(test): fix flaky ibc and versiondb integration tests.
 * [#2099](https://github.com/crypto-org-chain/cronos/pull/2099) fix(cronos): add contract authorization check to SendCroToIbcHandler
+* [#2131](https://github.com/crypto-org-chain/cronos/pull/2131) fix(cronos): bound message count and per-message gas in the ReplayBlock gRPC query.
 
 
 ### Chores:
