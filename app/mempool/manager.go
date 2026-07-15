@@ -63,7 +63,6 @@ type Manager struct {
 	worker recheckWorker
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction, so nothing evicts stale or invalidated
-	// txs from the pool between blocks.
 	recheckDisabled bool
 }
 
