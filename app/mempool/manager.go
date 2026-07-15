@@ -336,7 +336,7 @@ func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Durat
 
 // RecheckTxs evicts pool txs invalidated by the last block.
 func (a *Manager) RecheckTxs() {
-	if a.mpool == nil {
+	if a.mpool == nil || a.recheckDisabled {
 		return
 	}
 	a.recheckMu.Lock() // lock order: see the recheckMu field comment
@@ -347,11 +347,10 @@ func (a *Manager) RecheckTxs() {
 		return
 	}
 
-	if !a.recheckDisabled {
-		snapshot := PoolSnapshot(context.Background(), a.mpool)
-		candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
-		a.runRecheck(candidates)
-	}
+	snapshot := PoolSnapshot(context.Background(), a.mpool)
+	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
+	a.runRecheck(candidates)
+
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
