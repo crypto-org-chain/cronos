@@ -668,27 +668,23 @@ func TestRecheckTxs_TTLDisabledKeepsOldTx(t *testing.T) {
 	}
 }
 
-func TestRecheckTxs_RecheckDisabledStillEvictsTTL(t *testing.T) {
+func TestRecheckTxs_RecheckDisabledSkipsTTLEviction(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.recheckDisabled = true
 	f.a.ttlNumBlocks = 5
 	aged := f.add(1, "alice", 0, "alice-0")
 
-	f.a.lastCommittedHeight = 10 // first sighting records arrival=10
+	f.a.lastCommittedHeight = 10 // first sighting would record arrival=10 if TTL ran
 	f.a.RecheckTxs()
-	survivor := f.add(2, "alice", 1, "alice-1") // added after cycle 1: young, arrival=15 below
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 15 // 15-10 == ttl → aged evicted
+	f.a.lastCommittedHeight = 15 // 15-10 == ttl, but recheckDisabled skips the sweep entirely
 	f.a.RecheckTxs()
 
-	if poolHas(f.pool, aged) {
-		t.Fatal("TTL sweep must still evict aged tx when recheck is disabled")
+	if !poolHas(f.pool, aged) {
+		t.Fatal("recheckDisabled must skip TTL eviction too, not just RunTx recheck")
 	}
-	if _, ok := f.enc.Get(aged); ok {
-		t.Fatal("aged tx must be evicted from encCache")
-	}
-	if !poolHas(f.pool, survivor) {
-		t.Fatal("survivor must not be evicted")
+	if f.a.arrival != nil {
+		t.Fatal("recheckDisabled must not build the arrival map")
 	}
 	if len(f.runner.modes) != 0 {
 		t.Fatal("recheckDisabled must never call RunTx, even on a live staged candidate")
