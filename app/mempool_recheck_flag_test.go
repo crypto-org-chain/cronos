@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	dbm "github.com/cosmos/cosmos-db"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/log/v2"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
-
-	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 )
 
 // newAppWithMempoolRecheck tests app.go's flag parsing without a full Setup().
@@ -71,4 +70,3 @@ func TestNewApp_MempoolRecheckFlagWiredIntoManager(t *testing.T) {
 	require.NotNil(t, manager, "mempool.type=app must build a Manager")
 	require.True(t, manager.RecheckDisabled(), "mempool.recheck=false must reach Manager.recheckDisabled")
 }
-

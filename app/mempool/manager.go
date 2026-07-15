@@ -61,24 +61,22 @@ type Manager struct {
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
-	// recheckDisabled mirrors mempool.recheck=false: skip RunTx(ReCheck) reval;
-	// TTL/expiry eviction still runs. A sibling invalidated by another's
-	// eviction (nonce gap) isn't caught until its own TTL/timeout — or never,
-	// if ttlNumBlocks=0 and it declares no timeout itself.
+	// recheckDisabled mirrors mempool.recheck=false: skip RunTx(ReCheck)
+	// revalidation; TTL/expiry eviction still runs.
 	recheckDisabled bool
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckEnabled bool) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
-	a.recheckDisabled = !recheckEnabled
+	a.recheckDisabled = recheckDisabled
 	recheckEnabledGauge := float32(0)
-	if recheckEnabled {
+	if !recheckDisabled {
 		recheckEnabledGauge = 1
 	}
 	telemetry.SetGauge(recheckEnabledGauge, "cronos", "mempool", "recheck", "enabled")
@@ -104,7 +102,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 	}
 }
 
-// recheckDecodingEnabled gates StageSkippedSenders/StageRecheckSenders's decoding.
+// recheckDecodingEnabled reports whether sender decoding/bookkeeping should run.
 func (a *Manager) recheckDecodingEnabled() bool {
 	return !a.recheckDisabled && a.signer != nil && a.decoder != nil
 }
@@ -185,7 +183,7 @@ func (a *Manager) CountTx() int {
 	return a.mpool.CountTx()
 }
 
-// RecheckDisabled reports whether mempool.recheck=false was wired in.
+// RecheckDisabled reports whether mempool recheck is disabled
 func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
@@ -280,8 +278,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 // committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
-	// and recheckSenders together so a reader never sees a torn update. Height
-	// always stages (TTL eviction needs it every cycle); decode skips when recheckDisabled.
+	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
 	if a.recheckDecodingEnabled() {
 		senders = make(map[string]struct{}, len(txs))
@@ -463,7 +460,9 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 
 // evictForRecheck evicts tx, folding its signers into recheckSenders so Pass 2
 // can recheck them — skipped entirely when recheckDisabled, since Pass 2 never
-// runs. evictedSet/recheckSenders allocate lazily so a no-eviction cycle stays alloc-free.
+// runs. A sibling invalidated by this eviction (e.g. a nonce gap) is then only
+// caught by its own TTL/timeout, or never if ttlNumBlocks=0 and it declares none.
+// evictedSet/recheckSenders allocate lazily so a no-eviction cycle stays alloc-free.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	a.evict(tx)
 	if a.recheckDisabled {
