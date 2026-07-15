@@ -365,6 +365,14 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 
 // selectTxs scans the pool to retrieve txs for recheck.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
+	// Pass 1 (TTL/expiry eviction) always runs; Pass 2 (RunTx recheck candidate
+	// selection) is skipped below when recheckDisabled, so bail before Pass 2's
+	// setup instead of building it just to discard the result.
+	evictedSet, recheckSenders := a.evictStale(snapshot, height, recheckSenders)
+	if a.recheckDisabled {
+		return nil
+	}
+
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
@@ -372,48 +380,6 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		for _, tx := range deferred {
 			deferredLive[tx] = false
 		}
-	}
-
-	var (
-		expiredEvicted float32
-		ttlEvicted     float32
-	)
-	// Rebuild arrival from this cycle's snapshot so txs gone from the pool fall out.
-	var newArrival map[sdk.Tx]int64
-	if a.ttlNumBlocks > 0 {
-		newArrival = make(map[sdk.Tx]int64, len(snapshot))
-	}
-
-	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
-	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
-	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
-	now := time.Now()
-	for _, tx := range snapshot {
-		if txTimedout(tx, height, now) {
-			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-			expiredEvicted++
-			continue
-		}
-		if a.ttlNumBlocks > 0 {
-			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
-			if expired {
-				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-				ttlEvicted++
-				continue
-			}
-			newArrival[tx] = arrived
-		}
-	}
-	a.arrival = newArrival
-	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
-	}
-	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
-	}
-	if a.recheckDisabled {
-		// Pass 2 output would only be discarded by the caller.
-		return nil
 	}
 
 	// Pass 2: candidate selection over surviving (non-evicted) txs.
@@ -456,6 +422,46 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		ordered = append(ordered, tx)
 	}
 	return ordered
+}
+
+// evictStale runs Pass 1: evicts snapshot's timed-out and TTL-expired txs,
+// folding evicted senders into recheckSenders so Pass 2 can recheck their
+// remaining pool txs (e.g. higher-nonce siblings invalidated by the gap).
+func (a *Manager) evictStale(snapshot []sdk.Tx, height int64, recheckSenders map[string]struct{}) (evictedSet map[sdk.Tx]struct{}, _ map[string]struct{}) {
+	var (
+		expiredEvicted float32
+		ttlEvicted     float32
+	)
+	// Rebuild arrival from this cycle's snapshot so txs gone from the pool fall out.
+	var newArrival map[sdk.Tx]int64
+	if a.ttlNumBlocks > 0 {
+		newArrival = make(map[sdk.Tx]int64, len(snapshot))
+	}
+	now := time.Now()
+	for _, tx := range snapshot {
+		if txTimedout(tx, height, now) {
+			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
+			expiredEvicted++
+			continue
+		}
+		if a.ttlNumBlocks > 0 {
+			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
+			if expired {
+				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
+				ttlEvicted++
+				continue
+			}
+			newArrival[tx] = arrived
+		}
+	}
+	a.arrival = newArrival
+	if expiredEvicted > 0 {
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
+	}
+	if ttlEvicted > 0 {
+		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
+	}
+	return evictedSet, recheckSenders
 }
 
 // evictForRecheck evicts tx, folding its signers into recheckSenders so Pass 2
