@@ -347,7 +347,6 @@ func (a *Manager) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	// selectTxs returns nil immediately when recheckDisabled.
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
