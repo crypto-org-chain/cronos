@@ -61,9 +61,8 @@ type Manager struct {
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
-	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
-	// including TTL/expiry eviction. Not recommended for production — with
-	// recheck fully off, nothing evicts stale or invalidated txs from the pool.
+	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking.
+	// Not recommended for production.
 	recheckDisabled bool
 }
 
@@ -348,8 +347,7 @@ func (a *Manager) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	// selectTxs returns nil immediately when recheckDisabled — Pass 1
-	// (TTL/expiry eviction) is skipped too, not just Pass 2's RunTx recheck.
+	// selectTxs returns nil immediately when recheckDisabled.
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
@@ -368,8 +366,6 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 // selectTxs scans the pool to retrieve txs for recheck.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	if a.recheckDisabled {
-		// Not recommended for production: this skips Pass 1 (TTL/expiry
-		// eviction) too, so nothing evicts stale txs from the pool.
 		return nil
 	}
 
@@ -462,11 +458,8 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
-// evictForRecheck evicts tx, folding its signers into recheckSenders so Pass 2
-// can recheck them. A sibling invalidated by this eviction (e.g. a nonce gap)
-// is then only caught by its own TTL/timeout, or never if ttlNumBlocks=0 and
-// it declares none. evictedSet/recheckSenders allocate lazily so a
-// no-eviction cycle stays alloc-free.
+// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
+// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	a.evict(tx)
 	if evictedSet == nil {
