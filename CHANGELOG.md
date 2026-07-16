@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+*Jul 16, 2026*
+
+## v1.8.0-alpha
+
 ### Improvements
 
 * [#2100](https://github.com/crypto-org-chain/cronos/pull/2100) feat: support unblockable addresses
@@ -47,7 +51,6 @@
 * [#2048](https://github.com/crypto-org-chain/cronos/pull/2048) refactor: use slices.Contains and strings.ContainsRune to simplify code
 * [#2044](https://github.com/crypto-org-chain/cronos/pull/2044) ci: fix dependabot workflows and drain PR backlog
 * [#2098](https://github.com/crypto-org-chain/cronos/pull/2098) chore(dep): pin ibc-go to upstream v11.1.0
-
 
 
 *Jan 26, 2026*
