@@ -328,6 +328,26 @@ func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a.RecheckTxs()                                  // mpool nil → no-op
 }
 
+func TestStageRecheckSenders_RecheckDisabledSkipsSendersButStagesHeight(t *testing.T) {
+	tx := &ptrTx{id: 1}
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		tx: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+	}}
+	decoder := func(b []byte) (sdk.Tx, error) { return tx, nil }
+	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+	a.recheckDisabled = true
+
+	a.StageRecheckSenders(7, [][]byte{[]byte("x")})
+
+	if a.lastCommittedHeight != 7 {
+		t.Fatalf("height must stage even when recheck disabled, got %d", a.lastCommittedHeight)
+	}
+	if a.recheckSenders != nil {
+		t.Fatal("recheckDisabled must skip decode+merge into recheckSenders")
+	}
+}
+
 // A tx with no encCache entry must still be rechecked via the txEncoder fallback.
 func TestRecheckTxs_EncoderFallbackOnCacheMiss(t *testing.T) {
 	f := newRecheckFixture("enc-1") // encoder yields "enc-<id>"; fail id 1
@@ -648,6 +668,46 @@ func TestRecheckTxs_TTLDisabledKeepsOldTx(t *testing.T) {
 	}
 }
 
+func TestRecheckTxs_RecheckDisabledSkipsTTLEviction(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.recheckDisabled = true
+	f.a.ttlNumBlocks = 5
+	aged := f.add(1, "alice", 0, "alice-0")
+
+	f.a.lastCommittedHeight = 10 // first sighting would record arrival=10 if TTL ran
+	f.a.RecheckTxs()
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.lastCommittedHeight = 15 // 15-10 == ttl, but recheckDisabled skips the sweep entirely
+	f.a.RecheckTxs()
+
+	if !poolHas(f.pool, aged) {
+		t.Fatal("recheckDisabled must skip TTL eviction too, not just RunTx recheck")
+	}
+	if f.a.arrival != nil {
+		t.Fatal("recheckDisabled must not build the arrival map")
+	}
+	if len(f.runner.modes) != 0 {
+		t.Fatal("recheckDisabled must never call RunTx, even on a live staged candidate")
+	}
+}
+
+func TestRecheckTxs_RecheckDisabledSkipsCandidateRunTx(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.recheckDisabled = true
+	tx := f.add(1, "alice", 0, "alice-0")
+
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.lastCommittedHeight = 1
+	f.a.RecheckTxs()
+
+	if !poolHas(f.pool, tx) {
+		t.Fatal("recheckDisabled must not run RunTx reval even with a staged sender")
+	}
+	if len(f.runner.modes) != 0 {
+		t.Fatal("recheckDisabled must never call RunTx")
+	}
+}
+
 // Arrival entries for txs gone from the pool (e.g. included in a block) drop out
 // each cycle, bounding the map to the live pool.
 func TestRecheckTxs_TTLArrivalReconcilesRemovedTxs(t *testing.T) {
@@ -831,6 +891,23 @@ func TestStageSkippedSenders_EmptyIsNoop(t *testing.T) {
 	a.StageSkippedSenders([][]byte{})
 	if a.recheckSenders != nil {
 		t.Fatal("empty input must not allocate recheckSenders")
+	}
+}
+
+func TestStageSkippedSenders_RecheckDisabledSkipsMerge(t *testing.T) {
+	tx := &ptrTx{id: 1}
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		tx: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+	}}
+	decoder := func(b []byte) (sdk.Tx, error) { return tx, nil }
+	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
+	a.signer = signer
+	a.recheckDisabled = true
+
+	a.StageSkippedSenders([][]byte{[]byte("x")})
+
+	if a.recheckSenders != nil {
+		t.Fatal("recheckDisabled must skip decode+merge into recheckSenders")
 	}
 }
 

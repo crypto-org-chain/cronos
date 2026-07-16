@@ -18,6 +18,7 @@
 * [#2120](https://github.com/crypto-org-chain/cronos/pull/2120) feat(ante): wire ethermint NewEVMSigPreVerifier for lock-free admission, via an app-owned PreVerifierRegistry that composes per-module verifiers.
 * [#2133](https://github.com/crypto-org-chain/cronos/pull/2133) test(app): reproduce historical-query memiavl fd leak.
 * [#2127](https://github.com/crypto-org-chain/cronos/pull/2127) feat(mempool): back txpool RPC with app mempool PendingTxs.
+* [#2139](https://github.com/crypto-org-chain/cronos/pull/2139) feat(mempool): honor CometBFT's mempool.recheck config in app mempool.
 
 ### Bug fixes
 

@@ -61,16 +61,25 @@ type Manager struct {
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
+	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
+	// including TTL/expiry eviction
+	recheckDisabled bool
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
+	a.recheckDisabled = recheckDisabled
+	recheckEnabledGauge := float32(0)
+	if !recheckDisabled {
+		recheckEnabledGauge = 1
+	}
+	telemetry.SetGauge(recheckEnabledGauge, "cronos", "mempool", "recheck", "enabled")
 	a.worker = newRecheckWorker(a.RecheckTxs)
 	a.worker.start()
 	return a
@@ -93,10 +102,15 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 	}
 }
 
+// recheckDecodingEnabled reports whether sender decoding/bookkeeping should run.
+func (a *Manager) recheckDecodingEnabled() bool {
+	return !a.recheckDisabled && a.signer != nil && a.decoder != nil
+}
+
 // StageSkippedSenders merges the senders of proposal-gate-rejected txs into
 // recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
-	if a.signer == nil || a.decoder == nil || len(txs) == 0 {
+	if !a.recheckDecodingEnabled() || len(txs) == 0 {
 		return
 	}
 	senders := make(map[string]struct{}, len(txs))
@@ -167,6 +181,11 @@ func (a *Manager) CountTx() int {
 		return 0
 	}
 	return a.mpool.CountTx()
+}
+
+// RecheckDisabled reports whether mempool recheck is disabled
+func (a *Manager) RecheckDisabled() bool {
+	return a.recheckDisabled
 }
 
 // admit is the shared admission path: preVerify + decode unlocked (bad txs skip
@@ -261,7 +280,7 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
-	if a.signer != nil && a.decoder != nil {
+	if a.recheckDecodingEnabled() {
 		senders = make(map[string]struct{}, len(txs))
 		for _, bz := range txs {
 			tx, err := a.decoder(bz)
@@ -316,7 +335,7 @@ func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Durat
 
 // RecheckTxs evicts pool txs invalidated by the last block.
 func (a *Manager) RecheckTxs() {
-	if a.mpool == nil {
+	if a.mpool == nil || a.recheckDisabled {
 		return
 	}
 	a.recheckMu.Lock() // lock order: see the recheckMu field comment
@@ -328,9 +347,9 @@ func (a *Manager) RecheckTxs() {
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.selectTxs(snapshot, recheckSenders, height, deferred)
-	candidates = a.capRecheckTxs(candidates)
+	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
+
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
@@ -344,7 +363,8 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 	return recheckSenders, height, deferred
 }
 
-// selectTxs scans the pool to retrieve txs for recheck.
+// selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
+// only invokes this when recheck is enabled.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool

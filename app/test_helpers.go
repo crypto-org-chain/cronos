@@ -67,12 +67,17 @@ var DefaultConsensusParams = &tmproto.ConsensusParams{
 	},
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
-	db := dbm.NewMemDB()
-	opts := simtestutil.AppOptionsMap{
+// baseTestAppOpts lets callers layer extra flags on before calling New().
+func baseTestAppOpts(invCheckPeriod uint) simtestutil.AppOptionsMap {
+	return simtestutil.AppOptionsMap{
 		flags.FlagHome:            app.DefaultNodeHome,
 		server.FlagInvCheckPeriod: invCheckPeriod,
 	}
+}
+
+func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
+	db := dbm.NewMemDB()
+	opts := baseTestAppOpts(invCheckPeriod)
 	app := New(
 		log.NewNopLogger(), db, true,
 		opts,
