@@ -1,0 +1,18 @@
+# sample config targeting the Cronos testnet, matching the values that used
+# to be hardcoded in testground/benchmark/benchmark/testnet.py
+endpoints:
+  - name: primary
+    rpc: https://rpc-t3.cronos.org
+    json_rpc: https://evm-t3.cronos.org
+chain_id: 338
+evm_denom: basetcro
+gas_price: 5050000000000
+# arbitrarily picked to not conflict with other benchmark accounts.
+global_seq: 999
+tx_type: simple-transfer
+msg_version: "1.3"
+num_accounts: 100
+num_txs: 10
+batch_size: 1
+send_batch_size: 200
+send_interval: 0.5

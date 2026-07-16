@@ -1,0 +1,26 @@
+# 3-validator local devnet - simple-transfer (single MsgEthereumTx per tx).
+# Reference: https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
+# ("3 Validators" table) - target ~10236 TPS on an M4 MacBook Pro.
+# num_accounts/num_txs match the wiki's options for this case exactly.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+  - name: node1
+    rpc: http://127.0.0.1:26667
+    json_rpc: http://127.0.0.1:26661
+  - name: node2
+    rpc: http://127.0.0.1:26677
+    json_rpc: http://127.0.0.1:26671
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: simple-transfer
+msg_version: "1.4"
+num_accounts: 10000
+num_txs: 5
+batch_size: 1
+send_batch_size: 10000
+send_interval: 0.05

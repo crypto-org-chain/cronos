@@ -1,0 +1,15 @@
+# sample config targeting a local Anvil node (plain Ethereum JSON-RPC,
+# no Cosmos/CometBFT RPC). Start anvil first: anvil --port 8545
+endpoints:
+  - name: anvil
+    rpc: http://127.0.0.1:8545
+    json_rpc: http://127.0.0.1:8545
+mode: eth
+chain_id: 31337
+global_seq: 0
+tx_type: simple-transfer
+num_accounts: 10
+num_txs: 5
+batch_size: 1
+send_batch_size: 50
+send_interval: 0.1

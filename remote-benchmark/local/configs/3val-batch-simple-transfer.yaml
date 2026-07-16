@@ -1,0 +1,26 @@
+# 3-validator local devnet - batch-simple-transfer (100 MsgEthereumTx per
+# cosmos tx). Reference target: ~17200 TPS on an M4 MacBook Pro (wiki
+# "3 Validators" table, "Batch Simple Transfer (100 size)").
+# num_accounts/num_txs/batch_size match the wiki's options exactly.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+  - name: node1
+    rpc: http://127.0.0.1:26667
+    json_rpc: http://127.0.0.1:26661
+  - name: node2
+    rpc: http://127.0.0.1:26677
+    json_rpc: http://127.0.0.1:26671
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: simple-transfer
+msg_version: "1.4"
+num_accounts: 2400
+num_txs: 100
+batch_size: 100
+send_batch_size: 2400
+send_interval: 0.05

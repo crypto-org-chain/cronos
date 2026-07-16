@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "remote-benchmark"
+version = "0.1.0"
+description = "Standalone tx-load benchmark against one or more remote Cronos RPC endpoints"
+authors = ["huangyi <huang@crypto.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2"
+pyyaml = "^6"
+web3 = "^6"
+hexbytes = "^0"
+bech32 = "^1"
+requests = "^2.33"
+click = "^8.1.7"
+ujson = "^5.10.0"
+aiohttp = "^3"
+backoff = "^2.2.1"
+cprotobuf = "^0.1.11"
+eth-abi = "^5"
+eth-hash = {extras = ["pycryptodome"], version = "^0.7"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0"
+black = "^26.3.1"
+flake8 = "^7.1.1"
+flake8-black = "^0.3.6"
+flake8-isort = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+remote-benchmark = "remote_benchmark.cli:cli"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"

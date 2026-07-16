@@ -1,0 +1,19 @@
+# 1-validator local devnet - batch-simple-transfer (100 MsgEthereumTx per
+# cosmos tx, matching the wiki's "Batch Simple Transfer (100 size)" case).
+# num_accounts/num_txs/batch_size match the wiki's options exactly.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: simple-transfer
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 100
+batch_size: 100
+send_batch_size: 8000
+send_interval: 0.05

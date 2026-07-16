@@ -1,0 +1,97 @@
+# Local benchmark suite (M4 MacBook Pro / pystarport)
+
+Everything needed to spin up a local 1- or 3-validator Cronos devnet on this
+machine and reproduce the [V1.4 Benchmark wiki](https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark)
+test cases, grouped in this one folder.
+
+## Prerequisites
+
+Same as `../../docs/pystarport-3-validator-benchmark-setup.md`: Nix +
+cachix (`cronos`, `dapp`) installed, and `poetry install` run once in
+`remote-benchmark/`.
+
+## Usage
+
+```bash
+cd remote-benchmark/local
+./run-benchmark.sh <1|3> <simple-transfer|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>
+```
+
+This initializes a fresh devnet under a temp data dir, patches its genesis
+with a predeployed ERC20 contract, starts it, funds test accounts (count
+read from the chosen config's `num_accounts`, matching the wiki), generates
+and sends load, prints TPS/gas stats, then tears the devnet down (temp dir
+removed, all `cronosd`/`pystarport` processes killed) on exit — `Ctrl-C` at
+any point triggers the same cleanup.
+
+## What each test case does
+
+| Test case | tx | batch_size | Matches wiki |
+| --- | --- | --- | --- |
+| `simple-transfer` | plain native transfer, one `MsgEthereumTx` per cosmos tx | 1 | "Simple Transfer" |
+| `erc20-transfer` | ERC20 `transfer()` call, one `MsgEthereumTx` per cosmos tx | 1 | "ERC20 Transfer" |
+| `batch-simple-transfer` | native transfer, 100 `MsgEthereumTx` per cosmos tx | 100 | "Batch Simple Transfer (100 size)" |
+| `batch-erc20-transfer` | ERC20 `transfer()` call, 100 `MsgEthereumTx` per cosmos tx | 100 | "Batch ERC20 Transfer (100 size)" |
+
+The `erc20-transfer`/`batch-erc20-transfer` cases need every sending account
+to already hold an ERC20 balance — `patch_erc20_genesis.py` injects the
+contract (fixed address `remote_benchmark.erc20.CONTRACT_ADDRESS`, matching
+what `transaction.py`'s `erc20_transfer_tx` targets) plus balances for
+account indices `1..num_accounts` into every node's `genesis.json`, right
+after `pystarport init` and before `pystarport start`. It's run
+unconditionally (harmless no-op cost for the simple-transfer cases).
+
+## Config files
+
+- `configs/benchmark-1val.jsonnet` / `benchmark-3val.jsonnet` — pystarport
+  configs with the wiki's `config_patch`/`app_patch`/`genesis_patch`
+  benchmark tuning (`db_backend: rocksdb`, `async-check-tx`, block-STM
+  executor with 32 workers, `memiavl` async commit, etc). Mempool size
+  differs per the wiki (50000 for 1 validator, 100000 for 3).
+- `configs/{1,3}val-<testcase>.yaml` — `remote-benchmark` configs (one per
+  validator-count × test-case combination). `num_accounts`/`num_txs`/
+  `batch_size` match the wiki's options exactly per scenario (e.g. 8000
+  accounts × 40 txs for 1-validator simple-transfer, 2400 accounts × 100
+  txs/batch for the batch cases). `run-benchmark.sh` reads `num_accounts`
+  straight from the config to size `END_ACCOUNT` and the funder's balance,
+  so changing it here is enough — no other file needs to stay in sync.
+
+## Port map (`base_port = 26650`)
+
+Node `i`'s base is `base_port + i * 10`; each service is a fixed offset from
+that (`p2p=+0`, `evmrpc=+1`, `evmrpc_ws=+2`, `grpc=+3`, `api=+4`, `pprof=+5`,
+`grpc_tx_only=+6`, `rpc=+7`, `grpc_web=+8`).
+
+| Node | RPC (tcp) | EVM JSON-RPC | EVM WS |
+| ---- | --------- | ------------ | ------ |
+| node0 | 26657 | 26651 | 26652 |
+| node1 | 26667 | 26661 | 26662 |
+| node2 | 26677 | 26671 | 26672 |
+
+(node1/node2 only exist for the 3-validator devnet.)
+
+## TPS targets (wiki's own M4 MacBook Pro numbers)
+
+| Test case | 1 validator | 3 validators |
+| --- | --- | --- |
+| simple-transfer | ~12088 | ~10236 |
+| erc20-transfer | — | ~7417 |
+| batch-simple-transfer | — | ~17200 |
+| batch-erc20-transfer | — | ~9806 |
+
+If a run comes in noticeably below these, the first things to tune are in
+`configs/*.yaml`: `send_batch_size` (concurrent broadcasts per interval),
+`send_interval` (pause between broadcast batches — too short floods
+`CheckTx` and causes consensus round timeouts, too long leaves throughput on
+the table), and `num_txs`/`num_accounts` (total load size). CPU-side tuning
+(`block-stm-workers`, mempool size) lives in the jsonnet configs.
+
+**Reading `bench`'s output**: `run-benchmark.sh` uses the CLI's `bench`
+command, which samples the block-height window from right before to right
+after the whole send finishes — so `load_period`/`overall_tps` include the
+tail while the mempool drains, not just the moments txs were actually being
+broadcast. `peak_tps` (the highest single-block rate seen) is the number
+most comparable to the wiki's own figures; a low `overall_tps` next to a
+healthy `peak_tps` usually means the chain kept up fine but sending took
+longer than the chain needed to include everything, not that the chain
+itself is the bottleneck.

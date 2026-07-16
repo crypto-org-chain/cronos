@@ -1,0 +1,22 @@
+# 1-validator local devnet - batch-erc20-transfer (100 MsgEthereumTx per
+# cosmos tx, each calling the predeployed ERC20 contract).
+# Requires patch_erc20_genesis.py to have run with --num-accounts >=
+# num_accounts below.
+# num_accounts/num_txs/batch_size match the wiki's "1 Validator / Batch
+# ERC20 Transfer" options exactly.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: erc20-transfer
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 100
+batch_size: 100
+send_batch_size: 8000
+send_interval: 0.05
