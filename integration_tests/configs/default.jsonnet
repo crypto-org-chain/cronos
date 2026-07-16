@@ -25,6 +25,7 @@
         'feehistory-cap': 100,
         'block-range-cap': 10000,
         'logs-cap': 10000,
+        'txfee-cap': 2,
       },
       evm: {
         'block-executor': 'sequential',
