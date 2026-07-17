@@ -22,6 +22,9 @@ result
 # yaml for test
 integration_tests/configs/*.yaml
 
+# integration test coverage output
+integration_tests/coverage/
+
 # direnv
 .envrc
 .direnv

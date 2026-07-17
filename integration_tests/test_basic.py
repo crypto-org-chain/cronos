@@ -660,7 +660,7 @@ def test_message_call(cronos):
         CONTRACTS["TestMessageCall"],
         key=KEYS["community"],
     )
-    iterations = 13000
+    iterations = 8000
     tx = contract.functions.test(iterations).build_transaction()
 
     begin = time.time()
@@ -670,7 +670,7 @@ def test_message_call(cronos):
     assert elapsed < 5  # should finish in reasonable time
 
     receipt = send_transaction(w3, tx, KEYS["community"])
-    assert 23828976 == receipt.cumulativeGasUsed
+    assert 14673976 == receipt.cumulativeGasUsed
     assert receipt.status == 1, "shouldn't fail"
     assert len(receipt.logs) == iterations
 

@@ -323,7 +323,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.67.5 // indirect
+	github.com/prometheus/common v0.68.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
@@ -386,25 +386,18 @@ require (
 replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260612214333-941a8f1d05d0
-	// solves bug on pruning "version does not exist"
-	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
-
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260529153812-1f2f45ec5a3c
-
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3c
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260529153812-1f2f45ec5a3c
-	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
-	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
-	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
+	// v0.39.x
+	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260716063700-76b16e0d0a48
+	// release/v0.54.x
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260710151431-fcc52ef9387a
+	// master
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260716010842-1c77adad431c
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260716010842-1c77adad431c
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260716010842-1c77adad431c
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
-	// ethermint #1051: txpool namespace (content/inspect/status/contentFrom) backed by app mempool.
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260710224242-ea6791fbb8f0
-	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
-	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
-	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
-	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
+	// develop
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260716064133-ceb48bc17115
+
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

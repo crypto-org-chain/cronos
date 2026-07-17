@@ -35,6 +35,8 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 		Data:            data,
 		AccessList:      nil, // accessList
 		SkipNonceChecks: false,
+		// Internal module calls are not real transactions, skip the limit checks.
+		SkipTransactionChecks: true,
 	}
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {
