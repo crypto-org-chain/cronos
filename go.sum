@@ -77,8 +77,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.56.0/go.mod h1:rqP9UEhOXv9WhQ7Gjz+G5y/pf8+BJZW5/Ts0AhE0PwE=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0 h1:0YP0+/ixwu+Uqeu/FGiBZNQ19huiUxxiPXIc9WsLKuQ=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0/go.mod h1:6ZZMQhZKDvUvkJw2rc+oDP90tMMzuU/J+5HG1ZmPOmE=
-github.com/JayT106/ethermint v0.4.2-0.20260717172038-24a75d64017d h1:eD3vIOT237qH3+uUDDKFql8tJvKb8L9j1QUK7hEPEVY=
-github.com/JayT106/ethermint v0.4.2-0.20260717172038-24a75d64017d/go.mod h1:lld1JVNvUH0RZn4n3mSl3qhTJCXeaZsuhTcz3ZQ5kak=
+github.com/JayT106/ethermint v0.4.2-0.20260717193412-5fd39c161d36 h1:kK+NxOmYwYgbK3A2RBdzVcrSOOctgl4Voxk7ZuWrEbY=
+github.com/JayT106/ethermint v0.4.2-0.20260717193412-5fd39c161d36/go.mod h1:lld1JVNvUH0RZn4n3mSl3qhTJCXeaZsuhTcz3ZQ5kak=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAwZ/2OOE=
 github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
