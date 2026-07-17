@@ -39,11 +39,13 @@ def cli():
 @cli.command()
 @click.option("--config", "config_path", required=True)
 @click.option("--batch-size", default=200)
+@click.option("--mode", "fund_mode", type=click.Choice(["cosmos", "eth"]))
 @click.argument("start", type=int)
 @click.argument("end", type=int)
-def fund(config_path, batch_size, start, end):
+def fund(config_path, batch_size, fund_mode, start, end):
     """Fund generated test accounts [start, end] from the funding account."""
     cfg = load_config(config_path)
+    fund_mode = fund_mode or cfg.mode
     w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
     fund_account = gen_account(cfg.global_seq, FUND_ACCOUNT_INDEX)
     fund_address = HexBytes(fund_account.address)
@@ -75,7 +77,7 @@ def fund(config_path, batch_size, start, end):
             )
             nonce += 1
 
-        if cfg.mode == "eth":
+        if fund_mode == "eth":
             for tx in txs:
                 w3.eth.send_raw_transaction(tx.raw)
         else:

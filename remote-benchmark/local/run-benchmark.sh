@@ -116,7 +116,11 @@ print("fund account", fund_acct.address, "balance:", w3.eth.get_balance(fund_acc
 PY
 
 echo "=== fund ==="
-poetry run remote-benchmark fund --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
+# Funding is setup traffic. Use atomic Cosmos batches even when the measured
+# benchmark transport is eth: with recheck=false and 20ms blocks, streaming
+# sequential raw Ethereum transactions from one funder races CheckTx resets.
+poetry run remote-benchmark fund \
+  --config "${BENCH_CONFIG}" --mode cosmos "${START_ACCOUNT}" "${END_ACCOUNT}"
 
 echo "=== check ==="
 poetry run remote-benchmark check --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
@@ -128,6 +132,14 @@ echo "=== bench ==="
 # --count 30` looks at a fixed 30-block window disconnected from how long
 # sending actually took, so it can miss most of the load if sending spans
 # more than 30 blocks.
-poetry run remote-benchmark bench --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
+BENCH_STATS="${DATA_DIR}/bench-stats.log"
+poetry run remote-benchmark bench \
+  --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}" \
+  | tee "${BENCH_STATS}"
+
+if grep -q '^no_load_period$' "${BENCH_STATS}"; then
+  echo "benchmark failed: no loaded blocks were committed during the sampled window" >&2
+  exit 1
+fi
 
 echo "${VALIDATORS}-validator ${TESTCASE} local benchmark passed"
