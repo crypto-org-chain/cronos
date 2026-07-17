@@ -7,14 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction proves the
-// hash-keyed sender cache (not just go-ethereum's per-object sigCache) is what
-// lets FinalizeBlock skip a redundant ecrecover after the tx encode/decode
-// cache has evicted the tx and it's re-decoded into a fresh object.
 func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 	const accounts = 4
-	// tx-cache-size=1 guarantees the first tx's DecodeCache entry is evicted by
-	// the time the later admissions below run.
 	f := setupAdmissionAppWithOpts(t, accounts, minimalOptionsMap{"cronos.tx-cache-size": 1})
 	require.NotNil(t, f.app.SenderCache(), "sender cache must be enabled by default")
 
@@ -23,7 +17,6 @@ func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code)
 
-	// Evict tx0's DecodeCache entry by admitting other txs into the size-1 cache.
 	for i := 1; i < accounts; i++ {
 		bz := f.signTransfer(t, &f.accounts[i], nil)
 		resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
@@ -33,9 +26,6 @@ func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 
 	hitsBefore, missesBefore := f.app.SenderCache().Stats()
 
-	// FinalizeBlock re-decodes tx0's raw bytes into a fresh *MsgEthereumTx (the
-	// DecodeCache entry is gone), so this only avoids a real ecrecover if the
-	// hash-keyed sender cache — populated by admission's pre-verify — is hit.
 	_, err = f.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Txs:             [][]byte{txBytes},
 		Height:          2,
