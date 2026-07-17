@@ -2,6 +2,7 @@ package mempool_test
 
 import (
 	"encoding/json"
+	"maps"
 	"math"
 	"math/big"
 	"sync"
@@ -94,6 +95,10 @@ func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperF
 // setupAdmissionApp builds a mempool.type=app App funded with `accounts` EVM
 // accounts and runs one empty block so checkState is populated.
 func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
+	return setupAdmissionAppWithOpts(tb, accounts, nil)
+}
+
+func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOptionsMap) *admissionFixture {
 	tb.Helper()
 
 	appOpts := minimalOptionsMap{
@@ -102,6 +107,7 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 		"mempool.max-txs":      100000,
 		"cronos.tx-cache-size": 200000,
 	}
+	maps.Copy(appOpts, overrides)
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })
 

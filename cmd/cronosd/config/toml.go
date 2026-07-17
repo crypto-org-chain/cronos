@@ -41,6 +41,10 @@ mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
 # expire). Drains txs the proposal keeps skipping (baseFee gate, blocklist) whose
 # sender never commits. 0 = disabled. Default 120.
 mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
+
+# Capacity of the hash-keyed ecrecover sender cache consulted in VerifyEthSig.
+# 0 = default (100000). -1 = disable entirely.
+mempool-tx-sender-cache-size = {{ .Cronos.MempoolTxSenderCacheSize }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration
