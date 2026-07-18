@@ -43,7 +43,7 @@ mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
 mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
 
 # Capacity of the hash-keyed ecrecover sender cache consulted in VerifyEthSig.
-# 0 = default (100000). -1 = disable entirely.
+# 0 = default (100000). Negative disables entirely.
 mempool-tx-sender-cache-size = {{ .Cronos.MempoolTxSenderCacheSize }}
 `
 

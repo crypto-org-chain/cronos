@@ -355,6 +355,21 @@ type App struct {
 	dummyCheckTx bool
 }
 
+func resolveSentinelSizeOpt(appOpts servertypes.AppOptions, flag string, defaultVal int) int {
+	v := appOpts.Get(flag)
+	if v == nil {
+		return defaultVal
+	}
+	parsed, err := cast.ToIntE(v)
+	if err != nil {
+		panic(fmt.Errorf("invalid %s %q: %w", flag, v, err))
+	}
+	if parsed == 0 {
+		return defaultVal
+	}
+	return parsed
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -385,16 +400,7 @@ func New(
 	if txsPerBlock == 0 {
 		defaultTxCacheSize = -1
 	}
-	txCacheSize := defaultTxCacheSize
-	if v := appOpts.Get(FlagTxCacheSize); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
-		}
-		if parsed != 0 { // 0 = unset/derive
-			txCacheSize = parsed
-		}
-	}
+	txCacheSize := resolveSentinelSizeOpt(appOpts, FlagTxCacheSize, defaultTxCacheSize)
 	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
 	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
@@ -415,16 +421,7 @@ func New(
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
-	senderCacheSize := cmdcfg.DefaultMempoolTxSenderCacheSize
-	if v := appOpts.Get(FlagMempoolTxSenderCacheSize); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagMempoolTxSenderCacheSize, v, err))
-		}
-		if parsed != 0 { // 0 = unset/default
-			senderCacheSize = parsed
-		}
-	}
+	senderCacheSize := resolveSentinelSizeOpt(appOpts, FlagMempoolTxSenderCacheSize, cmdcfg.DefaultMempoolTxSenderCacheSize)
 	var senderCache *cache.SenderCache
 	if senderCacheSize < 0 {
 		logger.Info("sender cache disabled")
@@ -1342,7 +1339,7 @@ func (app *App) setPostHandler() {
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
-// by VerifyEthSig, or nil when mempool-tx-sender-cache-size is disabled (-1).
+// by VerifyEthSig, or nil when mempool-tx-sender-cache-size is negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding

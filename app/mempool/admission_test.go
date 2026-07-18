@@ -95,6 +95,7 @@ func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperF
 // setupAdmissionApp builds a mempool.type=app App funded with `accounts` EVM
 // accounts and runs one empty block so checkState is populated.
 func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
+	tb.Helper()
 	return setupAdmissionAppWithOpts(tb, accounts, nil)
 }
 

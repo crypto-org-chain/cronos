@@ -98,7 +98,7 @@ func DefaultCronosConfig() CronosConfig {
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
-		MempoolTxSenderCacheSize:   0, // 0 = DefaultMempoolTxSenderCacheSize, -1 = disabled
+		MempoolTxSenderCacheSize:   DefaultMempoolTxSenderCacheSize,
 	}
 }
 
