@@ -355,7 +355,7 @@ type App struct {
 	dummyCheckTx bool
 }
 
-func resolveSentinelSizeOpt(appOpts servertypes.AppOptions, flag string, defaultVal int) int {
+func resolveSizeOpt(appOpts servertypes.AppOptions, flag string, defaultVal int) int {
 	v := appOpts.Get(flag)
 	if v == nil {
 		return defaultVal
@@ -400,7 +400,7 @@ func New(
 	if txsPerBlock == 0 {
 		defaultTxCacheSize = -1
 	}
-	txCacheSize := resolveSentinelSizeOpt(appOpts, FlagTxCacheSize, defaultTxCacheSize)
+	txCacheSize := resolveSizeOpt(appOpts, FlagTxCacheSize, defaultTxCacheSize)
 	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
 	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
@@ -421,7 +421,7 @@ func New(
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
-	senderCacheSize := resolveSentinelSizeOpt(appOpts, FlagMempoolTxSenderCacheSize, cmdcfg.DefaultMempoolTxSenderCacheSize)
+	senderCacheSize := resolveSizeOpt(appOpts, FlagMempoolTxSenderCacheSize, cmdcfg.DefaultMempoolTxSenderCacheSize)
 	var senderCache *cache.SenderCache
 	if senderCacheSize < 0 {
 		logger.Info("sender cache disabled")

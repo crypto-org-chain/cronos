@@ -37,5 +37,6 @@ func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 
 	hitsAfter, missesAfter := f.app.SenderCache().Stats()
 	require.Equal(t, hitsBefore+1, hitsAfter, "FinalizeBlock's ante pass must hit the cache admission populated")
+	// A cache hit must not also count as a miss; if it did, this would pass vacuously.
 	require.Equal(t, missesBefore, missesAfter, "a hit must not fall through to a fresh ecrecover")
 }
