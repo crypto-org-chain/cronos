@@ -131,10 +131,6 @@ def _do_job(job: Job):
             raw = acct.sign_transaction(tx).rawTransaction
             txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
-            if total % 1000 == 0:
-                print(
-                    "generated", total, "txs for node", job.global_seq, file=sys.stderr
-                )
 
         if job.wire_format == "eth":
             txs = [HexBytes(tx.raw).hex() for tx in txs]
@@ -149,6 +145,10 @@ def _do_job(job: Job):
                 for start, end in split_batch(len(txs), job.batch)
             ]
         acct_txs.append(txs)
+    print(
+        f"generated {total} EVM txs for accounts {job.chunk[0]}-{job.chunk[1] - 1}",
+        file=sys.stderr,
+    )
     return acct_txs
 
 

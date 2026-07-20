@@ -20,9 +20,14 @@ cd remote-benchmark/local
 This initializes a fresh devnet under a temp data dir, patches its genesis
 with a predeployed ERC20 contract, starts it, funds test accounts (count
 read from the chosen config's `num_accounts`, matching the wiki), generates
-and sends load, prints TPS/gas stats, then tears the devnet down (temp dir
+and sends load, prints TPS/gas stats, writes a timestamped, self-contained HTML
+report to `report/YYYYMMDD-HHMMSS.html`, then tears the devnet down (temp dir
 removed, all `cronosd`/`pystarport` processes killed) on exit — `Ctrl-C` at
-any point triggers the same cleanup.
+any point triggers the same cleanup. The report starts with every benchmark
+parameter and includes summary metrics plus block-level charts for transaction
+count and EVM gas consumed. Second-by-second charts show committed TPS and gas
+throughput; the TPS view overlays a 5-second moving average to make sustained
+throughput easier to distinguish from short block-time spikes.
 
 ## What each test case does
 
@@ -87,11 +92,13 @@ the table), and `num_txs`/`num_accounts` (total load size). CPU-side tuning
 (`block-stm-workers`, mempool size) lives in the jsonnet configs.
 
 **Reading `bench`'s output**: `run-benchmark.sh` uses the CLI's `bench`
-command, which samples the block-height window from right before to right
-after the whole send finishes — so `load_period`/`overall_tps` include the
-tail while the mempool drains, not just the moments txs were actually being
-broadcast. `peak_tps` (the highest single-block rate seen) is the number
-most comparable to the wiki's own figures; a low `overall_tps` next to a
-healthy `peak_tps` usually means the chain kept up fine but sending took
-longer than the chain needed to include everything, not that the chain
-itself is the bottleneck.
+command, which samples from the block immediately before submission through
+the block where every generated Cosmos transaction has committed. It reports
+both the generated inner EVM transaction count and the Cosmos envelope count,
+then prints `committed_cosmos_txs N/N`. The command exits nonzero instead of
+declaring the benchmark passed if the complete workload does not commit within
+120 seconds after sending finishes. `peak_tps` (the highest single-block rate
+seen) is the number most comparable to the wiki's own figures; a low
+`overall_tps` next to a healthy `peak_tps` usually means the chain kept up fine
+but sending took longer than the chain needed to include everything, not that
+the chain itself is the bottleneck.

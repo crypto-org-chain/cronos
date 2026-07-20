@@ -126,20 +126,27 @@ echo "=== check ==="
 poetry run remote-benchmark check --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
 
 echo "=== bench ==="
-# bench generates the load, sends it, and samples block height right before
-# and right after send_round_robin() returns (i.e. after all per-tx retries
-# have finished) - unlike gen-txs+send-txs+stats, whose separate `stats
-# --count 30` looks at a fixed 30-block window disconnected from how long
-# sending actually took, so it can miss most of the load if sending spans
-# more than 30 blocks.
+# bench generates the load, sends it, and samples from the pre-send block
+# through the block where every generated Cosmos envelope has committed. It
+# exits nonzero if the full workload does not commit before the timeout,
+# unlike gen-txs+send-txs+stats, whose fixed block window can miss the tail.
 BENCH_STATS="${DATA_DIR}/bench-stats.log"
 poetry run remote-benchmark bench \
   --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}" \
   | tee "${BENCH_STATS}"
 
-if grep -q '^no_load_period$' "${BENCH_STATS}"; then
-  echo "benchmark failed: no loaded blocks were committed during the sampled window" >&2
-  exit 1
-fi
+REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
+REPORT_GENERATED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+REPORT_PATH="${LOCAL_DIR}/report/${REPORT_TIMESTAMP}.html"
+poetry run python -m remote_benchmark.report \
+  --config "${BENCH_CONFIG}" \
+  --stats "${BENCH_STATS}" \
+  --output "${REPORT_PATH}" \
+  --timestamp "${REPORT_GENERATED_AT}" \
+  --validators "${VALIDATORS}" \
+  --testcase "${TESTCASE}" \
+  --start-account "${START_ACCOUNT}" \
+  --end-account "${END_ACCOUNT}"
 
+echo "benchmark report: ${REPORT_PATH}"
 echo "${VALIDATORS}-validator ${TESTCASE} local benchmark passed"

@@ -25,10 +25,36 @@ from .transaction import (
     json_rpc_send_body,
     send_round_robin,
 )
-from .utils import block_height, eth_block_number, gen_account, split_batch
+from .utils import block_height, block_txs, eth_block_number, gen_account, split_batch
 
 # reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
+LOAD_COMMIT_TIMEOUT = 120
+
+
+def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
+    """Extend the sample until all generated Cosmos txs are committed."""
+    # ``start`` is the pre-send anchor and can still contain setup traffic,
+    # so only count envelopes committed after it.
+    next_height = start + 1
+    committed_txs = 0
+    deadline = time.monotonic() + timeout
+
+    while True:
+        while next_height <= end:
+            committed_txs += len(block_txs(next_height, rpc) or [])
+            next_height += 1
+            if committed_txs >= expected_txs:
+                return end, committed_txs
+
+        if time.monotonic() >= deadline:
+            return end, committed_txs
+
+        current = block_height(rpc)
+        if current > end:
+            end = current
+        else:
+            time.sleep(0.2)
 
 
 @click.group()
@@ -139,6 +165,11 @@ def gen_txs(config_path, nonce, start_account, output_path, start, end):
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
     )
+    print(
+        f"generated {num_accounts * cfg.num_txs} EVM txs "
+        f"in {len(txs)} {cfg.mode} txs",
+        file=sys.stderr,
+    )
     payload = {"num_accounts": num_accounts, "txs": txs}
     if output_path:
         Path(output_path).write_text(ujson.dumps(payload))
@@ -230,6 +261,11 @@ def bench(config_path, nonce, probe_batches, start, end):
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
     )
+    print(
+        f"generated {num_accounts * cfg.num_txs} EVM txs "
+        f"in {len(txs)} {cfg.mode} txs",
+        file=sys.stderr,
+    )
 
     if cfg.mode == "eth":
         load_start = eth_block_number(cfg.primary.json_rpc)
@@ -261,6 +297,7 @@ def bench(config_path, nonce, probe_batches, start, end):
     load_start = block_height(cfg.primary.rpc)
     mempool_monitor.start()
     stm_monitor.start()
+    committed_txs = 0
     try:
         print("sending txs...", file=sys.stderr)
         asyncio.run(
@@ -273,10 +310,13 @@ def bench(config_path, nonce, probe_batches, start, end):
                 probe_batches=probe_batches,
             )
         )
+        load_end = block_height(cfg.primary.rpc)
+        load_end, committed_txs = wait_for_committed_txs(
+            cfg.primary.rpc, load_start, load_end, len(txs)
+        )
     finally:
         mempool_monitor.stop()
         stm_monitor.stop()
-    load_end = block_height(cfg.primary.rpc)
 
     dump_block_stats(
         sys.stdout,
@@ -289,6 +329,12 @@ def bench(config_path, nonce, probe_batches, start, end):
         stm_data=stm_monitor.data,
         consensus_baseline=consensus_baseline,
     )
+    print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
+    if committed_txs < len(txs):
+        raise click.ClickException(
+            f"timed out waiting for generated transactions to commit: "
+            f"{committed_txs}/{len(txs)} Cosmos transactions committed"
+        )
 
 
 if __name__ == "__main__":

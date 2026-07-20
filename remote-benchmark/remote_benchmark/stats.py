@@ -331,12 +331,12 @@ def dump_block_stats(
             gas_str = f" gas={gas_used}" if gas_used > 0 else ""
             print(
                 f"block {i} txs={txs}{gas_str}"
-                f" {timestamp} {bt_ms:.0f}ms tps={tps:.2f}{mp_str}",
+                f" {timestamp.isoformat()} {bt_ms:.0f}ms tps={tps:.2f}{mp_str}",
                 file=fp,
             )
         else:
             print(
-                f"block {i} txs={txs} {timestamp} - tps=0.00{mp_str}",
+                f"block {i} txs={txs} {timestamp.isoformat()} - tps=0.00{mp_str}",
                 file=fp,
             )
         prev_timestamp = timestamp
@@ -665,11 +665,14 @@ def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
             gas_str = f" gas={gas_used}" if gas_used > 0 else ""
             print(
                 f"block {i} txs={txs}{gas_str}"
-                f" {timestamp} {bt_ms:.0f}ms tps={tps:.2f}",
+                f" {timestamp.isoformat()} {bt_ms:.0f}ms tps={tps:.2f}",
                 file=fp,
             )
         else:
-            print(f"block {i} txs={txs} {timestamp} - tps=0.00", file=fp)
+            print(
+                f"block {i} txs={txs} {timestamp.isoformat()} - tps=0.00",
+                file=fp,
+            )
         prev_timestamp = timestamp
 
     # --- Summary statistics ---
