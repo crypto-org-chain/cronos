@@ -3,11 +3,11 @@
 # via nix-shell) and drive one of the wiki's benchmark test cases against it:
 # https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 #
-# Usage: run-benchmark.sh <1|3> <simple-transfer|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>
+# Usage: run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
 set -euo pipefail
 
 usage() {
-  echo "usage: $(basename "$0") <1|3> <simple-transfer|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>" >&2
+  echo "usage: $(basename "$0") <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>" >&2
   exit 1
 }
 
@@ -18,9 +18,13 @@ case "${VALIDATORS}" in
   *) usage ;;
 esac
 case "${TESTCASE}" in
-  simple-transfer|erc20-transfer|batch-simple-transfer|batch-erc20-transfer) ;;
+  simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer) ;;
   *) usage ;;
 esac
+if [[ "${VALIDATORS}" != "1" && "${TESTCASE}" == *-unique ]]; then
+  echo "${TESTCASE} currently supports only the 1-validator comparison" >&2
+  exit 1
+fi
 
 LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REMOTE_BENCHMARK_DIR="$(cd "${LOCAL_DIR}/.." && pwd)"
@@ -35,6 +39,14 @@ BENCH_CONFIG="${LOCAL_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
 START_ACCOUNT=1
 END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
   "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['num_accounts'])")"
+PHYSICAL_END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
+  "import yaml; c=yaml.safe_load(open('${BENCH_CONFIG}')); print(c['num_accounts'] * c['num_txs'] if c.get('sender_strategy') == 'unique-per-tx' else c['num_accounts'])")"
+if [[ "${PHYSICAL_END_ACCOUNT}" -eq "${END_ACCOUNT}" ]]; then
+  FUND_BATCH_SIZE=200
+else
+  # 2000 native transfers consume 42M gas and stay below the RPC body limit.
+  FUND_BATCH_SIZE=2000
+fi
 
 BASE_PORT=26650
 NODE0_RPC="http://127.0.0.1:$((BASE_PORT + 7))"
@@ -84,9 +96,9 @@ done
 
 echo "=== funding the remote-benchmark funding account from the devnet's community account ==="
 source "${CRONOS_ROOT}/scripts/.env"
-# 10x headroom over END_ACCOUNT accounts x 50 CRO each (see the fund
+# 10x headroom over the physical sender count x 50 CRO each (see the fund
 # command's own headroom comment in remote_benchmark/cli.py for why 50 CRO).
-FUND_WEI="$(python3 -c "print(${END_ACCOUNT} * 500 * 10**18)")"
+FUND_WEI="$(python3 -c "print(${PHYSICAL_END_ACCOUNT} * 500 * 10**18)")"
 poetry run python - <<PY
 import time
 from eth_account import Account
@@ -120,10 +132,30 @@ echo "=== fund ==="
 # benchmark transport is eth: with recheck=false and 20ms blocks, streaming
 # sequential raw Ethereum transactions from one funder races CheckTx resets.
 poetry run remote-benchmark fund \
-  --config "${BENCH_CONFIG}" --mode cosmos "${START_ACCOUNT}" "${END_ACCOUNT}"
+  --config "${BENCH_CONFIG}" --mode cosmos --batch-size "${FUND_BATCH_SIZE}" \
+  "${START_ACCOUNT}" "${END_ACCOUNT}"
 
 echo "=== check ==="
-poetry run remote-benchmark check --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
+if [[ "${PHYSICAL_END_ACCOUNT}" -eq "${END_ACCOUNT}" ]]; then
+  poetry run remote-benchmark check --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}"
+else
+  # Checking hundreds of thousands of accounts one-by-one would dominate setup.
+  poetry run python - <<PY
+import web3
+
+from remote_benchmark.utils import gen_account
+
+w3 = web3.Web3(web3.HTTPProvider("${NODE0_EVMRPC}"))
+for index in (${START_ACCOUNT}, ${PHYSICAL_END_ACCOUNT}):
+    account = gen_account(0, index)
+    print(
+        index,
+        account.address,
+        w3.eth.get_transaction_count(account.address),
+        w3.eth.get_balance(account.address),
+    )
+PY
+fi
 
 echo "=== bench ==="
 # bench generates the load, sends it, and samples from the pre-send block

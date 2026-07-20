@@ -37,6 +37,8 @@ Job = namedtuple(
         "tx_options",
         "evm_denom",
         "wire_format",
+        "sender_strategy",
+        "start_account",
     ],
 )
 EthTx = namedtuple("EthTx", ["tx", "raw", "sender"])
@@ -118,16 +120,27 @@ MSG_VERSIONS = {
 
 
 def _do_job(job: Job):
-    # account indices here must match cli.py's fund/check commands, which
-    # address accounts by literal index i (not i + 1) over the same
-    # start/end range.
-    accounts = [gen_account(job.global_seq, i) for i in range(*job.chunk)]
     acct_txs = []
     total = 0
-    for acct in accounts:
+    for account_index in range(*job.chunk):
         txs = []
+        acct = None
+        if job.sender_strategy == "reuse":
+            acct = gen_account(job.global_seq, account_index)
+
         for i in range(job.num_txs):
-            tx = job.create_tx(acct.address, job.nonce + i, job.tx_options)
+            if job.sender_strategy == "unique-per-tx":
+                sender_index = (
+                    job.start_account
+                    + (account_index - job.start_account) * job.num_txs
+                    + i
+                )
+                tx_nonce = job.nonce
+                acct = gen_account(job.global_seq, sender_index)
+            else:
+                tx_nonce = job.nonce + i
+
+            tx = job.create_tx(acct.address, tx_nonce, job.tx_options)
             raw = acct.sign_transaction(tx).rawTransaction
             txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
@@ -164,6 +177,7 @@ def gen(
     tx_options: dict = None,
     evm_denom: str = DEFAULT_DENOM,
     wire_format: str = "cosmos",
+    sender_strategy: str = "reuse",
 ) -> [str]:
     tx_options = tx_options or {}
     chunks = split(num_accounts, os.cpu_count())
@@ -181,6 +195,8 @@ def gen(
             tx_options,
             evm_denom,
             wire_format,
+            sender_strategy,
+            start_account,
         )
         for start, end in chunks
     ]
@@ -194,6 +210,13 @@ def gen(
         all_txs += txs
 
     return all_txs
+
+
+def physical_account_range(start: int, end: int, num_txs: int, sender_strategy: str):
+    """Return the inclusive sender range needed for a logical account range."""
+    if sender_strategy == "unique-per-tx":
+        return start, start + (end - start + 1) * num_txs - 1
+    return start, end
 
 
 def save(txs: [str], datadir: Path, global_seq: int):

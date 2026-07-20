@@ -25,6 +25,7 @@ class Config(BaseModel):
     msg_version: str = "1.4"
     num_accounts: int = 100
     num_txs: int = 1
+    sender_strategy: Literal["reuse", "unique-per-tx"] = "reuse"
     batch_size: int = 1
     send_batch_size: int = 500
     send_interval: float = 0.5

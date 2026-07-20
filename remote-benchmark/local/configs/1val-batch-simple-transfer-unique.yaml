@@ -1,0 +1,20 @@
+# 1-validator simple-transfer workload with one nonce-0 sender per transaction.
+# It generates the same 320000 transfers as 1val-simple-transfer.yaml while
+# removing same-account dependency chains from BlockSTM execution.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: simple-transfer
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 100
+sender_strategy: unique-per-tx
+batch_size: 100
+send_batch_size: 8000
+send_interval: 0.05

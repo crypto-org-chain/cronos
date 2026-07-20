@@ -14,7 +14,7 @@ cachix (`cronos`, `dapp`) installed, and `poetry install` run once in
 
 ```bash
 cd remote-benchmark/local
-./run-benchmark.sh <1|3> <simple-transfer|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>
+./run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>
 ```
 
 This initializes a fresh devnet under a temp data dir, patches its genesis
@@ -34,6 +34,7 @@ throughput easier to distinguish from short block-time spikes.
 | Test case | tx | batch_size | Matches wiki |
 | --- | --- | --- | --- |
 | `simple-transfer` | plain native transfer, one `MsgEthereumTx` per cosmos tx | 1 | "Simple Transfer" |
+| `simple-transfer-unique` | same native-transfer count, one nonce-0 sender per transaction | 1 | BlockSTM conflict-free comparison |
 | `erc20-transfer` | ERC20 `transfer()` call, one `MsgEthereumTx` per cosmos tx | 1 | "ERC20 Transfer" |
 | `batch-simple-transfer` | native transfer, 100 `MsgEthereumTx` per cosmos tx | 100 | "Batch Simple Transfer (100 size)" |
 | `batch-erc20-transfer` | ERC20 `transfer()` call, 100 `MsgEthereumTx` per cosmos tx | 100 | "Batch ERC20 Transfer (100 size)" |
@@ -60,6 +61,12 @@ unconditionally (harmless no-op cost for the simple-transfer cases).
   txs/batch for the batch cases). `run-benchmark.sh` reads `num_accounts`
   straight from the config to size `END_ACCOUNT` and the funder's balance,
   so changing it here is enough — no other file needs to stay in sync.
+
+The one-validator `simple-transfer-unique` config keeps the original workload
+size (320,000 transfers), but expands its 8,000 logical accounts into 320,000
+physical senders. `run-benchmark.sh` reserves and funds that expanded range
+automatically. Compare it with `simple-transfer` on the same machine to isolate
+the effect of removing same-sender BlockSTM dependencies.
 
 ## Port map (`base_port = 26650`)
 

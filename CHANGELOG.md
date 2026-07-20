@@ -4,6 +4,10 @@
 
 *Jul 16, 2026*
 
+### Improvements
+
+* Add a remote-benchmark sender strategy that uses a distinct account for each transaction to measure conflict-free BlockSTM throughput.
+
 ## v1.8.0-alpha
 
 ### Improvements

@@ -13,6 +13,9 @@ tx_type: simple-transfer
 msg_version: "1.3"
 num_accounts: 100
 num_txs: 10
+# reuse sends num_txs sequential nonces per account; unique-per-tx uses a
+# distinct nonce-0 sender for every generated transaction.
+sender_strategy: reuse
 batch_size: 1
 send_batch_size: 200
 send_interval: 0.5

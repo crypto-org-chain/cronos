@@ -23,6 +23,7 @@ from .transaction import (
     build_cosmos_tx,
     gen,
     json_rpc_send_body,
+    physical_account_range,
     send_round_robin,
 )
 from .utils import block_height, block_txs, eth_block_number, gen_account, split_batch
@@ -71,6 +72,7 @@ def cli():
 def fund(config_path, batch_size, fund_mode, start, end):
     """Fund generated test accounts [start, end] from the funding account."""
     cfg = load_config(config_path)
+    start, end = physical_account_range(start, end, cfg.num_txs, cfg.sender_strategy)
     fund_mode = fund_mode or cfg.mode
     w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
     fund_account = gen_account(cfg.global_seq, FUND_ACCOUNT_INDEX)
@@ -132,6 +134,7 @@ def fund(config_path, batch_size, fund_mode, start, end):
 def check(config_path, start, end):
     """Query nonce/balance for generated test accounts [start, end]."""
     cfg = load_config(config_path)
+    start, end = physical_account_range(start, end, cfg.num_txs, cfg.sender_strategy)
     json_rpcs = itertools.cycle(cfg.json_rpcs)
     for i in range(start, end + 1):
         w3 = web3.Web3(web3.HTTPProvider(next(json_rpcs)))
@@ -164,6 +167,7 @@ def gen_txs(config_path, nonce, start_account, output_path, start, end):
         tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
+        sender_strategy=cfg.sender_strategy,
     )
     print(
         f"generated {num_accounts * cfg.num_txs} EVM txs "
@@ -260,6 +264,7 @@ def bench(config_path, nonce, probe_batches, start, end):
         tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
+        sender_strategy=cfg.sender_strategy,
     )
     print(
         f"generated {num_accounts * cfg.num_txs} EVM txs "

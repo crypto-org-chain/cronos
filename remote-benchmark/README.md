@@ -33,6 +33,7 @@ tx_type: simple-transfer   # or erc20-transfer
 msg_version: "1.3"
 num_accounts: 2400
 num_txs: 100
+sender_strategy: reuse       # or unique-per-tx
 batch_size: 100
 send_batch_size: 2000
 send_interval: 0.2
@@ -41,6 +42,15 @@ telemetry: http://host:26660   # optional, enables block-stm/consensus stats
 
 `endpoints` accepts one or many entries. When more than one is configured, tx
 sending round-robins across all of them to spread load over the cluster.
+
+`sender_strategy: reuse` preserves the original workload: each of the
+`num_accounts` accounts sends `num_txs` sequential transactions. Set
+`sender_strategy: unique-per-tx` to give every generated transaction its own
+sender at nonce 0. For native self-transfers, that makes each transaction touch
+a disjoint account key and removes same-sender dependencies from BlockSTM. The
+`fund` and `check` commands expand the requested logical account range
+automatically; for example, accounts `1 100` with `num_txs: 10` fund/check
+physical accounts `1..1000`.
 
 Set `mode: eth` to target a plain Ethereum JSON-RPC node (no Cosmos/CometBFT
 RPC) such as a local Anvil instance — see `sample-config-anvil.yaml` and
