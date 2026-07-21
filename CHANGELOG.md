@@ -6,7 +6,7 @@
 
 ### Bug fixes
 
-* [#2146](https://github.com/crypto-org-chain/cronos/pull/2146) fix(cronos): bound ReplayBlock message count during decode.
+* [#2147](https://github.com/crypto-org-chain/cronos/pull/2147) fix(cronos): bound ReplayBlock message count during decode.
 
 ## v1.8.0-alpha
 
