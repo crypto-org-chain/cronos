@@ -75,7 +75,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Claude Code
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # v1.0.170
+        uses: anthropics/claude-code-action@b76a0776ae74036e77cd11018083743453d7ad35 # v1.0.179
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           use_bedrock: true
