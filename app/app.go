@@ -354,21 +354,6 @@ type App struct {
 	dummyCheckTx bool
 }
 
-func resolveSizeOpt(appOpts servertypes.AppOptions, flag string, defaultVal int) int {
-	v := appOpts.Get(flag)
-	if v == nil {
-		return defaultVal
-	}
-	parsed, err := cast.ToIntE(v)
-	if err != nil {
-		panic(fmt.Errorf("invalid %s %q: %w", flag, v, err))
-	}
-	if parsed == 0 {
-		return defaultVal
-	}
-	return parsed
-}
-
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -399,7 +384,16 @@ func New(
 	if txsPerBlock == 0 {
 		defaultTxCacheSize = -1
 	}
-	txCacheSize := resolveSizeOpt(appOpts, FlagTxCacheSize, defaultTxCacheSize)
+	txCacheSize := defaultTxCacheSize
+	if v := appOpts.Get(FlagTxCacheSize); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
+		}
+		if parsed != 0 {
+			txCacheSize = parsed
+		}
+	}
 	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
 	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
