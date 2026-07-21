@@ -3,12 +3,6 @@
 # Re-applies hand-maintained security patches to generated protobuf code that
 # `make proto-gen` would otherwise silently wipe. Idempotent: each patch is
 # guarded by a marker comment and skipped if already present.
-#
-# CC-271: unauthenticated ReplayBlock gRPC requests can pack millions of
-# empty MsgEthereumTx elements under the message-size limit, OOMing the node
-# during decode before any handler code (including the keeper-level count
-# check) runs. The cap must live inside the generated Unmarshal itself, so it
-# can't be a normal hand-written file.
 
 set -eo pipefail
 
