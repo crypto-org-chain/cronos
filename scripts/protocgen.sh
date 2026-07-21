@@ -33,3 +33,7 @@ rm -rf github.com
 
 # TODO uncomment go mod tidy after upgrading to ghcr.io/cosmos/proto-builder v0.12.0
 # go mod tidy
+
+# Re-apply hand-maintained security patches that buf/protoc regeneration
+# would otherwise wipe. See scripts/patch-generated.sh for what and why.
+./scripts/patch-generated.sh

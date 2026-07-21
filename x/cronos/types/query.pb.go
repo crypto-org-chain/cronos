@@ -1912,6 +1912,7 @@ func (m *ReplayBlockRequest) Unmarshal(dAtA []byte) error {
 			}
 			// Hand-maintained cap (see query.go): reject before appending, so a
 			// huge attacker batch can't OOM us before the keeper ever runs.
+			// PROTOCGEN-PATCH:replay-block-msgs-cap
 			if len(m.Msgs) >= MaxReplayBlockMsgs {
 				return fmt.Errorf("proto: ReplayBlockRequest.Msgs exceeds max allowed count %d", MaxReplayBlockMsgs)
 			}
