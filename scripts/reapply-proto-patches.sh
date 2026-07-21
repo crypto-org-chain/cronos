@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # Re-applies hand-maintained security patches to generated protobuf code that
-# `make proto-gen` would otherwise silently wipe. Idempotent: each patch is
-# guarded by a marker comment and skipped if already present.
+# `make proto-gen` would otherwise silently wipe.
 
 set -eo pipefail
 
