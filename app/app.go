@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -390,7 +391,7 @@ func New(
 		if err != nil {
 			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheSize, v, err))
 		}
-		if parsed != 0 {
+		if parsed != 0 { // 0 = unset/derive
 			txCacheSize = parsed
 		}
 	}
@@ -414,14 +415,7 @@ func New(
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
-	var senderCache *cache.SenderCache
-	if mempoolMaxTxs <= 0 {
-		logger.Info("sender cache disabled")
-	} else {
-		logger.Info("sender cache enabled", "size", mempoolMaxTxs)
-		senderCache = cache.NewSenderCache(mempoolMaxTxs)
-	}
+
 	eip712.SetEncodingConfig(encodingConfig)
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
@@ -451,6 +445,14 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	var senderCache *cache.SenderCache
+	if mempoolMaxTxs <= 0 {
+		logger.Info("sender cache disabled")
+	} else {
+		logger.Info("sender cache enabled", "size", mempoolMaxTxs)
+		senderCache = cache.NewSenderCache(mempoolMaxTxs)
+	}
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
 	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
 	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
