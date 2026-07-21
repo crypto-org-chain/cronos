@@ -10,7 +10,7 @@ QUERY_PB_GO="x/cronos/types/query.pb.go"
 MARKER="PROTOCGEN-PATCH:replay-block-msgs-cap"
 
 if grep -q "$MARKER" "$QUERY_PB_GO"; then
-  echo "patch-generated: $MARKER already present, skipping"
+  echo "reapply-proto-patches: $MARKER already present, skipping"
   exit 0
 fi
 
@@ -34,12 +34,12 @@ with open(path) as f:
 
 count = content.count(target)
 if count != 1:
-    sys.exit(f"patch-generated: expected exactly 1 occurrence of append target in {path}, found {count}")
+    sys.exit(f"reapply-proto-patches: expected exactly 1 occurrence of append target in {path}, found {count}")
 
 content = content.replace(target, patch, 1)
 
 with open(path, "w") as f:
     f.write(content)
 
-print(f"patch-generated: applied {marker} to {path}")
+print(f"reapply-proto-patches: applied {marker} to {path}")
 EOF

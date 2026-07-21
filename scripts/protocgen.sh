@@ -35,5 +35,5 @@ rm -rf github.com
 # go mod tidy
 
 # Re-apply hand-maintained security patches that buf/protoc regeneration
-# would otherwise wipe. See scripts/patch-generated.sh for what and why.
-./scripts/patch-generated.sh
+# would otherwise wipe. See scripts/reapply-proto-patches.sh for what and why.
+./scripts/reapply-proto-patches.sh
