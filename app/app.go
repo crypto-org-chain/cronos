@@ -188,7 +188,6 @@ const (
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
-	FlagMempoolTxSenderCacheSize   = "cronos.mempool-tx-sender-cache-size"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -421,13 +420,13 @@ func New(
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
-	senderCacheSize := resolveSizeOpt(appOpts, FlagMempoolTxSenderCacheSize, cmdcfg.DefaultMempoolTxSenderCacheSize)
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	var senderCache *cache.SenderCache
-	if senderCacheSize < 0 {
+	if mempoolMaxTxs <= 0 {
 		logger.Info("sender cache disabled")
 	} else {
-		logger.Info("sender cache enabled", "size", senderCacheSize)
-		senderCache = cache.NewSenderCache(senderCacheSize)
+		logger.Info("sender cache enabled", "size", mempoolMaxTxs)
+		senderCache = cache.NewSenderCache(mempoolMaxTxs)
 	}
 	eip712.SetEncodingConfig(encodingConfig)
 
@@ -458,7 +457,6 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
 	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
 	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
@@ -1339,7 +1337,7 @@ func (app *App) setPostHandler() {
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
 
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
-// by VerifyEthSig, or nil when mempool-tx-sender-cache-size is negative (disabled).
+// by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding

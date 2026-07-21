@@ -38,8 +38,6 @@ type CronosConfig struct {
 	// (by arrival height), draining proposal-skipped txs whose sender never commits.
 	// 0 disables.
 	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
-	// Capacity of the hash-keyed ecrecover sender cache consulted in VerifyEthSig.
-	MempoolTxSenderCacheSize int `mapstructure:"mempool-tx-sender-cache-size"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -60,8 +58,6 @@ const (
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
-
-	DefaultMempoolTxSenderCacheSize = 100000
 )
 
 const (
@@ -98,7 +94,6 @@ func DefaultCronosConfig() CronosConfig {
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
-		MempoolTxSenderCacheSize:   DefaultMempoolTxSenderCacheSize,
 	}
 }
 
