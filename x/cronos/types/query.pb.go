@@ -1910,6 +1910,12 @@ func (m *ReplayBlockRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
+			// Hand-maintained cap (see query.go): reject before appending, so a
+			// huge attacker batch can't OOM us before the keeper ever runs.
+			// PROTOCGEN-PATCH:replay-block-msgs-cap
+			if len(m.Msgs) >= MaxReplayBlockMsgs {
+				return fmt.Errorf("proto: ReplayBlockRequest.Msgs exceeds max allowed count %d", MaxReplayBlockMsgs)
+			}
 			m.Msgs = append(m.Msgs, &types.MsgEthereumTx{})
 			if err := m.Msgs[len(m.Msgs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
