@@ -6,12 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestReplayBlockRequestUnmarshalCapsMsgs ensures the generated
-// ReplayBlockRequest.Unmarshal aborts once the wire-encoded Msgs field
-// exceeds MaxReplayBlockMsgs, instead of decoding the whole attacker-supplied
-// batch first. Each empty MsgEthereumTx element encodes as just the 2-byte
-// field-1 tag+length, so this reproduces the CC-271 decode-time OOM shape
-// without needing megabytes of payload.
 func TestReplayBlockRequestUnmarshalCapsMsgs(t *testing.T) {
 	elem := []byte{0x0a, 0x00} // field 1, wiretype 2 (length-delimited), length 0
 
