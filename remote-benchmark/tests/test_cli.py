@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from click import ClickException
 from click.testing import CliRunner
 
 from remote_benchmark import cli as cli_module
@@ -14,6 +15,41 @@ class FakeMonitor:
 
     def stop(self):
         pass
+
+
+def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
+    requested_addresses = []
+
+    class FakeEth:
+        def get_transaction_count(self, address):
+            requested_addresses.append(address)
+            return {"account-3": 2, "account-4": 3}[address]
+
+    cfg = SimpleNamespace(
+        primary=SimpleNamespace(json_rpc="http://node0-evm"),
+        global_seq=0,
+        num_txs=2,
+        sender_strategy="unique-per-tx",
+    )
+    monkeypatch.setattr(
+        cli_module.web3,
+        "Web3",
+        lambda _provider: SimpleNamespace(eth=FakeEth()),
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "gen_account",
+        lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
+    )
+
+    try:
+        cli_module.current_sender_nonce(cfg, 3, 3)
+    except ClickException as exc:
+        assert "different nonces (2, 3)" in str(exc)
+    else:
+        raise AssertionError("mixed sender nonces were accepted")
+
+    assert requested_addresses == ["account-3", "account-4"]
 
 
 def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
@@ -66,12 +102,68 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
 
     result = CliRunner().invoke(
         cli_module.cli,
-        ["bench", "--config", "unused.yaml", "1", "3"],
+        ["bench", "--config", "unused.yaml", "--nonce", "0", "1", "3"],
     )
 
     assert result.exit_code == 0, result.exception
     assert "block 175 txs=2" in result.output
     assert "committed_cosmos_txs 3/3" in result.output
+    assert "no_load_period" not in result.output
+
+
+def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
+    cfg = SimpleNamespace(
+        primary=SimpleNamespace(json_rpc="http://anvil"),
+        json_rpcs=["http://anvil"],
+        global_seq=0,
+        num_txs=5,
+        tx_type="simple-transfer",
+        batch_size=1,
+        msg_version="1.4",
+        gas_price=1,
+        chain_id=31337,
+        evm_denom="basetcro",
+        mode="eth",
+        sender_strategy="reuse",
+        send_batch_size=50,
+        send_interval=0,
+    )
+    heights = iter([1037, 1037, 1038])
+    loaded_txs = {1038: [f"tx-{i}" for i in range(50)]}
+
+    async def fake_send(*_args, **_kwargs):
+        pass
+
+    def fake_dump(fp, *, start, end, **_kwargs):
+        for height in range(start, end + 1):
+            print(f"block {height} txs={len(loaded_txs.get(height, []))}", file=fp)
+        if not set(loaded_txs).intersection(range(start, end + 1)):
+            print("no_load_period", file=fp)
+
+    monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(cli_module, "current_sender_nonce", lambda *_args: 10)
+    monkeypatch.setattr(
+        cli_module, "gen", lambda *_args, **_kwargs: list(loaded_txs[1038])
+    )
+    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(cli_module, "eth_block_number", lambda _rpc: next(heights))
+    monkeypatch.setattr(
+        cli_module,
+        "block_eth",
+        lambda height, _rpc: {"transactions": loaded_txs.get(height, [])},
+        raising=False,
+    )
+    monkeypatch.setattr(cli_module, "dump_eth_block_stats", fake_dump)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "1", "10"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    assert "using current sender nonce 10" in result.output
+    assert "block 1038 txs=50" in result.output
+    assert "committed_eth_txs 50/50" in result.output
     assert "no_load_period" not in result.output
 
 
@@ -114,7 +206,7 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
 
     result = CliRunner().invoke(
         cli_module.cli,
-        ["bench", "--config", "unused.yaml", "1", "2"],
+        ["bench", "--config", "unused.yaml", "--nonce", "0", "1", "2"],
     )
 
     assert result.exit_code != 0

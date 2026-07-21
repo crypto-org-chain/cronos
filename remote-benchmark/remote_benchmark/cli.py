@@ -26,7 +26,14 @@ from .transaction import (
     physical_account_range,
     send_round_robin,
 )
-from .utils import block_height, block_txs, eth_block_number, gen_account, split_batch
+from .utils import (
+    block_eth,
+    block_height,
+    block_txs,
+    eth_block_number,
+    gen_account,
+    split_batch,
+)
 
 # reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
@@ -56,6 +63,50 @@ def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TI
             end = current
         else:
             time.sleep(0.2)
+
+
+def wait_for_committed_eth_txs(
+    json_rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
+):
+    """Extend the sample until all generated Ethereum txs are committed."""
+    next_height = start + 1
+    committed_txs = 0
+    deadline = time.monotonic() + timeout
+
+    while True:
+        while next_height <= end:
+            committed_txs += len(block_eth(next_height, json_rpc)["transactions"])
+            next_height += 1
+            if committed_txs >= expected_txs:
+                return end, committed_txs
+
+        if time.monotonic() >= deadline:
+            return end, committed_txs
+
+        current = eth_block_number(json_rpc)
+        if current > end:
+            end = current
+        else:
+            time.sleep(0.2)
+
+
+def current_sender_nonce(cfg, start, end):
+    """Return the shared current nonce for the benchmark's physical senders."""
+    physical_start, physical_end = physical_account_range(
+        start, end, cfg.num_txs, cfg.sender_strategy
+    )
+    w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
+    nonces = {
+        w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address)
+        for i in range(physical_start, physical_end + 1)
+    }
+    if len(nonces) != 1:
+        values = ", ".join(str(value) for value in sorted(nonces))
+        raise click.ClickException(
+            f"benchmark sender accounts have different nonces ({values}); "
+            "pass --nonce explicitly or use a fresh account range"
+        )
+    return nonces.pop()
 
 
 @click.group()
@@ -234,7 +285,7 @@ def stats(config_path, count):
 
 @cli.command()
 @click.option("--config", "config_path", required=True)
-@click.option("--nonce", default=0)
+@click.option("--nonce", type=click.IntRange(min=0), default=None)
 @click.option(
     "--probe-batches",
     default=1,
@@ -250,6 +301,9 @@ def bench(config_path, nonce, probe_batches, start, end):
     """Generate load, send it round-robin across all endpoints, then report stats."""
     cfg = load_config(config_path)
     num_accounts = end - start + 1
+    if nonce is None:
+        nonce = current_sender_nonce(cfg, start, end)
+        print(f"using current sender nonce {nonce}", file=sys.stderr)
 
     print("generating txs...", file=sys.stderr)
     txs = gen(
@@ -287,12 +341,21 @@ def bench(config_path, nonce, probe_batches, start, end):
             )
         )
         load_end = eth_block_number(cfg.primary.json_rpc)
+        load_end, committed_txs = wait_for_committed_eth_txs(
+            cfg.primary.json_rpc, load_start, load_end, len(txs)
+        )
         dump_eth_block_stats(
             sys.stdout,
             json_rpc=cfg.primary.json_rpc,
             start=load_start,
             end=load_end,
         )
+        print(f"committed_eth_txs {committed_txs}/{len(txs)}")
+        if committed_txs < len(txs):
+            raise click.ClickException(
+                f"timed out waiting for generated transactions to commit: "
+                f"{committed_txs}/{len(txs)} Ethereum transactions committed"
+            )
         return
 
     mempool_monitor = MempoolMonitor(cfg.primary.rpc)

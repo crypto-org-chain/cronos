@@ -29,6 +29,42 @@ count and EVM gas consumed. Second-by-second charts show committed TPS and gas
 throughput; the TPS view overlays a 5-second moving average to make sustained
 throughput easier to distinguish from short block-time spikes.
 
+To run the same fund/check/bench/report workflow against an already-running
+network described by an arbitrary config file, use:
+
+```bash
+./run-config-benchmark.sh --config ../sample-config.yaml
+```
+
+The account range defaults to `1..num_accounts` from the config. It can be
+overridden, along with benchmark and report options:
+
+```bash
+./run-config-benchmark.sh \
+  --config ../sample-config.yaml \
+  --start-account 101 \
+  --end-account 200 \
+  --nonce 0 \
+  --output report/testnet.html
+```
+
+By default the script funds and checks the selected accounts before running
+the benchmark. Use `--skip-fund` for accounts funded in an earlier run and
+`--skip-check` when checking a large `unique-per-tx` account set would dominate
+setup time. Run `./run-config-benchmark.sh --help` for all options. Reports are
+written to `report/<config-name>-YYYYMMDD-HHMMSS.html` unless `--output` is
+provided. The script is POSIX-shell compatible, so both invocation forms are
+supported:
+
+```bash
+sh run-config-benchmark.sh --config ../sample-config-anvil.yaml
+./run-config-benchmark.sh --config ../sample-config-anvil.yaml
+```
+
+When an Ethereum-mode endpoint identifies itself as Anvil, the script seeds the
+deterministic funding account with the balance required for the selected account
+range before running `fund`; `--skip-fund` also skips this preparation.
+
 ## What each test case does
 
 | Test case | tx | batch_size | Matches wiki |

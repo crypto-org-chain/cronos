@@ -143,6 +143,30 @@ def test_generate_report_lists_all_params_and_embeds_chart_data(tmp_path):
     assert "5-second moving average" in report
     assert "committed_cosmos_txs" not in report
     assert "25/25" in report
+    assert report.count('class="field-help"') == 18
+    assert "First logical sender account index included in the workload." in report
+    assert "EVM JSON-RPC URL used to query Ethereum-compatible blocks" in report
+    assert "Highest transaction rate calculated over a rolling window" in report
+    assert "Highest rolling average of committed transactions per second" in report
+    assert "showFieldTooltip" in report
+
+
+def test_generate_report_adds_fallback_tooltip_for_custom_config_fields(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    stats_path = tmp_path / "stats.log"
+    output_path = tmp_path / "report.html"
+    config_path.write_text("custom_limit: 42\n")
+    stats_path.write_text("")
+
+    generate_report(
+        config_path,
+        stats_path,
+        output_path,
+        datetime(2026, 7, 19, 12, 0, tzinfo=timezone.utc),
+    )
+
+    report = output_path.read_text()
+    assert "Configured benchmark value for custom limit." in report
 
 
 def test_generate_report_sizes_y_axis_for_large_tick_labels(tmp_path):

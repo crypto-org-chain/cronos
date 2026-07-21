@@ -11,6 +11,64 @@ BLOCK_RE = re.compile(r"^block (?P<height>\d+) txs=(?P<txs>\d+)(?P<rest>.*)$")
 METRIC_RE = re.compile(r"^(?P<name>[a-z][a-z0-9_]*) (?P<value>.+)$")
 TIMESTAMP_RE = re.compile(r"\b(?P<timestamp>\d{4}-\d{2}-\d{2}[T ]\S+)")
 
+PARAMETER_TOOLTIPS = {
+    "benchmark.validators": "Number of validator nodes participating in the benchmark network.",
+    "benchmark.testcase": "Workload scenario executed by this benchmark run.",
+    "benchmark.start_account": "First logical sender account index included in the workload.",
+    "benchmark.end_account": "Last logical sender account index included in the workload, inclusive.",
+    "benchmark.generated_at": "Local date and time when this report was generated.",
+    "mode": "Transaction wire format: Cosmos wraps EVM messages in Cosmos transactions; eth sends raw Ethereum transactions.",
+    "chain_id": "EVM chain ID included when signing each generated transaction.",
+    "evm_denom": "Base denomination used to express EVM transaction fees on the chain.",
+    "gas_price": "Gas price, in the smallest denomination, used for generated EVM transactions.",
+    "global_seq": "Global account-generation sequence used to derive deterministic benchmark sender keys.",
+    "tx_type": "Type of EVM operation generated for the workload, such as a native or ERC20 transfer.",
+    "msg_version": "Version of the Cosmos MsgEthereumTx encoding used for wrapped EVM transactions.",
+    "num_accounts": "Number of logical sender accounts configured for the workload.",
+    "num_txs": "Number of EVM transactions generated for each logical sender account.",
+    "sender_strategy": "Whether senders are reused for sequential transactions or each transaction gets a unique sender.",
+    "batch_size": "Number of EVM messages packed into each Cosmos transaction; 1 means no message batching.",
+    "send_batch_size": "Maximum number of signed transactions broadcast concurrently in one sending batch.",
+    "send_interval": "Pause, in seconds, between consecutive sending batches.",
+    "telemetry": "Prometheus telemetry endpoint used to collect consensus and BlockSTM statistics.",
+}
+
+RESULT_TOOLTIPS = {
+    "Peak TPS": "Highest transaction rate calculated over a rolling window of up to 10 blocks, excluding detected stalls.",
+    "Overall TPS": "Committed transactions divided by measured elapsed time after detected stall blocks and their time are excluded.",
+    "Total transactions": "Total number of inner EVM transactions committed during the measured benchmark window.",
+    "Committed Cosmos txs": "Number of generated Cosmos transaction envelopes that committed, shown against the number sent.",
+    "Peak 1s TPS": "Largest number of transactions committed in any one wall-clock second.",
+    "Peak 5s avg TPS": "Highest rolling average of committed transactions per second across a five-second window.",
+    "Peak gas / second": "Largest total amount of EVM gas consumed in any one wall-clock second.",
+}
+
+
+def _parameter_tooltip(name: str) -> str:
+    endpoint_match = re.fullmatch(r"endpoints\[(\d+)]\.(name|rpc|json_rpc)", name)
+    if endpoint_match:
+        index, field = endpoint_match.groups()
+        descriptions = {
+            "name": "Human-readable name of this benchmark target node.",
+            "rpc": "CometBFT RPC URL used to broadcast Cosmos transactions and query blocks.",
+            "json_rpc": "EVM JSON-RPC URL used to query Ethereum-compatible blocks and transactions.",
+        }
+        return f"Endpoint {int(index) + 1}: {descriptions[field]}"
+    if name in PARAMETER_TOOLTIPS:
+        return PARAMETER_TOOLTIPS[name]
+    readable_name = name.replace("_", " ")
+    return f"Configured benchmark value for {readable_name}."
+
+
+def _field_label(label: str, description: str) -> str:
+    escaped_label = html.escape(label)
+    escaped_description = html.escape(description, quote=True)
+    return (
+        f'<span class="field-label">{escaped_label}'
+        f'<button type="button" class="field-help" data-tooltip="{escaped_description}" '
+        f'aria-label="About {escaped_label}: {escaped_description}">i</button></span>'
+    )
+
 
 def parse_stats(text: str) -> tuple[list[dict], dict[str, str]]:
     blocks = []
@@ -123,7 +181,8 @@ def render_report(
     }
     params.update(dict(_flatten(config)))
     param_rows = "\n".join(
-        f"<tr><th>{html.escape(name)}</th><td>{html.escape(_display(value))}</td></tr>"
+        f"<tr><th>{_field_label(name, _parameter_tooltip(name))}</th>"
+        f"<td>{html.escape(_display(value))}</td></tr>"
         for name, value in params.items()
         if value is not None
     )
@@ -152,7 +211,7 @@ def render_report(
             ]
         )
     metric_cards = "\n".join(
-        f'<div class="metric"><span>{html.escape(label)}</span>'
+        f'<div class="metric"><span>{_field_label(label, RESULT_TOOLTIPS[label])}</span>'
         f"<strong>{html.escape(value)}</strong></div>"
         for label, value in featured
     )
@@ -187,9 +246,18 @@ def render_report(
     th {{ width:32%; color:#344047; font-weight:600; background:#fafbfb; }}
     tr:last-child th,tr:last-child td {{ border-bottom:0; }}
     td {{ overflow-wrap:anywhere; }}
+    .field-label {{ display:inline-flex; align-items:center; gap:6px; }}
+    .field-help {{ flex:0 0 16px; width:16px; height:16px; padding:0; border:1px solid #89949c;
+      border-radius:50%; background:transparent; color:#536069; font:600 11px/14px system-ui,sans-serif;
+      text-align:center; cursor:help; }}
+    .field-help:hover,.field-help:focus-visible {{ border-color:var(--accent); color:var(--accent); outline:none; }}
+    .field-tooltip {{ position:fixed; z-index:20; display:none; width:max-content; max-width:min(320px,calc(100vw - 24px));
+      padding:8px 10px; border-radius:4px; background:var(--ink); color:#fff; font-size:12px;
+      font-weight:400; line-height:1.4; box-shadow:0 4px 12px rgba(0,0,0,.18); pointer-events:none; }}
     .metrics {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }}
     .metric {{ min-width:0; padding:14px 16px; border:1px solid var(--line); background:var(--surface); }}
     .metric span {{ display:block; color:var(--muted); font-size:12px; }}
+    .metric .field-label {{ display:inline-flex; }}
     .metric strong {{ display:block; margin-top:3px; font-size:21px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }}
     .chart-wrap {{ position:relative; height:430px; border:1px solid var(--line); background:var(--surface); padding:12px; }}
     canvas {{ width:100%; height:100%; display:block; }}
@@ -211,6 +279,7 @@ def render_report(
   <div class="params"><table><tbody>{param_rows}</tbody></table></div>
   <h2>Results</h2>
   <div class="metrics">{metric_cards}</div>
+  <div class="field-tooltip" id="fieldTooltip" role="tooltip"></div>
   <h2>Transactions by block</h2>
   <div class="chart-wrap" id="chartWrap">
     <canvas id="chart" role="img" aria-label="Transaction count for each block height"></canvas>
@@ -235,6 +304,26 @@ def render_report(
 <script>
 const data={chart_data};
 const secondData={second_chart_data};
+const fieldTooltip=document.getElementById('fieldTooltip');
+function showFieldTooltip(target) {{
+  fieldTooltip.textContent=target.dataset.tooltip; fieldTooltip.style.display='block';
+  const targetRect=target.getBoundingClientRect(), tipRect=fieldTooltip.getBoundingClientRect(), gap=7;
+  const left=Math.max(8,Math.min(targetRect.left+(targetRect.width-tipRect.width)/2,window.innerWidth-tipRect.width-8));
+  const above=targetRect.top-tipRect.height-gap;
+  fieldTooltip.style.left=left+'px';
+  fieldTooltip.style.top=(above>=8?above:targetRect.bottom+gap)+'px';
+}}
+function hideFieldTooltip() {{ fieldTooltip.style.display='none'; }}
+document.querySelectorAll('.field-help').forEach(target=>{{
+  target.addEventListener('mouseenter',()=>showFieldTooltip(target));
+  target.addEventListener('mouseleave',hideFieldTooltip);
+  target.addEventListener('focus',()=>showFieldTooltip(target));
+  target.addEventListener('blur',hideFieldTooltip);
+  target.addEventListener('click',()=>showFieldTooltip(target));
+  target.addEventListener('keydown',event=>{{ if(event.key==='Escape') {{ hideFieldTooltip(); target.blur(); }} }});
+}});
+window.addEventListener('scroll',hideFieldTooltip,true);
+window.addEventListener('resize',hideFieldTooltip);
 function createBarChart(canvasId,tooltipId,valueKey,yLabel,color,tooltipText) {{
   const canvas=document.getElementById(canvasId), wrap=canvas.parentElement;
   const tip=document.getElementById(tooltipId), ctx=canvas.getContext('2d');
