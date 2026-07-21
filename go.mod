@@ -396,8 +396,9 @@ replace (
 	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260716010842-1c77adad431c
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
+
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260716064133-ceb48bc17115
+	github.com/evmos/ethermint => github.com/JayT106/ethermint v0.4.2-0.20260721175606-7e017a6079c3
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

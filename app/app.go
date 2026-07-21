@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -348,6 +349,8 @@ type App struct {
 
 	mempoolManager *cronosmempool.Manager
 
+	senderCache *cache.SenderCache
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -412,6 +415,7 @@ func New(
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
+
 	eip712.SetEncodingConfig(encodingConfig)
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
@@ -442,6 +446,13 @@ func New(
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	var senderCache *cache.SenderCache
+	if mempoolMaxTxs <= 0 {
+		logger.Info("sender cache disabled")
+	} else {
+		logger.Info("sender cache enabled", "size", mempoolMaxTxs)
+		senderCache = cache.NewSenderCache(mempoolMaxTxs)
+	}
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
 	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
 	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
@@ -577,7 +588,7 @@ func New(
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
-			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder))
+			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
@@ -629,6 +640,7 @@ func New(
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
+		senderCache:          senderCache,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1295,6 +1307,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
 		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
+		SenderCache:       app.senderCache,
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
@@ -1318,6 +1331,10 @@ func (app *App) setPostHandler() {
 
 // MempoolManager returns the app-side mempool manager, or nil when mempool.type != app.
 func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolManager }
+
+// SenderCache returns the shared hash-keyed ecrecover sender cache consulted
+// by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
+func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding
 // with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
