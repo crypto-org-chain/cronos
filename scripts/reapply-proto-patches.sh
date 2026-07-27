@@ -1,44 +1,39 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Re-applies hand-maintained security patches to generated protobuf code that
 # `make proto-gen` would otherwise silently wipe.
 
-set -eo pipefail
+set -e
 
 QUERY_PB_GO="x/cronos/types/query.pb.go"
 MARKER="PROTOCGEN-PATCH:replay-block-msgs-cap"
+TARGET='			m.Msgs = append(m.Msgs, &types.MsgEthereumTx{})'
 
 if grep -q "$MARKER" "$QUERY_PB_GO"; then
   echo "reapply-proto-patches: $MARKER already present, skipping"
   exit 0
 fi
 
-python3 - "$QUERY_PB_GO" "$MARKER" <<'EOF'
-import sys
+# Single pass: the same $0 == target check both counts and drives the
+# substitution, so the count check can never disagree with what actually
+# gets patched.
+awk -v marker="$MARKER" -v target="$TARGET" '
+  $0 == target {
+    matched++
+    print "\t\t\t// Hand-maintained cap (see query.go): reject before appending, so a"
+    print "\t\t\t// huge attacker batch can'"'"'t OOM us before the keeper ever runs."
+    print "\t\t\t// " marker
+    print "\t\t\tif len(m.Msgs) >= MaxReplayBlockMsgs {"
+    print "\t\t\t\treturn fmt.Errorf(\"proto: ReplayBlockRequest.Msgs exceeds max allowed count %d\", MaxReplayBlockMsgs)"
+    print "\t\t\t}"
+  }
+  { print }
+  END {
+    if (matched != 1) {
+      print "reapply-proto-patches: expected exactly 1 occurrence of append target, found " matched + 0 > "/dev/stderr"
+      exit 1
+    }
+  }
+' "$QUERY_PB_GO" > "${QUERY_PB_GO}.tmp" && mv "${QUERY_PB_GO}.tmp" "$QUERY_PB_GO" || { rm -f "${QUERY_PB_GO}.tmp"; exit 1; }
 
-path, marker = sys.argv[1], sys.argv[2]
-target = "\t\t\tm.Msgs = append(m.Msgs, &types.MsgEthereumTx{})\n"
-patch = (
-    "\t\t\t// Hand-maintained cap (see query.go): reject before appending, so a\n"
-    "\t\t\t// huge attacker batch can't OOM us before the keeper ever runs.\n"
-    f"\t\t\t// {marker}\n"
-    "\t\t\tif len(m.Msgs) >= MaxReplayBlockMsgs {\n"
-    "\t\t\t\treturn fmt.Errorf(\"proto: ReplayBlockRequest.Msgs exceeds max allowed count %d\", MaxReplayBlockMsgs)\n"
-    "\t\t\t}\n"
-    + target
-)
-
-with open(path) as f:
-    content = f.read()
-
-count = content.count(target)
-if count != 1:
-    sys.exit(f"reapply-proto-patches: expected exactly 1 occurrence of append target in {path}, found {count}")
-
-content = content.replace(target, patch, 1)
-
-with open(path, "w") as f:
-    f.write(content)
-
-print(f"reapply-proto-patches: applied {marker} to {path}")
-EOF
+echo "reapply-proto-patches: applied $MARKER to $QUERY_PB_GO"
