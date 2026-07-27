@@ -23,6 +23,7 @@
 * [#2133](https://github.com/crypto-org-chain/cronos/pull/2133) test(app): reproduce historical-query memiavl fd leak.
 * [#2127](https://github.com/crypto-org-chain/cronos/pull/2127) feat(mempool): back txpool RPC with app mempool PendingTxs.
 * [#2139](https://github.com/crypto-org-chain/cronos/pull/2139) feat(mempool): honor CometBFT's mempool.recheck config in app mempool.
+* [#2144](https://github.com/crypto-org-chain/cronos/pull/2144) feat(mempool): add hash-keyed sender cache to VerifyEthSig.
 
 ### Bug fixes
 
