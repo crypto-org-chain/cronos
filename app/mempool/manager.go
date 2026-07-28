@@ -173,9 +173,8 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
-// PendingTxs returns a snapshot of pooled txs. The returned slice is shared
-// across callers and must be treated as read-only; it may lag the live pool
-// by up to the configured cache TTL.
+// PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
+// It may lag the live pool by up to the configured cache TTL.
 func (a *Manager) PendingTxs() []sdk.Tx {
 	if a.mpool == nil {
 		return nil

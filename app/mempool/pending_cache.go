@@ -31,10 +31,11 @@ func (c *pendingCache) clock() time.Time {
 	return time.Now()
 }
 
-// get returns the cached snapshot, reloading it via load when the TTL has passed
-// or the cache was invalidated. ttl <= 0 disables caching: every call runs load.
-// The mutex spans load, not just the freshness check, so concurrent callers
-// single-flight onto one pool walk instead of each racing their own.
+// get returns a copy of the cached snapshot, reloading it via load when the TTL
+// has passed or the cache was invalidated. ttl <= 0 (including negative) disables
+// caching: every call runs load. The mutex spans load, not just the freshness
+// check, so concurrent callers single-flight onto one pool walk instead of each
+// racing their own.
 func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
 	if c.ttl <= 0 {
 		return load()
@@ -49,16 +50,25 @@ func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
 	// zero-length snapshot, so neither length nor nil-ness can stand in for that.
 	if !c.expiry.IsZero() && now.Before(c.expiry) && c.loadedEpoch == epoch {
 		telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "hit")
-		return c.snapshot
+		return c.copySnapshot()
 	}
 
 	telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "miss")
 	// Read the epoch before load, so an invalidation racing this walk marks the
-	// result stale rather than being swallowed.
+	// result stale rather than being swallowed; the walk already in flight still
+	// returns its (now-stale) result to this caller, only the *next* call reloads.
 	c.snapshot = load()
 	c.expiry = now.Add(c.ttl)
 	c.loadedEpoch = epoch
-	return c.snapshot
+	return c.copySnapshot()
+}
+
+// copySnapshot defends against a caller mutating the shared cached slice, which
+// would corrupt every other concurrent reader for the rest of the TTL window.
+func (c *pendingCache) copySnapshot() []sdk.Tx {
+	out := make([]sdk.Tx, len(c.snapshot))
+	copy(out, c.snapshot)
+	return out
 }
 
 // invalidate marks the cached snapshot stale. Needed at every block boundary:
