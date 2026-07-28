@@ -188,6 +188,7 @@ const (
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
+	FlagMempoolPendingCacheTTL     = "cronos.mempool-pending-cache-ttl"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -470,6 +471,14 @@ func New(
 		}
 		ttlNumBlocks = parsed
 	}
+	pendingCacheTTL := cmdcfg.DefaultMempoolPendingCacheTTL
+	if v := appOpts.Get(FlagMempoolPendingCacheTTL); v != nil {
+		parsed, err := cast.ToDurationE(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative duration", FlagMempoolPendingCacheTTL, v))
+		}
+		pendingCacheTTL = parsed
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -584,7 +593,7 @@ func New(
 			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheTTL)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))

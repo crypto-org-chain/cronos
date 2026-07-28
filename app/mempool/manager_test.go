@@ -13,7 +13,10 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log/v2"
 
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -597,6 +600,182 @@ func TestManagerPendingTxs(t *testing.T) {
 	got := a.PendingTxs()
 	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
 		t.Fatalf("want both pool txs, got %d", len(got))
+	}
+}
+
+// newCachedManager returns a Manager with a TTL-cached PendingTxs backed by pool
+// and a frozen clock the caller advances via the returned pointer.
+func newCachedManager(ttl time.Duration, pool *fakePool) (*Manager, *time.Time) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	now := time.Unix(0, 0)
+	a.pendingCache.ttl = ttl
+	a.pendingCache.now = func() time.Time { return now }
+	a.mpool = pool
+	return a, &now
+}
+
+func TestManagerPendingTxsCache(t *testing.T) {
+	tx1, tx2 := &ptrTx{id: 1}, &ptrTx{id: 2}
+
+	t.Run("nil mpool ignores cache", func(t *testing.T) {
+		a, _ := newCachedManager(time.Second, nil)
+		a.mpool = nil
+		if got := a.PendingTxs(); got != nil {
+			t.Fatalf("nil mpool must report no pending txs regardless of cache TTL, got %d", len(got))
+		}
+	})
+
+	t.Run("hit within ttl", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a, _ := newCachedManager(time.Second, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 || got[0] != tx1 {
+			t.Fatalf("want [tx1], got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 1 || got[0] != tx1 {
+			t.Fatalf("expected stale cached snapshot [tx1], got %d entries", len(got))
+		}
+	})
+
+	t.Run("empty pool caches", func(t *testing.T) {
+		pool := &fakePool{}
+		a, _ := newCachedManager(time.Second, pool)
+
+		if got := a.PendingTxs(); len(got) != 0 {
+			t.Fatalf("want empty snapshot, got %d", len(got))
+		}
+		pool.txs = []sdk.Tx{tx1}
+		if got := a.PendingTxs(); len(got) != 0 {
+			t.Fatalf("empty snapshot must still be a cache hit, got %d", len(got))
+		}
+	})
+
+	t.Run("rescan at expiry", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a, now := newCachedManager(time.Second, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		*now = now.Add(time.Second) // TTL is exclusive: now == expiry refreshes
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("expected re-scan at TTL expiry, got %d", len(got))
+		}
+	})
+
+	t.Run("block boundary invalidates", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a, _ := newCachedManager(time.Second, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		a.StageRecheckSenders(1, nil)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("expected re-scan after commit invalidation, got %d", len(got))
+		}
+	})
+
+	t.Run("invalidation during load is not swallowed", func(t *testing.T) {
+		pool := &hookPool{fakePool: fakePool{txs: []sdk.Tx{tx1}}}
+		a, _ := newCachedManager(time.Second, nil)
+		a.mpool = pool
+		// A block committing while the walk is in flight: the snapshot it produces
+		// already predates the invalidation.
+		pool.onScan = func() { a.StageRecheckSenders(1, nil) }
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("snapshot loaded across an invalidation must not be served, got %d", len(got))
+		}
+	})
+
+	t.Run("ttl zero disables cache", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a, _ := newCachedManager(0, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("ttl=0 must re-scan every call, got %d", len(got))
+		}
+	})
+}
+
+func TestManagerPendingTxsSingleFlight(t *testing.T) {
+	var loads atomic.Int64
+	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}, &ptrTx{id: 2}}}, scans: &loads}
+	a, _ := newCachedManager(time.Second, nil)
+	a.mpool = pool
+
+	const goroutines = 16
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range 64 {
+				if got := a.PendingTxs(); len(got) != 2 {
+					t.Errorf("want 2 txs, got %d", len(got))
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := loads.Load(); got != 1 {
+		t.Fatalf("expected concurrent callers to single-flight onto 1 pool scan, got %d", got)
+	}
+}
+
+// countingPool counts pool scans, to distinguish cache hits from re-walks.
+type countingPool struct {
+	fakePool
+	scans *atomic.Int64
+}
+
+func (p *countingPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+	p.scans.Add(1)
+	p.fakePool.SelectBy(ctx, txs, cb)
+}
+
+// hookPool runs onScan once, mid-walk, to interleave an event with a pool scan.
+type hookPool struct {
+	fakePool
+	onScan func()
+}
+
+func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+	if p.onScan != nil {
+		hook := p.onScan
+		p.onScan = nil
+		hook()
+	}
+	p.fakePool.SelectBy(ctx, txs, cb)
+}
+
+// The other cache tests set the TTL field directly, so they'd all still pass if
+// the constructor stopped wiring it.
+func TestNewManagerWiresPendingCacheTTL(t *testing.T) {
+	var scans atomic.Int64
+	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}}}, scans: &scans}
+	app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
+
+	a := NewManager(app, nil, noopEncoder, pool, nil, nil, 0, 0, true, time.Minute)
+	defer a.Close()
+
+	a.PendingTxs()
+	a.PendingTxs()
+	if got := scans.Load(); got != 1 {
+		t.Fatalf("NewManager must wire the pending cache TTL; want 1 pool scan, got %d", got)
 	}
 }
 

@@ -4,6 +4,10 @@
 
 *Jul 16, 2026*
 
+### Improvements
+
+* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): TTL-cache the PendingTxs pool scan.
+
 ## v1.8.0-alpha
 
 ### Improvements
