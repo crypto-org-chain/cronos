@@ -9,13 +9,12 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// maxPreallocEntries bounds the up-front map allocation of the tx caches. Their
-// capacity tracks mempool.max-txs, which an operator can set far above what the
-// pool ever holds; the LRU maps grow on demand instead of reserving it all.
+// maxPreallocEntries bounds up-front map allocation; capacity tracks
+// mempool.max-txs and the map grows on demand past this.
 const maxPreallocEntries = 4096
 
-// preallocEntries clamps a cache capacity to what's safe to preallocate,
-// tolerating a negative capacity from a caller's overflowed arithmetic.
+// preallocEntries clamps capacity for prealloc, tolerating negative input
+// from overflowed caller arithmetic.
 func preallocEntries(capacity int) int {
 	if capacity < 0 {
 		return 0

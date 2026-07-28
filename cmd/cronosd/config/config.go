@@ -21,8 +21,7 @@ type CronosConfig struct {
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the sharded LRU tx encode/decode cache.
-	// 0 = derive from MempoolTxsPerBlock and mempool.max-txs at startup, see
-	// DeriveTxCacheSize. -1 = disable.
+	// 0 = derive via DeriveTxCacheSize at startup. -1 = disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
@@ -53,15 +52,13 @@ const (
 	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
 	DefaultMempoolTxsPerBlock = 2900
 	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
-	// is unset (0) and mempool.max-txs is unbounded: two full blocks so the cache
-	// survives one proposal + one gossip reap cycle without eviction pressure.
-	// When mempool.max-txs is bounded, DeriveTxCacheSize sizes to it plus one
-	// in-flight block instead (a floor, since recheck re-decodes the pool on commit).
+	// is unset and mempool.max-txs is unbounded: two full blocks, surviving one
+	// proposal + one gossip reap cycle without eviction pressure. When
+	// mempool.max-txs is bounded, DeriveTxCacheSize sizes to it instead (a floor,
+	// since recheck re-decodes the pool on commit).
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
-	// MaxDerivedTxCacheSize caps the size DeriveTxCacheSize will pick from
-	// mempool.max-txs. An absurd max-txs would otherwise size two caches
-	// (decode + encode) past what the heap can hold. An operator who really
-	// wants more sets tx-cache-size explicitly.
+	// MaxDerivedTxCacheSize caps what DeriveTxCacheSize picks from mempool.max-txs,
+	// so an absurd max-txs can't size the caches past what the heap can hold.
 	MaxDerivedTxCacheSize = 1 << 20
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
@@ -97,7 +94,7 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:                0, // 0 = derive at startup via DeriveTxCacheSize, -1 when unlimited
+		TxCacheSize:                0, // 0 = derive via DeriveTxCacheSize, -1 disables
 		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
@@ -105,12 +102,10 @@ func DefaultCronosConfig() CronosConfig {
 	}
 }
 
-// DeriveTxCacheSize computes the default tx-cache-size (used when tx-cache-size
-// is unset) from the mempool-txs-per-block budget and mempool.max-txs bound.
-// mempoolMaxTxs: >0 = bounded pool, 0 = unlimited pool, <0 = mempool disabled.
-// Every commit re-decodes the whole pool (recheck) plus one in-flight block, so
-// mempoolMaxTxs is a floor, not a ceiling: sizing below it makes each commit's
-// sweep evict its own entries.
+// DeriveTxCacheSize computes the default tx-cache-size from mempool-txs-per-block
+// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool, 0 unlimited, <0 disabled.
+// Recheck re-decodes the whole pool on every commit, so mempoolMaxTxs is a floor,
+// not a ceiling.
 func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
 		sum := mempoolMaxTxs + txsPerBlock
