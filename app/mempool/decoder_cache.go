@@ -5,6 +5,7 @@ import (
 	"container/list"
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"math"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
@@ -109,6 +110,9 @@ func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
 	shardCap := (int(size) + shardCount - 1) / shardCount
+	if shardCap < 0 { // size overflowed int on the +shardCount-1 rounding
+		shardCap = math.MaxInt / shardCount
+	}
 	c := &DecodeCache{maxTxBytes: int(maxTxBytes)}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap

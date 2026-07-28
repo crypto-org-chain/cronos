@@ -66,6 +66,18 @@ func TestDeriveTxCacheSize(t *testing.T) {
 			mempoolMaxTxs: MaxDerivedTxCacheSize,
 			expected:      MaxDerivedTxCacheSize,
 		},
+		{
+			name:          "default config: unlimited max-txs, default txsPerBlock",
+			txsPerBlock:   DefaultMempoolTxsPerBlock,
+			mempoolMaxTxs: 0,
+			expected:      DefaultTxCacheSize,
+		},
+		{
+			name:          "overflow guard: 2x txsPerBlock wraps",
+			txsPerBlock:   math.MaxInt,
+			mempoolMaxTxs: 0,
+			expected:      MaxDerivedTxCacheSize,
+		},
 	}
 
 	for _, tc := range testCases {

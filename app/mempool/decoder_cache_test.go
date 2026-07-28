@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"encoding/binary"
 	"errors"
+	"math"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -311,5 +312,12 @@ func TestCachePreallocBounded(t *testing.T) {
 	}
 	if e := NewEncoderCache(size, cmdcfg.DefaultTxCacheMaxTxBytes); e.cap != size {
 		t.Fatalf("encoder cap = %d, want %d", e.cap, size)
+	}
+}
+
+func TestDecodeCache_ShardCapOverflowGuard(t *testing.T) {
+	c := NewDecodeCache(uint(math.MaxInt), cmdcfg.DefaultTxCacheMaxTxBytes)
+	if got := c.shards[0].cap; got <= 0 {
+		t.Fatalf("shard cap = %d, want positive", got)
 	}
 }

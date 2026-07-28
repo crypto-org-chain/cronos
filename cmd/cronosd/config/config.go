@@ -102,7 +102,8 @@ func DefaultCronosConfig() CronosConfig {
 }
 
 // DeriveTxCacheSize computes the default tx-cache-size from mempool-txs-per-block
-// and mempool.max-txs.
+// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool, 0 unlimited, <0 disabled.
+// txsPerBlock must be >= 0 (app.New validates this before calling).
 func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
 		sum := mempoolMaxTxs + txsPerBlock
@@ -113,6 +114,9 @@ func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	}
 	if txsPerBlock == 0 {
 		return -1
+	}
+	if txsPerBlock > MaxDerivedTxCacheSize/2 { // avoid overflow on 2x
+		return MaxDerivedTxCacheSize
 	}
 	return 2 * txsPerBlock
 }
