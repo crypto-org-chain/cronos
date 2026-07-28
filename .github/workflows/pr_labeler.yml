@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/labeler@v6 # v5 is broken, ref https://github.com/actions/labeler/issues/712. Do not bump.
+      - uses: actions/labeler@v7 # v5 is broken, ref https://github.com/actions/labeler/issues/712. Do not bump.
         with:
           configuration-path: .github/pr_labeler.yml
           repo-token: "${{ secrets.GITHUB_TOKEN }}"

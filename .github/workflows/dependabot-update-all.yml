@@ -19,7 +19,7 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.25.10"
           check-latest: true
@@ -51,7 +51,7 @@ jobs:
         run: ./scripts/go-update-dep-all.sh ${{ format('{0}@v{1}', steps.deps.outputs.name, steps.deps.outputs.version) }}
       - name: Tidy all Go modules
         run: ./scripts/go-mod-tidy-all.sh
-      - uses: cachix/install-nix-action@a49548c11d9846ad46ecc0115273879b045f001c # v31.10.7
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
         with:
           nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
