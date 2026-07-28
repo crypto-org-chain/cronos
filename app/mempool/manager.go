@@ -281,10 +281,9 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	}
 }
 
-// StageRecheckSenders records the senders of the just-committed block's txs so
-// RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height. Must run after the block's txs leave the pool, so the pending
-// snapshot it invalidates is replaced by one without them.
+// StageRecheckSenders records committed-block senders for RecheckTxs and stages
+// the committed height. Must run after the block's txs leave the pool, so the
+// invalidated pending snapshot is replaced by one without them.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.pendingCache.invalidate()
 
