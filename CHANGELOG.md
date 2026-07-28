@@ -4,6 +4,10 @@
 
 *Jul 16, 2026*
 
+### Bug fixes
+
+* [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(app): correct the tx-cache-size setup to account for mempool.max-txs.
+
 ## v1.8.0-alpha
 
 ### Improvements

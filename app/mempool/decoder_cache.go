@@ -112,7 +112,7 @@ func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
 	c := &DecodeCache{maxTxBytes: int(maxTxBytes)}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap
-		c.shards[i].items = make(map[uint64]*list.Element, shardCap)
+		c.shards[i].items = make(map[uint64]*list.Element, preallocEntries(shardCap))
 	}
 	return c
 }

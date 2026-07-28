@@ -15,12 +15,17 @@ disable-tx-replacement = {{ .Cronos.DisableTxReplacement }}
 disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 
 # Capacity of the sharded LRU tx encode/decode cache.
-# 0 = derive from mempool-txs-per-block at startup (2×, default 5800). -1 = disable entirely.
+# 0 = derive from mempool-txs-per-block and mempool.max-txs at startup: when
+# mempool.max-txs is set, sized to it plus one in-flight block (recheck
+# re-decodes the whole pool every commit, so max-txs is a floor, not a ceiling),
+# capped at 1048576 entries; otherwise 2×mempool-txs-per-block (default 5800),
+# or -1 (disable entirely) when both are unlimited.
 tx-cache-size = {{ .Cronos.TxCacheSize }}
 
 # Per-entry raw payload byte cap for the tx encode/decode cache. Txs larger than this
 # are decoded normally but not cached, bounding heap use against large txs.
-# Worst-case raw-byte footprint is roughly tx-cache-size * this value.
+# Worst-case raw-byte footprint is roughly 2 * tx-cache-size * this value: the
+# encode and decode caches are sized independently from tx-cache-size.
 # Should not exceed mempool.max_tx_bytes. Default 65536 (64 KiB) covers >p99 of
 # EVM tx sizes.
 tx-cache-max-tx-bytes = {{ .Cronos.TxCacheMaxTxBytes }}

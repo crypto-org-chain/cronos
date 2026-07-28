@@ -9,6 +9,23 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
+// maxPreallocEntries bounds the up-front map allocation of the tx caches. Their
+// capacity tracks mempool.max-txs, which an operator can set far above what the
+// pool ever holds; the LRU maps grow on demand instead of reserving it all.
+const maxPreallocEntries = 4096
+
+// preallocEntries clamps a cache capacity to what's safe to preallocate,
+// tolerating a negative capacity from a caller's overflowed arithmetic.
+func preallocEntries(capacity int) int {
+	if capacity < 0 {
+		return 0
+	}
+	if capacity > maxPreallocEntries {
+		return maxPreallocEntries
+	}
+	return capacity
+}
+
 // PoolSnapshot returns a snapshot of the current mempool transactions.
 func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot")

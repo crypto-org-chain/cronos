@@ -379,12 +379,9 @@ func New(
 		txsPerBlock = parsed
 	}
 	var activeDecoder sdk.TxDecoder
-	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
-	defaultTxCacheSize := 2 * txsPerBlock
-	if txsPerBlock == 0 {
-		defaultTxCacheSize = -1
-	}
-	txCacheSize := defaultTxCacheSize
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	// txCacheSize=0 means derive from txsPerBlock and mempoolMaxTxs, see DeriveTxCacheSize.
+	txCacheSize := cmdcfg.DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs)
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
@@ -444,7 +441,6 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	var senderCache *cache.SenderCache
 	if mempoolMaxTxs <= 0 {
 		logger.Info("sender cache disabled")

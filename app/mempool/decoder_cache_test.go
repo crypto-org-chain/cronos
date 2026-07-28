@@ -292,3 +292,26 @@ func TestDecodeCache_DefaultsOnZero(t *testing.T) {
 		t.Fatalf("shard cap = %d, want %d (default size / shardCount)", got, wantShardCap)
 	}
 }
+
+// A capacity derived from a large mempool.max-txs must not be preallocated:
+// reserving it up front would dwarf the heap the pool actually needs.
+func TestCachePreallocBounded(t *testing.T) {
+	const size = cmdcfg.MaxDerivedTxCacheSize
+	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)
+	wantShardCap := (size + shardCount - 1) / shardCount
+	if got := c.shards[0].cap; got != wantShardCap {
+		t.Fatalf("shard cap = %d, want %d", got, wantShardCap)
+	}
+	if got := len(c.shards[0].items); got != 0 {
+		t.Fatalf("shard starts with %d entries, want 0", got)
+	}
+	if got := preallocEntries(wantShardCap); got != maxPreallocEntries {
+		t.Fatalf("prealloc = %d, want clamp to %d", got, maxPreallocEntries)
+	}
+	if got := preallocEntries(-1); got != 0 {
+		t.Fatalf("prealloc(-1) = %d, want 0", got)
+	}
+	if e := NewEncoderCache(size, cmdcfg.DefaultTxCacheMaxTxBytes); e.cap != size {
+		t.Fatalf("encoder cap = %d, want %d", e.cap, size)
+	}
+}

@@ -40,7 +40,7 @@ func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
 	return &EncoderCache{
 		cap:        int(size),
 		maxTxBytes: int(maxTxBytes),
-		items:      make(map[sdk.Tx]*list.Element, size),
+		items:      make(map[sdk.Tx]*list.Element, preallocEntries(int(size))),
 	}
 }
 
