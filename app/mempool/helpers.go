@@ -9,8 +9,9 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// maxPreallocEntries bounds up-front map allocation; capacity tracks
-// mempool.max-txs and the map grows on demand past this.
+// maxPreallocEntries bounds up-front map allocation; cache capacity tracks
+// the derived tx-cache-size (which can scale with mempool.max-txs) and the
+// map grows on demand past this.
 const maxPreallocEntries = 4096
 
 func preallocEntries(capacity int) int {

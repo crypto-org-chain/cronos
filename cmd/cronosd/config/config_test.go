@@ -19,7 +19,7 @@ func TestDeriveTxCacheSize(t *testing.T) {
 			expected:      6000,
 		},
 		{
-			name:          "bounded pool, 2x txsPerBlock above max-txs",
+			name:          "bounded pool, txsPerBlock > max-txs",
 			txsPerBlock:   2900,
 			mempoolMaxTxs: 5000,
 			expected:      7900,
@@ -64,6 +64,12 @@ func TestDeriveTxCacheSize(t *testing.T) {
 			name:          "at the cap, no clamp surprise",
 			txsPerBlock:   0,
 			mempoolMaxTxs: MaxDerivedTxCacheSize,
+			expected:      MaxDerivedTxCacheSize,
+		},
+		{
+			name:          "sum exactly at cap, no clamp",
+			txsPerBlock:   1,
+			mempoolMaxTxs: MaxDerivedTxCacheSize - 1,
 			expected:      MaxDerivedTxCacheSize,
 		},
 		{
