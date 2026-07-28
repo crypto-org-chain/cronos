@@ -13,8 +13,6 @@ import (
 // mempool.max-txs and the map grows on demand past this.
 const maxPreallocEntries = 4096
 
-// preallocEntries clamps capacity for prealloc, tolerating negative input
-// from overflowed caller arithmetic.
 func preallocEntries(capacity int) int {
 	if capacity < 0 {
 		return 0

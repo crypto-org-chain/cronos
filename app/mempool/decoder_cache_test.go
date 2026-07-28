@@ -293,8 +293,6 @@ func TestDecodeCache_DefaultsOnZero(t *testing.T) {
 	}
 }
 
-// A capacity derived from a large mempool.max-txs must not be preallocated:
-// reserving it up front would dwarf the heap the pool actually needs.
 func TestCachePreallocBounded(t *testing.T) {
 	const size = cmdcfg.MaxDerivedTxCacheSize
 	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)

@@ -54,8 +54,7 @@ const (
 	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
 	// is unset and mempool.max-txs is unbounded: two full blocks, surviving one
 	// proposal + one gossip reap cycle without eviction pressure. When
-	// mempool.max-txs is bounded, DeriveTxCacheSize sizes to it instead (a floor,
-	// since recheck re-decodes the pool on commit).
+	// mempool.max-txs is bounded, DeriveTxCacheSize sizes to it instead.
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
 	// MaxDerivedTxCacheSize caps what DeriveTxCacheSize picks from mempool.max-txs,
 	// so an absurd max-txs can't size the caches past what the heap can hold.
@@ -103,9 +102,7 @@ func DefaultCronosConfig() CronosConfig {
 }
 
 // DeriveTxCacheSize computes the default tx-cache-size from mempool-txs-per-block
-// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool, 0 unlimited, <0 disabled.
-// Recheck re-decodes the whole pool on every commit, so mempoolMaxTxs is a floor,
-// not a ceiling.
+// and mempool.max-txs.
 func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
 		sum := mempoolMaxTxs + txsPerBlock
