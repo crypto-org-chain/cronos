@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from .transaction import TX_TYPES
 from .utils import DEFAULT_DENOM
 
 
@@ -29,6 +30,8 @@ class Config(BaseModel):
     gas_price: int = 1000000000
     global_seq: int = 0
     tx_type: str = "simple-transfer"
+    # Only used when tx_type == "weighted-mix": {tx_type_name: weight}.
+    mix_weights: dict[str, float] | None = None
     msg_version: str = "1.4"
     num_accounts: int = 100
     num_txs: int = 1
@@ -37,6 +40,22 @@ class Config(BaseModel):
     send_batch_size: int = 500
     send_interval: float = 0.5
     telemetry: str | None = None
+
+    @model_validator(mode="after")
+    def _check_mix_weights(self) -> "Config":
+        if self.tx_type != "weighted-mix":
+            return self
+        if not self.mix_weights:
+            raise ValueError("mix_weights must be set when tx_type is weighted-mix")
+        valid_names = TX_TYPES.keys() - {"weighted-mix"}
+        unknown = self.mix_weights.keys() - valid_names
+        if unknown:
+            raise ValueError(f"mix_weights has unknown tx types: {sorted(unknown)}")
+        if any(w < 0 for w in self.mix_weights.values()):
+            raise ValueError("mix_weights must not contain negative weights")
+        if sum(self.mix_weights.values()) <= 0:
+            raise ValueError("mix_weights must sum to a positive total")
+        return self
 
     @property
     def rpcs(self) -> list[str]:

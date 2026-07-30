@@ -1,0 +1,22 @@
+# 1-validator local devnet - erc20-transfer-hot (every sender transfers to
+# the same fixed receiver, so every tx writes the same ERC20 balance slot -
+# a deliberate Block-STM contention hot spot).
+# Requires patch_erc20_genesis.py to have run with --num-accounts >=
+# num_accounts below, so every sending account already holds an ERC20
+# balance at genesis.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: erc20-transfer-hot
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 40
+batch_size: 1
+send_batch_size: 8000
+send_interval: 0.05

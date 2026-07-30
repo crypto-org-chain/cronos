@@ -1,0 +1,25 @@
+# 1-validator local devnet - weighted-mix (each tx is dispatched to one of
+# the contended tx types below by weight, deterministically per sender/nonce).
+# Requires patch_erc20_genesis.py to have run so the pool/nft contracts and
+# ERC20 balances are all seeded.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: weighted-mix
+mix_weights:
+  erc20-transfer-hot: 0.4
+  uniswap-swap: 0.3
+  nft-mint: 0.2
+  erc20-transfer: 0.1
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 40
+batch_size: 1
+send_batch_size: 8000
+send_interval: 0.05

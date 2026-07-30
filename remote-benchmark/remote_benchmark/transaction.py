@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import hashlib
 import itertools
 import multiprocessing
 import os
@@ -15,6 +16,7 @@ from eth_account._utils.legacy_transactions import Transaction
 from hexbytes import HexBytes
 
 from . import cosmostx
+from .contracts import NFT_ADDRESS, POOL_ADDRESS
 from .erc20 import CONTRACT_ADDRESS
 from .utils import DEFAULT_DENOM, gen_account, split, split_batch
 
@@ -44,6 +46,26 @@ Job = namedtuple(
 EthTx = namedtuple("EthTx", ["tx", "raw", "sender"])
 
 
+ERC20_TRANSFER_SELECTOR = "0xa9059cbb"  # transfer(address,uint256)
+ERC20_TRANSFER_GAS = 51630
+
+# Fixed EOA every erc20-transfer-hot tx sends to, so every sender writes the
+# same recipient balance slot - the intended contended hot spot. It's a
+# plain EOA, not a contract, so it needs no genesis entry: the ERC20
+# mapping slot it maps to defaults to zero until the first transfer.
+HOT_RECEIVER_ADDRESS = "0x4" + "0" * 39
+
+SWAP_SELECTOR = "0x8693ed2e"  # swap(uint112,bool)
+SWAP_AMOUNT = 1000
+SWAP_GAS = 51630
+
+MINT_SELECTOR = "0x1249c58b"  # mint()
+# balanceOf[sender] is cold on every mint from a fresh sender (e.g.
+# sender_strategy=unique-per-tx), and totalMinted is cold on the very first
+# mint - both cases pay the full SSTORE-to-nonzero cost.
+MINT_GAS = 80000
+
+
 def simple_transfer_tx(sender: str, nonce: int, options: dict):
     return {
         "to": sender,
@@ -55,23 +77,85 @@ def simple_transfer_tx(sender: str, nonce: int, options: dict):
     }
 
 
-def erc20_transfer_tx(sender: str, nonce: int, options: dict):
-    # data is erc20 transfer function call
-    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [sender, 1]).hex()
+def _contract_call_tx(to: str, data: str, gas: int, nonce: int, options: dict):
     return {
-        "to": CONTRACT_ADDRESS,
+        "to": to,
         "value": 0,
         "nonce": nonce,
-        "gas": 51630,
+        "gas": gas,
         "gasPrice": options.get("gas_price", GAS_PRICE),
         "chainId": options.get("chain_id", CHAIN_ID),
         "data": data,
     }
 
 
+def _erc20_transfer_data(recipient: str) -> str:
+    return (
+        ERC20_TRANSFER_SELECTOR
+        + eth_abi.encode(["address", "uint256"], [recipient, 1]).hex()
+    )
+
+
+def erc20_transfer_tx(sender: str, nonce: int, options: dict):
+    return _contract_call_tx(
+        CONTRACT_ADDRESS,
+        _erc20_transfer_data(sender),
+        ERC20_TRANSFER_GAS,
+        nonce,
+        options,
+    )
+
+
+def erc20_transfer_hot_tx(sender: str, nonce: int, options: dict):
+    return _contract_call_tx(
+        CONTRACT_ADDRESS,
+        _erc20_transfer_data(HOT_RECEIVER_ADDRESS),
+        ERC20_TRANSFER_GAS,
+        nonce,
+        options,
+    )
+
+
+def uniswap_swap_tx(sender: str, nonce: int, options: dict):
+    zero_for_one = nonce % 2 == 0
+    data = SWAP_SELECTOR + eth_abi.encode(
+        ["uint112", "bool"], [SWAP_AMOUNT, zero_for_one]
+    ).hex()
+    return _contract_call_tx(POOL_ADDRESS, data, SWAP_GAS, nonce, options)
+
+
+def nft_mint_tx(sender: str, nonce: int, options: dict):
+    return _contract_call_tx(NFT_ADDRESS, MINT_SELECTOR, MINT_GAS, nonce, options)
+
+
+def weighted_mix_tx(sender: str, nonce: int, options: dict):
+    """Dispatch to one of options["mix"]'s tx types by weight.
+
+    Picks deterministically from a hash of (sender, nonce) rather than a
+    shared random.Random, since tx generation runs across multiprocessing
+    workers with no shared RNG state - same (sender, nonce) always maps to
+    the same tx type, regardless of worker or run.
+    """
+    mix = options["mix"]
+    digest = hashlib.sha256(f"{sender}:{nonce}".encode()).digest()
+    point = (int.from_bytes(digest[:8], "big") / 2**64) * sum(mix.values())
+
+    cumulative = 0.0
+    for name, weight in mix.items():
+        cumulative += weight
+        if point < cumulative:
+            return TX_TYPES[name](sender, nonce, options)
+    # float rounding can leave point at or past the final cumulative sum
+    return TX_TYPES[list(mix)[-1]](sender, nonce, options)
+
+
 TX_TYPES = {
     "simple-transfer": simple_transfer_tx,
     "erc20-transfer": erc20_transfer_tx,
+    "erc20-transfer-hot": erc20_transfer_hot_tx,
+    "uniswap-swap": uniswap_swap_tx,
+    "nft-mint": nft_mint_tx,
+    "weighted-mix": weighted_mix_tx,
 }
 
 

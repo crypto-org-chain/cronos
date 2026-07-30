@@ -62,6 +62,14 @@ FUND_ACCOUNT_INDEX = 0
 LOAD_COMMIT_TIMEOUT = 120
 
 
+def _tx_options(cfg) -> dict:
+    return {
+        "gas_price": cfg.gas_price,
+        "chain_id": cfg.chain_id,
+        "mix": cfg.mix_weights,
+    }
+
+
 def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
     """Extend the sample until all generated Cosmos txs are committed."""
     # ``start`` is the pre-send anchor and can still contain setup traffic,
@@ -237,7 +245,7 @@ def gen_txs(config_path, nonce, start_account, output_path, start, end):
         start_account=start + start_account,
         nonce=nonce,
         msg_version=cfg.msg_version,
-        tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
+        tx_options=_tx_options(cfg),
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
         sender_strategy=cfg.sender_strategy,
@@ -326,7 +334,7 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
         start_account=start,
         nonce=nonce,
         msg_version=cfg.msg_version,
-        tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
+        tx_options=_tx_options(cfg),
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
         sender_strategy=cfg.sender_strategy,
@@ -591,7 +599,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         start_account=start,
         nonce=nonce,
         msg_version=cfg.msg_version,
-        tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
+        tx_options=_tx_options(cfg),
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
         sender_strategy=cfg.sender_strategy,

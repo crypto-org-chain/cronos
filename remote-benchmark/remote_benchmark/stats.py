@@ -770,6 +770,8 @@ def dump_block_stats(
                 executed, validated = stm_data[height]
                 stm_samples.append((executed, validated, tx_count))
 
+    summary["avg_reexecution_ratio"] = None
+    summary["avg_validation_ratio"] = None
     if stm_samples:
         print(file=fp)
         print(f"=== Block-STM ({len(stm_samples)} tx-blocks sampled) ===", file=fp)
@@ -784,15 +786,15 @@ def dump_block_stats(
         print(f"avg_block_txs {avg_blk_txs:.0f}", file=fp)
         if total_blk_txs > 0:
             reexec_ratio = total_exec / total_blk_txs
+            summary["avg_reexecution_ratio"] = reexec_ratio
             print(
-                f"avg_reexecution_ratio {reexec_ratio:.2f}x" f" (1.00x = no conflicts)",
+                f"avg_reexecution_ratio {reexec_ratio:.2f}x (1.00x = no conflicts)",
                 file=fp,
             )
         if total_exec > 0:
-            print(
-                f"avg_validation_ratio {total_valid / total_exec:.2f}x",
-                file=fp,
-            )
+            validation_ratio = total_valid / total_exec
+            summary["avg_validation_ratio"] = validation_ratio
+            print(f"avg_validation_ratio {validation_ratio:.2f}x", file=fp)
 
     cons = scrape_consensus_metrics(prom_text, baseline=consensus_baseline)
     scope = "load period" if consensus_baseline else "node lifetime"

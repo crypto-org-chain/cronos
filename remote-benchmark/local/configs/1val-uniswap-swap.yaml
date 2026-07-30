@@ -1,0 +1,19 @@
+# 1-validator local devnet - uniswap-swap (every tx swaps against the seeded
+# ContentionPool, contending on its packed reserve0/reserve1 storage slot).
+# Requires patch_erc20_genesis.py to have run so the pool contract is seeded.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: uniswap-swap
+msg_version: "1.4"
+num_accounts: 8000
+num_txs: 40
+batch_size: 1
+send_batch_size: 8000
+send_interval: 0.05

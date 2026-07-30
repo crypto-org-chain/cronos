@@ -2,8 +2,24 @@ from eth_account import Account
 from eth_account._utils.legacy_transactions import Transaction
 from hexbytes import HexBytes
 
-from remote_benchmark.transaction import gen, physical_account_range
+from remote_benchmark.contracts import NFT_ADDRESS, POOL_ADDRESS
+from remote_benchmark.erc20 import CONTRACT_ADDRESS
+from remote_benchmark.transaction import (
+    ERC20_TRANSFER_SELECTOR,
+    HOT_RECEIVER_ADDRESS,
+    MINT_SELECTOR,
+    SWAP_SELECTOR,
+    TX_TYPES,
+    erc20_transfer_hot_tx,
+    gen,
+    nft_mint_tx,
+    physical_account_range,
+    uniswap_swap_tx,
+    weighted_mix_tx,
+)
 from remote_benchmark.utils import gen_account
+
+SENDER = "0x1111111111111111111111111111111111111111"
 
 
 class ImmediatePool:
@@ -81,3 +97,65 @@ def test_unique_per_tx_strategy_uses_one_sender_for_each_transaction(monkeypatch
 def test_physical_account_range_expands_only_unique_per_tx_strategy():
     assert physical_account_range(1, 2, 3, "reuse") == (1, 2)
     assert physical_account_range(1, 2, 3, "unique-per-tx") == (1, 6)
+
+
+def test_erc20_transfer_hot_tx_always_sends_to_the_fixed_hot_receiver():
+    tx = erc20_transfer_hot_tx(SENDER, 0, {})
+
+    assert tx["to"] == CONTRACT_ADDRESS
+    assert tx["data"].startswith(ERC20_TRANSFER_SELECTOR)
+    assert HOT_RECEIVER_ADDRESS[2:].lower() in tx["data"].lower()
+    assert SENDER[2:].lower() not in tx["data"].lower()
+
+
+def test_uniswap_swap_tx_targets_the_seeded_pool_and_alternates_direction():
+    even = uniswap_swap_tx(SENDER, 0, {})
+    odd = uniswap_swap_tx(SENDER, 1, {})
+
+    assert even["to"] == POOL_ADDRESS == odd["to"]
+    assert even["data"][:10] == SWAP_SELECTOR == odd["data"][:10]
+    assert even["data"] != odd["data"]  # zero_for_one flips with nonce parity
+
+
+def test_nft_mint_tx_targets_the_shared_counter_with_no_args():
+    tx = nft_mint_tx(SENDER, 0, {})
+
+    assert tx["to"] == NFT_ADDRESS
+    assert tx["data"] == MINT_SELECTOR
+
+
+def test_weighted_mix_tx_is_deterministic_and_only_dispatches_configured_types():
+    mix = {"erc20-transfer-hot": 0.5, "uniswap-swap": 0.3, "nft-mint": 0.2}
+    options = {"mix": mix}
+
+    first = weighted_mix_tx(SENDER, 7, options)
+    second = weighted_mix_tx(SENDER, 7, options)
+    assert first == second  # same (sender, nonce) always picks the same builder
+
+    destinations = {POOL_ADDRESS, NFT_ADDRESS, CONTRACT_ADDRESS}
+    for nonce in range(50):
+        tx = weighted_mix_tx(f"0xsender{nonce}", nonce, options)
+        assert tx["to"] in destinations
+
+
+def test_weighted_mix_tx_frequencies_roughly_match_configured_weights():
+    mix = {"erc20-transfer-hot": 0.5, "uniswap-swap": 0.3, "nft-mint": 0.2}
+    options = {"mix": mix}
+    to_name = {
+        CONTRACT_ADDRESS: "erc20-transfer-hot",
+        POOL_ADDRESS: "uniswap-swap",
+        NFT_ADDRESS: "nft-mint",
+    }
+    counts = dict.fromkeys(mix, 0)
+
+    n = 5000
+    for i in range(n):
+        tx = weighted_mix_tx(f"0xacct{i}", i, options)
+        counts[to_name[tx["to"]]] += 1
+
+    for name, weight in mix.items():
+        assert abs(counts[name] / n - weight) < 0.03
+
+
+def test_weighted_mix_is_registered_under_tx_types():
+    assert TX_TYPES["weighted-mix"] is weighted_mix_tx

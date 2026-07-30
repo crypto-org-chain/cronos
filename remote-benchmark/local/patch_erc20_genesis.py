@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Inject a predeployed ERC20 contract + balances into a pystarport devnet's
+"""Inject predeployed contracts + balances into a pystarport devnet's
 genesis, for every node under --data-dir.
 
 remote_benchmark.erc20.genesis_accounts() (ported from
 testground/benchmark/benchmark/peer.py) builds the app_state.evm.accounts /
 app_state.auth.accounts entries for the fixed contract address that
-transaction.py's erc20_transfer_tx already hardcodes. pystarport's jsonnet
-genesis_patch has no clean way to express "N deterministically-derived
-accounts with contract storage slots", so this runs as a separate step
-between `pystarport init` and `pystarport start`, patching each node's
-already-generated genesis.json in place.
+transaction.py's erc20_transfer_tx already hardcodes. remote_benchmark.contracts
+does the same for the ContentionPool and MintCounter contracts used by the
+uniswap-swap and nft-mint tx types. pystarport's jsonnet genesis_patch has no
+clean way to express "N deterministically-derived accounts with contract
+storage slots", so this runs as a separate step between `pystarport init` and
+`pystarport start`, patching each node's already-generated genesis.json in
+place.
 
 Safe to run for every test case (not just erc20 ones): it only adds entries,
 never removes existing validator/community accounts.
@@ -22,13 +24,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from remote_benchmark.contracts import (  # noqa: E402
+    nft_genesis_account,
+    pool_genesis_account,
+)
 from remote_benchmark.erc20 import CONTRACT_ADDRESS, genesis_accounts  # noqa: E402
 from remote_benchmark.utils import gen_account  # noqa: E402
+
+# Seed reserves well above any single swap's amountIn so ContentionPool's
+# `reserve1 -= amountIn / 2` never underflows.
+POOL_RESERVE = 10**24
 
 
 def patch_genesis(path: Path, addresses: list[str]) -> None:
     genesis = json.loads(path.read_text())
     evm_accounts, auth_accounts = genesis_accounts(CONTRACT_ADDRESS, addresses)
+    pool_evm, pool_auth = pool_genesis_account(POOL_RESERVE, POOL_RESERVE)
+    nft_evm, nft_auth = nft_genesis_account()
+    evm_accounts += [pool_evm, nft_evm]
+    auth_accounts += [pool_auth, nft_auth]
 
     app_state = genesis["app_state"]
     existing_evm = {a["address"] for a in app_state["evm"]["accounts"]}
@@ -45,9 +59,7 @@ def patch_genesis(path: Path, addresses: list[str]) -> None:
         if "base_account" in a
     }
     app_state["auth"]["accounts"] += [
-        a
-        for a in auth_accounts
-        if a["base_account"]["address"] not in existing_auth
+        a for a in auth_accounts if a["base_account"]["address"] not in existing_auth
     ]
 
     path.write_text(json.dumps(genesis))
