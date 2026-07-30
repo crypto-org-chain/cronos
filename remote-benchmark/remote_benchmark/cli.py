@@ -1,6 +1,7 @@
 import asyncio
 import io
 import itertools
+import math
 import sys
 import time
 from pathlib import Path
@@ -29,6 +30,7 @@ from .results import (
     write_run_record,
 )
 from .resources import fetch_node_exporter, scrape_disk_net_raw
+from .soak import CheckpointSampler, fit_trends, soak_verdict
 from .stats import (
     _fetch_prometheus,
     dump_block_stats,
@@ -545,6 +547,109 @@ def bench(
             f"timed out waiting for generated transactions to commit "
             f"({kind}): {details}"
         )
+
+
+@cli.command()
+@click.option("--config", "config_path", required=True)
+@click.option("--nonce", type=click.IntRange(min=0), default=None)
+@click.option("--rate", type=float, required=True, help="target tx/s")
+@click.option("--duration", type=float, required=True, help="soak duration in seconds")
+@click.option("--checkpoint-interval", type=float, default=30.0)
+@click.option(
+    "--results",
+    "results_path",
+    default=None,
+    help="write soak checkpoints/trends/verdict as JSON to this path",
+)
+@click.argument("start", type=int)
+@click.argument("end", type=int)
+def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, start, end):
+    """Open-loop soak: pace load at --rate tx/s for --duration seconds,
+    sampling periodic checkpoints and trend-fitting RSS/TPS/block time
+    for a leak/degradation verdict."""
+    cfg = load_config(config_path)
+    if cfg.mode == "eth":
+        raise click.ClickException("soak currently only supports cosmos mode")
+
+    num_accounts = end - start + 1
+    if nonce is None:
+        nonce = current_sender_nonce(cfg, start, end)
+        print(f"using current sender nonce {nonce}", file=sys.stderr)
+
+    num_txs = max(1, math.ceil(rate * duration / num_accounts))
+    print(
+        f"generating ~{num_txs} txs/account for a {duration:.0f}s soak at {rate:.1f} tx/s...",
+        file=sys.stderr,
+    )
+    txs = gen(
+        cfg.global_seq,
+        num_accounts,
+        num_txs,
+        cfg.tx_type,
+        cfg.batch_size,
+        start_account=start,
+        nonce=nonce,
+        msg_version=cfg.msg_version,
+        tx_options={"gas_price": cfg.gas_price, "chain_id": cfg.chain_id},
+        evm_denom=cfg.evm_denom,
+        wire_format=cfg.mode,
+        sender_strategy=cfg.sender_strategy,
+    )
+
+    # A batch every second, sized to hit the target rate, paces sends across
+    # the soak duration without waiting for prior batches to commit.
+    batch_interval = 1.0
+    batch_size = max(1, round(rate * batch_interval))
+
+    sampler = CheckpointSampler(cfg.primary.rpc, cfg.telemetry, checkpoint_interval)
+    sampler.start()
+    try:
+        print("sending txs...", file=sys.stderr)
+        asyncio.run(
+            send_round_robin(
+                txs,
+                cfg.rpcs,
+                batch_size=batch_size,
+                batch_interval=batch_interval,
+                num_accounts=num_accounts,
+            )
+        )
+    finally:
+        sampler.stop()
+
+    checkpoints = sampler.checkpoints
+    print()
+    print("=== Soak Checkpoints ===")
+    for c in checkpoints:
+        block_time = f"{c['avg_block_time_ms']:.0f}ms" if c["avg_block_time_ms"] is not None else "N/A"
+        rss = f"{c['rss_bytes']:.0f}" if c["rss_bytes"] is not None else "N/A"
+        print(
+            f"t={c['elapsed_s']:.0f}s height={c['height']} tps={c['tps']:.2f}"
+            f" block_time={block_time} rss_bytes={rss}"
+        )
+
+    trends = fit_trends(checkpoints)
+    verdict = soak_verdict(trends)
+    print()
+    print("=== Soak Verdict ===")
+    for key, slope in trends.items():
+        print(f"{key}_trend_per_s {slope if slope is not None else 'N/A'}")
+    print(f"ok {verdict['ok']}")
+    for reason in verdict["reasons"]:
+        print(f"  {reason}")
+
+    if results_path:
+        Path(results_path).write_text(
+            ujson.dumps(
+                {"checkpoints": checkpoints, "trends": trends, "verdict": verdict},
+                indent=2,
+                default=str,
+            )
+        )
+        print(f"wrote soak record to {results_path}", file=sys.stderr)
+
+    if not verdict["ok"]:
+        raise click.ClickException("soak flagged: " + "; ".join(verdict["reasons"]))
 
 
 @cli.command()
