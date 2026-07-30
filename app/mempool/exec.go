@@ -25,7 +25,9 @@ type txExec struct {
 	// BaseApp.Commit() plus the post-Commit refresh so the swap never races a
 	// RunTx reader or the live memiavl tree mid-Commit. AppMempool.Lock() is a
 	// no-op, so mu also replaces the mempool lock BaseApp normally relies on.
-	// Held only around RunTx, never the lock-free pool scan.
+	// Held around RunTx and the cascade eviction that follows a proven nonce
+	// gap in the same chunk, so eviction stays atomic with admission; never
+	// held across the lock-free pool scan.
 	mu     sync.Mutex
 	runner txRunner
 	// state holds the CacheMultiStore branch RunTx uses in place of checkState.

@@ -74,8 +74,10 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 			sender, seq, trackNonce = sigs[0].Signer.String(), sigs[0].Sequence, true
 		}
 	}
-	if trackNonce && seq > r.expectedNonce[sender] {
-		return sdk.GasInfo{}, nil, nil, errorsmod.Wrap(sdkerrors.ErrWrongSequence, "nonce gap")
+	// The real ante rejects any mismatch, not just a gap: a stale nonce
+	// (seq < expected) is just as invalid as a gap (seq > expected).
+	if trackNonce && seq != r.expectedNonce[sender] {
+		return sdk.GasInfo{}, nil, nil, errorsmod.Wrap(sdkerrors.ErrWrongSequence, "nonce mismatch")
 	}
 
 	if err, ok := r.failErrs[string(txBytes)]; ok {
@@ -1056,11 +1058,12 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 
 const aliceSeq0Bytes = "alice-0"
 
-// A generation bump cannot split one signer's group: gen only advances under
-// the admission mutex, which recheckGroup holds for the whole group. The bump here is raised
-// from inside RunTx (i.e. without the admission mutex) to show the group still completes,
-// and that cancellation is a between-groups decision.
-func TestRecheckTxs_GenerationBumpDoesNotSplitASignersGroup(t *testing.T) {
+// A generation bump cannot split one chunk: gen only advances under the
+// admission mutex, which recheckChunkLocked holds for the whole chunk. Both
+// candidates here fit in a single chunk, so the bump — raised from inside
+// RunTx, i.e. without the admission mutex — shows the chunk still completes;
+// cancellation is a between-chunks decision.
+func TestRecheckTxs_GenerationBumpDoesNotSplitAChunk(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, aliceSeq0Bytes)
 	f.add(2, "alice", 1, "alice-1")
@@ -1081,13 +1084,13 @@ func TestRecheckTxs_GenerationBumpDoesNotSplitASignersGroup(t *testing.T) {
 // TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred covers
 // the two-sender abort case explicitly: the unreached sender must land in
 // staging (not just its raw tx, which runRecheck never touches), and an
-// already-set deferred carry from this same cycle's capRecheckTxs must survive
+// already-set deferred carry from this same cycle's capRecheckGroups must survive
 // untouched.
 func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *testing.T) {
 	f := newRecheckFixture()
 	aliceTx := f.add(1, "alice", 0, aliceSeq0Bytes)
 	bobTx := f.add(2, "bob", 0, "bob-0")
-	carryTx := f.add(3, "carol", 0, "carol-carry") // stands in for capRecheckTxs' overflow carry
+	carryTx := f.add(3, "carol", 0, "carol-carry") // stands in for capRecheckGroups' overflow carry
 
 	f.a.sched.deferred = []sdk.Tx{carryTx}
 
@@ -1311,9 +1314,9 @@ func TestGroupCandidates_DuplicateSeqDisablesCascadeStableOrder(t *testing.T) {
 }
 
 // A group larger than recheckChunkSize must still run every candidate: the
-// chunking in recheckGroup bounds one mutex hold, not how much of the group
+// chunking in runGroup bounds one mutex hold, not how much of the group
 // eventually gets rechecked.
-func TestRecheckGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
+func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	const total = recheckChunkSize + 50
 	f := newRecheckFixture()
 	txs := make([]sdk.Tx, total)
@@ -1326,11 +1329,8 @@ func TestRecheckGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
 
-	evicted, cascaded, aborted, unreachedFrom := f.a.sched.recheckGroup(groups[0], f.a.exec.gen.Load())
-	if aborted {
-		t.Fatal("group must not abort: gen never changed")
-	}
-	if unreachedFrom != total {
+	evicted, cascaded, unreachedFrom := f.a.sched.runGroup(groups[0], f.a.exec.gen.Load())
+	if unreachedFrom != -1 {
 		t.Fatalf("expected the whole group reached, got unreachedFrom=%d", unreachedFrom)
 	}
 	if evicted != 0 || cascaded != 0 {
@@ -1411,11 +1411,8 @@ func TestRecheckGroup_CascadeEvictsAcrossChunkBoundary(t *testing.T) {
 		t.Fatalf("expected 1 cascadable group, got %+v", groups)
 	}
 
-	evicted, cascaded, aborted, unreachedFrom := f.a.sched.recheckGroup(groups[0], f.a.exec.gen.Load())
-	if aborted {
-		t.Fatal("group must not abort: gen never changed")
-	}
-	if unreachedFrom != total {
+	evicted, cascaded, unreachedFrom := f.a.sched.runGroup(groups[0], f.a.exec.gen.Load())
+	if unreachedFrom != -1 {
 		t.Fatalf("expected the whole group reached (run or cascade-evicted), got unreachedFrom=%d", unreachedFrom)
 	}
 	if evicted != 1 {
@@ -1507,5 +1504,91 @@ func TestSigners_NilSignerNoPanic(t *testing.T) {
 	s := &recheckScheduler{}
 	if got := s.signers(&ptrTx{id: 1}); got != nil {
 		t.Fatalf("expected nil signers with a nil extractor, got %v", got)
+	}
+}
+
+// F1 regression: the deferred carry from capRecheckGroups is tx-identity-keyed
+// (deferredLive), so it alone cannot survive a fee bump replacing the head of
+// a deferred group at the same (sender, nonce) key. capRecheckGroups must
+// also merge the deferred groups' senders into recheckSenders, so the next
+// cycle's selectTxs re-picks alice's whole live queue by sender instead of
+// relying on the stale deferred pointer. Without that, the surviving tail
+// (seq 6-9) would be regrouped alone, fail wrong-sequence against a base
+// still expecting nonce 5, and be evicted in full.
+func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) {
+	const batch = 3
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 5}
+
+	bob := f.add(1, "bob", 0, "bob-0")
+	aliceSeqs := []uint64{5, 6, 7, 8, 9}
+	alice := make([]*ptrTx, len(aliceSeqs))
+	for i, seq := range aliceSeqs {
+		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
+	}
+
+	f.a.sched.maxRecheckBatch = batch
+	f.a.sched.recheckSenders = map[string]struct{}{
+		sdk.AccAddress("bob").String():   {},
+		sdk.AccAddress("alice").String(): {},
+	}
+
+	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
+	// overflows and must defer whole.
+	f.a.sched.RecheckTxs()
+	if !poolHas(f.pool, bob) {
+		t.Fatal("precondition: bob's tx must survive cycle 1")
+	}
+	if len(f.a.sched.deferred) != len(aliceSeqs) {
+		t.Fatalf("precondition: alice's whole group must defer, got %d", len(f.a.sched.deferred))
+	}
+
+	// alice fee-bumps her head tx: same (sender, nonce) key, new tx identity.
+	// PriorityNonceMempool.Insert replaces the deferred pointer's pool entry.
+	bumped := f.add(99, "alice", aliceSeqs[0], "alice-5-bumped")
+	if poolHas(f.pool, alice[0]) {
+		t.Fatal("precondition: fee bump must replace the original nonce-5 entry")
+	}
+
+	// No block touches alice between cycles; her real nonce stays 5. A Commit
+	// still lands (gen advances) but doesn't change the fake runner's nonce
+	// view, mirroring "alice's chain was only rechecked, never included".
+	f.a.exec.gen.Add(1)
+
+	// Cycle 2: recheckSenders is drained empty going in; only capRecheckGroups'
+	// re-staging from cycle 1 covers alice here.
+	f.a.sched.RecheckTxs()
+
+	if !poolHas(f.pool, bumped) {
+		t.Fatal("the fee-bumped replacement at nonce 5 must survive recheck")
+	}
+	for i, seq := range aliceSeqs[1:] {
+		if !poolHas(f.pool, alice[i+1]) {
+			t.Fatalf("alice's tail tx at seq %d must not be evicted after a head fee bump", seq)
+		}
+	}
+}
+
+// F2 (documented residual, not fixed in code): PriorityNonceMempool.Remove
+// resolves by (sender, nonce) key, not tx identity, so evicting a stale
+// recheck candidate drops whatever currently occupies that key. If an
+// admission lands between the snapshot and the eviction and replaces the slot
+// (e.g. a fee bump), the freshly admitted replacement is what gets dropped,
+// not the stale tx the pass was actually rechecking.
+func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
+	f := newRecheckFixture()
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	// A fee bump lands at the same (sender, nonce) key before eviction runs.
+	replacement := f.insert(2, sdk.AccAddress("alice"), 0)
+	if poolHas(f.pool, stale) {
+		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
+	}
+
+	f.a.sched.evict(stale)
+
+	if poolHas(f.pool, replacement) {
+		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
 	}
 }

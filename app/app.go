@@ -1699,10 +1699,12 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 		if err == nil {
 			app.mempoolManager.RefreshMempoolStateLocked()
 		}
-		// On error, base is left pointing at the superseded store. Same for the
-		// store reload in ApplySnapshotChunk, which doesn't refresh base at
-		// all: a Commit error is effectively fatal and a state-syncing node
-		// isn't admitting or proposing, so nothing reads base until the next
+		// On error, base is left pointing at the superseded store. Same for
+		// ApplySnapshotChunk: RestoreChunk streams straight into the live
+		// CommitMultiStore (snapshots.Manager.doRestoreSnapshot ->
+		// multistore.Restore) without ever calling RefreshMempoolStateLocked. A
+		// Commit error is effectively fatal and a state-syncing node isn't
+		// admitting or proposing, so nothing reads base until the next
 		// successful Commit refreshes it.
 		return resp, err
 	}()
