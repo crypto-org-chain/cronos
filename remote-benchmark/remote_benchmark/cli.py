@@ -31,6 +31,7 @@ from .results import (
 )
 from .resources import fetch_node_exporter, scrape_disk_net_raw
 from .soak import CheckpointSampler, fit_trends, soak_verdict
+from .sweep import load_matrix, run_sweep, summarize_sweep
 from .stats import (
     _fetch_prometheus,
     dump_block_stats,
@@ -652,6 +653,79 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         raise click.ClickException("soak flagged: " + "; ".join(verdict["reasons"]))
 
 
+@cli.command("sweep")
+@click.option("--config", "config_path", required=True)
+@click.option("--nonce", type=click.IntRange(min=0), default=None)
+@click.option(
+    "--results-dir",
+    "results_dir",
+    required=True,
+    help="directory to write one run record per cell plus sweep-summary.txt",
+)
+@click.option(
+    "--no-stop-on-degradation",
+    "stop_on_degradation",
+    is_flag=True,
+    default=True,
+    flag_value=False,
+    help="keep running every cell even after one fails the saturation gates",
+)
+@click.argument("matrix_path", type=str)
+@click.argument("start", type=int)
+@click.argument("end", type=int)
+def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path, start, end):
+    """Sweep a parameter matrix: apply-config hook + bench per cell.
+
+    MATRIX_PATH is a JSON/YAML file: {apply_config_hook, restart_wait_s,
+    axes: {name: [values, ...]}}. Stops at the first cell that fails the
+    saturation gates unless --no-stop-on-degradation is passed.
+    """
+    cfg = load_config(config_path)
+    matrix = load_matrix(_load_json_or_yaml(matrix_path))
+
+    resolved_nonce = nonce
+    if resolved_nonce is None:
+        resolved_nonce = current_sender_nonce(cfg, start, end)
+        print(f"using current sender nonce {resolved_nonce}", file=sys.stderr)
+
+    results_path = Path(results_dir)
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    def run_cell(cell):
+        run = _run_bench_once(cfg, resolved_nonce, 1, start, end, capture_stats=True)
+        record = build_run_record(
+            cfg=cfg,
+            config_path=config_path,
+            mode=run["mode"],
+            load_start=run["load_start"],
+            load_end=run["load_end"],
+            stats_text=run["stats_text"],
+            summary=run["summary"],
+            committed_txs=run["committed_txs"],
+            expected_txs=run["expected_txs"],
+            run_kind="sweep-cell",
+            extra={"cell": cell},
+        )
+        cell_name = "-".join(f"{k}{v}" for k, v in cell.items()) or "cell"
+        write_run_record(record, results_path / f"{cell_name}.json")
+        return run["summary"]
+
+    print(f"sweeping {len(matrix['cells'])} cells...", file=sys.stderr)
+    cell_results = run_sweep(matrix, run_cell, stop_on_degradation=stop_on_degradation)
+
+    report = summarize_sweep(cell_results)
+    print(report)
+    (results_path / "sweep-summary.txt").write_text(report + "\n")
+
+    ran = len(cell_results)
+    total = len(matrix["cells"])
+    if ran < total:
+        print(
+            f"stopped after {ran}/{total} cells: cell {ran} failed the saturation gates",
+            file=sys.stderr,
+        )
+
+
 @cli.command()
 @click.option("-o", "--output", "output_path", default=None, help="write HTML report here")
 @click.argument("record_a_path", metavar="A.json", type=str)
@@ -667,7 +741,7 @@ def compare(output_path, record_a_path, record_b_path):
         print(f"wrote comparison report to {output_path}", file=sys.stderr)
 
 
-def _load_nodes(path):
+def _load_json_or_yaml(path):
     text = Path(path).read_text()
     return ujson.loads(text) if path.endswith(".json") else yaml.safe_load(text)
 
@@ -681,7 +755,7 @@ def bootstrap_peers_cmd(port, output_path, nodes_path):
 
     NODES_PATH is a JSON/YAML file: [{name, ip, node_key_path}, ...].
     """
-    nodes = _load_nodes(nodes_path)
+    nodes = _load_json_or_yaml(nodes_path)
     payload = ujson.dumps(bootstrap_peers(nodes, port=port), indent=2)
     if output_path:
         Path(output_path).write_text(payload)
