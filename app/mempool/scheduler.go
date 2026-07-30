@@ -317,8 +317,9 @@ type recheckCandidate struct {
 // cascadable is false when the group is not that signer's contiguous
 // ascending-nonce view — an unknown signer, a signer named by a multi-signer tx
 // (that tx is grouped elsewhere, so it can fill a nonce this group can't see), a
-// duplicate seq, or a tx dropped on encode error — because the cascade rule
-// reasons about the next expected nonce.
+// duplicate seq, an unordered tx (keyed by timeout, not sequence), or a tx
+// dropped on encode error — because the cascade rule reasons about the next
+// expected nonce.
 type recheckGroup struct {
 	key        string
 	txs        []recheckCandidate
@@ -332,7 +333,9 @@ type recheckGroup struct {
 // has already superseded. drainStaging already cleared recheckSenders for this
 // cycle, so the unreached candidates' senders are re-merged into staging here —
 // otherwise a sender that isn't touched again by a later block would never be
-// rechecked until TTL.
+// rechecked until TTL. They're also appended to deferred, so selectTxs front-
+// loads them ahead of the priority-ordered snapshot's same old prefix next
+// cycle, same as capRecheckGroups' overflow carry.
 func (s *recheckScheduler) runRecheck(groups []recheckGroup, gen uint64) {
 	var evicted, cascaded, superseded float32
 	for i, g := range groups {
@@ -350,6 +353,7 @@ func (s *recheckScheduler) runRecheck(groups []recheckGroup, gen uint64) {
 			unreached = append(unreached, unreachedTxs(groups[i+1:])...)
 			superseded += float32(len(unreached))
 			s.recoverSenders(unreached)
+			s.appendDeferred(unreached)
 			break
 		}
 	}
@@ -394,6 +398,9 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 			for _, sg := range s.signers(tx) {
 				coSigned[sg] = struct{}{}
 			}
+		}
+		if unordered, ok := tx.(sdk.TxWithUnordered); ok && unordered.GetUnordered() {
+			g.cascadable = false // unordered txs key by timeout, not sequence: seq here is meaningless for the gap rule
 		}
 		bz, _, err := EncodeTx(s.exec.encCache, s.exec.txEncoder, tx)
 		if err != nil {
@@ -444,27 +451,29 @@ type nonceCursor struct {
 // is -1 once every candidate has either run or been cascade-evicted; otherwise
 // it is the index where the aborting chunk would have started, leaving the
 // group untouched from there on. On a nonce gap the remaining higher-nonce
-// siblings — including any in later chunks — are evicted without spending a
-// RunTx on each: nothing can fill the gap while they sit in the pool. Any
-// other failure evicts only the failing tx, since a later sibling may still be
-// the account's next expected nonce.
+// siblings in the same chunk are evicted without spending a RunTx on each,
+// since that eviction runs under the same lock hold as the gap proof. Each
+// later chunk's own head is still verified with its own RunTx before any
+// blind eviction there — the lock is released between chunks, so an admission
+// of the same sender can legitimately fill the gap in the meantime. Any
+// non-gap failure evicts only the failing tx, since a later sibling may still
+// be the account's next expected nonce.
 func (s *recheckScheduler) runGroup(g recheckGroup, gen uint64) (evicted, cascaded float32, unreachedFrom int) {
 	cursor := nonceCursor{}
 	gapFound := false
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
 		end := min(start+recheckChunkSize, len(g.txs))
+		var (
+			e, c float32
+			next nonceCursor
+			gap  bool
+			ok   bool
+		)
 		if gapFound {
-			// A gap was already proven in an earlier chunk: every candidate from
-			// here on is unreachable, so just cascade-evict this chunk under the
-			// same bounded lock hold rather than spend a RunTx on any of them.
-			c, ok := s.cascadeChunkLocked(g, start, end, gen)
-			cascaded += c
-			if !ok {
-				return evicted, cascaded, start
-			}
-			continue
+			e, c, next, gap, ok = s.cascadeChunkLocked(g, start, end, gen)
+		} else {
+			e, c, next, gap, ok = s.recheckChunkLocked(g, start, end, gen, cursor)
 		}
-		e, c, next, gap, ok := s.recheckChunkLocked(g, start, end, gen, cursor)
 		evicted += e
 		cascaded += c
 		if !ok {
@@ -476,19 +485,11 @@ func (s *recheckScheduler) runGroup(g recheckGroup, gen uint64) (evicted, cascad
 	return evicted, cascaded, -1
 }
 
-// recheckChunkLocked runs g.txs[start:end] under one hold of exec.mu. Returns
-// ok=false if gen advanced before the chunk started, meaning nothing in
-// [start, len(g.txs)) ran. gapFound reports a proven nonce gap discovered in
-// this chunk: the cascade for the rest of this chunk already ran here, under
-// the same lock as the admissions it must stay atomic with respect to.
-func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, gen uint64, cursor nonceCursor) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
-	s.exec.mu.Lock()
-	defer s.exec.mu.Unlock()
-	// gen only advances under the same mutex, so it cannot change once this chunk starts.
-	if s.exec.gen.Load() != gen {
-		return 0, 0, cursor, false, false
-	}
-
+// runCandidatesLocked runs g.txs[start:end] against the current base,
+// evicting any candidate that fails and cascade-evicting the rest of the
+// range once a nonce gap is proven. Precondition: caller holds exec.mu and
+// has already confirmed gen is current.
+func (s *recheckScheduler) runCandidatesLocked(g recheckGroup, start, end int, cursor nonceCursor) (evicted, cascaded float32, next nonceCursor, gapFound bool) {
 	for i := start; i < end; i++ {
 		c := g.txs[i]
 		_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx)
@@ -505,27 +506,59 @@ func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, ge
 				s.evict(rest.tx)
 				cascaded++
 			}
-			return evicted, cascaded, cursor, true, true
+			return evicted, cascaded, cursor, true
 		}
 	}
-	return evicted, cascaded, cursor, false, true
+	return evicted, cascaded, cursor, false
 }
 
-// cascadeChunkLocked evicts g.txs[start:end] under one hold of exec.mu, for a
-// chunk that starts after a gap was already proven in an earlier chunk.
-// Chunked the same as recheckChunkLocked so a long cascaded tail can't hold
-// the admission mutex in one unbounded stretch.
-func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, gen uint64) (cascaded float32, ok bool) {
+// recheckChunkLocked runs g.txs[start:end] under one hold of exec.mu. Returns
+// ok=false if gen advanced before the chunk started, meaning nothing in
+// [start, len(g.txs)) ran. gapFound reports a proven nonce gap discovered in
+// this chunk: the cascade for the rest of this chunk already ran here, under
+// the same lock as the admissions it must stay atomic with respect to.
+func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, gen uint64, cursor nonceCursor) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
+	s.exec.mu.Lock()
+	defer s.exec.mu.Unlock()
+	// gen only advances under the same mutex, so it cannot change once this chunk starts.
+	if s.exec.gen.Load() != gen {
+		return 0, 0, cursor, false, false
+	}
+	evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start, end, cursor)
+	return evicted, cascaded, next, gapFound, true
+}
+
+// cascadeChunkLocked handles a chunk that starts after a gap was proven in an
+// earlier chunk. The gap proof only covers evictions made under that earlier
+// chunk's own lock hold; the lock is released between chunks, so an admission
+// of the same sender can land in the gap before this chunk's turn and
+// legitimately fill it. This chunk's own head is therefore verified with a
+// RunTx before anything is blind-evicted: if it succeeds, the gap didn't
+// survive to this chunk, and the remainder falls back to normal
+// recheckChunkLocked semantics, seeded from the head's now-accepted nonce. If
+// it fails — for a nonce reason or otherwise, any failure means the gap held
+// — the head and the rest of the chunk are cascade-evicted as before, without
+// a RunTx on the rest.
+func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, gen uint64) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
 	s.exec.mu.Lock()
 	defer s.exec.mu.Unlock()
 	if s.exec.gen.Load() != gen {
-		return 0, false
+		return 0, 0, nonceCursor{}, true, false
 	}
-	for _, c := range g.txs[start:end] {
-		s.evict(c.tx)
+
+	head := g.txs[start]
+	_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, head.bz, head.tx)
+	if err == nil {
+		evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start+1, end, nonceCursor{last: head.seq, ok: true})
+		return evicted, cascaded, next, gapFound, true
+	}
+
+	s.evict(head.tx)
+	for _, rest := range g.txs[start+1 : end] {
+		s.evict(rest.tx)
 		cascaded++
 	}
-	return cascaded, true
+	return 1, cascaded, nonceCursor{}, true, true
 }
 
 // isNonceErr matches both ante paths: cosmos sig verification reports
@@ -563,6 +596,19 @@ func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
 	}
 	s.stagingMu.Lock()
 	s.mergeRecheckSenders(senders)
+	s.stagingMu.Unlock()
+}
+
+// appendDeferred appends txs to the deferred carry under stagingMu. Append,
+// not overwrite: capRecheckGroups may have already set deferred to its own
+// overflow carry earlier this same cycle, and that must survive alongside an
+// abort's unreached tail.
+func (s *recheckScheduler) appendDeferred(txs []sdk.Tx) {
+	if len(txs) == 0 {
+		return
+	}
+	s.stagingMu.Lock()
+	s.deferred = append(s.deferred, txs...)
 	s.stagingMu.Unlock()
 }
 

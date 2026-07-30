@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
@@ -1083,9 +1084,9 @@ func TestRecheckTxs_GenerationBumpDoesNotSplitAChunk(t *testing.T) {
 
 // TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred covers
 // the two-sender abort case explicitly: the unreached sender must land in
-// staging (not just its raw tx, which runRecheck never touches), and an
-// already-set deferred carry from this same cycle's capRecheckGroups must survive
-// untouched.
+// staging (not just its raw tx, which runRecheck never touches), and the
+// unreached tx must be appended to deferred (F3) alongside — not in place of
+// — an already-set deferred carry from this same cycle's capRecheckGroups.
 func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *testing.T) {
 	f := newRecheckFixture()
 	aliceTx := f.add(1, "alice", 0, aliceSeq0Bytes)
@@ -1111,8 +1112,8 @@ func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *te
 	if _, ok := f.a.sched.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
 		t.Fatal("bob must be re-covered in staging after its candidate was skipped")
 	}
-	if len(f.a.sched.deferred) != 1 || f.a.sched.deferred[0] != carryTx {
-		t.Fatal("an already-set deferred carry from this cycle must not be clobbered")
+	if !slices.Equal(f.a.sched.deferred, []sdk.Tx{carryTx, bobTx}) {
+		t.Fatalf("expected the abort to append bob's tx after the untouched carry, got %v", f.a.sched.deferred)
 	}
 
 	// Next RecheckTxs cycle: bob (re-covered) and the carried carol tx must both
@@ -1272,6 +1273,32 @@ func TestGroupCandidates_MultiSignerDisablesCascadeInCoSignerGroup(t *testing.T)
 	}
 }
 
+// F2: an unordered tx keys its SignerData.Sequence at 0 (ChooseNonce orders it
+// by timeout, not sequence), so a group holding it alongside ordered seqs
+// 6, 7, 8 has no duplicate seq and would otherwise look like a clean
+// ascending-nonce view. groupCandidates must disable cascade for it directly,
+// since the seq it carries can't be reasoned about by the gap rule.
+func TestGroupCandidates_UnorderedTxDisablesCascade(t *testing.T) {
+	f := newRecheckFixture()
+	unordered := &ptrTx{id: 1, unordered: true, timeoutTS: time.Now().Add(time.Hour)}
+	f.signer.m[unordered] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	if err := f.pool.Insert(sdk.Context{}, unordered); err != nil {
+		t.Fatal(err)
+	}
+	seq6 := f.insert(2, sdk.AccAddress("alice"), 6)
+	seq7 := f.insert(3, sdk.AccAddress("alice"), 7)
+	seq8 := f.insert(4, sdk.AccAddress("alice"), 8)
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{unordered, seq6, seq7, seq8})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group keyed on alice, got %d", len(groups))
+	}
+	if groups[0].cascadable {
+		t.Fatal("an unordered tx in the group must disable cascade")
+	}
+}
+
 // Deferred front-loading can hand groupCandidates an out-of-nonce-order group
 // (e.g. alice-5 ahead of alice-3 and alice-4). Without sorting, alice-5 would
 // run first and fail wrong-sequence even though it becomes valid two txs later.
@@ -1346,6 +1373,76 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	}
 }
 
+// F1 regression: a gap proven at the very last index of a chunk leaves the
+// cascade range for that chunk empty (g.txs[i+1:end] has nothing in it), so
+// nothing was actually evicted under the lock hold that proved the gap. If a
+// same-sender admission fills the gap before the next chunk's turn,
+// cascadeChunkLocked must discover that with a RunTx on the next chunk's own
+// head rather than blind-evicting a nonce that is now valid.
+func TestRunGroup_CascadeChunkHeadRunTxWhenGapProvenAtChunkBoundary(t *testing.T) {
+	const n = recheckChunkSize
+	const total = n + 2 // chunk 1 = [0, n); chunk 2 = [n, n+2)
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	dave := sdk.AccAddress("dave").String()
+	f.runner.expectedNonce = map[string]uint64{dave: 0}
+
+	seqOf := func(i int) uint64 {
+		switch {
+		case i < n-1:
+			return uint64(i) // 0..n-2: ascending, all valid
+		case i == n-1:
+			return uint64(n) + 3 // last of chunk 1: opens a gap (skips n-1, n, n+1, n+2)
+		default:
+			return uint64(n) + 3 + uint64(i-(n-1)) // chunk 2: continues ascending past the gap
+		}
+	}
+	bz := func(i int) string { return "dave-" + strconv.Itoa(i) }
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		ptrTxs[i] = f.add(i+1, "dave", seqOf(i), bz(i))
+		txs[i] = ptrTxs[i]
+	}
+
+	// A same-sender admission lands between chunk 1's lock release and chunk
+	// 2's cascadeChunkLocked call, filling every nonce the gap skipped — by
+	// the time chunk 2 runs, the account's expected nonce matches chunk 2's
+	// head exactly.
+	f.runner.onCall = func(b []byte) {
+		if string(b) == bz(n-1) {
+			f.runner.expectedNonce[dave] = seqOf(n)
+		}
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("expected 1 cascadable group, got %+v", groups)
+	}
+
+	evicted, cascaded, unreachedFrom := f.a.sched.runGroup(groups[0], f.a.exec.gen.Load())
+	if unreachedFrom != -1 {
+		t.Fatalf("expected the whole group reached, got unreachedFrom=%d", unreachedFrom)
+	}
+	if evicted != 1 {
+		t.Fatalf("expected exactly 1 eviction (the originally gapped tx), got %v", evicted)
+	}
+	if cascaded != 0 {
+		t.Fatalf("expected no blind cascade eviction once the gap closed, got %v", cascaded)
+	}
+	for i := n; i < total; i++ {
+		if !f.runner.seen[bz(i)] {
+			t.Fatalf("candidate %d must have spent a RunTx, not been blind-evicted", i)
+		}
+		if !poolHas(f.pool, ptrTxs[i]) {
+			t.Fatalf("candidate %d is now valid and must not be evicted", i)
+		}
+	}
+	if poolHas(f.pool, ptrTxs[n-1]) {
+		t.Fatal("the originally gapped tx must still be evicted")
+	}
+}
+
 // A gen bump landing exactly at a chunk boundary must abort the group there:
 // the completed chunk stays rechecked, and the untouched tail's sender is
 // re-staged so the next cycle covers it — mirroring the same-generation
@@ -1388,11 +1485,16 @@ func TestRunRecheck_GenBumpAtChunkBoundaryAbortsAndRestagesSender(t *testing.T) 
 
 // A nonce gap discovered in a later chunk must still cascade-evict every
 // higher-nonce sibling, including ones that live in a chunk beyond the one
-// where the gap was found — the cascade doesn't stop at a chunk boundary.
+// where the gap was found — except each further chunk's own head now spends
+// a RunTx (F1 fix) to confirm the gap actually survived the lock release at
+// that boundary, so it isn't the same blind cascade past the first chunk.
 func TestRecheckGroup_CascadeEvictsAcrossChunkBoundary(t *testing.T) {
 	const total = 3*recheckChunkSize - 88 // spans 3 chunks; boundaries at 256, 512
 	const gapIndex = 400                  // inside chunk 2 ([256, 512))
+	const chunk3Head = 2 * recheckChunkSize
 	f := newRecheckFixture()
+	f.runner.signer = f.signer // real nonce tracking: the gap must hold on its own, not via failErrs
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("carl").String(): 0}
 	txs := make([]sdk.Tx, total)
 	ptrTxs := make([]*ptrTx, total)
 	bz := func(i int) string { return "carl-" + strconv.Itoa(i) }
@@ -1404,7 +1506,6 @@ func TestRecheckGroup_CascadeEvictsAcrossChunkBoundary(t *testing.T) {
 		ptrTxs[i] = f.add(i+1, "carl", seq, bz(i))
 		txs[i] = ptrTxs[i]
 	}
-	f.runner.failErrs = map[string]error{bz(gapIndex): errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
 
 	groups := f.a.sched.groupCandidates(txs)
 	if len(groups) != 1 || !groups[0].cascadable {
@@ -1415,19 +1516,30 @@ func TestRecheckGroup_CascadeEvictsAcrossChunkBoundary(t *testing.T) {
 	if unreachedFrom != -1 {
 		t.Fatalf("expected the whole group reached (run or cascade-evicted), got unreachedFrom=%d", unreachedFrom)
 	}
-	if evicted != 1 {
-		t.Fatalf("expected 1 direct eviction (the gapped tx), got %v", evicted)
+	// Two real RunTx-driven evictions: the gapped candidate itself, and chunk
+	// 3's head re-checking whether the gap survived its own chunk boundary.
+	if evicted != 2 {
+		t.Fatalf("expected 2 direct evictions (the gapped tx and the next chunk's head), got %v", evicted)
 	}
-	if want := float32(total - gapIndex - 1); cascaded != want {
-		t.Fatalf("expected %v cascade-evicted siblings spanning chunk 2 and chunk 3, got %v", want, cascaded)
+	if want := float32(total - gapIndex - 2); cascaded != want {
+		t.Fatalf("expected %v cascade-evicted siblings, got %v", want, cascaded)
 	}
 	for i := gapIndex + 1; i < total; i++ {
+		if i == chunk3Head {
+			continue
+		}
 		if f.runner.seen[bz(i)] {
 			t.Fatalf("sibling at index %d must be cascade-evicted without a RunTx", i)
 		}
 		if poolHas(f.pool, ptrTxs[i]) {
 			t.Fatalf("sibling at index %d must be evicted from the pool", i)
 		}
+	}
+	if !f.runner.seen[bz(chunk3Head)] {
+		t.Fatal("the next chunk's own head must spend a RunTx to check whether the gap survived to this chunk")
+	}
+	if poolHas(f.pool, ptrTxs[chunk3Head]) {
+		t.Fatal("the next chunk's head must still be evicted since the gap held")
 	}
 	if !f.runner.seen[bz(gapIndex-1)] {
 		t.Fatal("the last successful candidate before the gap must have run")
