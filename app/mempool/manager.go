@@ -64,8 +64,7 @@ type Manager struct {
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction
 	recheckDisabled bool
-	// pendingCache TTL-caches PendingTxs(). Only committed blocks invalidate it;
-	// admissions and recheck evictions stay hidden until the TTL lapses.
+	// pendingCache avoids re-walking the pool on every PendingTxs() call.
 	pendingCache pendingCache
 }
 
@@ -282,8 +281,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 }
 
 // StageRecheckSenders records committed-block senders for RecheckTxs and stages
-// the committed height. Must run after the block's txs leave the pool, so the
-// invalidated pending snapshot is replaced by one without them.
+// the committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	a.pendingCache.invalidate()
 

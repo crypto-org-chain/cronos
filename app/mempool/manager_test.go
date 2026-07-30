@@ -603,8 +603,6 @@ func TestManagerPendingTxs(t *testing.T) {
 	}
 }
 
-// newCachedManager returns a Manager with a TTL-cached PendingTxs backed by pool
-// and a frozen clock the caller advances via the returned pointer.
 func newCachedManager(ttl time.Duration, pool *fakePool) (*Manager, *time.Time) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	now := time.Unix(0, 0)
@@ -762,8 +760,6 @@ func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) b
 	p.fakePool.SelectBy(ctx, txs, cb)
 }
 
-// The other cache tests set the TTL field directly, so they'd all still pass if
-// the constructor stopped wiring it.
 func TestNewManagerWiresPendingCacheTTL(t *testing.T) {
 	var scans atomic.Int64
 	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}}}, scans: &scans}

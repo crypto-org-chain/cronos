@@ -39,8 +39,7 @@ type CronosConfig struct {
 	// 0 disables.
 	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
 	// MempoolPendingCacheTTL caches the PendingTxs() pool-scan result for this long,
-	// so repeated RPC reads (txpool_content, eth_pendingTransactions, etc.) don't each
-	// re-walk the pool. 0 disables caching.
+	// so repeated RPC reads don't each re-walk the pool. 0 disables caching.
 	MempoolPendingCacheTTL time.Duration `mapstructure:"mempool-pending-cache-ttl"`
 }
 
@@ -62,8 +61,7 @@ const (
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
-	// DefaultMempoolPendingCacheTTL bounds PendingTxs() staleness while still
-	// collapsing bursts of RPC reads onto one pool scan.
+
 	DefaultMempoolPendingCacheTTL = 100 * time.Millisecond
 )
 

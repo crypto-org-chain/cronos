@@ -43,11 +43,8 @@ mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
 mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
 
 # Caches the PendingTxs() pool scan for this long, so a burst of RPC reads
-# (txpool_content, eth_pendingTransactions, etc.) collapses onto one walk of the
-# mempool.type=app pool instead of one walk per call. The cache is dropped at
-# every block, so staleness is bounded by this value within a block: a tx
-# submitted moments ago may not show up as pending yet, and eth_getTransactionCount
-# with "pending" may lag by those txs. 0 disables caching. Default "100ms".
+# collapses onto one walk of the mempool.type=app pool instead of one walk per call.
+# 0 disables caching. Default "100ms".
 mempool-pending-cache-ttl = "{{ .Cronos.MempoolPendingCacheTTL }}"
 `
 
