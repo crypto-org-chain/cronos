@@ -4,6 +4,10 @@
 
 *Jul 16, 2026*
 
+### Improvements
+
+* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) mempool-owned branched context for admission + recheck
+
 ## v1.8.0-alpha
 
 ### Improvements
