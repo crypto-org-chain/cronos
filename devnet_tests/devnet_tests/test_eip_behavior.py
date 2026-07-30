@@ -1,0 +1,51 @@
+import pytest
+
+from .eip_probes import (
+    send_below_base_fee,
+    send_blob_tx,
+    send_insufficient_balance,
+    send_over_max_tx_gas,
+    send_under_floor_data_gas,
+)
+
+
+@pytest.fixture
+def funded_account(devnet):
+    if devnet.funded_account is None:
+        pytest.skip("DEVNET_FUNDED_KEY not set")
+    return devnet.funded_account
+
+
+def test_max_tx_gas_rejected(devnet, funded_account):
+    result = send_over_max_tx_gas(devnet.nodes[0].w3, funded_account)
+    assert not result.accepted
+    assert "gas limit too high" in result.error
+
+
+def test_floor_data_gas_rejected(devnet, funded_account):
+    result = send_under_floor_data_gas(devnet.nodes[0].w3, funded_account)
+    assert not result.accepted
+    assert "floor data gas" in result.error
+
+
+def test_below_base_fee_rejected(devnet, funded_account):
+    w3 = devnet.nodes[0].w3
+    if w3.eth.get_block("latest")["baseFeePerGas"] == 0:
+        pytest.skip("base fee is currently 0, no feeCap can be below it")
+    result = send_below_base_fee(w3, funded_account)
+    assert not result.accepted
+    assert "insufficient gas prices" in result.error
+
+
+def test_insufficient_balance_rejected(devnet, funded_account):
+    result = send_insufficient_balance(devnet.nodes[0].w3, funded_account)
+    assert not result.accepted
+    assert "insufficient" in result.error.lower()
+
+
+def test_blob_tx_rejected(devnet, funded_account):
+    result = send_blob_tx(devnet.nodes[0].w3, funded_account)
+    assert not result.accepted, (
+        "blob tx was accepted instead of rejected - cronos may be silently "
+        "misinterpreting EIP-4844 fields as a legacy transaction"
+    )
