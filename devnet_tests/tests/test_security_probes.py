@@ -46,11 +46,11 @@ def _receipts(*statuses):
 
 def _fake_w3(
     send_raw_transaction=lambda raw: "0xhash",
+    # Sentinel rather than a default _receipts(1, 1) so each _fake_w3 gets its
+    # own receipt iterator instead of sharing one captured at import time.
     wait_for_transaction_receipt=None,
     start_nonce=5,
 ):
-    # Sentinel rather than a default _receipts(1, 1) so each _fake_w3 gets its
-    # own receipt iterator instead of sharing one captured at import time.
     eth = SimpleNamespace(
         chain_id=777,
         gas_price=1000,
@@ -115,3 +115,14 @@ def test_deploy_and_call_use_consecutive_nonces():
     send_unauthorized_cro_bridge_call(w3, account)
     nonces = [tx["nonce"] for tx in account.signed]
     assert nonces == [10, 11]
+
+
+def test_call_sets_an_explicit_gas_value():
+    # A missing "gas" key makes real web3.py estimate gas by simulating the
+    # call, which raises on a revert before the tx is ever sent — this guards
+    # against reintroducing that (see security_probes.py's comment on the tx
+    # dict for send_cro_to_crypto_org).
+    account = _FakeAccount()
+    w3 = _fake_w3()
+    send_unauthorized_cro_bridge_call(w3, account)
+    assert account.signed[1]["gas"] > 0  # [1] is the call tx; [0] is the deploy tx

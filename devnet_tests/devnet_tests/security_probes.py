@@ -30,8 +30,8 @@ class BridgeRejectionResult:
 
 
 def _send_and_wait(w3, account, tx: dict):
-    """Signs, submits and waits for `tx`; lets both signing-time and RPC-time
-    failures raise so the caller can fold them into a single result."""
+    """Lets both signing-time and RPC-time failures raise so the caller can
+    fold them into a single result."""
     signed = account.sign_transaction(tx)
     tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     return w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -68,7 +68,10 @@ def send_unauthorized_cro_bridge_call(w3, account) -> BridgeRejectionResult:
             w3,
             account,
             bridge.functions.send_cro_to_crypto_org("cro1somerecipient").build_transaction(
-                {**common, "nonce": nonce + 1, "value": 1}
+                # An explicit gas value skips web3.py's implicit eth_estimateGas
+                # call, which raises on a reverting call before the tx is ever
+                # sent — we need the tx mined so we can read receipt.status.
+                {**common, "nonce": nonce + 1, "value": 1, "gas": 200_000}
             ),
         )
     except Exception as exc:  # noqa: BLE001
