@@ -533,38 +533,139 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), abandoning the rest
-// of the pass once gen advances mid-flight: those candidates were validated
-// against a base a concurrent Commit has already superseded. drainStaging
-// already cleared recheckSenders for this cycle, so the unreached candidates'
-// senders are re-merged into staging here — otherwise a sender that isn't
-// touched again by a later block would never be rechecked until TTL.
+// recheckCandidate carries the signer nonce alongside the tx: telling a nonce
+// gap from a merely stale nonce is what makes cascade eviction safe.
+type recheckCandidate struct {
+	tx  sdk.Tx
+	bz  []byte
+	seq uint64
+}
+
+// recheckGroup holds one signer's candidates in pool order. cascadable is false
+// when the group is not that signer's contiguous ascending-nonce view — an
+// unknown signer, a repeated or out-of-order nonce, or a tx dropped on encode
+// error — because the cascade rule reasons about the next expected nonce.
+type recheckGroup struct {
+	txs        []recheckCandidate
+	cascadable bool
+}
+
+// runRecheck re-validates candidates via RunTx(ReCheck), one signer group at a
+// time so a sender's nonce chain advances atomically with respect to other
+// senders' admissions. The pass is abandoned once gen advances mid-flight: the
+// remaining candidates would be validated against a base a concurrent Commit
+// has already superseded. drainStaging already cleared recheckSenders for this
+// cycle, so the unreached candidates' senders are re-merged into staging here —
+// otherwise a sender that isn't touched again by a later block would never be
+// rechecked until TTL.
 func (a *Manager) runRecheck(candidates []sdk.Tx, gen uint64) {
-	var evicted, superseded float32
-	for i, tx := range candidates {
-		if a.gen.Load() != gen {
-			superseded = float32(len(candidates) - i)
-			a.recoverSenders(candidates[i:])
-			break
-		}
-		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
-		if err != nil {
+	var evicted, cascaded, superseded float32
+	groups := a.groupCandidates(candidates)
+	for i, g := range groups {
+		if len(g.txs) == 0 {
 			continue
 		}
-		a.stateMu.Lock()
-		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, a.state.store(), nil)
-		a.stateMu.Unlock()
-		if err != nil {
-			a.evict(tx)
-			evicted++
+		e, c, aborted := a.recheckGroup(g, gen)
+		evicted += e
+		cascaded += c
+		if aborted {
+			unreached := unreachedTxs(groups[i:])
+			superseded = float32(len(unreached))
+			a.recoverSenders(unreached)
+			break
 		}
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
 	}
+	if cascaded > 0 {
+		telemetry.IncrCounter(cascaded, "cronos", "mempool", "recheck", "cascade_evicted")
+	}
 	if superseded > 0 {
 		telemetry.IncrCounter(superseded, "cronos", "mempool", "recheck", "superseded")
 	}
+}
+
+// groupCandidates buckets candidates by first signer — the one the mempool
+// orders by — keeping first-appearance order across groups and pool order
+// within one, so the front-loaded deferred prefix still runs first. Encoding
+// happens here, outside stateMu, to keep the per-group lock hold to RunTx.
+func (a *Manager) groupCandidates(candidates []sdk.Tx) []recheckGroup {
+	groups := make([]recheckGroup, 0, len(candidates))
+	index := make(map[string]int, len(candidates))
+	for _, tx := range candidates {
+		key, seq, known := a.firstSigner(tx)
+		gi, seen := index[key]
+		if !seen {
+			groups = append(groups, recheckGroup{cascadable: known})
+			gi = len(groups) - 1
+			index[key] = gi
+		}
+		g := &groups[gi]
+		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
+		if err != nil {
+			g.cascadable = false
+			continue
+		}
+		if n := len(g.txs); n > 0 && seq <= g.txs[n-1].seq {
+			g.cascadable = false
+		}
+		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
+	}
+	return groups
+}
+
+// recheckGroup re-validates one signer's candidates under a single stateMu hold.
+// Reports aborted when gen advanced before the group started, leaving the group
+// untouched. On a nonce gap the remaining higher-nonce siblings are evicted
+// without spending a RunTx on each: nothing can fill the gap while they sit in
+// the pool. Any other failure evicts only the failing tx, since a later sibling
+// may still be the account's next expected nonce.
+func (a *Manager) recheckGroup(g recheckGroup, gen uint64) (evicted, cascaded float32, aborted bool) {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	// gen only advances under stateMu, so it cannot change once this group starts.
+	if a.gen.Load() != gen {
+		return 0, 0, true
+	}
+
+	var lastOK uint64
+	haveOK := false
+	for i, c := range g.txs {
+		_, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, c.bz, c.tx, -1, a.state.store(), nil)
+		if err == nil {
+			lastOK, haveOK = c.seq, true
+			continue
+		}
+		a.evict(c.tx)
+		evicted++
+		// A gap is only provable relative to a nonce this pass just accepted;
+		// without one the failure may be a stale nonce, whose successor is valid.
+		if g.cascadable && haveOK && c.seq > lastOK+1 && isNonceErr(err) {
+			for _, rest := range g.txs[i+1:] {
+				a.evict(rest.tx)
+				cascaded++
+			}
+			return evicted, cascaded, false
+		}
+	}
+	return evicted, cascaded, false
+}
+
+// isNonceErr matches both ante paths: cosmos sig verification reports
+// ErrWrongSequence, the EVM nonce check reports ErrInvalidSequence.
+func isNonceErr(err error) bool {
+	return errorsmod.IsOf(err, sdkerrors.ErrWrongSequence, sdkerrors.ErrInvalidSequence)
+}
+
+func unreachedTxs(groups []recheckGroup) []sdk.Tx {
+	var txs []sdk.Tx
+	for _, g := range groups {
+		for _, c := range g.txs {
+			txs = append(txs, c.tx)
+		}
+	}
+	return txs
 }
 
 // recoverSenders folds txs' senders back into staged recheckSenders without
@@ -615,6 +716,19 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 func (a *Manager) evict(tx sdk.Tx) {
 	_ = a.mpool.Remove(tx)
 	a.encCache.Evict(tx)
+}
+
+// firstSigner returns the signer the mempool orders by, with its nonce. An
+// unknown signer only costs the cascade optimization, not the recheck itself.
+func (a *Manager) firstSigner(tx sdk.Tx) (key string, seq uint64, known bool) {
+	if a.signer == nil {
+		return "", 0, false
+	}
+	sigs, err := a.signer.GetSigners(tx)
+	if err != nil || len(sigs) == 0 {
+		return "", 0, false
+	}
+	return sigs[0].Signer.String(), sigs[0].Sequence, true
 }
 
 func (a *Manager) signers(tx sdk.Tx) []string {

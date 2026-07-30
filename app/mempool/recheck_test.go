@@ -3,14 +3,18 @@ package mempool
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	errorsmod "cosmossdk.io/errors"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -34,8 +38,13 @@ type recheckRunner struct {
 	pool              sdkmempool.Mempool
 	failBytes         map[string]bool
 	failNoRemoveBytes map[string]bool
-	modes             []sdk.ExecMode
-	seen              map[string]bool
+	// failErrs returns a specific error per tx bytes, without removing from the
+	// pool, so tests can drive runRecheck's nonce-gap classification.
+	failErrs map[string]error
+	modes    []sdk.ExecMode
+	seen     map[string]bool
+	// calls records tx bytes in call order, for grouping assertions.
+	calls []string
 	// onCall, if set, runs after recording the call but before returning, letting
 	// a test bump gen mid-pass to exercise runRecheck's cancellation check.
 	onCall func(txBytes []byte)
@@ -46,8 +55,12 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	r.calls = append(r.calls, string(txBytes))
 	if r.onCall != nil {
 		r.onCall(txBytes)
+	}
+	if err, ok := r.failErrs[string(txBytes)]; ok {
+		return sdk.GasInfo{}, nil, nil, err
 	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
@@ -975,41 +988,25 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 
 const aliceSeq0Bytes = "alice-0"
 
-// A generation bump mid-pass (a concurrent Commit's RefreshMempoolStateLocked)
-// must cancel runRecheck's remaining candidates; the next RecheckTxs cycle
-// re-covers the skipped one from the staging runRecheck restored.
-func TestRecheckTxs_GenerationBumpMidPassSkipsRemainingCandidates(t *testing.T) {
+// A generation bump cannot split one signer's group: gen only advances under
+// stateMu, which recheckGroup holds for the whole group. The bump here is raised
+// from inside RunTx (i.e. without stateMu) to show the group still completes,
+// and that cancellation is a between-groups decision.
+func TestRecheckTxs_GenerationBumpDoesNotSplitASignersGroup(t *testing.T) {
 	f := newRecheckFixture()
-	first := f.add(1, "alice", 0, aliceSeq0Bytes)
-	second := f.add(2, "alice", 1, "alice-1")
+	f.add(1, "alice", 0, aliceSeq0Bytes)
+	f.add(2, "alice", 1, "alice-1")
 
 	f.runner.onCall = func(txBytes []byte) {
 		if string(txBytes) == aliceSeq0Bytes {
-			f.a.gen.Add(1) // simulate a Commit's refresh landing mid-pass
+			f.a.gen.Add(1)
 		}
 	}
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.RecheckTxs()
 
-	if !f.runner.seen[aliceSeq0Bytes] {
-		t.Fatal("the candidate validated before the bump must still run")
-	}
-	if f.runner.seen["alice-1"] {
-		t.Fatal("candidates after the generation bump must be skipped, not rechecked against a superseded base")
-	}
-	if !poolHas(f.pool, second) {
-		t.Fatal("a skipped (not rechecked) candidate must stay in the pool")
-	}
-	if !poolHas(f.pool, first) {
-		t.Fatal("the pre-bump candidate must still be evicted/kept per its own RunTx result")
-	}
-
-	// No manual re-staging: runRecheck must have re-merged alice itself.
-	f.runner.onCall = nil
-	f.a.RecheckTxs()
-
-	if !f.runner.seen["alice-1"] {
-		t.Fatal("the skipped candidate must be re-covered by the next RecheckTxs pass")
+	if !f.runner.seen[aliceSeq0Bytes] || !f.runner.seen["alice-1"] {
+		t.Fatal("both candidates of one signer must run under the same stateMu hold")
 	}
 }
 
@@ -1057,5 +1054,96 @@ func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *te
 	}
 	if !f.runner.seen["carol-carry"] {
 		t.Fatal("the deferred carry must still be rechecked by the next RecheckTxs cycle")
+	}
+}
+
+const (
+	carlSeq5Bytes = "carl-5"
+	carlSeq7Bytes = "carl-7"
+	carlSeq8Bytes = "carl-8"
+)
+
+func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
+	f := newRecheckFixture()
+	aliceLow := f.add(1, "alice", 0, aliceSeq0Bytes)
+	bob := f.add(2, "bob", 0, "bob-0")
+	aliceHigh := f.add(3, "alice", 1, "alice-1")
+
+	f.a.runRecheck([]sdk.Tx{aliceLow, bob, aliceHigh}, f.a.gen.Load())
+
+	want := []string{aliceSeq0Bytes, "alice-1", "bob-0"}
+	if !slices.Equal(f.runner.calls, want) {
+		t.Fatalf("candidates must run grouped by signer in first-appearance order: got %v, want %v", f.runner.calls, want)
+	}
+}
+
+func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	gapped := f.add(2, "carl", 7, carlSeq7Bytes)
+	higher := f.add(3, "carl", 8, carlSeq8Bytes)
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	f.a.runRecheck([]sdk.Tx{valid, gapped, higher}, f.a.gen.Load())
+
+	if f.runner.seen[carlSeq8Bytes] {
+		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
+	}
+	if poolHas(f.pool, gapped) || poolHas(f.pool, higher) {
+		t.Fatal("the gapped tx and its higher-nonce siblings must be evicted")
+	}
+	if !poolHas(f.pool, valid) {
+		t.Fatal("the tx that passed recheck must stay in the pool")
+	}
+}
+
+// A wrong-sequence failure with no accepted nonce before it may be a stale nonce
+// (already committed), in which case the successor is the account's expected one.
+func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
+	f := newRecheckFixture()
+	stale := f.add(1, "carl", 5, carlSeq5Bytes)
+	next := f.add(2, "carl", 6, "carl-6")
+	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
+
+	f.a.runRecheck([]sdk.Tx{stale, next}, f.a.gen.Load())
+
+	if !f.runner.seen["carl-6"] {
+		t.Fatal("the successor of a stale nonce must still be rechecked")
+	}
+	if poolHas(f.pool, stale) {
+		t.Fatal("the stale tx must be evicted")
+	}
+	if !poolHas(f.pool, next) {
+		t.Fatal("the successor must stay in the pool after passing recheck")
+	}
+}
+
+func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	failing := f.add(2, "carl", 7, carlSeq7Bytes)
+	higher := f.add(3, "carl", 8, carlSeq8Bytes)
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
+
+	f.a.runRecheck([]sdk.Tx{valid, failing, higher}, f.a.gen.Load())
+
+	if !f.runner.seen[carlSeq8Bytes] {
+		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
+	}
+}
+
+// Cascading assumes the group is the signer's ascending-nonce view; a descending
+// pair means the assumption doesn't hold, so every candidate keeps its RunTx.
+func TestRunRecheck_OutOfOrderNoncesDisableCascade(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	gapped := f.add(2, "carl", 9, "carl-9")
+	lower := f.add(3, "carl", 7, carlSeq7Bytes)
+	f.runner.failErrs = map[string]error{"carl-9": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	f.a.runRecheck([]sdk.Tx{valid, gapped, lower}, f.a.gen.Load())
+
+	if !f.runner.seen[carlSeq7Bytes] {
+		t.Fatal("a non-ascending group must not cascade")
 	}
 }
