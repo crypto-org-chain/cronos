@@ -53,6 +53,10 @@ type recheckScheduler struct {
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction
 	recheckDisabled bool
+	// evictionHook, if set, is notified of every pool eviction's (sender, nonce)
+	// so App-level state keyed on the same pair (e.g. ethermint's ante nonce
+	// cache) can be dropped along with it. Nil-safe: a nil hook is a no-op.
+	evictionHook func(sender string, nonce uint64)
 }
 
 // recheckDecodingEnabled reports whether sender decoding/bookkeeping should run.
@@ -262,12 +266,21 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 // evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
-	s.evict(tx)
+	// firstSigner already does the GetSigners lookup this needs for the eviction
+	// hook; reuse it for the single-signer case below instead of calling
+	// s.signers (a second GetSigners) just to get the same one key back.
+	key, seq, known, multiSigner := s.firstSigner(tx)
+	s.evict(tx, key, seq, known)
 	if evictedSet == nil {
 		evictedSet = make(map[sdk.Tx]struct{})
 	}
 	evictedSet[tx] = struct{}{}
-	sigs := s.signers(tx)
+	var sigs []string
+	if multiSigner {
+		sigs = s.signers(tx)
+	} else if known {
+		sigs = []string{key}
+	}
 	if len(sigs) > 0 && recheckSenders == nil {
 		recheckSenders = make(map[string]struct{})
 	}
@@ -321,8 +334,13 @@ type recheckCandidate struct {
 // dropped on encode error — because the cascade rule reasons about the next
 // expected nonce.
 type recheckGroup struct {
-	key        string
-	txs        []recheckCandidate
+	key string
+	txs []recheckCandidate
+	// known reports whether key identifies a real signer, set once at group
+	// creation and never flipped back — unlike cascadable, which also turns
+	// false for reasons unrelated to identity (multi-signer, unordered,
+	// duplicate seq). The eviction hook needs known, not cascadable.
+	known      bool
 	cascadable bool
 }
 
@@ -386,7 +404,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		key, seq, known, multiSigner := s.firstSigner(tx)
 		gi, seen := index[key]
 		if !seen {
-			groups = append(groups, recheckGroup{key: key, cascadable: known})
+			groups = append(groups, recheckGroup{key: key, known: known, cascadable: known})
 			gi = len(groups) - 1
 			index[key] = gi
 		}
@@ -497,13 +515,13 @@ func (s *recheckScheduler) runCandidatesLocked(g recheckGroup, start, end int, c
 			cursor = nonceCursor{last: c.seq, ok: true}
 			continue
 		}
-		s.evict(c.tx)
+		s.evict(c.tx, g.key, c.seq, g.known)
 		evicted++
 		// A gap is only provable relative to a nonce this pass just accepted;
 		// without one the failure may be a stale nonce, whose successor is valid.
 		if g.cascadable && cursor.ok && c.seq > cursor.last+1 && isNonceErr(err) {
 			for _, rest := range g.txs[i+1 : end] {
-				s.evict(rest.tx)
+				s.evict(rest.tx, g.key, rest.seq, g.known)
 				cascaded++
 			}
 			return evicted, cascaded, cursor, true
@@ -536,9 +554,13 @@ func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, ge
 // RunTx before anything is blind-evicted: if it succeeds, the gap didn't
 // survive to this chunk, and the remainder falls back to normal
 // recheckChunkLocked semantics, seeded from the head's now-accepted nonce. If
-// it fails — for a nonce reason or otherwise, any failure means the gap held
-// — the head and the rest of the chunk are cascade-evicted as before, without
-// a RunTx on the rest.
+// it fails on a nonce error, the gap held, and the head plus the rest of the
+// chunk are cascade-evicted without a RunTx on the rest, same as before. Any
+// other failure (e.g. insufficient funds) carries no information about
+// whether the gap survived — the EVM ante checks balance/gas before nonce, so
+// a funds failure at the head says nothing about the account's true nonce
+// state — so that case falls through to recheckChunkLocked's normal per-tx
+// semantics for the rest of the chunk instead of assuming the gap held.
 func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, gen uint64) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
 	s.exec.mu.Lock()
 	defer s.exec.mu.Unlock()
@@ -553,9 +575,17 @@ func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, ge
 		return evicted, cascaded, next, gapFound, true
 	}
 
-	s.evict(head.tx)
+	s.evict(head.tx, g.key, head.seq, g.known)
+	if !isNonceErr(err) {
+		// No cursor context to carry over: we don't know the account's true
+		// nonce state, so run the rest of the chunk one RunTx at a time instead
+		// of assuming the gap held.
+		evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start+1, end, nonceCursor{})
+		return evicted + 1, cascaded, next, gapFound, true
+	}
+
 	for _, rest := range g.txs[start+1 : end] {
-		s.evict(rest.tx)
+		s.evict(rest.tx, g.key, rest.seq, g.known)
 		cascaded++
 	}
 	return 1, cascaded, nonceCursor{}, true, true
@@ -639,10 +669,14 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 }
 
 // evict removes tx from the pool and encoder cache together, so the cache never
-// outlives its pool entry.
-func (s *recheckScheduler) evict(tx sdk.Tx) {
+// outlives its pool entry, then notifies evictionHook (if set and sender is
+// known) so App-level state keyed on (sender, nonce) is dropped along with it.
+func (s *recheckScheduler) evict(tx sdk.Tx, sender string, nonce uint64, known bool) {
 	_ = s.mpool.Remove(tx)
 	s.exec.encCache.Evict(tx)
+	if known && s.evictionHook != nil {
+		s.evictionHook(sender, nonce)
+	}
 }
 
 // firstSigner returns the signer the mempool orders by, with its nonce, and

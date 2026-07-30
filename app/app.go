@@ -350,6 +350,12 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
+	// anteCache is the EVM ante's per-(sender, nonce) admission cache. Stored on
+	// App (not just local to setAnteHandler) so mempoolManager's eviction hook
+	// can share the same instance and delete a stale entry when the mempool
+	// evicts its tx without ever spending a RunTx on it (cascade/TTL eviction).
+	anteCache *cache.AnteCache
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -1296,6 +1302,14 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		blockedMap[addr.String()] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap, app.CronosKeeper.GetParams)
+	app.anteCache = cache.NewAnteCache(mempoolMaxTxs)
+	// mempoolManager (built earlier, inside the SetMempool baseAppOptions
+	// closure applied by NewBaseApp) is already set on app by this point, so
+	// wiring the eviction hook here can share app.anteCache with the ante
+	// options below rather than each holding a separate instance.
+	if app.mempoolManager != nil {
+		app.mempoolManager.SetEvictionHook(app.anteCache.Delete)
+	}
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -1315,7 +1329,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
+		AnteCache:         app.anteCache,
 		SenderCache:       app.senderCache,
 	}
 

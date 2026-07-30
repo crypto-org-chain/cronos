@@ -84,6 +84,15 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.adm.preVerify = fn
 }
 
+// SetEvictionHook registers a callback invoked with the (sender, nonce) of
+// every pool eviction, including cascade and TTL evictions that never spend a
+// RunTx on the evicted tx. Lets the caller drop App-level state keyed on the
+// same pair (e.g. ethermint's ante nonce cache) that would otherwise outlive
+// the pool entry it was tracking.
+func (a *Manager) SetEvictionHook(fn func(sender string, nonce uint64)) {
+	a.sched.evictionHook = fn
+}
+
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return a.adm.insertTxHandler()
 }

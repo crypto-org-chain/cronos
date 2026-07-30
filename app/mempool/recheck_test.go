@@ -1698,9 +1698,149 @@ func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
 		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
 	}
 
-	f.a.sched.evict(stale)
+	f.a.sched.evict(stale, "", 0, false)
 
 	if poolHas(f.pool, replacement) {
 		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
+	}
+}
+
+// evictionRecorder is a fake eviction hook recording every (sender, nonce)
+// it's invoked with, for asserting the scheduler notifies eviction even when
+// it never spends a RunTx on the evicted tx (cascade and TTL evictions).
+type evictionRecorder struct {
+	mu    sync.Mutex
+	calls []struct {
+		sender string
+		nonce  uint64
+	}
+}
+
+func (r *evictionRecorder) hook(sender string, nonce uint64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, struct {
+		sender string
+		nonce  uint64
+	}{sender, nonce})
+}
+
+func (r *evictionRecorder) has(sender string, nonce uint64) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, c := range r.calls {
+		if c.sender == sender && c.nonce == nonce {
+			return true
+		}
+	}
+	return false
+}
+
+// F1: a cascade-evicted sibling never spends a RunTx, so the eviction hook is
+// the only signal available for dropping its App-level ante state (e.g.
+// ethermint's per-tx nonce cache).
+func TestEvictionHook_InvokedOnCascadeEviction(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	gapped := f.add(2, "carl", 7, carlSeq7Bytes)
+	higher := f.add(3, "carl", 8, carlSeq8Bytes)
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	rec := &evictionRecorder{}
+	f.a.sched.evictionHook = rec.hook
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), f.a.exec.gen.Load())
+
+	carl := sdk.AccAddress("carl").String()
+	if !rec.has(carl, 7) {
+		t.Fatal("eviction hook must fire for the gapped candidate's own eviction")
+	}
+	if !rec.has(carl, 8) {
+		t.Fatal("eviction hook must fire for a cascade-evicted sibling, which never spends a RunTx")
+	}
+	if rec.has(carl, 5) {
+		t.Fatal("eviction hook must not fire for a candidate that passed recheck")
+	}
+}
+
+// F1: a TTL eviction never spends a RunTx either, so it needs the same hook.
+func TestEvictionHook_InvokedOnTTLEviction(t *testing.T) {
+	f := newRecheckFixture()
+	f.a.sched.ttlNumBlocks = 5
+	aged := f.add(1, "alice", 3, "alice-3")
+
+	f.a.sched.lastCommittedHeight = 10
+	f.a.sched.RecheckTxs() // first sighting: records arrival, tx survives
+
+	rec := &evictionRecorder{}
+	f.a.sched.evictionHook = rec.hook
+
+	f.a.sched.lastCommittedHeight = 15 // 15-10 == ttl -> evicted
+	f.a.sched.RecheckTxs()
+
+	if poolHas(f.pool, aged) {
+		t.Fatal("precondition: TTL-aged tx must be evicted")
+	}
+	if !rec.has(sdk.AccAddress("alice").String(), 3) {
+		t.Fatal("eviction hook must fire for a TTL eviction, which never spends a RunTx")
+	}
+}
+
+// F2: cascadeChunkLocked's chunk head can fail for a reason other than a
+// nonce error (e.g. insufficient funds), which carries no information about
+// whether the previous chunk's proven gap survived. Blindly cascading the
+// rest of the chunk in that case could evict a candidate that is actually the
+// account's next expected nonce, so a non-nonce head failure must fall
+// through to a per-candidate recheck instead.
+func TestRunGroup_CascadeChunkNonNonceHeadFailureFallsThroughToPerCandidateRecheck(t *testing.T) {
+	const n = recheckChunkSize
+	const total = n + 2 // chunk 1 = [0, n); chunk 2 = [n, n+2)
+	f := newRecheckFixture()
+
+	seqOf := func(i int) uint64 {
+		switch {
+		case i < n-1:
+			return uint64(i)
+		case i == n-1:
+			return uint64(n) + 3 // opens the gap chunk 1 proves
+		default:
+			return uint64(n) + 3 + uint64(i-(n-1)) // chunk 2 continues ascending past the gap
+		}
+	}
+	bz := func(i int) string { return "dave-" + strconv.Itoa(i) }
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		ptrTxs[i] = f.add(i+1, "dave", seqOf(i), bz(i))
+		txs[i] = ptrTxs[i]
+	}
+	f.runner.failErrs = map[string]error{
+		bz(n - 1): errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap"),          // chunk 1 proves the gap
+		bz(n):     errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds"), // chunk 2's head fails, but not on a nonce error
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("expected 1 cascadable group, got %+v", groups)
+	}
+
+	evicted, cascaded, unreachedFrom := f.a.sched.runGroup(groups[0], f.a.exec.gen.Load())
+	if unreachedFrom != -1 {
+		t.Fatalf("expected the whole group reached, got unreachedFrom=%d", unreachedFrom)
+	}
+	if evicted != 2 {
+		t.Fatalf("expected 2 direct evictions (the gapped tx and chunk 2's failing head), got %v", evicted)
+	}
+	if cascaded != 0 {
+		t.Fatalf("a non-nonce head failure must not blind-cascade the rest of the chunk, got %v", cascaded)
+	}
+	if !f.runner.seen[bz(n+1)] {
+		t.Fatal("the candidate after a non-nonce head failure must still spend its own RunTx, not be blind-evicted")
+	}
+	if !poolHas(f.pool, ptrTxs[n+1]) {
+		t.Fatal("that candidate passed recheck and must survive")
+	}
+	if poolHas(f.pool, ptrTxs[n-1]) || poolHas(f.pool, ptrTxs[n]) {
+		t.Fatal("the originally gapped tx and chunk 2's failing head must both be evicted")
 	}
 }
