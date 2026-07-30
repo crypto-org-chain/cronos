@@ -7,6 +7,9 @@
 ### Improvements
 
 * [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) mempool-owned branched context for admission + recheck
+### Chores
+
+* [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
 
 ## v1.8.0-alpha
 
