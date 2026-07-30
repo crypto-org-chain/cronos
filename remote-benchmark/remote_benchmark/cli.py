@@ -9,6 +9,7 @@ import click
 import requests
 import ujson
 import web3
+import yaml
 from hexbytes import HexBytes
 
 from .compare import (
@@ -18,7 +19,9 @@ from .compare import (
     write_comparison_html,
 )
 from .config import load_config
+from .libp2p import bootstrap_peers
 from .monitor import BlockSTMMonitor, MempoolMonitor
+from .preflight import peer_connectivity_matrix, resolved_mempool_types
 from .results import (
     build_aggregate_record,
     build_run_record,
@@ -549,6 +552,66 @@ def compare(output_path, record_a_path, record_b_path):
     if output_path:
         write_comparison_html(comparison, output_path)
         print(f"wrote comparison report to {output_path}", file=sys.stderr)
+
+
+def _load_nodes(path):
+    text = Path(path).read_text()
+    return ujson.loads(text) if path.endswith(".json") else yaml.safe_load(text)
+
+
+@cli.command("bootstrap-peers")
+@click.option("--port", default=26656)
+@click.option("-o", "--output", "output_path", default=None, help="default: stdout")
+@click.argument("nodes_path", type=str)
+def bootstrap_peers_cmd(port, output_path, nodes_path):
+    """Derive libp2p peer IDs and generate bootstrap_peers for N nodes.
+
+    NODES_PATH is a JSON/YAML file: [{name, ip, node_key_path}, ...].
+    """
+    nodes = _load_nodes(nodes_path)
+    payload = ujson.dumps(bootstrap_peers(nodes, port=port), indent=2)
+    if output_path:
+        Path(output_path).write_text(payload)
+    else:
+        print(payload)
+
+
+@cli.command()
+@click.option("--config", "config_path", required=True)
+def preflight(config_path):
+    """RPC-only devnet preflight: resolved mempool type + peer connectivity matrix.
+
+    Sysctl tuning and the libp2p-transport-enabled log line need host
+    access, which this tool doesn't have; check those manually.
+    """
+    cfg = load_config(config_path)
+
+    print("mempool.type by node:")
+    mempool_types = resolved_mempool_types(cfg.endpoints)
+    for name, mtype in mempool_types.items():
+        print(f"  {name}: {mtype or '(undeclared)'}")
+    declared = {v for v in mempool_types.values() if v}
+    if len(declared) > 1:
+        print(f"  WARNING: nodes disagree on mempool.type: {declared}", file=sys.stderr)
+
+    print("peer connectivity matrix:")
+    matrix = peer_connectivity_matrix(cfg.endpoints)
+    for name, row in matrix.items():
+        print(f"  {name}: " + ", ".join(f"{other}={v}" for other, v in row.items()))
+
+    unreachable = [name for name, row in matrix.items() if row and all(v is None for v in row.values())]
+    missing_links = [
+        f"{name}->{other}"
+        for name, row in matrix.items()
+        for other, v in row.items()
+        if v is False
+    ]
+    if unreachable or missing_links:
+        raise click.ClickException(
+            "preflight failed: "
+            + (f"unreachable nodes: {unreachable}; " if unreachable else "")
+            + (f"missing peer links: {missing_links}" if missing_links else "")
+        )
 
 
 if __name__ == "__main__":

@@ -152,6 +152,7 @@ def test_build_run_record_serializes_stall_indices_set(monkeypatch):
 
     assert record["summary"]["stall_indices"] == [1, 2]
     assert record["saturation"] == {"ok": True, "reasons": []}
+    assert record["divergence"] is None  # single endpoint, nothing to compare
     assert record["blocks"][0]["height"] == 11
     # must be JSON-serializable, since write_run_record dumps it directly
     json.dumps(record)
@@ -163,6 +164,36 @@ def test_write_run_record_creates_parent_dirs_and_writes_json(tmp_path):
     write_run_record({"a": 1}, output_path)
 
     assert json.loads(output_path.read_text()) == {"a": 1}
+
+
+def test_build_run_record_includes_divergence_check_for_multi_node_cfg(monkeypatch):
+    cfg = _cfg([_endpoint(name="node0", rpc="http://a"), _endpoint(name="node1", rpc="http://b")])
+    monkeypatch.setattr(results_module, "fetch_node_fingerprint", lambda _endpoint: {"name": "node"})
+    monkeypatch.setattr(results_module, "collect_heights", lambda _endpoints: {"node0": 20, "node1": 18})
+    monkeypatch.setattr(results_module, "height_skew", lambda _heights: 2)
+    monkeypatch.setattr(
+        results_module,
+        "check_app_hash_agreement",
+        lambda _endpoints, start, end: [{"height": 15, "hashes": {"node0": "x", "node1": "y"}}],
+    )
+
+    record = build_run_record(
+        cfg=cfg,
+        config_path="cfg.yaml",
+        mode="cosmos",
+        load_start=10,
+        load_end=20,
+        stats_text="",
+        summary=None,
+        committed_txs=0,
+        expected_txs=0,
+    )
+
+    assert record["divergence"] == {
+        "heights": {"node0": 20, "node1": 18},
+        "height_skew": 2,
+        "app_hash_divergences": [{"height": 15, "hashes": {"node0": "x", "node1": "y"}}],
+    }
 
 
 def test_aggregate_summaries_computes_median_min_max_stdev():

@@ -12,6 +12,7 @@ from statistics import median, stdev
 import requests
 import ujson
 
+from .divergence import check_app_hash_agreement, collect_heights, height_skew
 from .report import parse_stats
 
 # Saturation gates from the tuning guide: below these, a run measures an
@@ -111,6 +112,21 @@ def _json_safe_summary(summary):
     }
 
 
+def check_divergence(endpoints, load_start, load_end):
+    """Multi-node state-divergence check: height skew and app-hash agreement
+    across the load window. None when there's only one endpoint to check."""
+    if len(endpoints) < 2:
+        return None
+    heights = collect_heights(endpoints)
+    return {
+        "heights": heights,
+        "height_skew": height_skew(heights),
+        "app_hash_divergences": check_app_hash_agreement(
+            endpoints, load_start, load_end
+        ),
+    }
+
+
 def build_run_record(
     *,
     cfg,
@@ -143,6 +159,7 @@ def build_run_record(
         "text_metrics": text_metrics,
         "summary": _json_safe_summary(summary),
         "saturation": {"ok": saturation_ok, "reasons": saturation_reasons},
+        "divergence": check_divergence(cfg.endpoints, load_start, load_end),
         "stats_text": stats_text,
     }
     if extra:

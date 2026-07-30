@@ -65,6 +65,10 @@ def block_results(height, rpc):
     return requests.get(f"{rpc}/block_results?height={height}").json()
 
 
+def net_info(rpc):
+    return requests.get(f"{rpc}/net_info").json()
+
+
 def mempool_status(rpc):
     """Return (n_txs, total_bytes) from CometBFT's unconfirmed txs endpoint."""
     rsp = requests.get(f"{rpc}/num_unconfirmed_txs").json()
