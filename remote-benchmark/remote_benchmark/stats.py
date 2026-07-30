@@ -209,6 +209,131 @@ def scrape_consensus_raw(prom_text):
     return raw
 
 
+def _parse_labeled_metric(lines, metric_name):
+    """Parse every sample of a labeled or unlabeled Prometheus counter/gauge.
+
+    Returns a list of (labels_dict, value) — one entry per distinct label set.
+    Matches `metric_name` exactly (either `name{...} value` or `name value`),
+    so metric names that share a prefix (e.g. `..._rounds` vs
+    `..._round_increment_total`) don't cross-match.
+    """
+    results = []
+    labeled_prefix = metric_name + "{"
+    bare_prefix = metric_name + " "
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        if line.startswith(labeled_prefix):
+            labels_str, _, rest = line[len(metric_name):].partition("}")
+            value = float(rest.split()[-1])
+            labels = dict(
+                item.split("=", 1) for item in labels_str.strip("{}").split(",") if item
+            )
+            results.append(({k: v.strip('"') for k, v in labels.items()}, value))
+        elif line.startswith(bare_prefix):
+            results.append(({}, float(line.split()[-1])))
+    return results
+
+
+def _sum_labeled_metric(lines, metric_name):
+    return sum(value for _, value in _parse_labeled_metric(lines, metric_name))
+
+
+def _labeled_metric_by(lines, metric_name, label_key):
+    """{label_value: value} for a labeled metric, keyed by one of its labels."""
+    return {
+        labels[label_key]: value
+        for labels, value in _parse_labeled_metric(lines, metric_name)
+        if label_key in labels
+    }
+
+
+# Cumulative counters behind the consensus-health section: round changes
+# (timeouts forcing a new round), rejected/late proposals and votes,
+# duplicate/mismatched block-part gossip. Snapshotted at load start and
+# subtracted, same rationale as _CONSENSUS_HISTOGRAMS.
+_CONSENSUS_HEALTH_COUNTERS = [
+    ("round_increments", "cometbft_consensus_round_increment_total"),
+    ("duplicate_block_parts", "cometbft_consensus_duplicate_block_part"),
+    ("duplicate_votes", "cometbft_consensus_duplicate_vote"),
+]
+
+
+def scrape_consensus_health_raw(prom_text):
+    """Snapshot raw cumulative consensus-health counters (see
+    scrape_consensus_health for the baseline-relative view)."""
+    lines = prom_text.splitlines()
+    raw = {key: _sum_labeled_metric(lines, metric) for key, metric in _CONSENSUS_HEALTH_COUNTERS}
+    raw["rejected_proposals"] = sum(
+        value
+        for labels, value in _parse_labeled_metric(lines, "cometbft_consensus_proposal_receive_count")
+        if labels.get("status") == "rejected"
+    )
+    raw["late_votes"] = _sum_labeled_metric(lines, "cometbft_consensus_late_votes")
+    raw["block_gossip_parts_mismatched"] = sum(
+        value
+        for labels, value in _parse_labeled_metric(lines, "cometbft_consensus_block_gossip_parts_received")
+        if labels.get("matches_current") == "false"
+    )
+    return raw
+
+
+def scrape_consensus_health(prom_text, baseline=None):
+    """Multi-round rate, missed-proposal/vote counters, and block-part
+    mismatch counters, plus point-in-time missing/byzantine validator gauges.
+
+    `round_increments` is the clearest "multi-round rate" signal: CometBFT
+    only increments the round when the current one times out without
+    reaching a decision, so a nonzero count over the load period means the
+    network needed extra rounds (missed proposals, slow votes, etc.) to
+    finalize some block.
+
+    With `baseline` (a scrape_consensus_health_raw snapshot from load start),
+    counters are deltas over the load period; without it, they're lifetime
+    totals.
+    """
+    lines = prom_text.splitlines()
+    raw = scrape_consensus_health_raw(prom_text)
+    if baseline:
+        raw = {key: raw.get(key, 0) - baseline.get(key, 0) for key in raw}
+
+    result = dict(raw)
+    result["current_round"] = _parse_labeled_metric(lines, "cometbft_consensus_rounds")
+    result["current_round"] = (
+        result["current_round"][0][1] if result["current_round"] else None
+    )
+    result["missing_validators"] = _parse_labeled_metric(lines, "cometbft_consensus_missing_validators")
+    result["missing_validators"] = (
+        result["missing_validators"][0][1] if result["missing_validators"] else None
+    )
+    result["byzantine_validators"] = _parse_labeled_metric(lines, "cometbft_consensus_byzantine_validators")
+    result["byzantine_validators"] = (
+        result["byzantine_validators"][0][1] if result["byzantine_validators"] else None
+    )
+    return result
+
+
+def scrape_per_validator_metrics(prom_text):
+    """{validator_address: {missed_blocks, last_signed_height, power}} from
+    CometBFT's per-validator gauges. All point-in-time (not baseline-relative)."""
+    lines = prom_text.splitlines()
+    missed = _labeled_metric_by(lines, "cometbft_consensus_validator_missed_blocks", "validator_address")
+    signed = _labeled_metric_by(
+        lines, "cometbft_consensus_validator_last_signed_height", "validator_address"
+    )
+    power = _labeled_metric_by(lines, "cometbft_consensus_validator_power", "validator_address")
+
+    addresses = set(missed) | set(signed) | set(power)
+    return {
+        addr: {
+            "missed_blocks": missed.get(addr),
+            "last_signed_height": signed.get(addr),
+            "power": power.get(addr),
+        }
+        for addr in addresses
+    }
+
+
 def scrape_consensus_metrics(prom_text, baseline=None):
     """Parse CometBFT consensus stage timings from Prometheus text.
 
@@ -511,6 +636,7 @@ def dump_block_stats(
     mempool_data: dict = None,
     stm_data: dict = None,
     consensus_baseline: dict = None,
+    consensus_health_baseline: dict = None,
 ):
     """
     Dump per-block stats and summary metrics.
@@ -667,9 +793,9 @@ def dump_block_stats(
             )
 
     cons = scrape_consensus_metrics(prom_text, baseline=consensus_baseline)
+    scope = "load period" if consensus_baseline else "node lifetime"
     if cons:
         print(file=fp)
-        scope = "load period" if consensus_baseline else "node lifetime"
         print(f"=== Consensus Stage Timing ({scope}) ===", file=fp)
 
         for key, label in [
@@ -719,6 +845,42 @@ def dump_block_stats(
             if key in cons:
                 val, _ = cons[key]
                 print(f"{label} {val * 1000:.1f}ms", file=fp)
+
+    if telemetry:
+        health = scrape_consensus_health(prom_text, baseline=consensus_health_baseline)
+        print(file=fp)
+        print(f"=== Consensus Health ({scope}) ===", file=fp)
+        print(f"round_increments {health['round_increments']:.0f}", file=fp)
+        if health["current_round"] is not None:
+            print(f"current_round {health['current_round']:.0f}", file=fp)
+        print(f"rejected_proposals {health['rejected_proposals']:.0f}", file=fp)
+        print(f"late_votes {health['late_votes']:.0f}", file=fp)
+        print(f"duplicate_block_parts {health['duplicate_block_parts']:.0f}", file=fp)
+        print(f"duplicate_votes {health['duplicate_votes']:.0f}", file=fp)
+        print(
+            f"block_gossip_parts_mismatched {health['block_gossip_parts_mismatched']:.0f}",
+            file=fp,
+        )
+        if health["missing_validators"] is not None:
+            print(f"missing_validators {health['missing_validators']:.0f}", file=fp)
+        if health["byzantine_validators"] is not None:
+            print(f"byzantine_validators {health['byzantine_validators']:.0f}", file=fp)
+
+        per_validator = scrape_per_validator_metrics(prom_text)
+        if per_validator:
+            print(file=fp)
+            print("=== Per-Validator ===", file=fp)
+            for addr, stats in sorted(per_validator.items()):
+                missed = stats["missed_blocks"]
+                signed = stats["last_signed_height"]
+                power = stats["power"]
+                print(
+                    f"{addr}"
+                    f" missed_blocks={missed if missed is not None else 'N/A'}"
+                    f" last_signed_height={signed if signed is not None else 'N/A'}"
+                    f" power={power if power is not None else 'N/A'}",
+                    file=fp,
+                )
 
     return summary
 

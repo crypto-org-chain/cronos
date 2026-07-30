@@ -32,6 +32,7 @@ from .stats import (
     _fetch_prometheus,
     dump_block_stats,
     dump_eth_block_stats,
+    scrape_consensus_health_raw,
     scrape_consensus_raw,
 )
 from .transaction import (
@@ -363,7 +364,9 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
     else:
         mempool_monitor = MempoolMonitor(cfg.primary.rpc)
         stm_monitor = BlockSTMMonitor(cfg.primary.rpc, cfg.telemetry)
-        consensus_baseline = scrape_consensus_raw(_fetch_prometheus(cfg.telemetry))
+        prom_baseline_text = _fetch_prometheus(cfg.telemetry)
+        consensus_baseline = scrape_consensus_raw(prom_baseline_text)
+        consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
 
         load_start = block_height(cfg.primary.rpc)
         mempool_monitor.start()
@@ -399,6 +402,7 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
             mempool_data=mempool_monitor.data,
             stm_data=stm_monitor.data,
             consensus_baseline=consensus_baseline,
+            consensus_health_baseline=consensus_health_baseline,
         )
         print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
 
