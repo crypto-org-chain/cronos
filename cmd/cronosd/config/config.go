@@ -106,16 +106,16 @@ func DefaultCronosConfig() CronosConfig {
 // txsPerBlock must be >= 0 (app.New validates this before calling).
 func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
-		sum := mempoolMaxTxs + txsPerBlock
-		if sum < mempoolMaxTxs || sum > MaxDerivedTxCacheSize { // overflow or absurd max-txs
+		// Compared as a subtraction so the sum is never formed above MaxInt.
+		if mempoolMaxTxs > MaxDerivedTxCacheSize-txsPerBlock {
 			return MaxDerivedTxCacheSize
 		}
-		return sum
+		return mempoolMaxTxs + txsPerBlock
 	}
 	if txsPerBlock == 0 {
 		return -1
 	}
-	if txsPerBlock > MaxDerivedTxCacheSize/2 { // avoid overflow on 2x
+	if txsPerBlock > MaxDerivedTxCacheSize/2 {
 		return MaxDerivedTxCacheSize
 	}
 	return 2 * txsPerBlock
