@@ -402,8 +402,8 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 	insert := a.InsertTxHandler()
 	check := a.CheckTxHandler()
 
-	// CheckTxHandler drives a.runner directly (the same lock-free raceRunner
-	// InsertTx writes through), so -race flags either path if it skips stateMu.
+	// CheckTxHandler drives a.exec.runner directly (the same lock-free raceRunner
+	// InsertTx writes through), so -race flags either path if it skips the admission mutex.
 	const goroutines = 16
 	const perG = 64
 	var wg sync.WaitGroup
@@ -568,7 +568,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 
 // TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
 // gossip InsertTxHandler run the same admission body under one mutex: both drive
-// the lock-free raceRunner concurrently, which -race flags if a path skips a.mu.
+// the lock-free raceRunner concurrently, which -race flags if a path skips the admission mutex.
 func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
 	a := newManager(runner, nil, noopEncoder, nil)
@@ -628,7 +628,7 @@ func TestManagerPendingTxs(t *testing.T) {
 	}
 
 	tx1, tx2 := &ptrTx{}, &ptrTx{}
-	a.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
 
 	got := a.PendingTxs()
 	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
@@ -642,7 +642,7 @@ func TestManagerCountTx(t *testing.T) {
 		t.Fatalf("nil mpool must report 0, got %d", got)
 	}
 
-	a.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
 	if got := a.CountTx(); got != 3 {
 		t.Fatalf("want 3, got %d", got)
 	}
@@ -667,14 +667,14 @@ func TestManager_AllThreeRunTxSitesShareBaseInstance(t *testing.T) {
 	runner := &msCaptureRunner{}
 	a := newManager(runner, nil, noopEncoder, nil)
 	base := newFakeCacheStore()
-	a.state = &mempoolState{base: base}
-	a.mpool = &fakePool{}
-	a.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
+	a.exec.state = &mempoolState{base: base}
+	a.sched.mpool = &fakePool{}
+	a.sched.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
 
-	a.admit([]byte("tx1"))
+	a.adm.admit([]byte("tx1"))
 	check := a.CheckTxHandler()
 	check(nil, &abci.RequestCheckTx{Tx: []byte("tx2")}) //nolint:errcheck
-	a.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.gen.Load())
+	a.sched.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.exec.gen.Load())
 
 	if len(runner.ms) != 3 {
 		t.Fatalf("expected 3 RunTx calls (admit, CheckTxHandler, runRecheck), got %d", len(runner.ms))
@@ -742,11 +742,11 @@ func (r *nonceBranchRunner) RunTx(mode sdk.ExecMode, _ []byte, _ sdk.Tx, _ int, 
 func TestManager_RecheckWriteVisibleToLaterAdmit(t *testing.T) {
 	store := newFakeNonceStore()
 	a := newManager(&nonceBranchRunner{}, nil, noopEncoder, nil)
-	a.state = &mempoolState{base: store}
+	a.exec.state = &mempoolState{base: store}
 
-	a.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.gen.Load())
+	a.sched.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.exec.gen.Load())
 
-	code, _, log := a.admit([]byte("alice-nonce-8-sibling"))
+	code, _, log := a.adm.admit([]byte("alice-nonce-8-sibling"))
 	if code != abci.CodeTypeOK {
 		t.Fatalf("admission must see recheck's nonce write-back through the shared base, got code=%d log=%q", code, log)
 	}
@@ -756,25 +756,25 @@ func TestManager_RefreshMempoolStateLockedSwapsBaseAndBumpsGen(t *testing.T) {
 	first, second := newFakeCacheStore(), newFakeCacheStore()
 	calls := 0
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
+	a.exec.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
 		calls++
 		if calls == 1 {
 			return &fakeCommitStore{cache: first}
 		}
 		return &fakeCommitStore{cache: second}
 	}}
-	a.state.refreshLocked() // mirrors NewManager's initial refresh
-	if got := a.state.store(); got != storetypes.MultiStore(first) {
+	a.exec.state.refreshLocked() // mirrors NewManager's initial refresh
+	if got := a.exec.state.store(); got != storetypes.MultiStore(first) {
 		t.Fatalf("expected initial base, got %v", got)
 	}
 
-	beforeGen := a.gen.Load()
+	beforeGen := a.exec.gen.Load()
 	a.RefreshMempoolStateLocked()
 
-	if got := a.state.store(); got != storetypes.MultiStore(second) {
+	if got := a.exec.state.store(); got != storetypes.MultiStore(second) {
 		t.Fatal("RefreshMempoolStateLocked must swap base identity")
 	}
-	if got := a.gen.Load(); got != beforeGen+1 {
+	if got := a.exec.gen.Load(); got != beforeGen+1 {
 		t.Fatalf("RefreshMempoolStateLocked must bump gen, got %d want %d", got, beforeGen+1)
 	}
 }
@@ -782,7 +782,7 @@ func TestManager_RefreshMempoolStateLockedSwapsBaseAndBumpsGen(t *testing.T) {
 func TestManager_RefreshMempoolStateLockedNoopWithoutState(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil) // state nil (test ctor)
 	a.RefreshMempoolStateLocked()                         // must not panic
-	if a.gen.Load() != 0 {
+	if a.exec.gen.Load() != 0 {
 		t.Fatal("nil state must leave gen untouched")
 	}
 }
@@ -797,12 +797,12 @@ func TestManager_NilBaseBeforeFirstRefresh(t *testing.T) {
 	a := newManager(runner, nil, noopEncoder, nil)
 	base := newFakeCacheStore()
 	calls := 0
-	a.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
+	a.exec.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
 		calls++
 		return &fakeCommitStore{cache: base}
 	}} // provider wired, no refreshLocked call yet: mirrors NewManager exactly
 
-	a.admit([]byte("pre-refresh"))
+	a.adm.admit([]byte("pre-refresh"))
 	if len(runner.ms) != 1 || runner.ms[0] != nil {
 		t.Fatalf("admit before the first refresh must pass a nil store (checkState fallback), got %v", runner.ms)
 	}
@@ -812,7 +812,7 @@ func TestManager_NilBaseBeforeFirstRefresh(t *testing.T) {
 
 	a.RefreshMempoolStateLocked() // mirrors App's post-LoadLatestVersion call
 
-	a.admit([]byte("post-refresh"))
+	a.adm.admit([]byte("post-refresh"))
 	if len(runner.ms) != 2 || runner.ms[1] != storetypes.MultiStore(base) {
 		t.Fatalf("admit after the first refresh must pass the wired base, got %v", runner.ms)
 	}
