@@ -1,4 +1,5 @@
 import asyncio
+import io
 import itertools
 import sys
 import time
@@ -10,8 +11,20 @@ import ujson
 import web3
 from hexbytes import HexBytes
 
+from .compare import (
+    build_comparison,
+    load_record,
+    render_comparison_text,
+    write_comparison_html,
+)
 from .config import load_config
 from .monitor import BlockSTMMonitor, MempoolMonitor
+from .results import (
+    build_aggregate_record,
+    build_run_record,
+    evaluate_saturation,
+    write_run_record,
+)
 from .stats import (
     _fetch_prometheus,
     dump_block_stats,
@@ -27,6 +40,7 @@ from .transaction import (
     send_round_robin,
 )
 from .utils import (
+    Tee,
     block_eth,
     block_height,
     block_txs,
@@ -283,23 +297,12 @@ def stats(config_path, count):
     )
 
 
-@cli.command()
-@click.option("--config", "config_path", required=True)
-@click.option("--nonce", type=click.IntRange(min=0), default=None)
-@click.option(
-    "--probe-batches",
-    default=1,
-    help=(
-        "Send this many leading batches synchronously so CheckTx rejections "
-        "surface immediately, instead of the silent no-op you get from "
-        "broadcast_tx_async when every tx is rejected. Set to 0 to disable."
-    ),
-)
-@click.argument("start", type=int)
-@click.argument("end", type=int)
-def bench(config_path, nonce, probe_batches, start, end):
-    """Generate load, send it round-robin across all endpoints, then report stats."""
-    cfg = load_config(config_path)
+def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
+    """Generate load for accounts [start, end] and report stats for one run.
+
+    Returns a dict with mode, load_start, load_end, committed_txs,
+    expected_txs, summary, and stats_text (None unless capture_stats).
+    """
     num_accounts = end - start + 1
     if nonce is None:
         nonce = current_sender_nonce(cfg, start, end)
@@ -326,6 +329,9 @@ def bench(config_path, nonce, probe_batches, start, end):
         file=sys.stderr,
     )
 
+    stats_buffer = io.StringIO() if capture_stats else None
+    stats_out = Tee(sys.stdout, stats_buffer) if capture_stats else sys.stdout
+
     if cfg.mode == "eth":
         load_start = eth_block_number(cfg.primary.json_rpc)
         print("sending txs...", file=sys.stderr)
@@ -344,65 +350,205 @@ def bench(config_path, nonce, probe_batches, start, end):
         load_end, committed_txs = wait_for_committed_eth_txs(
             cfg.primary.json_rpc, load_start, load_end, len(txs)
         )
-        dump_eth_block_stats(
-            sys.stdout,
+        summary = dump_eth_block_stats(
+            stats_out,
             json_rpc=cfg.primary.json_rpc,
             start=load_start,
             end=load_end,
         )
         print(f"committed_eth_txs {committed_txs}/{len(txs)}")
-        if committed_txs < len(txs):
+    else:
+        mempool_monitor = MempoolMonitor(cfg.primary.rpc)
+        stm_monitor = BlockSTMMonitor(cfg.primary.rpc, cfg.telemetry)
+        consensus_baseline = scrape_consensus_raw(_fetch_prometheus(cfg.telemetry))
+
+        load_start = block_height(cfg.primary.rpc)
+        mempool_monitor.start()
+        stm_monitor.start()
+        committed_txs = 0
+        try:
+            print("sending txs...", file=sys.stderr)
+            asyncio.run(
+                send_round_robin(
+                    txs,
+                    cfg.rpcs,
+                    batch_size=cfg.send_batch_size,
+                    batch_interval=cfg.send_interval,
+                    num_accounts=num_accounts,
+                    probe_batches=probe_batches,
+                )
+            )
+            load_end = block_height(cfg.primary.rpc)
+            load_end, committed_txs = wait_for_committed_txs(
+                cfg.primary.rpc, load_start, load_end, len(txs)
+            )
+        finally:
+            mempool_monitor.stop()
+            stm_monitor.stop()
+
+        summary = dump_block_stats(
+            stats_out,
+            rpc=cfg.primary.rpc,
+            json_rpc=cfg.primary.json_rpc,
+            telemetry=cfg.telemetry,
+            start=load_start,
+            end=load_end,
+            mempool_data=mempool_monitor.data,
+            stm_data=stm_monitor.data,
+            consensus_baseline=consensus_baseline,
+        )
+        print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
+
+    return {
+        "mode": cfg.mode,
+        "load_start": load_start,
+        "load_end": load_end,
+        "committed_txs": committed_txs,
+        "expected_txs": len(txs),
+        "summary": summary,
+        "stats_text": stats_buffer.getvalue() if capture_stats else None,
+    }
+
+
+def _run_record_path(results_path, run_index, total_runs):
+    if total_runs == 1:
+        return results_path
+    path = Path(results_path)
+    return str(path.with_name(f"{path.stem}-run{run_index + 1}{path.suffix}"))
+
+
+@cli.command()
+@click.option("--config", "config_path", required=True)
+@click.option("--nonce", type=click.IntRange(min=0), default=None)
+@click.option(
+    "--probe-batches",
+    default=1,
+    help=(
+        "Send this many leading batches synchronously so CheckTx rejections "
+        "surface immediately, instead of the silent no-op you get from "
+        "broadcast_tx_async when every tx is rejected. Set to 0 to disable."
+    ),
+)
+@click.option(
+    "--results",
+    "results_path",
+    default=None,
+    help=(
+        "Write a run-record JSON (config snapshot, node fingerprint, "
+        "per-block series, summary metrics, saturation verdict) to this path. "
+        "With --repeat > 1, per-run records go to <stem>-runN<suffix> and the "
+        "aggregate record goes to this path."
+    ),
+)
+@click.option(
+    "--require-saturation",
+    is_flag=True,
+    default=False,
+    help=(
+        "Exit non-zero with the failing reasons when the tuning-guide "
+        "saturation gates (gas utilization, mempool pending, failed tx rate) "
+        "are not met."
+    ),
+)
+@click.option(
+    "--repeat",
+    default=1,
+    type=click.IntRange(min=1),
+    help="Run the same load N times and aggregate metrics across runs.",
+)
+@click.argument("start", type=int)
+@click.argument("end", type=int)
+def bench(
+    config_path,
+    nonce,
+    probe_batches,
+    results_path,
+    require_saturation,
+    repeat,
+    start,
+    end,
+):
+    """Generate load, send it round-robin across all endpoints, then report stats."""
+    cfg = load_config(config_path)
+    capture_stats = bool(results_path)
+
+    runs = []
+    for i in range(repeat):
+        if repeat > 1:
+            print(f"=== run {i + 1}/{repeat} ===", file=sys.stderr)
+        run_nonce = nonce if i == 0 else None
+        run = _run_bench_once(cfg, run_nonce, probe_batches, start, end, capture_stats)
+        runs.append(run)
+
+        if results_path:
+            record = build_run_record(
+                cfg=cfg,
+                config_path=config_path,
+                mode=run["mode"],
+                load_start=run["load_start"],
+                load_end=run["load_end"],
+                stats_text=run["stats_text"],
+                summary=run["summary"],
+                committed_txs=run["committed_txs"],
+                expected_txs=run["expected_txs"],
+                extra={"run_index": i} if repeat > 1 else None,
+            )
+            run_path = _run_record_path(results_path, i, repeat)
+            write_run_record(record, run_path)
+            print(f"wrote run record to {run_path}", file=sys.stderr)
+
+    if repeat > 1 and results_path:
+        aggregate = build_aggregate_record(
+            cfg=cfg,
+            config_path=config_path,
+            summaries=[run["summary"] for run in runs],
+        )
+        write_run_record(aggregate, results_path)
+        print(f"wrote aggregate record to {results_path}", file=sys.stderr)
+
+    if require_saturation:
+        failing = []
+        for i, run in enumerate(runs):
+            ok, reasons = evaluate_saturation(run["summary"])
+            if not ok:
+                failing.append(f"run {i + 1}: " + "; ".join(reasons))
+        if failing:
+            raise click.ClickException(
+                "saturation gates not met: " + " | ".join(failing)
+            )
+
+    uncommitted = [run for run in runs if run["committed_txs"] < run["expected_txs"]]
+    if uncommitted:
+        kind = "Ethereum" if cfg.mode == "eth" else "Cosmos"
+        if repeat == 1:
+            run = uncommitted[0]
             raise click.ClickException(
                 f"timed out waiting for generated transactions to commit: "
-                f"{committed_txs}/{len(txs)} Ethereum transactions committed"
+                f"{run['committed_txs']}/{run['expected_txs']} {kind} transactions committed"
             )
-        return
-
-    mempool_monitor = MempoolMonitor(cfg.primary.rpc)
-    stm_monitor = BlockSTMMonitor(cfg.primary.rpc, cfg.telemetry)
-    consensus_baseline = scrape_consensus_raw(_fetch_prometheus(cfg.telemetry))
-
-    load_start = block_height(cfg.primary.rpc)
-    mempool_monitor.start()
-    stm_monitor.start()
-    committed_txs = 0
-    try:
-        print("sending txs...", file=sys.stderr)
-        asyncio.run(
-            send_round_robin(
-                txs,
-                cfg.rpcs,
-                batch_size=cfg.send_batch_size,
-                batch_interval=cfg.send_interval,
-                num_accounts=num_accounts,
-                probe_batches=probe_batches,
-            )
+        details = "; ".join(
+            f"run {runs.index(run) + 1}: {run['committed_txs']}/{run['expected_txs']}"
+            for run in uncommitted
         )
-        load_end = block_height(cfg.primary.rpc)
-        load_end, committed_txs = wait_for_committed_txs(
-            cfg.primary.rpc, load_start, load_end, len(txs)
-        )
-    finally:
-        mempool_monitor.stop()
-        stm_monitor.stop()
-
-    dump_block_stats(
-        sys.stdout,
-        rpc=cfg.primary.rpc,
-        json_rpc=cfg.primary.json_rpc,
-        telemetry=cfg.telemetry,
-        start=load_start,
-        end=load_end,
-        mempool_data=mempool_monitor.data,
-        stm_data=stm_monitor.data,
-        consensus_baseline=consensus_baseline,
-    )
-    print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
-    if committed_txs < len(txs):
         raise click.ClickException(
-            f"timed out waiting for generated transactions to commit: "
-            f"{committed_txs}/{len(txs)} Cosmos transactions committed"
+            f"timed out waiting for generated transactions to commit "
+            f"({kind}): {details}"
         )
+
+
+@cli.command()
+@click.option("-o", "--output", "output_path", default=None, help="write HTML report here")
+@click.argument("record_a_path", metavar="A.json", type=str)
+@click.argument("record_b_path", metavar="B.json", type=str)
+def compare(output_path, record_a_path, record_b_path):
+    """Compare two bench run records: delta table, config diff, optional HTML."""
+    record_a = load_record(record_a_path)
+    record_b = load_record(record_b_path)
+    comparison = build_comparison(record_a, record_b, record_a_path, record_b_path)
+    print(render_comparison_text(comparison))
+    if output_path:
+        write_comparison_html(comparison, output_path)
+        print(f"wrote comparison report to {output_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,10 @@ class Endpoint(BaseModel):
     name: str
     rpc: str
     json_rpc: str
+    # Operator-declared config not observable over RPC (mempool.type,
+    # libp2p enabled, Block-STM workers, ...), recorded verbatim into the
+    # node fingerprint by results.py.
+    node_config: dict = Field(default_factory=dict)
 
 
 class Config(BaseModel):

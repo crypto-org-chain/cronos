@@ -245,6 +245,261 @@ def scrape_consensus_metrics(prom_text, baseline=None):
     return result
 
 
+def _percentile(values, pct):
+    """Linear-interpolated percentile (0-100) of a list of numbers."""
+    if not values:
+        return 0
+    s = sorted(values)
+    if len(s) == 1:
+        return s[0]
+    k = (len(s) - 1) * (pct / 100)
+    f = int(k)
+    c = min(f + 1, len(s) - 1)
+    if f == c:
+        return s[f]
+    return s[f] * (c - k) + s[c] * (k - f)
+
+
+def _analyze_load_window(
+    blocks,
+    gas_data,
+    per_tx_gas_values,
+    total_failed_txs=0,
+    total_counted_txs=0,
+    stall_mult=5,
+):
+    """Compute the summary statistics shared by dump_block_stats and
+    dump_eth_block_stats from a queried block range.
+
+    blocks: list of (tx_count, timestamp) for every queried height.
+    gas_data: list of (gas_used, gas_limit), parallel to blocks.
+    per_tx_gas_values: per-tx gas (int) for blocks with tx_count > 0.
+
+    Returns None if no block in the range had any transactions (the
+    "no_load_period" case), else a dict consumed by
+    _print_load_summary_sections and the callers' own extra sections
+    (mempool/failed-tx/block-stm/consensus).
+    """
+    first_tx_idx = None
+    last_tx_idx = None
+    for idx, (txs, _) in enumerate(blocks):
+        if txs > 0:
+            if first_tx_idx is None:
+                first_tx_idx = idx
+            last_tx_idx = idx
+
+    if first_tx_idx is None:
+        return None
+
+    multi_block = last_tx_idx is not None and first_tx_idx < last_tx_idx
+    anchor_is_separate = first_tx_idx > 0
+    anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
+    load_blocks = blocks[anchor_idx : last_tx_idx + 1]
+    load_gas = gas_data[anchor_idx : last_tx_idx + 1]
+
+    load_tps_values = []
+    load_gps_values = []
+    block_times = []
+    for j in range(1, len(load_blocks)):
+        _, t_prev = load_blocks[j - 1]
+        _, t_curr = load_blocks[j]
+        bt = (t_curr - t_prev).total_seconds()
+        block_times.append(bt)
+
+        if bt > 0:
+            gu, _ = load_gas[j]
+            load_gps_values.append(gu / bt)
+
+        win_start = max(0, j + 1 - TPS_WINDOW)
+        window = load_blocks[win_start : j + 1]
+        if len(window) >= 2:
+            win_has_anchor = anchor_is_separate or win_start > 0
+            load_tps_values.append(
+                calculate_tps(window, anchor_is_separate=win_has_anchor)
+            )
+
+    # --- Detect stalled blocks ---
+    # Use the 25th-percentile block time as the "normal" baseline.
+    # Blocks slower than stall_mult × baseline are stalls (e.g. tx-flood
+    # overwhelming the proposer) and are excluded from timing summaries.
+    stall_indices = set()
+    if len(block_times) >= 4:
+        q1 = quantiles(block_times, n=4)[0]
+        stall_threshold = q1 * stall_mult
+        for j, bt in enumerate(block_times):
+            if bt > stall_threshold:
+                stall_indices.add(j)
+
+    steady_block_times = [
+        bt for j, bt in enumerate(block_times) if j not in stall_indices
+    ]
+    steady_tps_values = [
+        v for j, v in enumerate(load_tps_values) if j not in stall_indices
+    ]
+    steady_gps_values = [
+        v for j, v in enumerate(load_gps_values) if j not in stall_indices
+    ]
+
+    counted = load_blocks[1:] if anchor_is_separate else load_blocks
+    total_txs = sum(n for n, _ in counted)
+    _, t_start = load_blocks[0]
+    _, t_end = load_blocks[-1]
+    load_duration = (t_end - t_start).total_seconds()
+
+    # overall TPS excluding stalls. block_times[j] is the interval ending at
+    # load_blocks[j + 1], so that block's txs/gas are what get excluded along
+    # with its time — numerator and denominator stay consistent (steady-only).
+    stall_time = sum(block_times[j] for j in stall_indices)
+    stall_txs = sum(load_blocks[j + 1][0] for j in stall_indices)
+    stall_gas = sum(load_gas[j + 1][0] for j in stall_indices)
+    adjusted_duration = load_duration - stall_time
+    steady_txs = total_txs - stall_txs
+    overall_tps = steady_txs / adjusted_duration if adjusted_duration > 0 else 0
+
+    peak_tps = max(steady_tps_values) if steady_tps_values else 0
+    median_tps = median(steady_tps_values) if steady_tps_values else 0
+
+    median_bt = median(steady_block_times) if steady_block_times else 0
+    fastest_bt = min(steady_block_times) if steady_block_times else 0
+    slowest_bt = max(steady_block_times) if steady_block_times else 0
+    p95_bt = _percentile(steady_block_times, 95)
+    p99_bt = _percentile(steady_block_times, 99)
+
+    num_tx_blocks = last_tx_idx - first_tx_idx + 1
+
+    # --- Gas metrics ---
+    counted_gas = load_gas[1:] if anchor_is_separate else load_gas
+    total_gas_used = sum(gu for gu, _ in counted_gas)
+    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
+    steady_gas_used = total_gas_used - stall_gas
+    overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
+    peak_gps = max(steady_gps_values) if steady_gps_values else 0
+    median_gps = median(steady_gps_values) if steady_gps_values else 0
+
+    # --- Per-tx gas from ETH block data (EVM gas units) ---
+    tx_gas_list = [g for g in per_tx_gas_values if g > 0]
+
+    return {
+        "first_tx_idx": first_tx_idx,
+        "last_tx_idx": last_tx_idx,
+        "anchor_idx": anchor_idx,
+        "multi_block": multi_block,
+        "num_tx_blocks": num_tx_blocks,
+        "total_txs": total_txs,
+        "load_duration": load_duration,
+        "raw_avg_tps": total_txs / load_duration if load_duration > 0 else 0,
+        "overall_tps": overall_tps,
+        "peak_tps": peak_tps,
+        "median_tps": median_tps,
+        "stall_indices": stall_indices,
+        "stall_time": stall_time,
+        "adjusted_duration": adjusted_duration,
+        # heights of stalled blocks, as offsets from the queried `start`.
+        "stall_height_offsets": sorted(anchor_idx + 1 + j for j in stall_indices),
+        "total_gas_used": total_gas_used,
+        "gas_utilizations": gas_utilizations,
+        "overall_gps": overall_gps,
+        "peak_gps": peak_gps,
+        "median_gps": median_gps,
+        "tx_gas_list": tx_gas_list,
+        "steady_block_times": steady_block_times,
+        "median_bt": median_bt,
+        "fastest_bt": fastest_bt,
+        "slowest_bt": slowest_bt,
+        "p95_bt": p95_bt,
+        "p99_bt": p99_bt,
+        "total_failed_txs": total_failed_txs,
+        "total_counted_txs": total_counted_txs,
+    }
+
+
+def _print_load_summary_sections(fp, start, summary):
+    """Print the TPS / Gas Throughput / Per-Tx Gas / Block Time / Load
+    Summary sections shared by dump_block_stats and dump_eth_block_stats."""
+    print("=== TPS ===", file=fp)
+    if summary["multi_block"]:
+        print(f"peak_tps {summary['peak_tps']:.2f}", file=fp)
+        print(f"overall_tps {summary['overall_tps']:.2f}", file=fp)
+        # Same window as overall_tps but without excluding stalled blocks/txs -
+        # total_txs / load_duration, i.e. the naive sum(txs)/(t_end - t_start).
+        # Useful as a sanity cross-check against overall_tps; the gap between
+        # the two is exactly how much the stall exclusion is buying you.
+        print(f"raw_avg_tps {summary['raw_avg_tps']:.2f}", file=fp)
+        print(f"median_tps {summary['median_tps']:.2f}", file=fp)
+        if summary["stall_indices"]:
+            stall_heights = [start + off for off in summary["stall_height_offsets"]]
+            print(
+                f"stalls_excluded {len(summary['stall_indices'])}"
+                f" blocks ({summary['stall_time']:.1f}s)"
+                f" at heights {stall_heights}",
+                file=fp,
+            )
+    else:
+        print(
+            f"overall_tps N/A (all {summary['total_txs']} txs in 1 block; "
+            f"increase num_txs for meaningful TPS)",
+            file=fp,
+        )
+
+    print(file=fp)
+    print("=== Gas Throughput ===", file=fp)
+    print(f"total_gas_used {summary['total_gas_used']}", file=fp)
+    if summary["multi_block"]:
+        print(f"overall_gps {summary['overall_gps']:.0f}", file=fp)
+        print(f"peak_gps {summary['peak_gps']:.0f}", file=fp)
+        print(f"median_gps {summary['median_gps']:.0f}", file=fp)
+    if summary["gas_utilizations"]:
+        print(
+            f"median_gas_utilization"
+            f" {median(summary['gas_utilizations']) * 100:.1f}%",
+            file=fp,
+        )
+
+    if summary["tx_gas_list"]:
+        tx_gas_list = summary["tx_gas_list"]
+        avg_tx_gas = sum(tx_gas_list) / len(tx_gas_list)
+        med_tx_gas = median(tx_gas_list)
+        max_tx_gas = max(tx_gas_list)
+        min_tx_gas = min(tx_gas_list)
+        print(file=fp)
+        print("=== Per-Tx Gas ===", file=fp)
+        print(f"avg_tx_gas {avg_tx_gas:.0f}", file=fp)
+        print(f"median_tx_gas {med_tx_gas:.0f}", file=fp)
+        print(f"min_tx_gas {min_tx_gas}", file=fp)
+        print(f"max_tx_gas {max_tx_gas}", file=fp)
+
+    if summary["steady_block_times"]:
+        print(file=fp)
+        print("=== Block Time ===", file=fp)
+        print(f"median_blocktime {summary['median_bt'] * 1000:.0f}ms", file=fp)
+        print(f"fastest_blocktime {summary['fastest_bt'] * 1000:.0f}ms", file=fp)
+        print(f"slowest_blocktime {summary['slowest_bt'] * 1000:.0f}ms", file=fp)
+        print(f"p95_blocktime {summary['p95_bt'] * 1000:.0f}ms", file=fp)
+        print(f"p99_blocktime {summary['p99_bt'] * 1000:.0f}ms", file=fp)
+
+    print(file=fp)
+    print("=== Load Summary ===", file=fp)
+    duration_str = f"{summary['load_duration']:.1f}s"
+    if summary["stall_indices"]:
+        duration_str += (
+            f" (steady {summary['adjusted_duration']:.1f}s,"
+            f" stall {summary['stall_time']:.1f}s)"
+        )
+    print(
+        f"load_period blocks {start + summary['first_tx_idx']}"
+        f"-{start + summary['last_tx_idx']}"
+        f" ({summary['num_tx_blocks']} blocks, {duration_str})",
+        file=fp,
+    )
+    print(f"total_txs {summary['total_txs']}", file=fp)
+    if summary["total_counted_txs"] > 0:
+        print(
+            f"failed_txs {summary['total_failed_txs']}"
+            f" ({summary['total_failed_txs'] / summary['total_counted_txs'] * 100:.1f}%)",
+            file=fp,
+        )
+
+
 def dump_block_stats(
     fp,
     rpc: str,
@@ -265,7 +520,7 @@ def dump_block_stats(
     - Gas throughput: GPS (gas per second), peak GPS
     - Gas utilization: median gas_used / gas_limit ratio
     - Per-tx gas: avg, median, max
-    - Block time: median, fastest, slowest
+    - Block time: median, fastest, slowest, p95, p99
     - Failed tx count/ratio
     - Block-STM re-execution ratio (if telemetry is available)
 
@@ -341,192 +596,25 @@ def dump_block_stats(
             )
         prev_timestamp = timestamp
 
-    # --- Summary statistics ---
-    first_tx_idx = None
-    last_tx_idx = None
-    for idx, (txs, _) in enumerate(blocks):
-        if txs > 0:
-            if first_tx_idx is None:
-                first_tx_idx = idx
-            last_tx_idx = idx
-
     print(file=fp)
 
-    if first_tx_idx is None:
-        print("no_load_period", file=fp)
-        return
-
-    multi_block = last_tx_idx is not None and first_tx_idx < last_tx_idx
-    anchor_is_separate = first_tx_idx > 0
-    anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
-    load_blocks = blocks[anchor_idx : last_tx_idx + 1]
-    load_gas = gas_data[anchor_idx : last_tx_idx + 1]
-
-    load_tps_values = []
-    load_gps_values = []
-    block_times = []
-    for j in range(1, len(load_blocks)):
-        _, t_prev = load_blocks[j - 1]
-        _, t_curr = load_blocks[j]
-        bt = (t_curr - t_prev).total_seconds()
-        block_times.append(bt)
-
-        if bt > 0:
-            gu, _ = load_gas[j]
-            load_gps_values.append(gu / bt)
-
-        win_start = max(0, j + 1 - TPS_WINDOW)
-        window = load_blocks[win_start : j + 1]
-        if len(window) >= 2:
-            win_has_anchor = anchor_is_separate or win_start > 0
-            load_tps_values.append(
-                calculate_tps(window, anchor_is_separate=win_has_anchor)
-            )
-
-    # --- Detect stalled blocks ---
-    # Use the 25th-percentile block time as the "normal" baseline.
-    # Blocks slower than STALL_MULT × baseline are stalls (e.g. tx-flood
-    # overwhelming the proposer) and are excluded from timing summaries.
-    stall_mult = 5
-    stall_indices = set()
-    if len(block_times) >= 4:
-        q1 = quantiles(block_times, n=4)[0]
-        stall_threshold = q1 * stall_mult
-        for j, bt in enumerate(block_times):
-            if bt > stall_threshold:
-                stall_indices.add(j)
-
-    steady_block_times = [
-        bt for j, bt in enumerate(block_times) if j not in stall_indices
-    ]
-    steady_tps_values = [
-        v for j, v in enumerate(load_tps_values) if j not in stall_indices
-    ]
-    steady_gps_values = [
-        v for j, v in enumerate(load_gps_values) if j not in stall_indices
-    ]
-
-    counted = load_blocks[1:] if anchor_is_separate else load_blocks
-    total_txs = sum(n for n, _ in counted)
-    _, t_start = load_blocks[0]
-    _, t_end = load_blocks[-1]
-    load_duration = (t_end - t_start).total_seconds()
-
-    # overall TPS excluding stalls. block_times[j] is the interval ending at
-    # load_blocks[j + 1], so that block's txs/gas are what get excluded along
-    # with its time — numerator and denominator stay consistent (steady-only).
-    stall_time = sum(block_times[j] for j in stall_indices)
-    stall_txs = sum(load_blocks[j + 1][0] for j in stall_indices)
-    stall_gas = sum(load_gas[j + 1][0] for j in stall_indices)
-    adjusted_duration = load_duration - stall_time
-    steady_txs = total_txs - stall_txs
-    overall_tps = steady_txs / adjusted_duration if adjusted_duration > 0 else 0
-
-    peak_tps = max(steady_tps_values) if steady_tps_values else 0
-    median_tps = median(steady_tps_values) if steady_tps_values else 0
-
-    median_bt = median(steady_block_times) if steady_block_times else 0
-    fastest_bt = min(steady_block_times) if steady_block_times else 0
-    slowest_bt = max(steady_block_times) if steady_block_times else 0
-
-    num_tx_blocks = last_tx_idx - first_tx_idx + 1
-
-    # --- Gas metrics ---
-    counted_gas = load_gas[1:] if anchor_is_separate else load_gas
-    total_gas_used = sum(gu for gu, _ in counted_gas)
-    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
-    steady_gas_used = total_gas_used - stall_gas
-    overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
-    peak_gps = max(steady_gps_values) if steady_gps_values else 0
-    median_gps = median(steady_gps_values) if steady_gps_values else 0
-
-    # --- Per-tx gas from ETH block data (EVM gas units) ---
-    tx_gas_list = [g for g in per_tx_gas_values if g > 0]
-
-    # --- Print TPS section ---
-    print("=== TPS ===", file=fp)
-    if multi_block:
-        print(f"peak_tps {peak_tps:.2f}", file=fp)
-        print(f"overall_tps {overall_tps:.2f}", file=fp)
-        # Same window as overall_tps but without excluding stalled blocks/txs -
-        # total_txs / load_duration, i.e. the naive sum(txs)/(t_end - t_start).
-        # Useful as a sanity cross-check against overall_tps; the gap between
-        # the two is exactly how much the stall exclusion is buying you.
-        raw_avg_tps = total_txs / load_duration if load_duration > 0 else 0
-        print(f"raw_avg_tps {raw_avg_tps:.2f}", file=fp)
-        print(f"median_tps {median_tps:.2f}", file=fp)
-        if stall_indices:
-            stall_heights = sorted(start + anchor_idx + 1 + j for j in stall_indices)
-            print(
-                f"stalls_excluded {len(stall_indices)}"
-                f" blocks ({stall_time:.1f}s)"
-                f" at heights {stall_heights}",
-                file=fp,
-            )
-    else:
-        print(
-            f"overall_tps N/A (all {total_txs} txs in 1 block; "
-            f"increase num_txs for meaningful TPS)",
-            file=fp,
-        )
-
-    # --- Print Gas Throughput section ---
-    print(file=fp)
-    print("=== Gas Throughput ===", file=fp)
-    print(f"total_gas_used {total_gas_used}", file=fp)
-    if multi_block:
-        print(f"overall_gps {overall_gps:.0f}", file=fp)
-        print(f"peak_gps {peak_gps:.0f}", file=fp)
-        print(f"median_gps {median_gps:.0f}", file=fp)
-    if gas_utilizations:
-        print(
-            f"median_gas_utilization" f" {median(gas_utilizations) * 100:.1f}%",
-            file=fp,
-        )
-
-    # --- Print Per-Tx Gas ---
-    if tx_gas_list:
-        avg_tx_gas = sum(tx_gas_list) / len(tx_gas_list)
-        med_tx_gas = median(tx_gas_list)
-        max_tx_gas = max(tx_gas_list)
-        min_tx_gas = min(tx_gas_list)
-        print(file=fp)
-        print("=== Per-Tx Gas ===", file=fp)
-        print(f"avg_tx_gas {avg_tx_gas:.0f}", file=fp)
-        print(f"median_tx_gas {med_tx_gas:.0f}", file=fp)
-        print(f"min_tx_gas {min_tx_gas}", file=fp)
-        print(f"max_tx_gas {max_tx_gas}", file=fp)
-
-    # --- Print Block Time ---
-    if steady_block_times:
-        print(file=fp)
-        print("=== Block Time ===", file=fp)
-        print(f"median_blocktime {median_bt * 1000:.0f}ms", file=fp)
-        print(f"fastest_blocktime {fastest_bt * 1000:.0f}ms", file=fp)
-        print(f"slowest_blocktime {slowest_bt * 1000:.0f}ms", file=fp)
-
-    # --- Print Load summary ---
-    print(file=fp)
-    print("=== Load Summary ===", file=fp)
-    duration_str = f"{load_duration:.1f}s"
-    if stall_indices:
-        duration_str += f" (steady {adjusted_duration:.1f}s, stall {stall_time:.1f}s)"
-    print(
-        f"load_period blocks {start + first_tx_idx}-{start + last_tx_idx}"
-        f" ({num_tx_blocks} blocks, {duration_str})",
-        file=fp,
+    summary = _analyze_load_window(
+        blocks,
+        gas_data,
+        per_tx_gas_values,
+        total_failed_txs=total_failed_txs,
+        total_counted_txs=total_counted_txs,
     )
-    print(f"total_txs {total_txs}", file=fp)
-    if total_counted_txs > 0:
-        print(
-            f"failed_txs {total_failed_txs}"
-            f" ({total_failed_txs / total_counted_txs * 100:.1f}%)",
-            file=fp,
-        )
+    if summary is None:
+        print("no_load_period", file=fp)
+        return None
+
+    _print_load_summary_sections(fp, start, summary)
 
     # --- Mempool / Tx-Pool summary ---
-    load_mp = mempool_snapshots[anchor_idx : last_tx_idx + 1]
+    load_mp = mempool_snapshots[summary["anchor_idx"] : summary["last_tx_idx"] + 1]
     valid_mp = [n for n, _ in load_mp if n >= 0]
+    summary["mempool_min_pending"] = min(valid_mp) if valid_mp else None
     if valid_mp:
         print(file=fp)
         print("=== Mempool (txpool) ===", file=fp)
@@ -546,8 +634,8 @@ def dump_block_stats(
 
     # --- Block-STM from live-collected stm_data ---
     stm_samples = []
-    if stm_data and first_tx_idx is not None:
-        for idx in range(first_tx_idx, last_tx_idx + 1):
+    if stm_data:
+        for idx in range(summary["first_tx_idx"], summary["last_tx_idx"] + 1):
             height = start + idx
             tx_count = blocks[idx][0]
             if tx_count > 0 and height in stm_data:
@@ -632,6 +720,8 @@ def dump_block_stats(
                 val, _ = cons[key]
                 print(f"{label} {val * 1000:.1f}ms", file=fp)
 
+    return summary
+
 
 def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
     """
@@ -675,165 +765,12 @@ def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
             )
         prev_timestamp = timestamp
 
-    # --- Summary statistics ---
-    first_tx_idx = None
-    last_tx_idx = None
-    for idx, (txs, _) in enumerate(blocks):
-        if txs > 0:
-            if first_tx_idx is None:
-                first_tx_idx = idx
-            last_tx_idx = idx
-
     print(file=fp)
 
-    if first_tx_idx is None:
+    summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values)
+    if summary is None:
         print("no_load_period", file=fp)
-        return
+        return None
 
-    multi_block = last_tx_idx is not None and first_tx_idx < last_tx_idx
-    anchor_is_separate = first_tx_idx > 0
-    anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
-    load_blocks = blocks[anchor_idx : last_tx_idx + 1]
-    load_gas = gas_data[anchor_idx : last_tx_idx + 1]
-
-    load_tps_values = []
-    load_gps_values = []
-    block_times = []
-    for j in range(1, len(load_blocks)):
-        _, t_prev = load_blocks[j - 1]
-        _, t_curr = load_blocks[j]
-        bt = (t_curr - t_prev).total_seconds()
-        block_times.append(bt)
-
-        if bt > 0:
-            gu, _ = load_gas[j]
-            load_gps_values.append(gu / bt)
-
-        win_start = max(0, j + 1 - TPS_WINDOW)
-        window = load_blocks[win_start : j + 1]
-        if len(window) >= 2:
-            win_has_anchor = anchor_is_separate or win_start > 0
-            load_tps_values.append(
-                calculate_tps(window, anchor_is_separate=win_has_anchor)
-            )
-
-    stall_mult = 5
-    stall_indices = set()
-    if len(block_times) >= 4:
-        q1 = quantiles(block_times, n=4)[0]
-        stall_threshold = q1 * stall_mult
-        for j, bt in enumerate(block_times):
-            if bt > stall_threshold:
-                stall_indices.add(j)
-
-    steady_block_times = [
-        bt for j, bt in enumerate(block_times) if j not in stall_indices
-    ]
-    steady_tps_values = [
-        v for j, v in enumerate(load_tps_values) if j not in stall_indices
-    ]
-    steady_gps_values = [
-        v for j, v in enumerate(load_gps_values) if j not in stall_indices
-    ]
-
-    counted = load_blocks[1:] if anchor_is_separate else load_blocks
-    total_txs = sum(n for n, _ in counted)
-    _, t_start = load_blocks[0]
-    _, t_end = load_blocks[-1]
-    load_duration = (t_end - t_start).total_seconds()
-
-    stall_time = sum(block_times[j] for j in stall_indices)
-    stall_txs = sum(load_blocks[j + 1][0] for j in stall_indices)
-    stall_gas = sum(load_gas[j + 1][0] for j in stall_indices)
-    adjusted_duration = load_duration - stall_time
-    steady_txs = total_txs - stall_txs
-    overall_tps = steady_txs / adjusted_duration if adjusted_duration > 0 else 0
-
-    peak_tps = max(steady_tps_values) if steady_tps_values else 0
-    median_tps = median(steady_tps_values) if steady_tps_values else 0
-
-    median_bt = median(steady_block_times) if steady_block_times else 0
-    fastest_bt = min(steady_block_times) if steady_block_times else 0
-    slowest_bt = max(steady_block_times) if steady_block_times else 0
-
-    num_tx_blocks = last_tx_idx - first_tx_idx + 1
-
-    counted_gas = load_gas[1:] if anchor_is_separate else load_gas
-    total_gas_used = sum(gu for gu, _ in counted_gas)
-    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
-    steady_gas_used = total_gas_used - stall_gas
-    overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
-    peak_gps = max(steady_gps_values) if steady_gps_values else 0
-    median_gps = median(steady_gps_values) if steady_gps_values else 0
-
-    tx_gas_list = [g for g in per_tx_gas_values if g > 0]
-
-    print("=== TPS ===", file=fp)
-    if multi_block:
-        print(f"peak_tps {peak_tps:.2f}", file=fp)
-        print(f"overall_tps {overall_tps:.2f}", file=fp)
-        # Same window as overall_tps but without excluding stalled blocks/txs -
-        # total_txs / load_duration, i.e. the naive sum(txs)/(t_end - t_start).
-        # Useful as a sanity cross-check against overall_tps; the gap between
-        # the two is exactly how much the stall exclusion is buying you.
-        raw_avg_tps = total_txs / load_duration if load_duration > 0 else 0
-        print(f"raw_avg_tps {raw_avg_tps:.2f}", file=fp)
-        print(f"median_tps {median_tps:.2f}", file=fp)
-        if stall_indices:
-            stall_heights = sorted(start + anchor_idx + 1 + j for j in stall_indices)
-            print(
-                f"stalls_excluded {len(stall_indices)}"
-                f" blocks ({stall_time:.1f}s)"
-                f" at heights {stall_heights}",
-                file=fp,
-            )
-    else:
-        print(
-            f"overall_tps N/A (all {total_txs} txs in 1 block; "
-            f"increase num_txs for meaningful TPS)",
-            file=fp,
-        )
-
-    print(file=fp)
-    print("=== Gas Throughput ===", file=fp)
-    print(f"total_gas_used {total_gas_used}", file=fp)
-    if multi_block:
-        print(f"overall_gps {overall_gps:.0f}", file=fp)
-        print(f"peak_gps {peak_gps:.0f}", file=fp)
-        print(f"median_gps {median_gps:.0f}", file=fp)
-    if gas_utilizations:
-        print(
-            f"median_gas_utilization" f" {median(gas_utilizations) * 100:.1f}%",
-            file=fp,
-        )
-
-    if tx_gas_list:
-        avg_tx_gas = sum(tx_gas_list) / len(tx_gas_list)
-        med_tx_gas = median(tx_gas_list)
-        max_tx_gas = max(tx_gas_list)
-        min_tx_gas = min(tx_gas_list)
-        print(file=fp)
-        print("=== Per-Tx Gas ===", file=fp)
-        print(f"avg_tx_gas {avg_tx_gas:.0f}", file=fp)
-        print(f"median_tx_gas {med_tx_gas:.0f}", file=fp)
-        print(f"min_tx_gas {min_tx_gas}", file=fp)
-        print(f"max_tx_gas {max_tx_gas}", file=fp)
-
-    if steady_block_times:
-        print(file=fp)
-        print("=== Block Time ===", file=fp)
-        print(f"median_blocktime {median_bt * 1000:.0f}ms", file=fp)
-        print(f"fastest_blocktime {fastest_bt * 1000:.0f}ms", file=fp)
-        print(f"slowest_blocktime {slowest_bt * 1000:.0f}ms", file=fp)
-
-    print(file=fp)
-    print("=== Load Summary ===", file=fp)
-    duration_str = f"{load_duration:.1f}s"
-    if stall_indices:
-        duration_str += f" (steady {adjusted_duration:.1f}s, stall {stall_time:.1f}s)"
-    print(
-        f"load_period blocks {start + first_tx_idx}-{start + last_tx_idx}"
-        f" ({num_tx_blocks} blocks, {duration_str})",
-        file=fp,
-    )
-    print(f"total_txs {total_txs}", file=fp)
+    _print_load_summary_sections(fp, start, summary)
+    return summary
