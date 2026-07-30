@@ -1,0 +1,52 @@
+dotenv: .env
+cronos_777-1:
+  cmd: cronosd
+  start-flags: "--trace"
+  app-config:
+    minimum-gas-prices: 0basetcro
+    index-events:
+      - ethereum_tx.ethereumTxHash
+    json-rpc:
+      address: "127.0.0.1:{EVMRPC_PORT}"
+      ws-address: "127.0.0.1:{EVMRPC_PORT_WS}"
+      api: "eth,net,web3,debug,cronos"
+  validators:
+    - coins: 1000000000000000000stake,10000000000000000000000basetcro
+      staked: 1000000000000000000stake
+      mnemonic: ${VALIDATOR1_MNEMONIC}
+  accounts:
+    - name: community
+      coins: 10000000000000000000000basetcro
+      mnemonic: ${COMMUNITY_MNEMONIC}
+  genesis:
+    consensus:
+      params:
+        block:
+          max_bytes: "1048576"
+          max_gas: "81500000"
+    app_state:
+      evm:
+        params:
+          evm_denom: basetcro
+      cronos:
+        params:
+          cronos_admin: ${CRONOS_ADMIN}
+          enable_auto_deployment: true
+          ibc_cro_denom: ${IBC_CRO_DENOM}
+      gov:
+        params:
+          expedited_voting_period: "1s"
+          voting_period: "10s"
+          max_deposit_period: "10s"
+          min_deposit:
+            - denom: "basetcro"
+              amount: "1"
+      transfer:
+        params:
+          receive_enabled: true
+          send_enabled: true
+      feemarket:
+        params:
+          no_base_fee: false
+          base_fee: "100000000000"
+          min_gas_multiplier: "0"

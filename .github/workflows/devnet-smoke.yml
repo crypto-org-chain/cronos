@@ -1,0 +1,63 @@
+name: devnet smoke test
+on:
+  merge_group:
+  pull_request:
+    paths:
+      - "app/**"
+      - "x/**"
+      - "cmd/**"
+      - "devnet_tests/**"
+      - "go.mod"
+      - "go.sum"
+      - "scripts/cronos-single-devnet.yaml"
+      - "scripts/run-devnet-smoke.sh"
+      - "scripts/.env"
+      - ".github/workflows/devnet-smoke.yml"
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - "app/**"
+      - "x/**"
+      - "cmd/**"
+      - "devnet_tests/**"
+      - "go.mod"
+      - "go.sum"
+      - "scripts/cronos-single-devnet.yaml"
+      - "scripts/run-devnet-smoke.sh"
+      - "scripts/.env"
+      - ".github/workflows/devnet-smoke.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  devnet-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.11"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pystarport and poetry
+        run: pip install pystarport==0.2.5 poetry
+      - name: Run one-validator devnet smoke test
+        run: ./scripts/run-devnet-smoke.sh
+      - name: Tar devnet data dir
+        if: failure() && env.DEVNET_SMOKE_DATA_DIR != ''
+        run: tar cfz devnet-smoke-data.tar.gz -C "$(dirname "$DEVNET_SMOKE_DATA_DIR")" "$(basename "$DEVNET_SMOKE_DATA_DIR")"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: devnet-smoke-data
+          path: devnet-smoke-data.tar.gz
+          if-no-files-found: ignore
