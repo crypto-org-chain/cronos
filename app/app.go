@@ -1699,6 +1699,10 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 		if err == nil {
 			app.mempoolManager.RefreshMempoolStateLocked()
 		}
+		// On error, base is left pointing at the superseded store: a Commit
+		// error is effectively fatal, and a node still restoring from state
+		// sync isn't proposing, so there's no admission/recheck traffic to
+		// serve a stale base to in the meantime.
 		return resp, err
 	}()
 

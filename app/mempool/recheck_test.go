@@ -1132,18 +1132,122 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	}
 }
 
-// Cascading assumes the group is the signer's ascending-nonce view; a descending
-// pair means the assumption doesn't hold, so every candidate keeps its RunTx.
-func TestRunRecheck_OutOfOrderNoncesDisableCascade(t *testing.T) {
+// groupCandidates sorts a group ascending by seq before it runs, so a
+// non-ascending pool/deferred order (5, 9, 7) no longer disables the cascade —
+// the group becomes the signer's clean ascending view (5, 7, 9), and every
+// candidate still gets its own RunTx up to the real gap.
+func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 	f := newRecheckFixture()
 	valid := f.add(1, "carl", 5, carlSeq5Bytes)
 	gapped := f.add(2, "carl", 9, "carl-9")
 	lower := f.add(3, "carl", 7, carlSeq7Bytes)
 	f.runner.failErrs = map[string]error{"carl-9": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
 
+	groups := f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower})
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
+	}
+
 	f.a.sched.runRecheck([]sdk.Tx{valid, gapped, lower}, f.a.exec.gen.Load())
 
 	if !f.runner.seen[carlSeq7Bytes] {
-		t.Fatal("a non-ascending group must not cascade")
+		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
+	}
+	if !poolHas(f.pool, valid) || !poolHas(f.pool, lower) {
+		t.Fatal("the two candidates that pass recheck must stay in the pool")
+	}
+	if poolHas(f.pool, gapped) {
+		t.Fatal("the failing candidate must be evicted")
+	}
+}
+
+// A multi-signer candidate makes its own group's nonce view incomplete: the
+// group is keyed on the first signer, so the co-signers' nonces it also
+// advances are invisible there.
+func TestGroupCandidates_MultiSignerDisablesCascade(t *testing.T) {
+	f := newRecheckFixture()
+	single := f.insert(1, sdk.AccAddress("alice"), 3)
+	multi := f.insert(2, sdk.AccAddress("alice"), 5, sdk.AccAddress("bob"))
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{single, multi})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected both txs in one group keyed on alice, got %d groups", len(groups))
+	}
+	if groups[0].cascadable {
+		t.Fatal("a multi-signer candidate in the group must disable cascade")
+	}
+}
+
+// The multi-signer tx is keyed on bob, so alice's own group [3, 5] looks like a
+// clean ascending view with a gap at 4 — but the bob-keyed tx also carries
+// alice at nonce 4 and would fill it. Every signer a multi-signer tx names must
+// lose cascade, not just the group that tx lands in.
+func TestGroupCandidates_MultiSignerDisablesCascadeInCoSignerGroup(t *testing.T) {
+	f := newRecheckFixture()
+	alice3 := f.insert(1, sdk.AccAddress("alice"), 3)
+	alice5 := f.insert(2, sdk.AccAddress("alice"), 5)
+	bobMulti := f.insert(3, sdk.AccAddress("bob"), 4, sdk.AccAddress("alice"))
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{alice3, alice5, bobMulti})
+
+	if len(groups) != 2 {
+		t.Fatalf("expected an alice group and a bob group, got %d", len(groups))
+	}
+	for _, g := range groups {
+		if g.cascadable {
+			t.Fatalf("group %q must not cascade: the bob-keyed multi-signer tx names alice too", g.key)
+		}
+	}
+}
+
+// Deferred front-loading can hand groupCandidates an out-of-nonce-order group
+// (e.g. alice-5 ahead of alice-3 and alice-4). Without sorting, alice-5 would
+// run first and fail wrong-sequence even though it becomes valid two txs later.
+func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
+	f := newRecheckFixture()
+	seq5 := f.add(1, "alice", 5, "alice-5")
+	seq3 := f.add(2, "alice", 3, "alice-3")
+	seq4 := f.add(3, "alice", 4, "alice-4")
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{seq5, seq3, seq4})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	got := []uint64{groups[0].txs[0].seq, groups[0].txs[1].seq, groups[0].txs[2].seq}
+	if got[0] != 3 || got[1] != 4 || got[2] != 5 {
+		t.Fatalf("group must be sorted ascending by seq, got %v", got)
+	}
+}
+
+// The seq <= previous-seq check still needs to catch duplicates once sorting
+// is in play, and the sort must be stable so tied seqs keep pool order.
+func TestGroupCandidates_DuplicateSeqDisablesCascadeStableOrder(t *testing.T) {
+	f := newRecheckFixture()
+	first := f.add(1, "alice", 5, "alice-5a")
+	second := f.add(2, "alice", 5, "alice-5b") // duplicate seq
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{first, second})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	g := groups[0]
+	if g.cascadable {
+		t.Fatal("a duplicate seq within a group must disable cascade")
+	}
+	if g.txs[0].tx != first || g.txs[1].tx != second {
+		t.Fatal("stable sort must preserve pool order for equal-seq txs")
+	}
+}
+
+// firstSigner has a nil guard on s.signer; signers() must agree so an abort
+// path (recoverSenders -> signers) can't panic when the scheduler was never
+// wired with a signer extractor.
+func TestSigners_NilSignerNoPanic(t *testing.T) {
+	s := &recheckScheduler{}
+	if got := s.signers(&ptrTx{id: 1}); got != nil {
+		t.Fatalf("expected nil signers with a nil extractor, got %v", got)
 	}
 }

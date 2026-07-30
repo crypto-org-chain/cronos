@@ -281,3 +281,39 @@ func TestWaitForRecheckTimedOut_ReturnsTrueWhenStuck(t *testing.T) {
 		t.Fatal("expected timedOut=true; recheck is still stuck")
 	}
 }
+
+// A pass that aborts mid-flight (gen advanced) still returns from RunTx's
+// perspective having reached no further candidates; WaitForRecheck must not
+// mistake that early return for a still-in-flight recheck and hang.
+func TestWaitForRecheck_ReturnsAfterGenerationAbortedPass(t *testing.T) {
+	f := newAsyncRecheckFixture(t)
+	f.add(1, "alice", 0, aliceSeq0Bytes)
+	f.add(2, "bob", 0, "bob-0")
+
+	// bob's group runs first (pool priority order); bump gen from inside it so
+	// alice's group aborts before it starts.
+	f.runner.onCall = func(txBytes []byte) {
+		if string(txBytes) == "bob-0" {
+			f.a.exec.gen.Add(1) // simulates a concurrent Commit landing mid-pass
+		}
+	}
+	f.a.sched.recheckSenders = map[string]struct{}{
+		sdk.AccAddress("alice").String(): {},
+		sdk.AccAddress("bob").String():   {},
+	}
+	f.a.TriggerRecheck()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	f.a.WaitForRecheck(ctx)
+
+	if ctx.Err() != nil {
+		t.Fatal("WaitForRecheck did not return promptly after a generation-aborted pass")
+	}
+	if !f.runner.seen["bob-0"] {
+		t.Fatal("the candidate validated before the bump must still have run")
+	}
+	if f.runner.seen[aliceSeq0Bytes] {
+		t.Fatal("the group after the bump must have been skipped, not rechecked against a superseded base")
+	}
+}

@@ -1,7 +1,9 @@
 package mempool
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -240,7 +242,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	}
 	for _, tx := range candidates {
 		if _, isDeferred := deferredLive[tx]; isDeferred {
-			continue // sender re-touched this cycle; avoid double recheck
+			continue // this tx is already in the deferred carry; avoid double recheck
 		}
 		ordered = append(ordered, tx)
 	}
@@ -286,11 +288,14 @@ type recheckCandidate struct {
 	seq uint64
 }
 
-// recheckGroup holds one signer's candidates in pool order. cascadable is false
-// when the group is not that signer's contiguous ascending-nonce view — an
-// unknown signer, a repeated or out-of-order nonce, or a tx dropped on encode
-// error — because the cascade rule reasons about the next expected nonce.
+// recheckGroup holds one signer's candidates sorted ascending by seq.
+// cascadable is false when the group is not that signer's contiguous
+// ascending-nonce view — an unknown signer, a signer named by a multi-signer tx
+// (that tx is grouped elsewhere, so it can fill a nonce this group can't see), a
+// duplicate seq, or a tx dropped on encode error — because the cascade rule
+// reasons about the next expected nonce.
 type recheckGroup struct {
+	key        string
 	txs        []recheckCandidate
 	cascadable bool
 }
@@ -332,30 +337,59 @@ func (s *recheckScheduler) runRecheck(candidates []sdk.Tx, gen uint64) {
 }
 
 // groupCandidates buckets candidates by first signer — the one the mempool
-// orders by — keeping first-appearance order across groups and pool order
-// within one, so the front-loaded deferred prefix still runs first. Encoding
-// happens here, outside the admission mutex, to keep the per-group hold to RunTx.
+// orders by — keeping first-appearance order across groups. Encoding happens
+// here, outside the admission mutex, to keep the per-group hold to RunTx.
+// Within a group, candidates are sorted ascending by seq: deferred front-
+// loading can hand candidates out of nonce order, and running them out of
+// order would fail wrong-sequence against a nonce that a later candidate in
+// the same group would have satisfied.
 func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	groups := make([]recheckGroup, 0, len(candidates))
 	index := make(map[string]int, len(candidates))
+	// Every signer named by a multi-signer tx: that tx is grouped under its first
+	// signer only, so it can advance a co-signer's nonce from outside that
+	// co-signer's group, making a gap there unprovable.
+	var coSigned map[string]struct{}
 	for _, tx := range candidates {
-		key, seq, known := s.firstSigner(tx)
+		key, seq, known, multiSigner := s.firstSigner(tx)
 		gi, seen := index[key]
 		if !seen {
-			groups = append(groups, recheckGroup{cascadable: known})
+			groups = append(groups, recheckGroup{key: key, cascadable: known})
 			gi = len(groups) - 1
 			index[key] = gi
 		}
 		g := &groups[gi]
+		if multiSigner {
+			if coSigned == nil {
+				coSigned = make(map[string]struct{})
+			}
+			for _, sg := range s.signers(tx) {
+				coSigned[sg] = struct{}{}
+			}
+		}
 		bz, _, err := EncodeTx(s.exec.encCache, s.exec.txEncoder, tx)
 		if err != nil {
 			g.cascadable = false
 			continue
 		}
-		if n := len(g.txs); n > 0 && seq <= g.txs[n-1].seq {
+		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
+	}
+	for i := range groups {
+		g := &groups[i]
+		if _, ok := coSigned[g.key]; ok {
 			g.cascadable = false
 		}
-		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
+		slices.SortStableFunc(g.txs, func(a, b recheckCandidate) int {
+			return cmp.Compare(a.seq, b.seq)
+		})
+		// A duplicate seq can only appear as adjacent equal entries once sorted;
+		// it still means the group isn't a clean ascending-nonce view.
+		for j := 1; j < len(g.txs); j++ {
+			if g.txs[j].seq <= g.txs[j-1].seq {
+				g.cascadable = false
+				break
+			}
+		}
 	}
 	return groups
 }
@@ -463,20 +497,27 @@ func (s *recheckScheduler) evict(tx sdk.Tx) {
 	s.exec.encCache.Evict(tx)
 }
 
-// firstSigner returns the signer the mempool orders by, with its nonce. An
-// unknown signer only costs the cascade optimization, not the recheck itself.
-func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known bool) {
+// firstSigner returns the signer the mempool orders by, with its nonce, and
+// whether tx has more than one signer. An unknown signer only costs the
+// cascade optimization, not the recheck itself. A multi-signer tx must also
+// disable the cascade: a secondary signer's nonce isn't visible to the group
+// keyed on the first signer, so a gap in that group may really be filled by
+// a multi-signer tx grouped elsewhere.
+func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known, multiSigner bool) {
 	if s.signer == nil {
-		return "", 0, false
+		return "", 0, false, false
 	}
 	sigs, err := s.signer.GetSigners(tx)
 	if err != nil || len(sigs) == 0 {
-		return "", 0, false
+		return "", 0, false, false
 	}
-	return sigs[0].Signer.String(), sigs[0].Sequence, true
+	return sigs[0].Signer.String(), sigs[0].Sequence, true, len(sigs) > 1
 }
 
 func (s *recheckScheduler) signers(tx sdk.Tx) []string {
+	if s.signer == nil {
+		return nil
+	}
 	sigs, err := s.signer.GetSigners(tx)
 	if err != nil {
 		return nil
