@@ -25,6 +25,7 @@ def pytest_addoption(parser):
 class Node:
     name: str
     w3: Web3
+    rpc: str
 
 
 @dataclass
@@ -35,7 +36,9 @@ class Devnet:
 
 def load_devnet(config_path: str) -> Devnet:
     cfg = load_config(config_path)
-    nodes = [Node(n.name, Web3(Web3.HTTPProvider(n.json_rpc))) for n in cfg.nodes]
+    nodes = [
+        Node(n.name, Web3(Web3.HTTPProvider(n.json_rpc)), n.rpc) for n in cfg.nodes
+    ]
     key = funded_key()
     return Devnet(nodes, Account.from_key(key) if key else None)
 
@@ -46,6 +49,13 @@ def devnet(request):
     if not config_path:
         pytest.skip("--devnet-config not provided")
     return load_devnet(config_path)
+
+
+@pytest.fixture
+def funded_account(devnet):
+    if devnet.funded_account is None:
+        pytest.skip("DEVNET_FUNDED_KEY not set")
+    return devnet.funded_account
 
 
 @pytest.fixture(autouse=True)

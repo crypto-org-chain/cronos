@@ -14,7 +14,7 @@ def _fake_node(name, block_number, make_request):
         ),
     )
     provider = SimpleNamespace(make_request=make_request)
-    return Node(name, SimpleNamespace(eth=eth, provider=provider))
+    return Node(name, SimpleNamespace(eth=eth, provider=provider), rpc="http://fake")
 
 
 def _fixed_response(response):

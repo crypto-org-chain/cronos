@@ -9,13 +9,6 @@ from .eip_probes import (
 )
 
 
-@pytest.fixture
-def funded_account(devnet):
-    if devnet.funded_account is None:
-        pytest.skip("DEVNET_FUNDED_KEY not set")
-    return devnet.funded_account
-
-
 def test_max_tx_gas_rejected(devnet, funded_account):
     result = send_over_max_tx_gas(devnet.nodes[0].w3, funded_account)
     assert not result.accepted
