@@ -22,7 +22,9 @@ type recheckScheduler struct {
 	exec   *txExec
 	mpool  sdkmempool.Mempool
 	signer sdkmempool.SignerExtractionAdapter
-	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
+	// maxRecheckBatch softly caps RunTx(ReCheck) calls per Commit cycle: it splits
+	// only at group boundaries, so a signer's whole nonce chain always runs
+	// together even if that group alone exceeds the cap. 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
 	// Separate from the admission mutex so FinalizeBlock staging never blocks behind a recheck batch.
@@ -134,15 +136,19 @@ func (s *recheckScheduler) RecheckTxs() {
 	s.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer s.recheckMu.Unlock()
 	recheckSenders, height, deferred := s.drainStaging()
-	gen := s.exec.gen.Load()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
-	candidates := s.capRecheckTxs(s.selectTxs(snapshot, recheckSenders, height, deferred))
-	s.runRecheck(candidates, gen)
+	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
+	groups := s.capRecheckGroups(s.groupCandidates(candidates))
+	// Read gen only now: it must cover the RunTx phase below, not the O(pool)
+	// scan/grouping above, or a Commit landing during the scan would abort the
+	// whole pass before a single group runs.
+	gen := s.exec.gen.Load()
+	s.runRecheck(groups, gen)
 
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
@@ -267,17 +273,25 @@ func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]stru
 	return evictedSet, recheckSenders
 }
 
-// capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
-func (s *recheckScheduler) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
-	if s.maxRecheckBatch <= 0 || len(candidates) <= s.maxRecheckBatch {
-		return candidates
+// capRecheckGroups bounds RunTx(ReCheck) calls per cycle without ever
+// splitting a signer's group: the first group always runs in full regardless
+// of size, and once the running total would exceed maxRecheckBatch the
+// remaining groups carry forward whole into deferred.
+func (s *recheckScheduler) capRecheckGroups(groups []recheckGroup) []recheckGroup {
+	if s.maxRecheckBatch <= 0 {
+		return groups
 	}
-	carried := make([]sdk.Tx, len(candidates)-s.maxRecheckBatch)
-	copy(carried, candidates[s.maxRecheckBatch:])
-	s.stagingMu.Lock()
-	s.deferred = carried
-	s.stagingMu.Unlock()
-	return candidates[:s.maxRecheckBatch]
+	count := 0
+	for i, g := range groups {
+		if count > 0 && count+len(g.txs) > s.maxRecheckBatch {
+			s.stagingMu.Lock()
+			s.deferred = unreachedTxs(groups[i:])
+			s.stagingMu.Unlock()
+			return groups[:i]
+		}
+		count += len(g.txs)
+	}
+	return groups
 }
 
 // recheckCandidate carries the signer nonce alongside the tx: telling a nonce
@@ -308,18 +322,21 @@ type recheckGroup struct {
 // cycle, so the unreached candidates' senders are re-merged into staging here —
 // otherwise a sender that isn't touched again by a later block would never be
 // rechecked until TTL.
-func (s *recheckScheduler) runRecheck(candidates []sdk.Tx, gen uint64) {
+func (s *recheckScheduler) runRecheck(groups []recheckGroup, gen uint64) {
 	var evicted, cascaded, superseded float32
-	groups := s.groupCandidates(candidates)
 	for i, g := range groups {
 		if len(g.txs) == 0 {
 			continue
 		}
-		e, c, aborted := s.recheckGroup(g, gen)
+		e, c, aborted, unreachedFrom := s.recheckGroup(g, gen)
 		evicted += e
 		cascaded += c
 		if aborted {
-			unreached := unreachedTxs(groups[i:])
+			unreached := make([]sdk.Tx, 0, len(g.txs)-unreachedFrom)
+			for _, cand := range g.txs[unreachedFrom:] {
+				unreached = append(unreached, cand.tx)
+			}
+			unreached = append(unreached, unreachedTxs(groups[i+1:])...)
 			superseded = float32(len(unreached))
 			s.recoverSenders(unreached)
 			break
@@ -344,8 +361,8 @@ func (s *recheckScheduler) runRecheck(candidates []sdk.Tx, gen uint64) {
 // order would fail wrong-sequence against a nonce that a later candidate in
 // the same group would have satisfied.
 func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
-	groups := make([]recheckGroup, 0, len(candidates))
-	index := make(map[string]int, len(candidates))
+	var groups []recheckGroup
+	index := make(map[string]int)
 	// Every signer named by a multi-signer tx: that tx is grouped under its first
 	// signer only, so it can advance a co-signer's nonce from outside that
 	// co-signer's group, making a gap there unprovable.
@@ -394,41 +411,71 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	return groups
 }
 
-// recheckGroup re-validates one signer's candidates under a single hold of the
-// admission mutex. Reports aborted when gen advanced before the group started,
-// leaving the group untouched. On a nonce gap the remaining higher-nonce siblings
-// are evicted without spending a RunTx on each: nothing can fill the gap while
+// recheckChunkSize bounds how many candidates one signer group runs under a
+// single hold of exec.mu. Without this, a group's size is bounded only by one
+// sender's pool depth, and App.Commit — which blocks on the same mutex — would
+// stall behind an arbitrarily deep queue.
+const recheckChunkSize = 256
+
+// recheckGroup re-validates one signer's candidates in bounded chunks, so a
+// deep queue for one sender can't hold the admission mutex indefinitely.
+// Nonce contiguity holds within and across chunks (lastOK/haveOK carry over);
+// an admission of the same sender landing between chunks is the same residual
+// interleaving the design doc already accepts between groups. Reports aborted
+// with unreachedFrom set to the index where the aborting chunk would have
+// started, leaving the group untouched from there on. On a nonce gap the
+// remaining higher-nonce siblings — including any in later chunks — are
+// evicted without spending a RunTx on each: nothing can fill the gap while
 // they sit in the pool. Any other failure evicts only the failing tx, since a
 // later sibling may still be the account's next expected nonce.
-func (s *recheckScheduler) recheckGroup(g recheckGroup, gen uint64) (evicted, cascaded float32, aborted bool) {
-	s.exec.mu.Lock()
-	defer s.exec.mu.Unlock()
-	// gen only advances under the same mutex, so it cannot change once this group starts.
-	if s.exec.gen.Load() != gen {
-		return 0, 0, true
-	}
-
+func (s *recheckScheduler) recheckGroup(g recheckGroup, gen uint64) (evicted, cascaded float32, aborted bool, unreachedFrom int) {
 	var lastOK uint64
 	haveOK := false
-	for i, c := range g.txs {
+	for start := 0; start < len(g.txs); start += recheckChunkSize {
+		end := min(start+recheckChunkSize, len(g.txs))
+		e, gapAt, ok := s.recheckChunkLocked(g, start, end, gen, &lastOK, &haveOK)
+		evicted += e
+		if !ok {
+			return evicted, cascaded, true, start
+		}
+		if gapAt >= 0 {
+			for _, rest := range g.txs[gapAt+1:] {
+				s.evict(rest.tx)
+				cascaded++
+			}
+			return evicted, cascaded, false, len(g.txs)
+		}
+	}
+	return evicted, cascaded, false, len(g.txs)
+}
+
+// recheckChunkLocked runs g.txs[start:end] under one hold of exec.mu. Returns
+// ok=false if gen advanced before the chunk started, meaning nothing in
+// [start, len(g.txs)) ran. gapAt is the index of a proven nonce gap, or -1.
+func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, gen uint64, lastOK *uint64, haveOK *bool) (evicted float32, gapAt int, ok bool) {
+	s.exec.mu.Lock()
+	defer s.exec.mu.Unlock()
+	// gen only advances under the same mutex, so it cannot change once this chunk starts.
+	if s.exec.gen.Load() != gen {
+		return 0, -1, false
+	}
+
+	for i := start; i < end; i++ {
+		c := g.txs[i]
 		_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx)
 		if err == nil {
-			lastOK, haveOK = c.seq, true
+			*lastOK, *haveOK = c.seq, true
 			continue
 		}
 		s.evict(c.tx)
 		evicted++
 		// A gap is only provable relative to a nonce this pass just accepted;
 		// without one the failure may be a stale nonce, whose successor is valid.
-		if g.cascadable && haveOK && c.seq > lastOK+1 && isNonceErr(err) {
-			for _, rest := range g.txs[i+1:] {
-				s.evict(rest.tx)
-				cascaded++
-			}
-			return evicted, cascaded, false
+		if g.cascadable && *haveOK && c.seq > *lastOK+1 && isNonceErr(err) {
+			return evicted, i, true
 		}
 	}
-	return evicted, cascaded, false
+	return evicted, -1, true
 }
 
 // isNonceErr matches both ante paths: cosmos sig verification reports
@@ -448,8 +495,13 @@ func unreachedTxs(groups []recheckGroup) []sdk.Tx {
 }
 
 // recoverSenders folds txs' senders back into staged recheckSenders without
-// touching deferred, which capRecheckTxs may have already set this cycle.
+// touching deferred, which capRecheckGroups may have already set this cycle. A
+// candidate whose signer can't be extracted is silently dropped here, so it
+// waits for TTL eviction instead of being re-covered.
 func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
+	if len(txs) == 0 {
+		return
+	}
 	senders := make(map[string]struct{})
 	for _, tx := range txs {
 		for _, sg := range s.signers(tx) {

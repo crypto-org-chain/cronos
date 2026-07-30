@@ -48,6 +48,12 @@ type recheckRunner struct {
 	// onCall, if set, runs after recording the call but before returning, letting
 	// a test bump gen mid-pass to exercise runRecheck's cancellation check.
 	onCall func(txBytes []byte)
+	// signer + expectedNonce implement per-sender expected-nonce ante
+	// semantics: a tx whose seq is above its sender's expected nonce fails
+	// wrong-sequence, and a successful recheck advances that sender's expected
+	// nonce. Nil signer disables this; other tests drive failBytes/failErrs.
+	signer        sdkmempool.SignerExtractionAdapter
+	expectedNonce map[string]uint64
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -59,6 +65,19 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	if r.onCall != nil {
 		r.onCall(txBytes)
 	}
+
+	var sender string
+	var seq uint64
+	trackNonce := false
+	if r.signer != nil {
+		if sigs, err := r.signer.GetSigners(tx); err == nil && len(sigs) > 0 {
+			sender, seq, trackNonce = sigs[0].Signer.String(), sigs[0].Sequence, true
+		}
+	}
+	if trackNonce && seq > r.expectedNonce[sender] {
+		return sdk.GasInfo{}, nil, nil, errorsmod.Wrap(sdkerrors.ErrWrongSequence, "nonce gap")
+	}
+
 	if err, ok := r.failErrs[string(txBytes)]; ok {
 		return sdk.GasInfo{}, nil, nil, err
 	}
@@ -68,6 +87,13 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	}
 	if r.failNoRemoveBytes[string(txBytes)] {
 		return sdk.GasInfo{}, nil, nil, errors.New("msg execution failed on recheck")
+	}
+
+	if trackNonce {
+		if r.expectedNonce == nil {
+			r.expectedNonce = map[string]uint64{}
+		}
+		r.expectedNonce[sender] = seq + 1
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -462,16 +488,20 @@ func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, er
 	return sd, nil
 }
 
-// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle.
+// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle
+// when the cap boundary falls between (single-tx) signer groups.
 func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 	const total = 5
 	const batch = 2
 	f := newRecheckFixture()
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
 	f.a.sched.maxRecheckBatch = batch
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 
 	f.a.sched.RecheckTxs()
 
@@ -480,35 +510,67 @@ func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 	}
 }
 
-// Overflow past the batch cap must carry forward and drain over later cycles —
-// front-loaded so the priority-ordered tail isn't re-deferred forever — with
-// every tx rechecked exactly once.
-func TestRecheckTxs_BatchCapCarriesOverflow(t *testing.T) {
-	const total = 5
-	const batch = 2
+// Reproduces the batch cap splitting a signer's nonce chain (pre-fix, the flat
+// cap sliced the candidate list before grouping by signer). bob's one-tx group
+// fills the cap; alice's five-tx chain must carry forward whole rather than
+// being split mid-chain, so it revalidates cleanly from her real nonce (8)
+// once a Commit lands between cycles and no valid tx is evicted.
+func TestRecheckTxs_BatchCapCarriesOverflowWithoutSplittingGroup(t *testing.T) {
+	const batch = 3
 	f := newRecheckFixture()
-	for i := 0; i < total; i++ {
-		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	f.runner.signer = f.signer                                                      // enables per-sender expected-nonce semantics in the fake RunTx
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 8} // account nonce 8
+
+	bob := f.add(1, "bob", 0, "bob-0")
+	aliceSeqs := []uint64{8, 9, 10, 11, 12}
+	alice := make([]*ptrTx, len(aliceSeqs))
+	for i, seq := range aliceSeqs {
+		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
 	}
+
 	f.a.sched.maxRecheckBatch = batch
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-
-	// Cycle 1 touches alice; cycles 2-3 have empty recheckSenders but must still drain
-	// the carried overflow.
-	f.a.sched.RecheckTxs()
-	f.a.sched.RecheckTxs()
-	f.a.sched.RecheckTxs()
-
-	if got := len(f.runner.modes); got != total {
-		t.Fatalf("expected all %d txs rechecked across cycles, got %d", total, got)
+	f.a.sched.recheckSenders = map[string]struct{}{
+		sdk.AccAddress("bob").String():   {},
+		sdk.AccAddress("alice").String(): {},
 	}
-	for i := 0; i < total; i++ {
-		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
-			t.Fatalf("alice-%d was never rechecked (starved past the cap)", i)
+
+	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
+	// would push the running total to 6 > 3, so the whole group must defer.
+	f.a.sched.RecheckTxs()
+
+	if !f.runner.seen["bob-0"] {
+		t.Fatal("bob's group must run in cycle 1")
+	}
+	for _, seq := range aliceSeqs {
+		if f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
+			t.Fatalf("alice's group must not be partially run before deferring, but seq %d ran", seq)
 		}
 	}
-	if f.a.sched.deferred != nil {
-		t.Fatalf("deferred queue must be drained, still holds %d", len(f.a.sched.deferred))
+	if len(f.a.sched.deferred) != len(aliceSeqs) {
+		t.Fatalf("expected alice's whole group (%d txs) deferred, got %d", len(aliceSeqs), len(f.a.sched.deferred))
+	}
+
+	// A Commit lands between cycles: base rebranches off the committed store
+	// (alice's chain was only rechecked, never included in a block, so her
+	// real nonce is still 8) and gen advances.
+	f.a.exec.gen.Add(1)
+
+	// Cycle 2: recheckSenders is empty, but the deferred carry must still run
+	// as one atomic group against alice's real nonce.
+	f.a.sched.RecheckTxs()
+
+	for _, seq := range aliceSeqs {
+		if !f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
+			t.Fatalf("alice-%d must be rechecked in cycle 2", seq)
+		}
+	}
+	if !poolHas(f.pool, bob) {
+		t.Fatal("bob's tx must remain valid in the pool")
+	}
+	for i, tx := range alice {
+		if !poolHas(f.pool, tx) {
+			t.Fatalf("alice's tx at index %d (seq %d) must not be evicted: the cap must not split her nonce chain", i, aliceSeqs[i])
+		}
 	}
 }
 
@@ -754,12 +816,15 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 	const total = 5
 	f := newRecheckFixture()
 	f.a.sched.ttlNumBlocks = 2
-	f.a.sched.maxRecheckBatch = 1 // far below total
+	f.a.sched.maxRecheckBatch = 1 // far below total; one sender per tx so the cap can bite
 	txs := make([]*ptrTx, total)
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		txs[i] = f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 
 	f.a.sched.lastCommittedHeight = 100 // first sighting: arrival=100
 	f.a.sched.RecheckTxs()
@@ -767,7 +832,7 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 		t.Fatalf("cycle1: batch cap must bound recheck to 1, got %d", got)
 	}
 
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 	f.a.sched.lastCommittedHeight = 102 // 102-100 == 2 == ttl → all aged out
 	before := len(f.runner.modes)
 	f.a.sched.RecheckTxs()
@@ -791,12 +856,15 @@ func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 	const total = 4
 	f := newRecheckFixture()
 	f.a.sched.ttlNumBlocks = 3
-	f.a.sched.maxRecheckBatch = 1 // force overflow into deferred
+	f.a.sched.maxRecheckBatch = 1 // force overflow into deferred; one sender per tx so the cap can bite
 	txs := make([]*ptrTx, total)
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		txs[i] = f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 
 	f.a.sched.lastCommittedHeight = 50 // arrival=50 for all
 	f.a.sched.RecheckTxs()
@@ -1029,7 +1097,7 @@ func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *te
 		}
 	}
 	gen := f.a.exec.gen.Load()
-	f.a.sched.runRecheck([]sdk.Tx{aliceTx, bobTx}, gen)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceTx, bobTx}), gen)
 
 	if !f.runner.seen[aliceSeq0Bytes] {
 		t.Fatal("the candidate validated before the bump must still run")
@@ -1069,7 +1137,7 @@ func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
 	bob := f.add(2, "bob", 0, "bob-0")
 	aliceHigh := f.add(3, "alice", 1, "alice-1")
 
-	f.a.sched.runRecheck([]sdk.Tx{aliceLow, bob, aliceHigh}, f.a.exec.gen.Load())
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}), f.a.exec.gen.Load())
 
 	want := []string{aliceSeq0Bytes, "alice-1", "bob-0"}
 	if !slices.Equal(f.runner.calls, want) {
@@ -1084,7 +1152,7 @@ func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
 
-	f.a.sched.runRecheck([]sdk.Tx{valid, gapped, higher}, f.a.exec.gen.Load())
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), f.a.exec.gen.Load())
 
 	if f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
@@ -1105,7 +1173,7 @@ func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
 	next := f.add(2, "carl", 6, "carl-6")
 	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
 
-	f.a.sched.runRecheck([]sdk.Tx{stale, next}, f.a.exec.gen.Load())
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}), f.a.exec.gen.Load())
 
 	if !f.runner.seen["carl-6"] {
 		t.Fatal("the successor of a stale nonce must still be rechecked")
@@ -1125,7 +1193,7 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
 
-	f.a.sched.runRecheck([]sdk.Tx{valid, failing, higher}, f.a.exec.gen.Load())
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), f.a.exec.gen.Load())
 
 	if !f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
@@ -1148,7 +1216,7 @@ func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
 	}
 
-	f.a.sched.runRecheck([]sdk.Tx{valid, gapped, lower}, f.a.exec.gen.Load())
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}), f.a.exec.gen.Load())
 
 	if !f.runner.seen[carlSeq7Bytes] {
 		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
@@ -1239,6 +1307,196 @@ func TestGroupCandidates_DuplicateSeqDisablesCascadeStableOrder(t *testing.T) {
 	}
 	if g.txs[0].tx != first || g.txs[1].tx != second {
 		t.Fatal("stable sort must preserve pool order for equal-seq txs")
+	}
+}
+
+// A group larger than recheckChunkSize must still run every candidate: the
+// chunking in recheckGroup bounds one mutex hold, not how much of the group
+// eventually gets rechecked.
+func TestRecheckGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
+	const total = recheckChunkSize + 50
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, total)
+	for i := 0; i < total; i++ {
+		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+
+	evicted, cascaded, aborted, unreachedFrom := f.a.sched.recheckGroup(groups[0], f.a.exec.gen.Load())
+	if aborted {
+		t.Fatal("group must not abort: gen never changed")
+	}
+	if unreachedFrom != total {
+		t.Fatalf("expected the whole group reached, got unreachedFrom=%d", unreachedFrom)
+	}
+	if evicted != 0 || cascaded != 0 {
+		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
+	}
+	if got := len(f.runner.calls); got != total {
+		t.Fatalf("expected every candidate across chunk boundaries to run, got %d RunTx calls", got)
+	}
+	for i := 0; i < total; i++ {
+		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
+			t.Fatalf("alice-%d must have run", i)
+		}
+	}
+}
+
+// A gen bump landing exactly at a chunk boundary must abort the group there:
+// the completed chunk stays rechecked, and the untouched tail's sender is
+// re-staged so the next cycle covers it — mirroring the same-generation
+// recovery runRecheck already does between groups.
+func TestRunRecheck_GenBumpAtChunkBoundaryAbortsAndRestagesSender(t *testing.T) {
+	const total = recheckChunkSize + 50
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		ptrTxs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		txs[i] = ptrTxs[i]
+	}
+	lastOfFirstChunk := "alice-" + strconv.Itoa(recheckChunkSize-1)
+	f.runner.onCall = func(txBytes []byte) {
+		if string(txBytes) == lastOfFirstChunk {
+			f.a.exec.gen.Add(1) // simulate a Commit landing right as the first chunk finishes
+		}
+	}
+
+	gen := f.a.exec.gen.Load()
+	groups := f.a.sched.groupCandidates(txs)
+	f.a.sched.runRecheck(groups, gen)
+
+	if got := len(f.runner.calls); got != recheckChunkSize {
+		t.Fatalf("expected exactly the first chunk (%d) to run, got %d", recheckChunkSize, got)
+	}
+	for i := recheckChunkSize; i < total; i++ {
+		if f.runner.seen["alice-"+strconv.Itoa(i)] {
+			t.Fatalf("candidate %d in the aborted second chunk must not have run", i)
+		}
+		if !poolHas(f.pool, ptrTxs[i]) {
+			t.Fatalf("candidate %d must remain in the pool after the abort", i)
+		}
+	}
+	if _, ok := f.a.sched.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+		t.Fatal("alice must be re-staged after the aborted chunk so the next cycle covers her unreached tail")
+	}
+}
+
+// A nonce gap discovered in a later chunk must still cascade-evict every
+// higher-nonce sibling, including ones that live in a chunk beyond the one
+// where the gap was found — the cascade doesn't stop at a chunk boundary.
+func TestRecheckGroup_CascadeEvictsAcrossChunkBoundary(t *testing.T) {
+	const total = 3*recheckChunkSize - 88 // spans 3 chunks; boundaries at 256, 512
+	const gapIndex = 400                  // inside chunk 2 ([256, 512))
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	bz := func(i int) string { return "carl-" + strconv.Itoa(i) }
+	for i := 0; i < total; i++ {
+		seq := uint64(i)
+		if i >= gapIndex {
+			seq += 2 // opens a gap at gapIndex and keeps ascending order past it
+		}
+		ptrTxs[i] = f.add(i+1, "carl", seq, bz(i))
+		txs[i] = ptrTxs[i]
+	}
+	f.runner.failErrs = map[string]error{bz(gapIndex): errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("expected 1 cascadable group, got %+v", groups)
+	}
+
+	evicted, cascaded, aborted, unreachedFrom := f.a.sched.recheckGroup(groups[0], f.a.exec.gen.Load())
+	if aborted {
+		t.Fatal("group must not abort: gen never changed")
+	}
+	if unreachedFrom != total {
+		t.Fatalf("expected the whole group reached (run or cascade-evicted), got unreachedFrom=%d", unreachedFrom)
+	}
+	if evicted != 1 {
+		t.Fatalf("expected 1 direct eviction (the gapped tx), got %v", evicted)
+	}
+	if want := float32(total - gapIndex - 1); cascaded != want {
+		t.Fatalf("expected %v cascade-evicted siblings spanning chunk 2 and chunk 3, got %v", want, cascaded)
+	}
+	for i := gapIndex + 1; i < total; i++ {
+		if f.runner.seen[bz(i)] {
+			t.Fatalf("sibling at index %d must be cascade-evicted without a RunTx", i)
+		}
+		if poolHas(f.pool, ptrTxs[i]) {
+			t.Fatalf("sibling at index %d must be evicted from the pool", i)
+		}
+	}
+	if !f.runner.seen[bz(gapIndex-1)] {
+		t.Fatal("the last successful candidate before the gap must have run")
+	}
+}
+
+// F3: gen is read right before runRecheck, not right after drainStaging, so a
+// Commit landing during the O(pool) scan/grouping no longer wastes the whole
+// pass at group 0. Bumping gen as PoolSnapshot starts (before selectTxs runs)
+// simulates that landing point.
+func TestRecheckTxs_GenBumpBeforeScanStillRunsCandidates(t *testing.T) {
+	signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
+	tx := &ptrTx{id: 1}
+	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	pool := &scanHookMempool{txs: []sdk.Tx{tx}}
+	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
+	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("alice-0"), nil }
+	a := newManager(runner, NewEncoderCache(0, 0), txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
+	a.sched.mpool = pool
+	a.sched.signer = signer
+	a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	pool.onScan = func() { a.exec.gen.Add(1) }
+
+	a.sched.RecheckTxs()
+
+	if !runner.seen["alice-0"] {
+		t.Fatal("a gen bump before the scan starts must not abort the pass before it runs anything")
+	}
+}
+
+// scanHookMempool runs onScan when the pool size is first queried (the start
+// of PoolSnapshot), so a test can simulate a Commit's gen bump landing right
+// as the O(pool) scan begins.
+type scanHookMempool struct {
+	txs    []sdk.Tx
+	onScan func()
+}
+
+func (m *scanHookMempool) Insert(context.Context, sdk.Tx) error                 { return nil }
+func (m *scanHookMempool) Select(context.Context, [][]byte) sdkmempool.Iterator { return nil }
+func (m *scanHookMempool) CountTx() int {
+	if m.onScan != nil {
+		m.onScan()
+	}
+	return len(m.txs)
+}
+
+func (m *scanHookMempool) Remove(tx sdk.Tx) error {
+	for i, t := range m.txs {
+		if t == tx {
+			m.txs = append(m.txs[:i], m.txs[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (m *scanHookMempool) RemoveWithReason(_ context.Context, tx sdk.Tx, _ sdkmempool.RemoveReason) error {
+	return m.Remove(tx)
+}
+
+func (m *scanHookMempool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+	for _, tx := range m.txs {
+		if !cb(tx) {
+			return
+		}
 	}
 }
 

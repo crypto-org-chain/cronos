@@ -674,7 +674,7 @@ func TestManager_AllThreeRunTxSitesShareBaseInstance(t *testing.T) {
 	a.adm.admit([]byte("tx1"))
 	check := a.CheckTxHandler()
 	check(nil, &abci.RequestCheckTx{Tx: []byte("tx2")}) //nolint:errcheck
-	a.sched.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.exec.gen.Load())
+	a.sched.runRecheck(a.sched.groupCandidates([]sdk.Tx{&ptrTx{id: 1}}), a.exec.gen.Load())
 
 	if len(runner.ms) != 3 {
 		t.Fatalf("expected 3 RunTx calls (admit, CheckTxHandler, runRecheck), got %d", len(runner.ms))
@@ -744,7 +744,7 @@ func TestManager_RecheckWriteVisibleToLaterAdmit(t *testing.T) {
 	a := newManager(&nonceBranchRunner{}, nil, noopEncoder, nil)
 	a.exec.state = &mempoolState{base: store}
 
-	a.sched.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.exec.gen.Load())
+	a.sched.runRecheck(a.sched.groupCandidates([]sdk.Tx{&ptrTx{id: 1}}), a.exec.gen.Load())
 
 	code, _, log := a.adm.admit([]byte("alice-nonce-8-sibling"))
 	if code != abci.CodeTypeOK {

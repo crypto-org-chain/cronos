@@ -251,7 +251,7 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	}
 	require.Equal(t, accounts, f.app.Mempool().CountTx())
 
-	// Admission bumped each sender's checkState nonce; an empty block resets it to
+	// Admission bumped each sender's nonce in base; an empty block resets it to
 	// committed (nonce 0) so recheck of these nonce-0 txs passes instead of
 	// failing stale.
 	_, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
