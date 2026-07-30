@@ -28,6 +28,7 @@ from .results import (
     evaluate_saturation,
     write_run_record,
 )
+from .resources import fetch_node_exporter, scrape_disk_net_raw
 from .stats import (
     _fetch_prometheus,
     dump_block_stats,
@@ -367,6 +368,7 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
         prom_baseline_text = _fetch_prometheus(cfg.telemetry)
         consensus_baseline = scrape_consensus_raw(prom_baseline_text)
         consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
+        disk_net_baseline = scrape_disk_net_raw(fetch_node_exporter(cfg.primary.node_exporter))
 
         load_start = block_height(cfg.primary.rpc)
         mempool_monitor.start()
@@ -403,6 +405,8 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
             stm_data=stm_monitor.data,
             consensus_baseline=consensus_baseline,
             consensus_health_baseline=consensus_health_baseline,
+            node_exporter=cfg.primary.node_exporter,
+            disk_net_baseline=disk_net_baseline,
         )
         print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
 

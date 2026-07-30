@@ -637,6 +637,8 @@ def dump_block_stats(
     stm_data: dict = None,
     consensus_baseline: dict = None,
     consensus_health_baseline: dict = None,
+    node_exporter: str = None,
+    disk_net_baseline: dict = None,
 ):
     """
     Dump per-block stats and summary metrics.
@@ -881,6 +883,26 @@ def dump_block_stats(
                     f" power={power if power is not None else 'N/A'}",
                     file=fp,
                 )
+
+    if telemetry or node_exporter:
+        from .resources import fetch_node_exporter, scrape_disk_net, scrape_go_runtime
+
+        print(file=fp)
+        print("=== Resources ===", file=fp)
+        if telemetry:
+            go = scrape_go_runtime(prom_text)
+            if go["rss_bytes"] is not None:
+                print(f"rss_bytes {go['rss_bytes']:.0f}", file=fp)
+            if go["goroutines"] is not None:
+                print(f"goroutines {go['goroutines']:.0f}", file=fp)
+            if go["heap_alloc_bytes"] is not None:
+                print(f"heap_alloc_bytes {go['heap_alloc_bytes']:.0f}", file=fp)
+        if node_exporter:
+            disk_net = scrape_disk_net(fetch_node_exporter(node_exporter), baseline=disk_net_baseline)
+            print(f"disk_read_bytes {disk_net['disk_read_bytes']:.0f} ({scope})", file=fp)
+            print(f"disk_written_bytes {disk_net['disk_written_bytes']:.0f} ({scope})", file=fp)
+            print(f"network_receive_bytes {disk_net['network_receive_bytes']:.0f} ({scope})", file=fp)
+            print(f"network_transmit_bytes {disk_net['network_transmit_bytes']:.0f} ({scope})", file=fp)
 
     return summary
 

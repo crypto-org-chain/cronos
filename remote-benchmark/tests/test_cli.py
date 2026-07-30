@@ -54,7 +54,7 @@ def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
 
 def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm"),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
         rpcs=["http://node0", "http://node1", "http://node2"],
         global_seq=0,
         num_txs=1,
@@ -169,7 +169,7 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
 
 def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm"),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
         rpcs=["http://node0"],
         global_seq=0,
         num_txs=1,

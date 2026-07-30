@@ -16,6 +16,9 @@ class Endpoint(BaseModel):
     # libp2p enabled, Block-STM workers, ...), recorded verbatim into the
     # node fingerprint by results.py.
     node_config: dict = Field(default_factory=dict)
+    # node_exporter base URL for this node's host (disk/network I/O). Host-level,
+    # so it's per-endpoint rather than the single global `telemetry` URL.
+    node_exporter: str | None = None
 
 
 class Config(BaseModel):
