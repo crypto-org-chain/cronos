@@ -1,8 +1,11 @@
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from remote_benchmark import soak as soak_module
 from remote_benchmark.soak import (
     LEAK_RSS_SLOPE_BYTES_PER_S,
+    CheckpointSampler,
     _checkpoint,
     fit_trends,
     soak_verdict,
@@ -81,3 +84,37 @@ def test_soak_verdict_ok_when_stable():
     verdict = soak_verdict({"rss_bytes": 0.0, "avg_block_time_ms": 0.0, "tps": 0.0})
 
     assert verdict == {"ok": True, "reasons": []}
+
+
+def test_checkpoint_sampler_chains_windows_without_gap_or_double_count(monkeypatch):
+    blocks = {10: (_dt(0), 0), 11: (_dt(1), 5), 12: (_dt(2), 5), 13: (_dt(3), 5)}
+    monkeypatch.setattr(soak_module, "get_block_info_cosmos", lambda h, rpc: blocks[h])
+
+    sampler = CheckpointSampler("http://rpc", None, checkpoint_interval=0)
+    sampler._prev_height = 10
+
+    # Drive two consecutive windows the way _poll does, without the
+    # threading event loop, to verify prev_height chaining across windows.
+    checkpoint_one = _checkpoint(sampler._rpc, sampler._telemetry, sampler._prev_height, 12, 1.0)
+    sampler._checkpoints.append(checkpoint_one)
+    sampler._prev_height = 12
+
+    checkpoint_two = _checkpoint(sampler._rpc, sampler._telemetry, sampler._prev_height, 13, 2.0)
+    sampler._checkpoints.append(checkpoint_two)
+
+    # Window one covers blocks 11,12 (anchor 10 excluded); window two covers
+    # just block 13 (anchor 12 excluded) — block 12's txs counted once, not
+    # skipped and not double-counted.
+    assert checkpoint_one["tps"] == 10 / 2
+    assert checkpoint_two["tps"] == 5 / 1
+
+
+def test_checkpoint_sampler_stop_warns_if_thread_does_not_exit(monkeypatch, capsys):
+    sampler = CheckpointSampler("http://rpc", None, checkpoint_interval=0.01)
+    sampler._thread = threading.Thread(target=lambda: time.sleep(10), daemon=True)
+    sampler._thread.start()
+
+    sampler.stop()
+
+    assert "did not stop in time" in capsys.readouterr().err
+

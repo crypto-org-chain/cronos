@@ -6,6 +6,7 @@ checkpoints of TPS, block time, and RSS, and trend-fits those checkpoints to
 flag a memory leak or performance degradation.
 """
 
+import sys
 import threading
 import time
 from statistics import linear_regression
@@ -18,6 +19,19 @@ from .utils import block_height
 LEAK_RSS_SLOPE_BYTES_PER_S = 1024 * 1024  # 1 MiB/s
 DEGRADATION_BLOCK_TIME_SLOPE_MS_PER_S = 1.0  # +1ms/s of block time
 
+_TREND_GATES = (
+    (
+        "rss_bytes",
+        LEAK_RSS_SLOPE_BYTES_PER_S,
+        "RSS growing {:.0f} bytes/s — possible memory leak",
+    ),
+    (
+        "avg_block_time_ms",
+        DEGRADATION_BLOCK_TIME_SLOPE_MS_PER_S,
+        "block time growing {:.2f} ms/s — possible degradation",
+    ),
+)
+
 
 def _checkpoint(rpc, telemetry, prev_height, cur_height, elapsed_s):
     """One checkpoint's TPS/block-time (over [prev_height, cur_height]) and RSS."""
@@ -27,9 +41,10 @@ def _checkpoint(rpc, telemetry, prev_height, cur_height, elapsed_s):
             get_block_info_cosmos(h, rpc) for h in range(prev_height, cur_height + 1)
         )
     ]
-    tps = calculate_tps(blocks) if len(blocks) >= 2 else 0.0
+    tps = 0.0
     avg_block_time_ms = None
     if len(blocks) >= 2:
+        tps = calculate_tps(blocks)
         span = (blocks[-1][1] - blocks[0][1]).total_seconds()
         avg_block_time_ms = span / (len(blocks) - 1) * 1000
 
@@ -56,6 +71,8 @@ class CheckpointSampler:
         self._checkpoints = []
         self._stop = threading.Event()
         self._thread = None
+        self._start_time = None
+        self._prev_height = None
 
     def start(self):
         self._start_time = time.monotonic()
@@ -67,6 +84,8 @@ class CheckpointSampler:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=self._interval + 5)
+            if self._thread.is_alive():
+                print("warning: checkpoint sampler thread did not stop in time", file=sys.stderr)
 
     @property
     def checkpoints(self):
@@ -80,7 +99,10 @@ class CheckpointSampler:
                 self._checkpoints.append(
                     _checkpoint(self._rpc, self._telemetry, self._prev_height, cur_height, elapsed)
                 )
-                self._prev_height = cur_height + 1
+                # Next window starts at cur_height, not cur_height + 1: cur_height
+                # is both this window's last counted block and next window's
+                # anchor, so no block's tx count falls in the gap between windows.
+                self._prev_height = cur_height
             except Exception:
                 pass
 
@@ -102,14 +124,9 @@ def fit_trends(checkpoints):
 
 def soak_verdict(trends):
     """Flag sustained RSS growth (leak) or block-time growth (degradation)."""
-    reasons = []
-    if trends.get("rss_bytes") is not None and trends["rss_bytes"] > LEAK_RSS_SLOPE_BYTES_PER_S:
-        reasons.append(f"RSS growing {trends['rss_bytes']:.0f} bytes/s — possible memory leak")
-    if (
-        trends.get("avg_block_time_ms") is not None
-        and trends["avg_block_time_ms"] > DEGRADATION_BLOCK_TIME_SLOPE_MS_PER_S
-    ):
-        reasons.append(
-            f"block time growing {trends['avg_block_time_ms']:.2f} ms/s — possible degradation"
-        )
+    reasons = [
+        message.format(trends[key])
+        for key, max_slope, message in _TREND_GATES
+        if trends.get(key) is not None and trends[key] > max_slope
+    ]
     return {"ok": not reasons, "reasons": reasons}

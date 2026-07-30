@@ -57,13 +57,10 @@ def summarize_sweep(cell_results):
     lines = []
     for entry in cell_results:
         params = " ".join(f"{k}={v}" for k, v in entry["cell"].items()) or "(no params)"
-        summary = entry["summary"]
-        if summary:
-            tps = f"{summary['median_tps']:.2f}" if summary.get("multi_block") else "N/A"
-            gas_utils = summary.get("gas_utilizations")
-            gas_util_pct = f"{median(gas_utils) * 100:.1f}%" if gas_utils else "N/A"
-        else:
-            tps, gas_util_pct = "N/A", "N/A"
+        summary = entry["summary"] or {}
+        tps = f"{summary['median_tps']:.2f}" if summary.get("multi_block") else "N/A"
+        gas_utils = summary.get("gas_utilizations")
+        gas_util_pct = f"{median(gas_utils) * 100:.1f}%" if gas_utils else "N/A"
         status = "OK" if entry["ok"] else "FAIL: " + "; ".join(entry["reasons"])
         lines.append(f"{params} | median_tps={tps} gas_util={gas_util_pct} | {status}")
     return "\n".join(lines)
@@ -82,7 +79,15 @@ def run_sweep(matrix, run_cell, stop_on_degradation=True):
     """
     results = []
     for cell in matrix["cells"]:
-        apply_config(matrix["apply_config_hook"], cell, matrix["restart_wait_s"])
+        try:
+            apply_config(matrix["apply_config_hook"], cell, matrix["restart_wait_s"])
+        except subprocess.CalledProcessError as exc:
+            results.append(
+                {"cell": cell, "summary": None, "ok": False, "reasons": [f"apply_config_hook failed: {exc}"]}
+            )
+            if stop_on_degradation:
+                break
+            continue
         summary = run_cell(cell)
         ok, reasons = evaluate_saturation(summary)
         results.append({"cell": cell, "summary": summary, "ok": ok, "reasons": reasons})

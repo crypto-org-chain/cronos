@@ -67,6 +67,35 @@ def test_run_sweep_without_stop_on_degradation_runs_every_cell():
     assert all(r["ok"] is False for r in results)  # None summary -> no_load_period
 
 
+def test_run_sweep_stops_on_apply_config_hook_failure():
+    matrix = {
+        "apply_config_hook": "exit 1",
+        "restart_wait_s": 0,
+        "cells": [{"i": 0}, {"i": 1}],
+    }
+
+    results = run_sweep(matrix, lambda cell: None)
+
+    assert len(results) == 1
+    assert results[0]["ok"] is False
+    assert "apply_config_hook failed" in results[0]["reasons"][0]
+
+
+def test_run_sweep_continues_past_apply_config_hook_failure_when_not_stopping():
+    calls = []
+    matrix = {
+        "apply_config_hook": "exit 1",
+        "restart_wait_s": 0,
+        "cells": [{"i": 0}, {"i": 1}],
+    }
+
+    results = run_sweep(matrix, lambda cell: calls.append(cell), stop_on_degradation=False)
+
+    assert len(results) == 2
+    assert all(r["ok"] is False for r in results)
+    assert calls == []  # run_cell never called since the hook always fails
+
+
 def test_summarize_sweep_reports_params_metrics_and_status():
     entry_ok = {
         "cell": {"workers": 8},

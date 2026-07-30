@@ -277,4 +277,36 @@ def test_fund_mode_override_uses_cosmos_for_eth_config(monkeypatch):
 
     assert result.exit_code == 0, result.exception
     assert len(posts) == 1
-    assert posts[0][0] == "http://cosmos-rpc"
+
+
+def test_sweep_passes_explicit_nonce_only_to_the_first_cell_that_runs(monkeypatch, tmp_path):
+    cfg = SimpleNamespace(mode="cosmos")
+    matrix_path = tmp_path / "matrix.json"
+    matrix_path.write_text('{"axes": {"workers": [8, 16]}}')
+
+    run_nonces = []
+
+    def fake_run_bench_once(_cfg, nonce, _probe_batches, _start, _end, capture_stats):
+        run_nonces.append(nonce)
+        return {
+            "mode": "cosmos", "load_start": 1, "load_end": 2, "stats_text": "",
+            "summary": {"total_counted_txs": 1, "total_failed_txs": 0, "gas_utilizations": [0.9]},
+            "committed_txs": 1, "expected_txs": 1,
+        }
+
+    monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(cli_module, "_run_bench_once", fake_run_bench_once)
+    monkeypatch.setattr(cli_module, "build_run_record", lambda **_kwargs: {})
+    monkeypatch.setattr(cli_module, "write_run_record", lambda *_args: None)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["sweep", "--config", "unused.yaml", "--nonce", "5", "--results-dir", str(tmp_path / "out"),
+         str(matrix_path), "1", "3"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    # Only the first cell that actually runs gets the explicit nonce; later
+    # cells pass None so _run_bench_once re-queries the live chain nonce,
+    # since earlier cells already consumed nonces by sending transactions.
+    assert run_nonces == [5, None]

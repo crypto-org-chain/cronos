@@ -683,16 +683,19 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
     cfg = load_config(config_path)
     matrix = load_matrix(_load_json_or_yaml(matrix_path))
 
-    resolved_nonce = nonce
-    if resolved_nonce is None:
-        resolved_nonce = current_sender_nonce(cfg, start, end)
-        print(f"using current sender nonce {resolved_nonce}", file=sys.stderr)
-
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)
 
+    # Only the first cell gets the explicit nonce; every later cell passes
+    # None so _run_bench_once re-queries the live chain nonce, since earlier
+    # cells already consumed nonces by sending transactions.
+    cell_index = 0
+
     def run_cell(cell):
-        run = _run_bench_once(cfg, resolved_nonce, 1, start, end, capture_stats=True)
+        nonlocal cell_index
+        run_nonce = nonce if cell_index == 0 else None
+        cell_index += 1
+        run = _run_bench_once(cfg, run_nonce, 1, start, end, capture_stats=True)
         record = build_run_record(
             cfg=cfg,
             config_path=config_path,
