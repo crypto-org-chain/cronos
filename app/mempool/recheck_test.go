@@ -1698,7 +1698,7 @@ func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
 		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
 	}
 
-	f.a.sched.evict(stale, "", 0, false)
+	f.a.sched.evict(stale, "", 0, false, false)
 
 	if poolHas(f.pool, replacement) {
 		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
@@ -1759,6 +1759,58 @@ func TestEvictionHook_InvokedOnCascadeEviction(t *testing.T) {
 		t.Fatal("eviction hook must fire for a cascade-evicted sibling, which never spends a RunTx")
 	}
 	if rec.has(carl, 5) {
+		t.Fatal("eviction hook must not fire for a candidate that passed recheck")
+	}
+}
+
+// M1: a multi-signer tx caches App-level ante state for every signer it
+// names, not just the group's key signer, so a cascade-evicted multi-signer
+// sibling (which never spends a RunTx) must fire the hook once per named
+// signer. groupCandidates itself would force cascadable=false on any group
+// holding a multi-signer candidate (see its coSigned handling), so the group
+// here is built by hand to exercise the cascade-blind-eviction path directly.
+func TestEvictionHook_CascadeEvictionFiresForEveryMultiSignerSigner(t *testing.T) {
+	f := newRecheckFixture()
+	bob := sdk.AccAddress("bob").String()
+	alice := sdk.AccAddress("alice").String()
+
+	validTx := &ptrTx{id: 1}
+	gappedTx := &ptrTx{id: 2}
+	higherTx := &ptrTx{id: 3} // bob's tx also names alice as a co-signer at seq 3
+	f.signer.m[validTx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("bob"), 5)}
+	f.signer.m[gappedTx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("bob"), 7)}
+	f.signer.m[higherTx] = []sdkmempool.SignerData{
+		sdkmempool.NewSignerData(sdk.AccAddress("bob"), 8),
+		sdkmempool.NewSignerData(sdk.AccAddress("alice"), 3),
+	}
+	f.runner.failErrs = map[string]error{"gapped": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	group := recheckGroup{
+		key:        bob,
+		known:      true,
+		cascadable: true,
+		txs: []recheckCandidate{
+			{tx: validTx, bz: []byte("valid"), seq: 5},
+			{tx: gappedTx, bz: []byte("gapped"), seq: 7},
+			{tx: higherTx, bz: []byte("higher"), seq: 8, multiSigner: true},
+		},
+	}
+
+	rec := &evictionRecorder{}
+	f.a.sched.evictionHook = rec.hook
+
+	f.a.sched.runRecheck([]recheckGroup{group}, f.a.exec.gen.Load())
+
+	if !rec.has(bob, 7) {
+		t.Fatal("eviction hook must fire for the gapped candidate's own eviction")
+	}
+	if !rec.has(bob, 8) {
+		t.Fatal("eviction hook must fire for the cascade-evicted multi-signer sibling's key signer")
+	}
+	if !rec.has(alice, 3) {
+		t.Fatal("eviction hook must also fire for the co-signer named by the cascade-evicted multi-signer sibling")
+	}
+	if rec.has(bob, 5) {
 		t.Fatal("eviction hook must not fire for a candidate that passed recheck")
 	}
 }

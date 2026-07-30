@@ -53,9 +53,10 @@ type recheckScheduler struct {
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction
 	recheckDisabled bool
-	// evictionHook, if set, is notified of every pool eviction's (sender, nonce)
-	// so App-level state keyed on the same pair (e.g. ethermint's ante nonce
-	// cache) can be dropped along with it. Nil-safe: a nil hook is a no-op.
+	// evictionHook, if set, is notified once per (sender, nonce) named by an
+	// evicted tx — every signer for a multi-signer tx, not just the group's key
+	// signer — so App-level state keyed on the same pair (e.g. ethermint's ante
+	// nonce cache) can be dropped along with it. Nil-safe: a nil hook is a no-op.
 	evictionHook func(sender string, nonce uint64)
 }
 
@@ -270,7 +271,7 @@ func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]stru
 	// hook; reuse it for the single-signer case below instead of calling
 	// s.signers (a second GetSigners) just to get the same one key back.
 	key, seq, known, multiSigner := s.firstSigner(tx)
-	s.evict(tx, key, seq, known)
+	s.evict(tx, key, seq, known, multiSigner)
 	if evictedSet == nil {
 		evictedSet = make(map[sdk.Tx]struct{})
 	}
@@ -324,6 +325,10 @@ type recheckCandidate struct {
 	tx  sdk.Tx
 	bz  []byte
 	seq uint64
+	// multiSigner mirrors firstSigner's flag from group build time, so evict
+	// knows to fire the hook for every named signer without a second GetSigners
+	// call on the hot recheck path.
+	multiSigner bool
 }
 
 // recheckGroup holds one signer's candidates sorted ascending by seq.
@@ -425,7 +430,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 			g.cascadable = false
 			continue
 		}
-		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
+		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq, multiSigner: multiSigner})
 	}
 	for i := range groups {
 		g := &groups[i]
@@ -515,13 +520,13 @@ func (s *recheckScheduler) runCandidatesLocked(g recheckGroup, start, end int, c
 			cursor = nonceCursor{last: c.seq, ok: true}
 			continue
 		}
-		s.evict(c.tx, g.key, c.seq, g.known)
+		s.evict(c.tx, g.key, c.seq, g.known, c.multiSigner)
 		evicted++
 		// A gap is only provable relative to a nonce this pass just accepted;
 		// without one the failure may be a stale nonce, whose successor is valid.
 		if g.cascadable && cursor.ok && c.seq > cursor.last+1 && isNonceErr(err) {
 			for _, rest := range g.txs[i+1 : end] {
-				s.evict(rest.tx, g.key, rest.seq, g.known)
+				s.evict(rest.tx, g.key, rest.seq, g.known, rest.multiSigner)
 				cascaded++
 			}
 			return evicted, cascaded, cursor, true
@@ -575,7 +580,7 @@ func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, ge
 		return evicted, cascaded, next, gapFound, true
 	}
 
-	s.evict(head.tx, g.key, head.seq, g.known)
+	s.evict(head.tx, g.key, head.seq, g.known, head.multiSigner)
 	if !isNonceErr(err) {
 		// No cursor context to carry over: we don't know the account's true
 		// nonce state, so run the rest of the chunk one RunTx at a time instead
@@ -585,7 +590,7 @@ func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, ge
 	}
 
 	for _, rest := range g.txs[start+1 : end] {
-		s.evict(rest.tx, g.key, rest.seq, g.known)
+		s.evict(rest.tx, g.key, rest.seq, g.known, rest.multiSigner)
 		cascaded++
 	}
 	return 1, cascaded, nonceCursor{}, true, true
@@ -669,13 +674,26 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 }
 
 // evict removes tx from the pool and encoder cache together, so the cache never
-// outlives its pool entry, then notifies evictionHook (if set and sender is
-// known) so App-level state keyed on (sender, nonce) is dropped along with it.
-func (s *recheckScheduler) evict(tx sdk.Tx, sender string, nonce uint64, known bool) {
+// outlives its pool entry, then notifies evictionHook (if set) once per signer
+// named by tx. A multi-signer tx caches App-level ante state per signer it
+// names (e.g. ethermint stages one nonce-cache entry per msg), so the hook
+// must fire once per named signer, not just the group's key signer — hence
+// the extra GetSigners call here rather than reusing sender/nonce, but only
+// on this eviction path, not the hot recheck pass.
+func (s *recheckScheduler) evict(tx sdk.Tx, sender string, nonce uint64, known, multiSigner bool) {
 	_ = s.mpool.Remove(tx)
 	s.exec.encCache.Evict(tx)
-	if known && s.evictionHook != nil {
-		s.evictionHook(sender, nonce)
+	if s.evictionHook == nil {
+		return
+	}
+	if !multiSigner {
+		if known {
+			s.evictionHook(sender, nonce)
+		}
+		return
+	}
+	for _, sg := range s.allSigners(tx) {
+		s.evictionHook(sg.Signer.String(), sg.Sequence)
 	}
 }
 
@@ -686,22 +704,16 @@ func (s *recheckScheduler) evict(tx sdk.Tx, sender string, nonce uint64, known b
 // keyed on the first signer, so a gap in that group may really be filled by
 // a multi-signer tx grouped elsewhere.
 func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known, multiSigner bool) {
-	if s.signer == nil {
-		return "", 0, false, false
-	}
-	sigs, err := s.signer.GetSigners(tx)
-	if err != nil || len(sigs) == 0 {
+	sigs := s.allSigners(tx)
+	if len(sigs) == 0 {
 		return "", 0, false, false
 	}
 	return sigs[0].Signer.String(), sigs[0].Sequence, true, len(sigs) > 1
 }
 
 func (s *recheckScheduler) signers(tx sdk.Tx) []string {
-	if s.signer == nil {
-		return nil
-	}
-	sigs, err := s.signer.GetSigners(tx)
-	if err != nil {
+	sigs := s.allSigners(tx)
+	if len(sigs) == 0 {
 		return nil
 	}
 	keys := make([]string, len(sigs))
@@ -709,4 +721,17 @@ func (s *recheckScheduler) signers(tx sdk.Tx) []string {
 		keys[i] = sg.Signer.String()
 	}
 	return keys
+}
+
+// allSigners returns every signer GetSigners names for tx, nil-safe on both a
+// nil signer extractor and a lookup error.
+func (s *recheckScheduler) allSigners(tx sdk.Tx) []sdkmempool.SignerData {
+	if s.signer == nil {
+		return nil
+	}
+	sigs, err := s.signer.GetSigners(tx)
+	if err != nil {
+		return nil
+	}
+	return sigs
 }
