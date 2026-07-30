@@ -109,9 +109,13 @@ func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
-	shardCap := (int(size) + shardCount - 1) / shardCount
-	if shardCap < 0 { // size overflowed int on the +shardCount-1 rounding
-		shardCap = math.MaxInt / shardCount
+	shardCapUint := size / shardCount
+	if size%shardCount != 0 {
+		shardCapUint++
+	}
+	shardCap := math.MaxInt / shardCount
+	if shardCapUint <= uint(shardCap) {
+		shardCap = int(shardCapUint)
 	}
 	c := &DecodeCache{maxTxBytes: int(maxTxBytes)}
 	for i := range c.shards {

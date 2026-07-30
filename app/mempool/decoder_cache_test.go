@@ -321,3 +321,10 @@ func TestDecodeCache_ShardCapOverflowGuard(t *testing.T) {
 		t.Fatalf("shard cap = %d, want positive", got)
 	}
 }
+
+func TestDecodeCache_ShardCapMaxUintGuard(t *testing.T) {
+	c := NewDecodeCache(math.MaxUint64, cmdcfg.DefaultTxCacheMaxTxBytes)
+	if got := c.shards[0].cap; got <= 0 {
+		t.Fatalf("shard cap = %d, want positive", got)
+	}
+}
