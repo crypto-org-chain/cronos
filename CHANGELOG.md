@@ -7,6 +7,9 @@
 ### Bug fixes
 
 * [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(app): correct the tx-cache-size setup to account for mempool.max-txs.
+### Chores
+
+* [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
 
 ## v1.8.0-alpha
 
