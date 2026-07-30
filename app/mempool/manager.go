@@ -2,7 +2,9 @@ package mempool
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -25,16 +27,28 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
-	// mu guards BaseApp.checkState
-	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
-	// normally relies on. Held only around RunTx, never the lock-free pool scan.
-	mu        sync.Mutex
+	// stateMu guards state.base, the shared nonce authority for admission and
+	// recheck: RunTx is serialized through it, and App.Commit holds it across
+	// BaseApp.Commit() plus the post-Commit refresh so the swap never races a
+	// RunTx reader or the live memiavl tree mid-Commit. AppMempool.Lock() is a
+	// no-op, so stateMu also replaces the mempool lock BaseApp normally relies
+	// on. Held only around RunTx, never the lock-free pool scan.
+	stateMu   sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	trace     bool
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
+	// state holds the CacheMultiStore branch RunTx uses in place of checkState.
+	// nil until the first RefreshMempoolStateLocked call (after LoadLatestVersion
+	// in production, or never in the newManager() test constructor); store()
+	// returns nil in the meantime so RunTx's 5th arg falls back to checkState.
+	state *mempoolState
+	// gen counts mempoolState refreshes; runRecheck aborts a pass once gen
+	// advances mid-flight, since its candidates were validated against a
+	// now-superseded base.
+	gen atomic.Uint64
 
 	mpool   sdkmempool.Mempool
 	signer  sdkmempool.SignerExtractionAdapter
@@ -75,6 +89,12 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
 	a.recheckDisabled = recheckDisabled
+	a.state = &mempoolState{provider: app.CommitMultiStore}
+	// Left unrefreshed here: NewManager runs inside baseAppOptions, before
+	// LoadLatestVersion, so branching now would read an unloaded store. state.base
+	// stays nil until App wires the first RefreshMempoolStateLocked call after
+	// LoadLatestVersion succeeds; store() falling back to nil (checkState) until
+	// then is the correct degradation.
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
@@ -143,10 +163,23 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
-// against lock-free admission.
+// AdmissionMutex exposes stateMu so App.Commit can serialize BaseApp.Commit()
+// and the mempoolState refresh against RunTx-based admission and recheck.
 func (a *Manager) AdmissionMutex() *sync.Mutex {
-	return &a.mu
+	return &a.stateMu
+}
+
+// RefreshMempoolStateLocked branches mempoolState off the freshly committed
+// store and bumps gen, canceling any recheck pass still validating against
+// the superseded base. Precondition: the caller holds stateMu (AdmissionMutex),
+// which App.Commit does across BaseApp.Commit() and this call. No-op when
+// state is nil (newManager() test constructor).
+func (a *Manager) RefreshMempoolStateLocked() {
+	if a.state == nil {
+		return
+	}
+	a.state.refreshLocked()
+	a.gen.Add(1)
 }
 
 // SetPreVerify sets the pre-verification hook.
@@ -209,10 +242,10 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 		}
 	}
 
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
 
-	_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil)
+	_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, a.state.store(), nil)
 	if err != nil {
 		if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 			return abci.CodeTypeRetry, "", "mempool is full"
@@ -238,11 +271,24 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	a.encCache.Set(tx, bz)
 }
 
-// CheckTxHandler runs RPC CheckTx.
+// CheckTxHandler runs RPC CheckTx. It calls the runner directly instead of the
+// runTx closure baseapp passes in (abci.go CheckTx), which hardcodes
+// txMultiStore = nil; the exec-mode mapping below mirrors BaseApp.CheckTx so
+// req.Type stays authoritative.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
-	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	return func(_ sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+		var mode sdk.ExecMode
+		switch req.Type {
+		case abci.CheckTxType_New:
+			mode = sdk.ExecModeCheck
+		case abci.CheckTxType_Recheck:
+			mode = sdk.ExecModeReCheck
+		default:
+			return nil, fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
+		}
+
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
-		// DecodeCache have their own locks. Bad txs return without acquiring mu.
+		// DecodeCache have their own locks. Bad txs return without acquiring stateMu.
 		var tx sdk.Tx
 		if a.encCache != nil {
 			var err error
@@ -251,10 +297,10 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			}
 		}
 
-		a.mu.Lock()
-		defer a.mu.Unlock()
+		a.stateMu.Lock()
+		defer a.stateMu.Unlock()
 
-		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
+		gasInfo, result, anteEvents, err := a.runner.RunTx(mode, req.Tx, tx, -1, a.state.store(), nil)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
@@ -341,6 +387,7 @@ func (a *Manager) RecheckTxs() {
 	a.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
+	gen := a.gen.Load()
 	// Before the first block (height 0) with no senders/carry there's nothing to scan.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
@@ -348,7 +395,7 @@ func (a *Manager) RecheckTxs() {
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
-	a.runRecheck(candidates)
+	a.runRecheck(candidates, gen)
 
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
@@ -486,17 +533,27 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 	return candidates[:a.maxRecheckBatch]
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck)
-func (a *Manager) runRecheck(candidates []sdk.Tx) {
-	var evicted float32
-	for _, tx := range candidates {
+// runRecheck re-validates candidates via RunTx(ReCheck), abandoning the rest
+// of the pass once gen advances mid-flight: those candidates were validated
+// against a base a concurrent Commit has already superseded. drainStaging
+// already cleared recheckSenders for this cycle, so the unreached candidates'
+// senders are re-merged into staging here — otherwise a sender that isn't
+// touched again by a later block would never be rechecked until TTL.
+func (a *Manager) runRecheck(candidates []sdk.Tx, gen uint64) {
+	var evicted, superseded float32
+	for i, tx := range candidates {
+		if a.gen.Load() != gen {
+			superseded = float32(len(candidates) - i)
+			a.recoverSenders(candidates[i:])
+			break
+		}
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
 			continue
 		}
-		a.mu.Lock()
-		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		a.mu.Unlock()
+		a.stateMu.Lock()
+		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, a.state.store(), nil)
+		a.stateMu.Unlock()
 		if err != nil {
 			a.evict(tx)
 			evicted++
@@ -505,6 +562,26 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
 	}
+	if superseded > 0 {
+		telemetry.IncrCounter(superseded, "cronos", "mempool", "recheck", "superseded")
+	}
+}
+
+// recoverSenders folds txs' senders back into staged recheckSenders without
+// touching deferred, which capRecheckTxs may have already set this cycle.
+func (a *Manager) recoverSenders(txs []sdk.Tx) {
+	senders := make(map[string]struct{})
+	for _, tx := range txs {
+		for _, s := range a.signers(tx) {
+			senders[s] = struct{}{}
+		}
+	}
+	if len(senders) == 0 {
+		return
+	}
+	a.stagingMu.Lock()
+	a.mergeRecheckSenders(senders)
+	a.stagingMu.Unlock()
 }
 
 // txTimedout reports whether tx should be evicted by its own declared timeout:

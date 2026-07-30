@@ -36,6 +36,9 @@ type recheckRunner struct {
 	failNoRemoveBytes map[string]bool
 	modes             []sdk.ExecMode
 	seen              map[string]bool
+	// onCall, if set, runs after recording the call but before returning, letting
+	// a test bump gen mid-pass to exercise runRecheck's cancellation check.
+	onCall func(txBytes []byte)
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -43,6 +46,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	if r.onCall != nil {
+		r.onCall(txBytes)
+	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -964,5 +970,92 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 
 	if poolHas(pool, tx) {
 		t.Fatal("aged tx must be evicted even with nil encCache")
+	}
+}
+
+const aliceSeq0Bytes = "alice-0"
+
+// A generation bump mid-pass (a concurrent Commit's RefreshMempoolStateLocked)
+// must cancel runRecheck's remaining candidates; the next RecheckTxs cycle
+// re-covers the skipped one from the staging runRecheck restored.
+func TestRecheckTxs_GenerationBumpMidPassSkipsRemainingCandidates(t *testing.T) {
+	f := newRecheckFixture()
+	first := f.add(1, "alice", 0, aliceSeq0Bytes)
+	second := f.add(2, "alice", 1, "alice-1")
+
+	f.runner.onCall = func(txBytes []byte) {
+		if string(txBytes) == aliceSeq0Bytes {
+			f.a.gen.Add(1) // simulate a Commit's refresh landing mid-pass
+		}
+	}
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.RecheckTxs()
+
+	if !f.runner.seen[aliceSeq0Bytes] {
+		t.Fatal("the candidate validated before the bump must still run")
+	}
+	if f.runner.seen["alice-1"] {
+		t.Fatal("candidates after the generation bump must be skipped, not rechecked against a superseded base")
+	}
+	if !poolHas(f.pool, second) {
+		t.Fatal("a skipped (not rechecked) candidate must stay in the pool")
+	}
+	if !poolHas(f.pool, first) {
+		t.Fatal("the pre-bump candidate must still be evicted/kept per its own RunTx result")
+	}
+
+	// No manual re-staging: runRecheck must have re-merged alice itself.
+	f.runner.onCall = nil
+	f.a.RecheckTxs()
+
+	if !f.runner.seen["alice-1"] {
+		t.Fatal("the skipped candidate must be re-covered by the next RecheckTxs pass")
+	}
+}
+
+// TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred covers
+// the two-sender abort case explicitly: the unreached sender must land in
+// staging (not just its raw tx, which runRecheck never touches), and an
+// already-set deferred carry from this same cycle's capRecheckTxs must survive
+// untouched.
+func TestRunRecheck_AbortRecoversUnreachedSendersWithoutClobberingDeferred(t *testing.T) {
+	f := newRecheckFixture()
+	aliceTx := f.add(1, "alice", 0, aliceSeq0Bytes)
+	bobTx := f.add(2, "bob", 0, "bob-0")
+	carryTx := f.add(3, "carol", 0, "carol-carry") // stands in for capRecheckTxs' overflow carry
+
+	f.a.deferred = []sdk.Tx{carryTx}
+
+	f.runner.onCall = func(txBytes []byte) {
+		if string(txBytes) == aliceSeq0Bytes {
+			f.a.gen.Add(1) // simulate a Commit's refresh landing after the first candidate
+		}
+	}
+	gen := f.a.gen.Load()
+	f.a.runRecheck([]sdk.Tx{aliceTx, bobTx}, gen)
+
+	if !f.runner.seen[aliceSeq0Bytes] {
+		t.Fatal("the candidate validated before the bump must still run")
+	}
+	if f.runner.seen["bob-0"] {
+		t.Fatal("the candidate after the bump must be skipped, not rechecked against a superseded base")
+	}
+	if _, ok := f.a.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
+		t.Fatal("bob must be re-covered in staging after its candidate was skipped")
+	}
+	if len(f.a.deferred) != 1 || f.a.deferred[0] != carryTx {
+		t.Fatal("an already-set deferred carry from this cycle must not be clobbered")
+	}
+
+	// Next RecheckTxs cycle: bob (re-covered) and the carried carol tx must both
+	// get rechecked.
+	f.runner.onCall = nil
+	f.a.RecheckTxs()
+
+	if !f.runner.seen["bob-0"] {
+		t.Fatal("the re-covered sender's tx must be rechecked by the next RecheckTxs cycle")
+	}
+	if !f.runner.seen["carol-carry"] {
+		t.Fatal("the deferred carry must still be rechecked by the next RecheckTxs cycle")
 	}
 }

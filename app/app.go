@@ -1202,6 +1202,16 @@ func New(
 			tmos.Exit(err.Error())
 		}
 
+		if app.mempoolManager != nil {
+			// Earliest correct point for the first mempoolState refresh: stores are
+			// now loaded, so the branch it takes sees committed state instead of an
+			// empty pre-load tree.
+			mu := app.mempoolManager.AdmissionMutex()
+			mu.Lock()
+			app.mempoolManager.RefreshMempoolStateLocked()
+			mu.Unlock()
+		}
+
 		if qmsVersion > 0 {
 			// it should not happens since we constraint the loaded iavl version to not exceed the versiondb version,
 			// still keep the check for safety.
@@ -1680,11 +1690,16 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
+		// AppMempool.Lock() is a no-op; mu serializes BaseApp.Commit() and the
+		// mempoolState refresh against concurrent RunTx-based admission/recheck.
 		mu := app.mempoolManager.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
-		return app.BaseApp.Commit()
+		resp, err := app.BaseApp.Commit()
+		if err == nil {
+			app.mempoolManager.RefreshMempoolStateLocked()
+		}
+		return resp, err
 	}()
 
 	if err == nil {

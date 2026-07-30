@@ -35,14 +35,26 @@ func (t *ptrTx) GetTimeoutHeight() uint64            { return t.timeout }
 // noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
 var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }
 
-// stubRunner is a test double for txRunner.
+// stubRunner is a test double for txRunner. resp, if set, takes precedence
+// over runTx and gives full control over the returned GasInfo/Result/events
+// (needed by CheckTxHandler tests, which no longer drive a caller-supplied
+// runTx closure).
 type stubRunner struct {
 	runTx func([]byte) error
+	resp  func(mode sdk.ExecMode, txBytes []byte) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
 	calls atomic.Int64
+	// ms, if non-nil, records the txMultiStore arg of the most recent RunTx call.
+	ms *storetypes.MultiStore
 }
 
 func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, ms storetypes.MultiStore, cache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 	s.calls.Add(1)
+	if s.ms != nil {
+		*s.ms = ms
+	}
+	if s.resp != nil {
+		return s.resp(mode, txBytes)
+	}
 	if s.runTx != nil {
 		return sdk.GasInfo{}, nil, nil, s.runTx(txBytes)
 	}
@@ -268,13 +280,13 @@ func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
 }
 
 func TestCheckTxHandler_MapsSuccess(t *testing.T) {
-	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	runner := &stubRunner{resp: func(sdk.ExecMode, []byte) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{GasWanted: 100, GasUsed: 42}, &sdk.Result{Log: "ok", Data: []byte("d")}, nil, nil
+	}}
+	a := newManager(runner, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
 
-	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-		return sdk.GasInfo{GasWanted: 100, GasUsed: 42}, &sdk.Result{Log: "ok", Data: []byte("d")}, nil, nil
-	}
-	resp, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("tx")})
+	resp, err := check(nil, &abci.RequestCheckTx{Tx: []byte("tx")})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -290,19 +302,52 @@ func TestCheckTxHandler_MapsSuccess(t *testing.T) {
 }
 
 func TestCheckTxHandler_MapsError(t *testing.T) {
-	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	anteErr := errorsmod.Register("test-check", 1, "bad sig")
+	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
+	a := newManager(runner, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
 
-	anteErr := errorsmod.Register("test-check", 1, "bad sig")
-	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-		return sdk.GasInfo{}, nil, nil, anteErr
-	}
-	resp, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("bad")})
+	resp, err := check(nil, &abci.RequestCheckTx{Tx: []byte("bad")})
 	if err != nil {
 		t.Fatalf("handler must not surface a transport error, got %v", err)
 	}
 	if resp.Code == abci.CodeTypeOK {
 		t.Fatal("expected non-OK code for rejected tx")
+	}
+}
+
+func TestCheckTxHandler_RecheckTypeMapsToExecModeReCheck(t *testing.T) {
+	var capturedMode sdk.ExecMode
+	a := newManager(&captureExecModeRunner{mode: &capturedMode}, nil, noopEncoder, nil)
+	check := a.CheckTxHandler()
+
+	if _, err := check(nil, &abci.RequestCheckTx{Tx: []byte("tx"), Type: abci.CheckTxType_Recheck}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedMode != sdk.ExecModeReCheck {
+		t.Fatalf("expected ExecModeReCheck, got %v", capturedMode)
+	}
+}
+
+func TestCheckTxHandler_NewTypeMapsToExecModeCheck(t *testing.T) {
+	var capturedMode sdk.ExecMode
+	a := newManager(&captureExecModeRunner{mode: &capturedMode}, nil, noopEncoder, nil)
+	check := a.CheckTxHandler()
+
+	if _, err := check(nil, &abci.RequestCheckTx{Tx: []byte("tx"), Type: abci.CheckTxType_New}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedMode != sdk.ExecModeCheck {
+		t.Fatalf("expected ExecModeCheck, got %v", capturedMode)
+	}
+}
+
+func TestCheckTxHandler_UnknownTypeReturnsError(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	check := a.CheckTxHandler()
+
+	if _, err := check(nil, &abci.RequestCheckTx{Tx: []byte("tx"), Type: abci.CheckTxType(99)}); err == nil {
+		t.Fatal("expected error for unknown CheckTxType")
 	}
 }
 
@@ -322,10 +367,7 @@ func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
 	a := newManager(&stubRunner{}, enc, txEncoder, decoder)
 	check := a.CheckTxHandler()
 
-	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
-	}
-	if _, err := check(runTx, &abci.RequestCheckTx{Tx: raw}); err != nil {
+	if _, err := check(nil, &abci.RequestCheckTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	got, ok := enc.Get(tx)
@@ -341,14 +383,12 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	tx := &ptrTx{}
 	decoder := func([]byte) (sdk.Tx, error) { return tx, nil }
 	enc := NewEncoderCache(0, 0)
-	a := newManager(&stubRunner{}, enc, noopEncoder, decoder)
+	anteErr := errorsmod.Register("test-check-rej", 1, "bad")
+	runner := &stubRunner{runTx: func([]byte) error { return anteErr }}
+	a := newManager(runner, enc, noopEncoder, decoder)
 	check := a.CheckTxHandler()
 
-	anteErr := errorsmod.Register("test-check-rej", 1, "bad")
-	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-		return sdk.GasInfo{}, nil, nil, anteErr
-	}
-	if _, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("bad")}); err != nil {
+	if _, err := check(nil, &abci.RequestCheckTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, ok := enc.Get(tx); ok {
@@ -362,12 +402,8 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 	insert := a.InsertTxHandler()
 	check := a.CheckTxHandler()
 
-	// CheckTx's runTx closure mirrors BaseApp: it drives the same lock-free
-	// runner/state that InsertTx writes through a.runner.
-	runTx := func(txBytes []byte, _ sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-		return runner.RunTx(sdk.ExecModeCheck, txBytes, nil, -1, nil, nil)
-	}
-
+	// CheckTxHandler drives a.runner directly (the same lock-free raceRunner
+	// InsertTx writes through), so -race flags either path if it skips stateMu.
 	const goroutines = 16
 	const perG = 64
 	var wg sync.WaitGroup
@@ -381,7 +417,7 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 				if g%2 == 0 {
 					_, err = insert(&abci.RequestInsertTx{Tx: tx})
 				} else {
-					_, err = check(runTx, &abci.RequestCheckTx{Tx: tx})
+					_, err = check(nil, &abci.RequestCheckTx{Tx: tx})
 				}
 				if err != nil {
 					t.Errorf("g%d i%d: unexpected error: %v", g, i, err)
@@ -609,5 +645,175 @@ func TestManagerCountTx(t *testing.T) {
 	a.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
 	if got := a.CountTx(); got != 3 {
 		t.Fatalf("want 3, got %d", got)
+	}
+}
+
+// msCaptureRunner is a txRunner double that records each call's txMultiStore
+// arg, so a test can assert the three RunTx call sites (admit, CheckTxHandler,
+// runRecheck) all receive the same mempoolState.base instance.
+type msCaptureRunner struct {
+	mu sync.Mutex
+	ms []storetypes.MultiStore
+}
+
+func (r *msCaptureRunner) RunTx(_ sdk.ExecMode, _ []byte, _ sdk.Tx, _ int, ms storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	r.mu.Lock()
+	r.ms = append(r.ms, ms)
+	r.mu.Unlock()
+	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func TestManager_AllThreeRunTxSitesShareBaseInstance(t *testing.T) {
+	runner := &msCaptureRunner{}
+	a := newManager(runner, nil, noopEncoder, nil)
+	base := newFakeCacheStore()
+	a.state = &mempoolState{base: base}
+	a.mpool = &fakePool{}
+	a.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}}
+
+	a.admit([]byte("tx1"))
+	check := a.CheckTxHandler()
+	check(nil, &abci.RequestCheckTx{Tx: []byte("tx2")}) //nolint:errcheck
+	a.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.gen.Load())
+
+	if len(runner.ms) != 3 {
+		t.Fatalf("expected 3 RunTx calls (admit, CheckTxHandler, runRecheck), got %d", len(runner.ms))
+	}
+	for i, ms := range runner.ms {
+		if ms == nil {
+			t.Fatalf("call %d: got a nil store, want the wired base", i)
+		}
+		if ms != storetypes.MultiStore(base) {
+			t.Fatalf("call %d: got a different store instance than the wired base", i)
+		}
+	}
+}
+
+// fakeNonceStore stands in for the real branched CacheMultiStore's role as
+// nonce authority: setNonce mirrors baseapp's ante write-back into the
+// txMultiStore arg, getNonce mirrors a later RunTx reading it back out.
+type fakeNonceStore struct {
+	cacheMultiStoreIface // defined type, not the interface itself: see state_test.go
+	mu                   sync.Mutex
+	nonces               map[string]uint64
+}
+
+func newFakeNonceStore() *fakeNonceStore { return &fakeNonceStore{nonces: map[string]uint64{}} }
+
+func (f *fakeNonceStore) setNonce(sender string, n uint64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nonces[sender] = n
+}
+
+func (f *fakeNonceStore) getNonce(sender string) uint64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.nonces[sender]
+}
+
+// nonceBranchRunner models baseapp's RunTx(txMultiStore) contract from the
+// design doc: ReCheck writes a nonce bump back into the passed store; Check
+// only succeeds once that write is visible through the same store.
+type nonceBranchRunner struct{}
+
+func (r *nonceBranchRunner) RunTx(mode sdk.ExecMode, _ []byte, _ sdk.Tx, _ int, ms storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	store, ok := ms.(*fakeNonceStore)
+	if !ok {
+		return sdk.GasInfo{}, nil, nil, errors.New("no branched store")
+	}
+	switch mode {
+	case sdk.ExecModeReCheck:
+		store.setNonce("alice", 8)
+		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+	case sdk.ExecModeCheck:
+		if store.getNonce("alice") < 8 {
+			return sdk.GasInfo{}, nil, nil, errors.New("nonce not yet visible")
+		}
+		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+	default:
+		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+	}
+}
+
+// TestManager_RecheckWriteVisibleToLaterAdmit proves nonce continuity across
+// the branch: a RunTx(ExecModeReCheck) write into base must be visible to a
+// later admit() reading through the same shared base.
+func TestManager_RecheckWriteVisibleToLaterAdmit(t *testing.T) {
+	store := newFakeNonceStore()
+	a := newManager(&nonceBranchRunner{}, nil, noopEncoder, nil)
+	a.state = &mempoolState{base: store}
+
+	a.runRecheck([]sdk.Tx{&ptrTx{id: 1}}, a.gen.Load())
+
+	code, _, log := a.admit([]byte("alice-nonce-8-sibling"))
+	if code != abci.CodeTypeOK {
+		t.Fatalf("admission must see recheck's nonce write-back through the shared base, got code=%d log=%q", code, log)
+	}
+}
+
+func TestManager_RefreshMempoolStateLockedSwapsBaseAndBumpsGen(t *testing.T) {
+	first, second := newFakeCacheStore(), newFakeCacheStore()
+	calls := 0
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	a.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
+		calls++
+		if calls == 1 {
+			return &fakeCommitStore{cache: first}
+		}
+		return &fakeCommitStore{cache: second}
+	}}
+	a.state.refreshLocked() // mirrors NewManager's initial refresh
+	if got := a.state.store(); got != storetypes.MultiStore(first) {
+		t.Fatalf("expected initial base, got %v", got)
+	}
+
+	beforeGen := a.gen.Load()
+	a.RefreshMempoolStateLocked()
+
+	if got := a.state.store(); got != storetypes.MultiStore(second) {
+		t.Fatal("RefreshMempoolStateLocked must swap base identity")
+	}
+	if got := a.gen.Load(); got != beforeGen+1 {
+		t.Fatalf("RefreshMempoolStateLocked must bump gen, got %d want %d", got, beforeGen+1)
+	}
+}
+
+func TestManager_RefreshMempoolStateLockedNoopWithoutState(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil) // state nil (test ctor)
+	a.RefreshMempoolStateLocked()                         // must not panic
+	if a.gen.Load() != 0 {
+		t.Fatal("nil state must leave gen untouched")
+	}
+}
+
+// TestManager_NilBaseBeforeFirstRefresh mirrors the production wiring order:
+// NewManager sets state.provider but must NOT refresh (the store isn't loaded
+// yet at that point in baseAppOptions), so admit falls back to checkState
+// (nil txMultiStore) until App calls RefreshMempoolStateLocked after
+// LoadLatestVersion.
+func TestManager_NilBaseBeforeFirstRefresh(t *testing.T) {
+	runner := &msCaptureRunner{}
+	a := newManager(runner, nil, noopEncoder, nil)
+	base := newFakeCacheStore()
+	calls := 0
+	a.state = &mempoolState{provider: func() storetypes.CommitMultiStore {
+		calls++
+		return &fakeCommitStore{cache: base}
+	}} // provider wired, no refreshLocked call yet: mirrors NewManager exactly
+
+	a.admit([]byte("pre-refresh"))
+	if len(runner.ms) != 1 || runner.ms[0] != nil {
+		t.Fatalf("admit before the first refresh must pass a nil store (checkState fallback), got %v", runner.ms)
+	}
+	if calls != 0 {
+		t.Fatal("provider must not be invoked before RefreshMempoolStateLocked")
+	}
+
+	a.RefreshMempoolStateLocked() // mirrors App's post-LoadLatestVersion call
+
+	a.admit([]byte("post-refresh"))
+	if len(runner.ms) != 2 || runner.ms[1] != storetypes.MultiStore(base) {
+		t.Fatalf("admit after the first refresh must pass the wired base, got %v", runner.ms)
 	}
 }

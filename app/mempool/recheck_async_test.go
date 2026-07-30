@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -79,6 +80,15 @@ func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 			f.a.StageRecheckSenders(height, nil)
 			f.a.TriggerRecheck()
 		}(int64(i + 1))
+	}
+	// admit races commit + recheck through the same stateMu-guarded path
+	// (RunTx's shared base), exercised together under -race.
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			f.a.admit([]byte("concurrent-" + strconv.Itoa(i)))
+		}(i)
 	}
 	wg.Wait()
 	f.a.Close()
