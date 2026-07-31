@@ -355,6 +355,22 @@ type App struct {
 	dummyCheckTx bool
 }
 
+// parseBoolFlag strictly parses an AppOptions value as a boolean, rejecting
+// types cast.ToBoolE would silently coerce (e.g. numbers, where 2 -> true).
+func parseBoolFlag(flag string, v interface{}) bool {
+	switch v.(type) {
+	case bool, string:
+	default:
+		panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", flag, v, v))
+	}
+	parsed, err := cast.ToBoolE(v)
+	if err != nil {
+		// v is a string here (bool never errors, other types panicked above).
+		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
+	}
+	return parsed
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -463,11 +479,11 @@ func New(
 		gossipTTL = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
-	if v := appOpts.Get(FlagMempoolTxTTL); v != nil && !cast.ToBool(v) {
+	if v := appOpts.Get(FlagMempoolTxTTL); v != nil && !parseBoolFlag(FlagMempoolTxTTL, v) {
 		ttlNumBlocks = 0
 	}
 	pendingCacheTTL := cmdcfg.DefaultMempoolPendingCacheTTL
-	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil && !cast.ToBool(v) {
+	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil && !parseBoolFlag(FlagRPCPendingTxCache, v) {
 		pendingCacheTTL = 0
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
@@ -503,18 +519,7 @@ func New(
 	recheckEnabled := true
 	if mempoolType == cronosmempool.TypeApp {
 		if v := appOpts.Get(FlagMempoolRecheck); v != nil {
-			// cast.ToBoolE silently coerces nonzero numbers (e.g. 2) to true.
-			switch v.(type) {
-			case bool, string:
-			default:
-				panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", FlagMempoolRecheck, v, v))
-			}
-			parsed, err := cast.ToBoolE(v)
-			if err != nil {
-				// v is a string here (bool never errors, other types panicked above).
-				panic(fmt.Errorf("invalid %s %q: must be a boolean", FlagMempoolRecheck, v))
-			}
-			recheckEnabled = parsed
+			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {

@@ -47,7 +47,7 @@ func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
 	telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "miss")
 
 	c.snapshot = load()
-	c.expiry = now.Add(c.ttl)
+	c.expiry = c.clock().Add(c.ttl)
 	c.loadedEpoch = epoch
 	return c.copySnapshot()
 }
