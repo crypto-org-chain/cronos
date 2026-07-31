@@ -26,7 +26,7 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
-from .utils import ADDRS, KEYS, derive_new_account, sign_transaction
+from .utils import ADDRS, KEYS, derive_new_account, send_transaction, sign_transaction
 
 # EIP-7825 (params.MaxTxGas): 1 << 24.
 MAX_TX_GAS = 16_777_216
@@ -105,9 +105,7 @@ def test_eip1559_fee_cap_balance_check_rejected_at_admission(cronos):
         "value": gas_limit * base,
         "gasPrice": base,
     }
-    signed_fund = sign_transaction(w3, fund_tx, KEYS["validator"])
-    fund_hash = w3.eth.send_raw_transaction(signed_fund.raw_transaction)
-    w3.eth.wait_for_transaction_receipt(fund_hash, timeout=30)
+    send_transaction(w3, fund_tx, KEYS["validator"])
     assert w3.eth.get_balance(sender.address) == gas_limit * base
 
     tx = {
@@ -165,7 +163,14 @@ def test_eip4844_blob_tx_rejected_at_admission(cronos):
     """
     w3: Web3 = cronos.w3
     signed = _sign_blob_tx(w3, KEYS["community"], ADDRS["validator"])
-    with pytest.raises(Exception) as exc_info:
-        w3.eth.send_raw_transaction(signed.raw_transaction)
-    msg = str(exc_info.value).lower()
-    assert any(s in msg for s in ("blob", "type", "unsupported", "invalid")), msg
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    except Exception as exc_info:
+        msg = str(exc_info).lower()
+        assert any(s in msg for s in ("blob", "type", "unsupported", "invalid")), msg
+        return
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+    pytest.fail(
+        "blob tx was accepted instead of rejected at admission: "
+        f"tx_hash={tx_hash.hex()} status={receipt.status}"
+    )

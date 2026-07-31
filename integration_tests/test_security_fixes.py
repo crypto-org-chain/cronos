@@ -10,7 +10,7 @@
 import pytest
 
 from .ibc_utils import RATIO, get_balance, ibc_transfer, prepare_network
-from .utils import ADDRS, CONTRACTS, deploy_contract, send_transaction, wait_for_fn
+from .utils import ADDRS, CONTRACTS, deploy_contract, send_transaction
 
 pytestmark = pytest.mark.ibc
 
@@ -28,7 +28,11 @@ def ibc(tmp_path_factory):
     path = tmp_path_factory.mktemp("security-fixes-ibc")
     gen = prepare_network(path, "ibc", incentivized=False, is_ibc_transfer=True)
     network = next(gen)
-    ibc_transfer(network)
+    try:
+        ibc_transfer(network)
+    except Exception:
+        next(gen, None)
+        raise
     yield network
     next(gen, None)
 
@@ -63,11 +67,6 @@ def test_cro_bridge_contract_unauthorized_rejected(ibc):
     )
     receipt = send_transaction(w3, tx)
     assert receipt.status == 0
-
-    def no_balance_change():
-        return get_balance(ibc.chainmain, dst_addr, dst_denom) == old_dst_balance
-
-    wait_for_fn("no balance change", no_balance_change)
     assert get_balance(ibc.chainmain, dst_addr, dst_denom) == old_dst_balance
 
 
@@ -86,33 +85,29 @@ def test_token_mapping_rejects_zero_address(ibc):
     assert "precompile range" in rsp["raw_log"]
 
 
-def test_token_mapping_rejects_precompile_range_address(ibc):
-    """A low, in-range address must be rejected even with no deployed code.
+@pytest.mark.parametrize(
+    "denom,symbol",
+    [
+        ("testusd2", "TESTUSD2"),
+        ("cronos" + LOW_PRECOMPILE_ADDRESS, "TESTUSD3"),
+    ],
+    ids=["external-denom", "source-denom"],
+)
+def test_token_mapping_rejects_precompile_range_address(ibc, denom, symbol):
+    """A low, in-range address must be rejected even with no deployed code,
+    on both the external-denom and source-denom registration paths.
 
-    The precompile-range guard runs ahead of the contract-code-exists check,
-    so an attacker cannot exploit an empty precompile slot by mapping a CRC21
-    denom onto it before code is ever deployed there.
+    The precompile-range guard (ensureContractCode) runs ahead of the
+    contract-code-exists check, so an attacker cannot exploit an empty
+    precompile slot by mapping a CRC21 denom onto it before code is ever
+    deployed there. For the source-denom path, this guard runs after
+    validateContractAddressForSourceDenom (which only checks that the
+    contract matches the address embedded in the denom), so a source denom
+    crafted to embed a precompile-range address must still be rejected.
     """
     cli = ibc.cronos.cosmos_cli()
     rsp = cli.update_token_mapping(
-        "testusd2", LOW_PRECOMPILE_ADDRESS, "TESTUSD2", 6, from_="validator"
-    )
-    assert rsp["code"] != 0
-    assert "precompile range" in rsp["raw_log"]
-
-
-def test_source_denom_token_mapping_rejects_precompile_range_address(ibc):
-    """The source-denom path also runs the precompile-range guard.
-
-    validateContractAddressForSourceDenom only checks that the contract
-    matches the address embedded in the denom; ensureContractCode still runs
-    afterwards, so a source denom crafted to embed a precompile-range
-    address must still be rejected.
-    """
-    cli = ibc.cronos.cosmos_cli()
-    denom = "cronos" + LOW_PRECOMPILE_ADDRESS
-    rsp = cli.update_token_mapping(
-        denom, LOW_PRECOMPILE_ADDRESS, "TESTUSD3", 6, from_="validator"
+        denom, LOW_PRECOMPILE_ADDRESS, symbol, 6, from_="validator"
     )
     assert rsp["code"] != 0
     assert "precompile range" in rsp["raw_log"]
