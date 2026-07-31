@@ -138,6 +138,37 @@ def test_bad_signature_rejected_at_admission(cronos_app_mempool):
     ), msg
 
 
+def test_nonce_gap_rejected_at_admission(cronos_app_mempool):
+    """A tx whose nonce skips ahead of the sender's expected nonce is
+    rejected at admission (ErrInvalidSequence), not silently queued.
+
+    Asserts absence from "pending" rather than emptiness of "queued": this
+    mempool has no pending/queued split, so "queued" is always {} either way
+    and cannot distinguish rejection from a wrongly admitted tx.
+    """
+    w3: Web3 = cronos_app_mempool.w3
+    sender = ADDRS["validator"]
+    gap_nonce = w3.eth.get_transaction_count(sender) + 2
+    tx = {
+        "to": ADDRS["community"],
+        "value": 1,
+        "nonce": gap_nonce,
+        "gas": 21000,
+        "gasPrice": w3.eth.gas_price,
+    }
+    signed = sign_transaction(w3, tx)
+    with pytest.raises(Exception) as exc_info:
+        w3.eth.send_raw_transaction(signed.raw_transaction)
+    msg = str(exc_info.value).lower()
+    assert "invalid nonce" in msg, msg
+
+    pending = _txpool_content(w3)["pending"]
+    sender_pending = _pending_for(pending, sender) or {}
+    assert str(gap_nonce) not in sender_pending, (
+        f"rejected nonce {gap_nonce} should not appear pending: {sender_pending}"
+    )
+
+
 def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
     """A tx with gas-limit below intrinsic 21000 is rejected at admission."""
     w3: Web3 = cronos_app_mempool.w3
@@ -386,6 +417,12 @@ def _txpool_content_from(w3, address):
     return w3.provider.make_request("txpool_contentFrom", [address])["result"]
 
 
+def _pending_for(pool_pending, address):
+    """Sender's pending bucket, or None. Tolerates either key casing — the
+    RPC may return checksummed or lowercased addresses."""
+    return pool_pending.get(address.lower()) or pool_pending.get(address)
+
+
 def _assert_pool_dict_shape(result):
     assert "pending" in result and "queued" in result
     assert isinstance(result["pending"], dict)
@@ -445,11 +482,7 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
     status = _txpool_status(w3)
     cf = _txpool_content_from(w3, sender)
 
-    # Normalise address casing for key lookup.
-    def _pending_for(pool_pending):
-        return pool_pending.get(sender.lower()) or pool_pending.get(sender)
-
-    content_sender = _pending_for(content["pending"])
+    content_sender = _pending_for(content["pending"], sender)
     if content_sender is None:
         pytest.xfail("tx already mined before pool query (timing race; retry)")
 
@@ -461,7 +494,7 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
     assert isinstance(tx_entry, dict), "content entry must be a tx object dict"
 
     # inspect entry is a human-readable summary string
-    inspect_sender = _pending_for(inspect["pending"])
+    inspect_sender = _pending_for(inspect["pending"], sender)
     if inspect_sender is None:
         pytest.xfail(
             "inspect pending missing sender — timing race or address casing mismatch"
@@ -481,3 +514,63 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
     assert (
         nonce_key in cf["pending"]
     ), f"contentFrom missing nonce {nonce}: {cf['pending']}"
+
+
+# ---------------------------------------------------------------------------
+# low-capacity mempool.max-txs fixture and saturation test
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def cronos_app_low_capacity(tmp_path_factory):
+    """App-mempool node with mempool.max-txs=5, so a test can reach
+    saturation without submitting hundreds of txs."""
+    path = tmp_path_factory.mktemp("cronos-app-low-capacity")
+    yield from setup_custom_cronos(
+        path, 26590, Path(__file__).parent / "configs/mempool_app_low_capacity.jsonnet"
+    )
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_txpool_saturation_rejects_and_reports(cronos_app_low_capacity):
+    """Filling the pool to mempool.max-txs shows up in txpool_status, and the
+    next tx is rejected with the mempool-full error.
+
+    All fill txs are submitted before any receipt is awaited, to narrow the
+    window for a 500ms reap to drain the pool mid-fill. A second window sits
+    between the pending-count check and the overflow submission, where a reap
+    could free a slot and let the overflow tx through. Both are covered by the
+    flaky-retry decorator rather than an explicit guard.
+    """
+    w3 = cronos_app_low_capacity.w3
+    sender = ADDRS["validator"]
+    max_txs = 5  # must match mempool.max-txs in mempool_app_low_capacity.jsonnet
+    nonce = w3.eth.get_transaction_count(sender)
+
+    def signed_transfer(tx_nonce):
+        tx = {
+            "to": ADDRS["community"],
+            "value": 1,
+            "nonce": tx_nonce,
+            "gas": 21000,
+            "gasPrice": w3.eth.gas_price,
+        }
+        return sign_transaction(w3, tx).raw_transaction
+
+    txhashes = [
+        w3.eth.send_raw_transaction(signed_transfer(nonce + i)) for i in range(max_txs)
+    ]
+
+    pending = int(_txpool_status(w3)["pending"], 16)
+    if pending < max_txs:
+        pytest.xfail(
+            "pool already drained by a reap before status query (timing race; retry)"
+        )
+
+    with pytest.raises(Exception) as exc_info:
+        w3.eth.send_raw_transaction(signed_transfer(nonce + max_txs))
+    assert "mempool is full" in str(exc_info.value).lower()
+
+    for h in txhashes:
+        receipt = w3.eth.wait_for_transaction_receipt(h, timeout=30)
+        assert receipt.status == 1
