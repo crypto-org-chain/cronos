@@ -334,6 +334,12 @@ def test_local_statesync(cronos, tmp_path_factory):
     cronos.supervisorctl("start", "cronos_777-1-node0")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
+    check_addrs = ("validator", "validator2", "community")
+    # baseline from node0's own store, which the restore below never touches
+    baseline_balances = {
+        name: cli0.balance(ADDRS[name], height=height) for name in check_addrs
+    }
+
     home = tmp_path_factory.mktemp("local_statesync")
     print("home", home)
 
@@ -411,6 +417,12 @@ def test_local_statesync(cronos, tmp_path_factory):
             cli.distribution_community(height=height - 1)
 
         assert "collections: not found" in exc_info.value.args[0]
+
+        # guards against cronos-store d61fd70d (branch nodes silently
+        # overwriting a leaf's value at restore)
+        assert {
+            name: cli.balance(ADDRS[name], height=height) for name in check_addrs
+        } == baseline_balances
 
 
 def test_transaction(cronos):
