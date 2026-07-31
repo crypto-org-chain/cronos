@@ -36,16 +36,16 @@ mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 # senders). 0 = unlimited. Default 2900.
 mempool-txs-per-block = {{ .Cronos.MaxTxPerBlock }}
 
-# Evict mempool.type=app txs older than this many blocks (by arrival height),
+# Evict mempool.type=app txs older than 120 blocks (by arrival height),
 # independent of per-tx TimeoutHeight (EVM txs have TimeoutHeight 0 = never
 # expire). Drains txs the proposal keeps skipping (baseFee gate, blocklist) whose
-# sender never commits. 0 = disabled. Default 120.
-mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
+# sender never commits. Default true.
+mempool-tx-ttl = {{ .Cronos.MempoolTxTTL }}
 
-# Caches the PendingTxs() pool scan for this long, so a burst of RPC reads
-# collapses onto one walk of the mempool.type=app pool instead of one walk per call.
-# 0 disables caching. Default "100ms".
-mempool-pending-cache-ttl = "{{ .Cronos.MempoolPendingCacheTTL }}"
+# Caches the PendingTxs() pool scan for 100ms, so a burst of RPC reads
+# (txpool_content, eth_pendingTransactions, etc.) collapses onto one walk of the
+# mempool.type=app pool instead of one walk per call. Default true.
+rpc-pending-tx-cache = {{ .Cronos.RPCPendingTxCache }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

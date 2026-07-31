@@ -34,13 +34,14 @@ type CronosConfig struct {
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
 	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
-	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
-	// (by arrival height), draining proposal-skipped txs whose sender never commits.
-	// 0 disables.
-	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
-	// MempoolPendingCacheTTL caches the PendingTxs() pool-scan result for this long,
-	// so repeated RPC reads don't each re-walk the pool. 0 disables caching.
-	MempoolPendingCacheTTL time.Duration `mapstructure:"mempool-pending-cache-ttl"`
+	// MempoolTxTTL evicts mempool.type=app txs older than DefaultMempoolTTLNumBlocks
+	// blocks (by arrival height), draining proposal-skipped txs whose sender never
+	// commits. Set to false to disable.
+	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
+	// RPCPendingTxCache caches the PendingTxs() pool-scan result for
+	// DefaultMempoolPendingCacheTTL, so repeated RPC reads don't each re-walk the
+	// pool. Set to false to disable.
+	RPCPendingTxCache bool `mapstructure:"rpc-pending-tx-cache"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -98,8 +99,8 @@ func DefaultCronosConfig() CronosConfig {
 		MempoolTxCacheMaxTxBytes:   DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MaxTxPerBlock:              DefaultMempoolTxsPerBlock,
-		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
-		MempoolPendingCacheTTL:     DefaultMempoolPendingCacheTTL,
+		MempoolTxTTL:               true,
+		RPCPendingTxCache:          true,
 	}
 }
 

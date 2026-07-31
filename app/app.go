@@ -187,8 +187,8 @@ const (
 	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
-	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
-	FlagMempoolPendingCacheTTL     = "cronos.mempool-pending-cache-ttl"
+	FlagMempoolTxTTL               = "cronos.mempool-tx-ttl"
+	FlagRPCPendingTxCache          = "cronos.rpc-pending-tx-cache"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -463,21 +463,12 @@ func New(
 		gossipTTL = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
-	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {
-		// Strict parse: a silent negative is meaningless; 0 explicitly disables.
-		parsed, err := cast.ToInt64E(v)
-		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTTLNumBlocks, v))
-		}
-		ttlNumBlocks = parsed
+	if v := appOpts.Get(FlagMempoolTxTTL); v != nil && !cast.ToBool(v) {
+		ttlNumBlocks = 0
 	}
 	pendingCacheTTL := cmdcfg.DefaultMempoolPendingCacheTTL
-	if v := appOpts.Get(FlagMempoolPendingCacheTTL); v != nil {
-		parsed, err := cast.ToDurationE(v)
-		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative duration", FlagMempoolPendingCacheTTL, v))
-		}
-		pendingCacheTTL = parsed
+	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil && !cast.ToBool(v) {
+		pendingCacheTTL = 0
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
