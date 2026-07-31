@@ -6,6 +6,7 @@ checkpoints of TPS, block time, and RSS, and trend-fits those checkpoints to
 flag a memory leak or performance degradation.
 """
 
+import logging
 import sys
 import threading
 import time
@@ -14,6 +15,8 @@ from statistics import linear_regression
 from .stats import _fetch_prometheus, calculate_tps, get_block_info_cosmos
 from .resources import scrape_go_runtime
 from .utils import block_height
+
+log = logging.getLogger(__name__)
 
 # Sustained growth beyond these slopes over the soak trips the verdict.
 LEAK_RSS_SLOPE_BYTES_PER_S = 1024 * 1024  # 1 MiB/s
@@ -104,7 +107,7 @@ class CheckpointSampler:
                 # anchor, so no block's tx count falls in the gap between windows.
                 self._prev_height = cur_height
             except Exception:
-                pass
+                log.debug("checkpoint sample failed", exc_info=True)
 
 
 def fit_trends(checkpoints):

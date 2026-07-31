@@ -70,17 +70,21 @@ def _tx_options(cfg) -> dict:
     }
 
 
-def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
-    """Extend the sample until all generated Cosmos txs are committed."""
-    # ``start`` is the pre-send anchor and can still contain setup traffic,
-    # so only count envelopes committed after it.
+def _wait_for_committed(
+    get_height, count_txs, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
+):
+    """Extend the sample until `expected_txs` have been counted committed.
+
+    ``start`` is the pre-send anchor and can still contain setup traffic,
+    so only count txs committed after it.
+    """
     next_height = start + 1
     committed_txs = 0
     deadline = time.monotonic() + timeout
 
     while True:
         while next_height <= end:
-            committed_txs += len(block_txs(next_height, rpc) or [])
+            committed_txs += count_txs(next_height)
             next_height += 1
             if committed_txs >= expected_txs:
                 return end, committed_txs
@@ -88,36 +92,37 @@ def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TI
         if time.monotonic() >= deadline:
             return end, committed_txs
 
-        current = block_height(rpc)
+        current = get_height()
         if current > end:
             end = current
         else:
             time.sleep(0.2)
+
+
+def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
+    """Extend the sample until all generated Cosmos txs are committed."""
+    return _wait_for_committed(
+        lambda: block_height(rpc),
+        lambda height: len(block_txs(height, rpc) or []),
+        start,
+        end,
+        expected_txs,
+        timeout,
+    )
 
 
 def wait_for_committed_eth_txs(
     json_rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
 ):
     """Extend the sample until all generated Ethereum txs are committed."""
-    next_height = start + 1
-    committed_txs = 0
-    deadline = time.monotonic() + timeout
-
-    while True:
-        while next_height <= end:
-            committed_txs += len(block_eth(next_height, json_rpc)["transactions"])
-            next_height += 1
-            if committed_txs >= expected_txs:
-                return end, committed_txs
-
-        if time.monotonic() >= deadline:
-            return end, committed_txs
-
-        current = eth_block_number(json_rpc)
-        if current > end:
-            end = current
-        else:
-            time.sleep(0.2)
+    return _wait_for_committed(
+        lambda: eth_block_number(json_rpc),
+        lambda height: len(block_eth(height, json_rpc)["transactions"]),
+        start,
+        end,
+        expected_txs,
+        timeout,
+    )
 
 
 def current_sender_nonce(cfg, start, end):

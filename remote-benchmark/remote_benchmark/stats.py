@@ -625,6 +625,28 @@ def _print_load_summary_sections(fp, start, summary):
         )
 
 
+def _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp, mp_str=""):
+    if prev_timestamp is not None:
+        bt = (timestamp - prev_timestamp).total_seconds()
+        bt_ms = bt * 1000
+        # Instantaneous per-block TPS: this block's txs over its own block
+        # time. Avoids the sliding-window artifact where an early stall
+        # block distorts the rate of later blocks as it moves through the
+        # window. See dump_block_stats summary for windowed peak/median.
+        tps = txs / bt if bt > 0 else 0
+        gas_str = f" gas={gas_used}" if gas_used > 0 else ""
+        print(
+            f"block {i} txs={txs}{gas_str}"
+            f" {timestamp.isoformat()} {bt_ms:.0f}ms tps={tps:.2f}{mp_str}",
+            file=fp,
+        )
+    else:
+        print(
+            f"block {i} txs={txs} {timestamp.isoformat()} - tps=0.00{mp_str}",
+            file=fp,
+        )
+
+
 def dump_block_stats(
     fp,
     rpc: str,
@@ -703,25 +725,7 @@ def dump_block_stats(
         mempool_snapshots.append((mp_txs, mp_bytes))
 
         mp_str = f" mempool={mp_txs}" if mp_txs >= 0 else ""
-        if prev_timestamp is not None:
-            bt = (timestamp - prev_timestamp).total_seconds()
-            bt_ms = bt * 1000
-            # Instantaneous per-block TPS: this block's txs over its own block
-            # time. Avoids the sliding-window artifact where an early stall
-            # block distorts the rate of later blocks as it moves through the
-            # window. See dump_block_stats summary for windowed peak/median.
-            tps = txs / bt if bt > 0 else 0
-            gas_str = f" gas={gas_used}" if gas_used > 0 else ""
-            print(
-                f"block {i} txs={txs}{gas_str}"
-                f" {timestamp.isoformat()} {bt_ms:.0f}ms tps={tps:.2f}{mp_str}",
-                file=fp,
-            )
-        else:
-            print(
-                f"block {i} txs={txs} {timestamp.isoformat()} - tps=0.00{mp_str}",
-                file=fp,
-            )
+        _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp, mp_str)
         prev_timestamp = timestamp
 
     print(file=fp)
@@ -934,21 +938,7 @@ def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
         gas_data.append((gas_used, gas_limit))
         blocks.append((txs, timestamp))
 
-        if prev_timestamp is not None:
-            bt = (timestamp - prev_timestamp).total_seconds()
-            bt_ms = bt * 1000
-            tps = txs / bt if bt > 0 else 0
-            gas_str = f" gas={gas_used}" if gas_used > 0 else ""
-            print(
-                f"block {i} txs={txs}{gas_str}"
-                f" {timestamp.isoformat()} {bt_ms:.0f}ms tps={tps:.2f}",
-                file=fp,
-            )
-        else:
-            print(
-                f"block {i} txs={txs} {timestamp.isoformat()} - tps=0.00",
-                file=fp,
-            )
+        _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp)
         prev_timestamp = timestamp
 
     print(file=fp)

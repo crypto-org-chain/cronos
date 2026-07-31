@@ -226,6 +226,19 @@ def test_aggregate_summaries_returns_empty_when_all_runs_have_no_load():
     assert aggregate_summaries([None, None]) == {}
 
 
+def test_aggregate_summaries_excludes_metric_missing_from_any_run():
+    summaries = [
+        {"median_tps": 500.0},
+        {"median_tps": 510.0, "peak_rss": 1024},
+        {"median_tps": 520.0, "peak_rss": 2048},
+    ]
+
+    aggregate = aggregate_summaries(summaries)
+
+    assert "median_tps" in aggregate
+    assert "peak_rss" not in aggregate
+
+
 def test_build_aggregate_record_reports_num_runs_and_no_load_runs(monkeypatch):
     cfg = _cfg([_endpoint()])
     monkeypatch.setattr(results_module, "fetch_node_fingerprint", lambda _endpoint: {"name": "node0"})

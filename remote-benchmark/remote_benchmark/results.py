@@ -21,6 +21,14 @@ GAS_UTILIZATION_MIN_PCT = 90.0
 FAILED_TX_MAX_PCT = 1.0
 
 
+def _safe_get(url):
+    """GET a CometBFT RPC endpoint's JSON body, or {} on any failure."""
+    try:
+        return requests.get(url, timeout=5).json()
+    except Exception:
+        return {}
+
+
 def fetch_node_fingerprint(endpoint):
     """Best-effort per-node fingerprint.
 
@@ -37,30 +45,23 @@ def fetch_node_fingerprint(endpoint):
         "declared": dict(getattr(endpoint, "node_config", None) or {}),
     }
 
-    try:
-        status = requests.get(f"{endpoint.rpc}/status", timeout=5).json()["result"]
-        node_info = status.get("node_info", {})
-        fingerprint["node_version"] = node_info.get("version")
-        fingerprint["network"] = node_info.get("network")
-        fingerprint["moniker"] = node_info.get("moniker")
-    except Exception:
-        fingerprint["node_version"] = None
+    status = _safe_get(f"{endpoint.rpc}/status")
+    node_info = (status.get("result") or {}).get("node_info", {})
+    fingerprint["node_version"] = node_info.get("version")
+    fingerprint["network"] = node_info.get("network")
+    fingerprint["moniker"] = node_info.get("moniker")
 
-    try:
-        abci = requests.get(f"{endpoint.rpc}/abci_info", timeout=5).json()
-        response = abci.get("result", {}).get("response", {})
-        fingerprint["app_version"] = response.get("version")
-        fingerprint["app_data"] = response.get("data")
-    except Exception:
-        fingerprint["app_version"] = None
+    abci = _safe_get(f"{endpoint.rpc}/abci_info")
+    response = (abci.get("result") or {}).get("response", {})
+    fingerprint["app_version"] = response.get("version")
+    fingerprint["app_data"] = response.get("data")
 
-    try:
-        params = requests.get(f"{endpoint.rpc}/consensus_params", timeout=5).json()
-        block_params = params["result"]["consensus_params"].get("block", {})
+    params = _safe_get(f"{endpoint.rpc}/consensus_params")
+    if "result" in params:
+        block_params = (params.get("result") or {}).get("consensus_params") or {}
+        block_params = block_params.get("block") or {}
         fingerprint["block_max_gas"] = block_params.get("max_gas")
         fingerprint["block_max_bytes"] = block_params.get("max_bytes")
-    except Exception:
-        pass
 
     return fingerprint
 
@@ -185,16 +186,18 @@ def aggregate_summaries(summaries):
     if not valid:
         return {}
 
+    all_keys = {key for s in valid for key in s}
     numeric_keys = [
         key
-        for key, value in valid[0].items()
-        if isinstance(value, (int, float)) and not isinstance(value, bool)
+        for key in all_keys
+        if all(
+            isinstance(s.get(key), (int, float)) and not isinstance(s.get(key), bool)
+            for s in valid
+        )
     ]
     aggregate = {}
     for key in numeric_keys:
-        values = [s[key] for s in valid if isinstance(s.get(key), (int, float))]
-        if len(values) != len(valid):
-            continue
+        values = [s[key] for s in valid]
         aggregate[key] = {
             "median": median(values),
             "min": min(values),
