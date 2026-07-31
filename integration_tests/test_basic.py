@@ -425,6 +425,35 @@ def test_local_statesync(cronos, tmp_path_factory):
         } == baseline_balances
 
 
+def test_export_genesis_equality(cronos):
+    """
+    All validators share the same genesis file and, by consensus, identical
+    state at any committed height - so cronosd export at that height should
+    be identical across nodes. Catches non-determinism in genesis export
+    itself, independent of any state-sync/versiondb path.
+    """
+    n = len(cronos.config["validators"])
+    cli0 = cronos.cosmos_cli(0)
+    wait_for_new_blocks(cli0, 3)
+    height = cli0.block_height() - 1
+
+    # export needs the nodes down; always bring them back so the rest of the
+    # module still has a running chain
+    cronos.supervisorctl("stop", "all")
+    try:
+        exports = [
+            json.loads(cronos.cosmos_cli(i).export(height=height)) for i in range(n)
+        ]
+    finally:
+        cronos.supervisorctl("start", "all")
+        for i in range(n):
+            wait_for_port(ports.evmrpc_port(cronos.base_port(i)))
+    wait_for_new_blocks(cli0, 1)
+
+    for i, exported in enumerate(exports[1:], start=1):
+        assert exported == exports[0], f"node{i} exported genesis diverges"
+
+
 def test_transaction(cronos):
     w3 = cronos.w3
     gas_price = w3.eth.gas_price
