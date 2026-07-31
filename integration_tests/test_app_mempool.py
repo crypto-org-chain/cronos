@@ -20,6 +20,7 @@ from pathlib import Path
 
 import pytest
 import web3
+from eth_account import Account
 from web3 import Web3
 
 from .network import setup_custom_cronos
@@ -169,8 +170,7 @@ def test_nonce_gap_rejected_at_admission(cronos_app_mempool):
     msg = str(exc_info.value).lower()
     assert "invalid nonce" in msg, msg
 
-    pending = _txpool_content(w3)["pending"]
-    sender_pending = _pending_for(pending, sender) or {}
+    sender_pending = _pending_nonces(w3, sender)
     assert str(gap_nonce) not in sender_pending, (
         f"rejected nonce {gap_nonce} should not appear pending: {sender_pending}"
     )
@@ -430,6 +430,11 @@ def _pending_for(pool_pending, address):
     return pool_pending.get(address.lower()) or pool_pending.get(address)
 
 
+def _pending_nonces(w3, address):
+    """Sender's pending bucket keyed by nonce string, empty if absent."""
+    return _pending_for(_txpool_content(w3)["pending"], address) or {}
+
+
 def _assert_pool_dict_shape(result):
     assert "pending" in result and "queued" in result
     assert isinstance(result["pending"], dict)
@@ -548,6 +553,30 @@ def _assert_mined(w3, *txhashes):
         assert w3.eth.wait_for_transaction_receipt(h, timeout=30).status == 1
 
 
+def _send_priority_tx(w3, key, to, nonce, priority_fee, base_fee):
+    tx = {
+        "to": to,
+        "value": 1,
+        "maxFeePerGas": base_fee + priority_fee,
+        "maxPriorityFeePerGas": priority_fee,
+        "nonce": nonce,
+        "gas": 21000,
+    }
+    signed = sign_transaction(w3, tx, key)
+    return w3.eth.send_raw_transaction(signed.raw_transaction)
+
+
+def _flood_high_tip(w3, base_fee):
+    """Manufacture congestion: sequential high-tip txs from the validator that
+    outrank a minimal-tip tx on every proposal, so it is never selected."""
+    nonce = w3.eth.get_transaction_count(ADDRS["validator"])
+    tip = w3.to_wei(5, "gwei")
+    for i in range(20):
+        _send_priority_tx(
+            w3, KEYS["validator"], ADDRS["community"], nonce + i, tip, base_fee
+        )
+
+
 @pytest.fixture(scope="module")
 def cronos_app_low_capacity(tmp_path_factory):
     """App-mempool node with mempool.max-txs=5, so a test can reach
@@ -653,47 +682,110 @@ def test_mempool_ttl_eviction(cronos_app_low_ttl):
     mempool-ttl-num-blocks, rather than sitting in the pool forever.
 
     Congestion is manufactured, not incidental: the fixture caps block gas at
-    ~2 basic transfers, and a flood of higher-tip sequential txs from another
-    sender keeps outranking the victim's minimal-tip tx on every proposal, so
-    it's never picked up before RecheckTx's TTL sweep runs.
+    ~2 basic transfers, and _flood_high_tip keeps outranking the victim's
+    minimal-tip tx on every proposal, so it's never picked up before
+    RecheckTx's TTL sweep runs.
     """
     w3 = cronos_app_low_ttl.w3
     cli = cronos_app_low_ttl.cosmos_cli()
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
 
-    def send(key, to, nonce, priority_fee):
-        tx = {
-            "to": to,
-            "value": 1,
-            "maxFeePerGas": base_fee + priority_fee,
-            "maxPriorityFeePerGas": priority_fee,
-            "nonce": nonce,
-            "gas": 21000,
-        }
-        signed = sign_transaction(w3, tx, key)
-        return w3.eth.send_raw_transaction(signed.raw_transaction)
-
-    flood_nonce = w3.eth.get_transaction_count(ADDRS["validator"])
-    flood_tip = w3.to_wei(5, "gwei")
-    for i in range(20):
-        send(KEYS["validator"], ADDRS["community"], flood_nonce + i, flood_tip)
+    _flood_high_tip(w3, base_fee)
 
     # Minimal but nonzero tip: passes the fee-floor check, ranks far below
     # the flood's tip on priority ordering.
     victim_sender = ADDRS["community"]
     victim_nonce = w3.eth.get_transaction_count(victim_sender)
-    send(KEYS["community"], ADDRS["validator"], victim_nonce, 1)
+    _send_priority_tx(
+        w3, KEYS["community"], ADDRS["validator"], victim_nonce, 1, base_fee
+    )
     victim_key = str(victim_nonce)
 
-    def victim_pending():
-        return _pending_for(_txpool_content(w3)["pending"], victim_sender) or {}
-
-    if victim_key not in victim_pending():
+    if victim_key not in _pending_nonces(w3, victim_sender):
         pytest.xfail(
             "victim tx already reaped despite congestion setup (timing race; retry)"
         )
 
     wait_for_new_blocks(cli, TTL_NUM_BLOCKS + 2)
 
-    pending = victim_pending()
+    pending = _pending_nonces(w3, victim_sender)
     assert victim_key not in pending, f"victim tx should be TTL-evicted: {pending}"
+
+
+# ---------------------------------------------------------------------------
+# mempool.recheck=false fixture and test
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def cronos_app_no_recheck(tmp_path_factory):
+    """App-mempool node with mempool.recheck=false and a tiny block gas
+    limit, so a test can observe that a now-stale tx isn't re-validated
+    after an earlier tx from the same account commits."""
+    path = tmp_path_factory.mktemp("cronos-app-no-recheck")
+    yield from setup_custom_cronos(
+        path, 26640, Path(__file__).parent / "configs/mempool_app_no_recheck.jsonnet"
+    )
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_mempool_recheck_disabled_keeps_stale_tx_pending(cronos_app_no_recheck):
+    """With recheck=false, a tx that becomes unaffordable once an earlier tx
+    from the same account commits is not re-validated and evicted the way
+    Manager.RecheckTxs would with recheck=true — it just stays pending.
+
+    A throwaway account is funded for one transfer plus change, not two: tx A
+    (high tip) and tx B (nonce 1, minimal tip) both pass admission against the
+    pre-A balance, but B would fail if executed after A spends most of it. A's
+    high tip wins the single-tx-per-block cap ahead of the flood; B's minimal
+    tip stays outranked by the flood forever, so B is never selected and only a
+    recheck sweep could remove it from the pool.
+    """
+    w3 = cronos_app_no_recheck.w3
+    cli = cronos_app_no_recheck.cosmos_cli()
+    gas = 21000
+    nonce_b = 1
+    tip_a = w3.to_wei(10, "gwei")
+    tip_b = 1
+
+    throwaway = Account.create()
+    pre_fund_base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    cost_a = (pre_fund_base_fee + tip_a) * gas + 1
+    cost_b = (pre_fund_base_fee + tip_b) * gas + 1
+    # The `cost_b // 2` slack also covers tx A: base fee may tick up by the
+    # time the funding block commits, so A's real cost (priced against the
+    # fresh base fee below) can run slightly above this estimate.
+    fund_tx = {
+        "to": throwaway.address,
+        "value": cost_a + cost_b // 2,
+        "gas": gas,
+        "gasPrice": w3.eth.gas_price,
+    }
+    signed_fund = sign_transaction(w3, fund_tx, KEYS["validator"])
+    _assert_mined(w3, w3.eth.send_raw_transaction(signed_fund.raw_transaction))
+
+    # Re-read base fee after the funding block: a stale pre-funding value can
+    # already be under current base fee, which would reject the txs below as
+    # underpriced before they ever reach the pool.
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+
+    _flood_high_tip(w3, base_fee)
+
+    tx_a = _send_priority_tx(w3, throwaway.key, ADDRS["validator"], 0, tip_a, base_fee)
+    _send_priority_tx(
+        w3, throwaway.key, ADDRS["validator"], nonce_b, tip_b, base_fee
+    )
+    b_key = str(nonce_b)
+
+    if b_key not in _pending_nonces(w3, throwaway.address):
+        pytest.xfail(
+            "stale tx already reaped despite congestion setup (timing race; retry)"
+        )
+
+    _assert_mined(w3, tx_a)
+    wait_for_new_blocks(cli, 2)
+
+    pending = _pending_nonces(w3, throwaway.address)
+    assert b_key in pending, (
+        f"stale tx should remain pending with recheck=false: {pending}"
+    )
