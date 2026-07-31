@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -353,9 +354,6 @@ type App struct {
 	dummyCheckTx bool
 }
 
-// deriveTxCacheSize sizes the tx encode/decode cache to mempoolMaxTxs, the
-// operator-set bound on mempool capacity. Returns -1 (cache disabled) when
-// mempoolMaxTxs is unbounded or the mempool is disabled (<=0).
 func deriveTxCacheSize(mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
 		return mempoolMaxTxs
