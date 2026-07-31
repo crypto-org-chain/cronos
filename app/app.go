@@ -380,8 +380,11 @@ func New(
 	}
 	var activeDecoder sdk.TxDecoder
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
-	// txCacheSize=0 means derive from txsPerBlock and mempoolMaxTxs, see DeriveTxCacheSize.
-	txCacheSize := cmdcfg.DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs)
+	// txCacheSize=0 means derive from mempoolMaxTxs: cache off if unbounded/disabled.
+	txCacheSize := -1
+	if mempoolMaxTxs > 0 {
+		txCacheSize = mempoolMaxTxs
+	}
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {

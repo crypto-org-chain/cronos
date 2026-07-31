@@ -21,7 +21,7 @@ type CronosConfig struct {
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the sharded LRU tx encode/decode cache.
-	// 0 = derive via DeriveTxCacheSize at startup. -1 = disable.
+	// 0 = derive from mempool.max-txs at startup (cache off if unbounded/disabled). -1 = disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
@@ -51,14 +51,6 @@ const (
 	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
 	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
 	DefaultMempoolTxsPerBlock = 2900
-	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
-	// is unset and mempool.max-txs is unbounded: two full blocks, surviving one
-	// proposal + one gossip reap cycle without eviction pressure. When
-	// mempool.max-txs is bounded, DeriveTxCacheSize sizes to it instead.
-	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
-	// MaxDerivedTxCacheSize caps what DeriveTxCacheSize picks from mempool.max-txs,
-	// so an absurd max-txs can't size the caches past what the heap can hold.
-	MaxDerivedTxCacheSize = 2 << 20
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
@@ -93,32 +85,12 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:                0, // 0 = derive via DeriveTxCacheSize, -1 disables
+		TxCacheSize:                0, // 0 = derive from mempool.max-txs, -1 disables
 		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
 	}
-}
-
-// DeriveTxCacheSize computes the default tx-cache-size from mempool-txs-per-block
-// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool (cache sized to it alone,
-// capped), 0 unlimited (derive from txsPerBlock), <0 disabled.
-// txsPerBlock must be >= 0 (app.New validates this before calling).
-func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
-	if mempoolMaxTxs > 0 {
-		if mempoolMaxTxs > MaxDerivedTxCacheSize {
-			return MaxDerivedTxCacheSize
-		}
-		return mempoolMaxTxs
-	}
-	if txsPerBlock == 0 {
-		return -1
-	}
-	if txsPerBlock > MaxDerivedTxCacheSize/2 {
-		return MaxDerivedTxCacheSize
-	}
-	return 2 * txsPerBlock
 }
 
 func DefaultRocksDBConfig() RocksDBConfig {

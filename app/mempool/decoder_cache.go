@@ -27,6 +27,11 @@ var xxhashSeed = func() uint64 {
 // power of two so shardMask can replace modulo in shard selection.
 const shardCount = 16
 
+// defaultCacheSize is the tx encode/decode cache capacity fallback for callers
+// that construct a cache with size 0 directly (app.New always derives a size
+// from mempool.max-txs first, so this only matters for direct construction).
+const defaultCacheSize = 2 * cmdcfg.DefaultMempoolTxsPerBlock
+
 // shardMask maps a hash to a shard via h&shardMask (== h%shardCount for a
 // power-of-two shardCount).
 const shardMask = shardCount - 1
@@ -104,7 +109,7 @@ type DecodeCache struct {
 // payload cap maxTxBytes. Pass 0 for either to use defaults.
 func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
 	if size == 0 {
-		size = cmdcfg.DefaultTxCacheSize
+		size = defaultCacheSize
 	}
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
