@@ -23,7 +23,14 @@ import web3
 from web3 import Web3
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    KEYS,
+    deploy_contract,
+    sign_transaction,
+    wait_for_new_blocks,
+)
 
 pytestmark = pytest.mark.slow
 
@@ -521,6 +528,26 @@ def test_txpool_pending_tx_visible(cronos_app_mempool):
 # ---------------------------------------------------------------------------
 
 
+def _signed_transfer(w3, nonce):
+    tx = {
+        "to": ADDRS["community"],
+        "value": 1,
+        "nonce": nonce,
+        "gas": 21000,
+        "gasPrice": w3.eth.gas_price,
+    }
+    return sign_transaction(w3, tx).raw_transaction
+
+
+def _pending_count(w3):
+    return int(_txpool_status(w3)["pending"], 16)
+
+
+def _assert_mined(w3, *txhashes):
+    for h in txhashes:
+        assert w3.eth.wait_for_transaction_receipt(h, timeout=30).status == 1
+
+
 @pytest.fixture(scope="module")
 def cronos_app_low_capacity(tmp_path_factory):
     """App-mempool node with mempool.max-txs=5, so a test can reach
@@ -547,30 +574,126 @@ def test_txpool_saturation_rejects_and_reports(cronos_app_low_capacity):
     max_txs = 5  # must match mempool.max-txs in mempool_app_low_capacity.jsonnet
     nonce = w3.eth.get_transaction_count(sender)
 
-    def signed_transfer(tx_nonce):
-        tx = {
-            "to": ADDRS["community"],
-            "value": 1,
-            "nonce": tx_nonce,
-            "gas": 21000,
-            "gasPrice": w3.eth.gas_price,
-        }
-        return sign_transaction(w3, tx).raw_transaction
-
     txhashes = [
-        w3.eth.send_raw_transaction(signed_transfer(nonce + i)) for i in range(max_txs)
+        w3.eth.send_raw_transaction(_signed_transfer(w3, nonce + i))
+        for i in range(max_txs)
     ]
 
-    pending = int(_txpool_status(w3)["pending"], 16)
-    if pending < max_txs:
+    if _pending_count(w3) < max_txs:
         pytest.xfail(
             "pool already drained by a reap before status query (timing race; retry)"
         )
 
     with pytest.raises(Exception) as exc_info:
-        w3.eth.send_raw_transaction(signed_transfer(nonce + max_txs))
+        w3.eth.send_raw_transaction(_signed_transfer(w3, nonce + max_txs))
     assert "mempool is full" in str(exc_info.value).lower()
 
-    for h in txhashes:
-        receipt = w3.eth.wait_for_transaction_receipt(h, timeout=30)
-        assert receipt.status == 1
+    _assert_mined(w3, *txhashes)
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_txpool_saturation_sustained_backpressure(cronos_app_low_capacity):
+    """Overflow at max-txs is CodeTypeRetry ("try again"), not a permanent
+    rejection: across several blocks of continuous refill the pool stays
+    capped and keeps rejecting overflow, then drains once refill stops —
+    proving it recovers instead of wedging on a stale entry.
+
+    Each round tops the pool back up to capacity before checking it, so a reap
+    that frees a slot just gets refilled instead of causing a false read. The
+    residual race is the same class as in
+    test_txpool_saturation_rejects_and_reports, covered by flaky-retry.
+    """
+    w3 = cronos_app_low_capacity.w3
+    cli = cronos_app_low_capacity.cosmos_cli()
+    max_txs = 5  # must match mempool.max-txs in mempool_app_low_capacity.jsonnet
+    nonce = w3.eth.get_transaction_count(ADDRS["validator"])
+
+    fill_hashes = []
+    for _ in range(4):
+        while _pending_count(w3) < max_txs:
+            fill_hashes.append(w3.eth.send_raw_transaction(_signed_transfer(w3, nonce)))
+            nonce += 1
+
+        with pytest.raises(Exception) as exc_info:
+            w3.eth.send_raw_transaction(_signed_transfer(w3, nonce))
+        assert "mempool is full" in str(exc_info.value).lower()
+
+        wait_for_new_blocks(cli, 1)
+
+    # Refill pressure stops here — the pool must drain, and the nonce that
+    # kept getting bounced above must eventually be admitted and mined.
+    _assert_mined(w3, *fill_hashes)
+
+    tail_hash = w3.eth.send_raw_transaction(_signed_transfer(w3, nonce))
+    _assert_mined(w3, tail_hash)
+
+
+# ---------------------------------------------------------------------------
+# mempool-ttl-num-blocks eviction fixture and test
+# ---------------------------------------------------------------------------
+
+
+# must match cronos.mempool-ttl-num-blocks in mempool_app_low_ttl.jsonnet
+TTL_NUM_BLOCKS = 2
+
+
+@pytest.fixture(scope="module")
+def cronos_app_low_ttl(tmp_path_factory):
+    """App-mempool node with mempool-ttl-num-blocks=2 and a tiny block gas
+    limit, so a starved tx can be evicted within a short test run."""
+    path = tmp_path_factory.mktemp("cronos-app-low-ttl")
+    yield from setup_custom_cronos(
+        path, 26620, Path(__file__).parent / "configs/mempool_app_low_ttl.jsonnet"
+    )
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_mempool_ttl_eviction(cronos_app_low_ttl):
+    """A tx that's never selected for a block is evicted once its age exceeds
+    mempool-ttl-num-blocks, rather than sitting in the pool forever.
+
+    Congestion is manufactured, not incidental: the fixture caps block gas at
+    ~2 basic transfers, and a flood of higher-tip sequential txs from another
+    sender keeps outranking the victim's minimal-tip tx on every proposal, so
+    it's never picked up before RecheckTx's TTL sweep runs.
+    """
+    w3 = cronos_app_low_ttl.w3
+    cli = cronos_app_low_ttl.cosmos_cli()
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+
+    def send(key, to, nonce, priority_fee):
+        tx = {
+            "to": to,
+            "value": 1,
+            "maxFeePerGas": base_fee + priority_fee,
+            "maxPriorityFeePerGas": priority_fee,
+            "nonce": nonce,
+            "gas": 21000,
+        }
+        signed = sign_transaction(w3, tx, key)
+        return w3.eth.send_raw_transaction(signed.raw_transaction)
+
+    flood_nonce = w3.eth.get_transaction_count(ADDRS["validator"])
+    flood_tip = w3.to_wei(5, "gwei")
+    for i in range(20):
+        send(KEYS["validator"], ADDRS["community"], flood_nonce + i, flood_tip)
+
+    # Minimal but nonzero tip: passes the fee-floor check, ranks far below
+    # the flood's tip on priority ordering.
+    victim_sender = ADDRS["community"]
+    victim_nonce = w3.eth.get_transaction_count(victim_sender)
+    send(KEYS["community"], ADDRS["validator"], victim_nonce, 1)
+    victim_key = str(victim_nonce)
+
+    def victim_pending():
+        return _pending_for(_txpool_content(w3)["pending"], victim_sender) or {}
+
+    if victim_key not in victim_pending():
+        pytest.xfail(
+            "victim tx already reaped despite congestion setup (timing race; retry)"
+        )
+
+    wait_for_new_blocks(cli, TTL_NUM_BLOCKS + 2)
+
+    pending = victim_pending()
+    assert victim_key not in pending, f"victim tx should be TTL-evicted: {pending}"
