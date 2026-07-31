@@ -21,19 +21,19 @@ type CronosConfig struct {
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the sharded LRU tx encode/decode cache.
-	// 0 = derive from MempoolTxsPerBlock at startup (2×, or -1 when unlimited). -1 = disable.
-	TxCacheSize int `mapstructure:"tx-cache-size"`
+	// 0 = derive from MaxTxPerBlock at startup (2×, or -1 when unlimited). -1 = disable.
+	MempoolTxCacheSize int `mapstructure:"tx-cache-size"`
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
-	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
+	MempoolTxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
-	// MempoolTxsPerBlock is the shared budget used as both the gossip-reap cap
+	// MaxTxPerBlock is the shared budget used as both the gossip-reap cap
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
-	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
+	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
 	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
 	// (by arrival height), draining proposal-skipped txs whose sender never commits.
 	// 0 disables.
@@ -94,10 +94,10 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:                0, // 0 = derive: 2×MempoolTxsPerBlock at startup, -1 when unlimited
-		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
+		MempoolTxCacheSize:         0, // 0 = derive: 2×MaxTxPerBlock at startup, -1 when unlimited
+		MempoolTxCacheMaxTxBytes:   DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
+		MaxTxPerBlock:              DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
 		MempoolPendingCacheTTL:     DefaultMempoolPendingCacheTTL,
 	}
