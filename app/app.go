@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -355,8 +356,6 @@ type App struct {
 	dummyCheckTx bool
 }
 
-// parseBoolFlag strictly parses an AppOptions value as a boolean, rejecting
-// types cast.ToBoolE would silently coerce (e.g. numbers, where 2 -> true).
 func parseBoolFlag(flag string, v interface{}) bool {
 	switch v.(type) {
 	case bool, string:
@@ -365,7 +364,6 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	}
 	parsed, err := cast.ToBoolE(v)
 	if err != nil {
-		// v is a string here (bool never errors, other types panicked above).
 		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
 	}
 	return parsed
