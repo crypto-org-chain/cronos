@@ -13,16 +13,16 @@ func TestDeriveTxCacheSize(t *testing.T) {
 		expected      int
 	}{
 		{
-			name:          "bounded pool: max-txs floor plus one in-flight block",
+			name:          "bounded pool: sized to max-txs alone",
 			txsPerBlock:   1000,
 			mempoolMaxTxs: 5000,
-			expected:      6000,
+			expected:      5000,
 		},
 		{
-			name:          "bounded pool, txsPerBlock > max-txs",
+			name:          "bounded pool, txsPerBlock > max-txs still ignored",
 			txsPerBlock:   2900,
 			mempoolMaxTxs: 5000,
-			expected:      7900,
+			expected:      5000,
 		},
 		{
 			name:          "unlimited txsPerBlock, bounded max-txs",
@@ -49,7 +49,7 @@ func TestDeriveTxCacheSize(t *testing.T) {
 			expected:      -1,
 		},
 		{
-			name:          "overflow guard: mempoolMaxTxs+txsPerBlock wraps",
+			name:          "mempoolMaxTxs > cap, clamped",
 			txsPerBlock:   1000,
 			mempoolMaxTxs: math.MaxInt,
 			expected:      MaxDerivedTxCacheSize,
@@ -67,10 +67,10 @@ func TestDeriveTxCacheSize(t *testing.T) {
 			expected:      MaxDerivedTxCacheSize,
 		},
 		{
-			name:          "sum exactly at cap, no clamp",
+			name:          "just under cap, no clamp",
 			txsPerBlock:   1,
 			mempoolMaxTxs: MaxDerivedTxCacheSize - 1,
-			expected:      MaxDerivedTxCacheSize,
+			expected:      MaxDerivedTxCacheSize - 1,
 		},
 		{
 			name:          "default config: unlimited max-txs, default txsPerBlock",

@@ -58,7 +58,7 @@ const (
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
 	// MaxDerivedTxCacheSize caps what DeriveTxCacheSize picks from mempool.max-txs,
 	// so an absurd max-txs can't size the caches past what the heap can hold.
-	MaxDerivedTxCacheSize = 1 << 20
+	MaxDerivedTxCacheSize = 2 << 20
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
@@ -102,15 +102,15 @@ func DefaultCronosConfig() CronosConfig {
 }
 
 // DeriveTxCacheSize computes the default tx-cache-size from mempool-txs-per-block
-// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool, 0 unlimited, <0 disabled.
+// and mempool.max-txs. mempoolMaxTxs: >0 bounded pool (cache sized to it alone,
+// capped), 0 unlimited (derive from txsPerBlock), <0 disabled.
 // txsPerBlock must be >= 0 (app.New validates this before calling).
 func DeriveTxCacheSize(txsPerBlock, mempoolMaxTxs int) int {
 	if mempoolMaxTxs > 0 {
-		// Compared as a subtraction so the sum is never formed above MaxInt.
-		if mempoolMaxTxs > MaxDerivedTxCacheSize-txsPerBlock {
+		if mempoolMaxTxs > MaxDerivedTxCacheSize {
 			return MaxDerivedTxCacheSize
 		}
-		return mempoolMaxTxs + txsPerBlock
+		return mempoolMaxTxs
 	}
 	if txsPerBlock == 0 {
 		return -1

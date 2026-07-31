@@ -15,8 +15,8 @@ disable-tx-replacement = {{ .Cronos.DisableTxReplacement }}
 disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 
 # Capacity of the sharded LRU tx encode/decode cache.
-# -1 = disabled, 0 = derived from mempool-txs-per-block and mempool.max-txs,
-# or a positive integer capped at 1048576.
+# -1 = disabled, 0 = derived from mempool.max-txs (capped at 2097152) or,
+# if unbounded, from mempool-txs-per-block, or a positive integer.
 tx-cache-size = {{ .Cronos.TxCacheSize }}
 
 # Per-entry raw payload byte cap for the tx encode/decode cache. Bigger txs are
