@@ -10,6 +10,12 @@ std.manifestYamlDoc({
       environment: {
         JOB_COMPLETION_INDEX: i,
       },
+      ulimits: {
+        nofile: {
+          soft: 65536,
+          hard: 65536,
+        },
+      },
     }
     for i in std.range(0, std.extVar('nodes') - 1)
   },
