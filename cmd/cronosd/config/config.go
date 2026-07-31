@@ -39,15 +39,15 @@ type CronosConfig struct {
 
 const (
 	DefaultTxCacheMaxTxBytes = 65536
-	// Re-gossip suppression window used when MempoolGossipTTL is unset.
+	// DefaultMempoolGossipTTL is the re-gossip suppression window used when MempoolGossipTTL is unset.
 	DefaultMempoolGossipTTL = 15 * time.Second
-	// Tx-per-block budget used when MaxTxPerBlock is unset.
+	// DefaultMempoolTxsPerBlock is the tx-per-block budget used when MaxTxPerBlock is unset.
 	DefaultMempoolTxsPerBlock = 2900
-	// Tx encode/decode cache capacity used when MempoolTxCacheSize is unset (0).
+	// DefaultTxCacheSize is the tx encode/decode cache capacity used when MempoolTxCacheSize is unset (0).
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
-	// Block-age eviction threshold used when MempoolTxTTL is true.
+	// DefaultMempoolTTLNumBlocks is the block-age eviction threshold used when MempoolTxTTL is true.
 	DefaultMempoolTTLNumBlocks = 120
-	// PendingTxs() cache TTL used when RPCPendingTxCache is true.
+	// DefaultMempoolPendingCacheTTL is the PendingTxs() cache TTL used when RPCPendingTxCache is true.
 	DefaultMempoolPendingCacheTTL = 100 * time.Millisecond
 )
 
