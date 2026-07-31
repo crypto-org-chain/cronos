@@ -5,10 +5,13 @@ from web3 import Web3, exceptions
 
 from .network import setup_custom_cronos
 from .utils import (
+    ACCOUNTS,
     ADDRS,
     CONTRACTS,
     KEYS,
     deploy_contract,
+    derive_new_account,
+    fund_acc,
     get_account_nonce,
     replace_transaction,
     send_transaction,
@@ -96,6 +99,73 @@ def test_blocked_to_contract_address(cronos_mempool):
     with pytest.raises(exceptions.Web3RPCError) as exc:
         _ = w3.eth.send_raw_transaction(tx1_signed.raw_transaction)
     assert "destination address is blocked" in str(exc)
+
+
+def _sign_eip7702_tx(w3, sender, authority, target_address):
+    """Build a type-4 tx sent by `sender`, with one authorization entry
+    delegating `authority`'s account to `target_address`.
+    """
+    nonce = w3.eth.get_transaction_count(sender.address)
+    auth_nonce = w3.eth.get_transaction_count(authority.address)
+    if authority.address == sender.address:
+        auth_nonce += 1
+    auth = {
+        "chainId": w3.eth.chain_id,
+        "address": target_address,
+        "nonce": auth_nonce,
+    }
+    signed_auth = authority.sign_authorization(auth)
+    return sender.sign_transaction(
+        {
+            "chainId": w3.eth.chain_id,
+            "type": 4,
+            "to": sender.address,
+            "gas": 50000,
+            "maxFeePerGas": 10000000000000,
+            "maxPriorityFeePerGas": 10000,
+            "nonce": nonce,
+            "authorizationList": [signed_auth],
+            "data": b"",
+        }
+    )
+
+
+def test_blocked_eip7702_authorization_authority(cronos_mempool):
+    """An EIP-7702 authorization signed by a blocked account must be
+    rejected at admission, even when the outer tx is sent by an
+    unblocked account.
+
+    BlockAddressesDecorator walks SetCodeAuthorizations() and checks the
+    recovered authority address against the blocklist, separately from
+    the outer tx's own signer check.
+    """
+    w3 = cronos_mempool.w3
+    sender = derive_new_account(n=200)
+    fund_acc(w3, sender)
+    blocked_authority = ACCOUNTS["signer1"]
+
+    signed_tx = _sign_eip7702_tx(w3, sender, blocked_authority, ADDRS["validator"])
+    with pytest.raises(exceptions.Web3RPCError) as exc:
+        w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    assert "signer is blocked" in str(exc)
+
+
+def test_blocked_eip7702_authorization_target(cronos_mempool):
+    """An EIP-7702 authorization delegating to a blocked target address
+    must be rejected at admission, distinct from the authority check
+    above.
+
+    BlockAddressesDecorator also checks auth.Address (the delegation
+    target) against the blocklist for each authorization entry.
+    """
+    w3 = cronos_mempool.w3
+    sender = derive_new_account(n=201)
+    fund_acc(w3, sender)
+
+    signed_tx = _sign_eip7702_tx(w3, sender, sender, ADDRS["signer1"])
+    with pytest.raises(exceptions.Web3RPCError) as exc:
+        w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    assert "authorisation address is blocked" in str(exc)
 
 
 def test_mempool_nonce(cronos_mempool):
