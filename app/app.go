@@ -354,6 +354,16 @@ type App struct {
 	dummyCheckTx bool
 }
 
+// deriveTxCacheSize sizes the tx encode/decode cache to mempoolMaxTxs, the
+// operator-set bound on mempool capacity. Returns -1 (cache disabled) when
+// mempoolMaxTxs is unbounded or the mempool is disabled (<=0).
+func deriveTxCacheSize(mempoolMaxTxs int) int {
+	if mempoolMaxTxs > 0 {
+		return mempoolMaxTxs
+	}
+	return -1
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -380,11 +390,7 @@ func New(
 	}
 	var activeDecoder sdk.TxDecoder
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
-	// txCacheSize=0 means derive from mempoolMaxTxs: cache off if unbounded/disabled.
-	txCacheSize := -1
-	if mempoolMaxTxs > 0 {
-		txCacheSize = mempoolMaxTxs
-	}
+	txCacheSize := deriveTxCacheSize(mempoolMaxTxs)
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
