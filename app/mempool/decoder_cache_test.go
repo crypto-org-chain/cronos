@@ -43,7 +43,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	raw := makeRaw(42)
@@ -76,7 +76,7 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	bad := []byte{1, 2} // too short → error from base
@@ -94,7 +94,7 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	const n = 10
@@ -117,7 +117,7 @@ func TestDecodeCache_DifferentPayloads(t *testing.T) {
 }
 
 func TestDecodeCache_LRUEviction(t *testing.T) {
-	const shardCacheSize = defaultCacheSize / shardCount
+	const shardCacheSize = cmdcfg.DefaultMempoolTxsPerBlock / shardCount
 	s := &cacheShard{cap: shardCacheSize, items: make(map[uint64]*list.Element, shardCacheSize)}
 
 	// Fill shard to capacity with keys 0..shardCacheSize-1.
@@ -158,7 +158,7 @@ func countEntries(c *DecodeCache) int {
 
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
-	const size = defaultCacheSize
+	const size = cmdcfg.DefaultMempoolTxsPerBlock
 	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
@@ -181,7 +181,7 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	const goroutines = 16
@@ -220,7 +220,7 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
 
 	big := make([]byte, cmdcfg.DefaultTxCacheMaxTxBytes+1)
@@ -254,7 +254,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := NewDecodeCache(defaultCacheSize, customMax)
+	c := NewDecodeCache(cmdcfg.DefaultMempoolTxsPerBlock, customMax)
 	dec := NewCachingDecoder(base, c)
 
 	// Above cap: each call must miss.
@@ -288,7 +288,7 @@ func TestDecodeCache_DefaultsOnZero(t *testing.T) {
 	if c.maxTxBytes != cmdcfg.DefaultTxCacheMaxTxBytes {
 		t.Fatalf("maxTxBytes = %d, want default %d", c.maxTxBytes, cmdcfg.DefaultTxCacheMaxTxBytes)
 	}
-	wantShardCap := (defaultCacheSize + shardCount - 1) / shardCount
+	wantShardCap := (cmdcfg.DefaultMempoolTxsPerBlock + shardCount - 1) / shardCount
 	if got := c.shards[0].cap; got != wantShardCap {
 		t.Fatalf("shard cap = %d, want %d (default size / shardCount)", got, wantShardCap)
 	}
