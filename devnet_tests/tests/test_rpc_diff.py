@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from devnet_tests.conftest import Devnet, Node
+from devnet_tests.devnet import Devnet, Node
 from devnet_tests.rpc_diff import run_rpc_diff
 
 

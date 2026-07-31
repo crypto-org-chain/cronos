@@ -48,7 +48,7 @@ def _base_tx(w3, account, **overrides) -> dict:
     # Only look the nonce up when the caller didn't supply one, so probes that
     # pick their own nonce don't pay for a pointless RPC round-trip.
     if "nonce" not in tx:
-        tx["nonce"] = w3.eth.get_transaction_count(account.address)
+        tx["nonce"] = w3.eth.get_transaction_count(account.address, "pending")
     return tx
 
 

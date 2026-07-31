@@ -2,7 +2,8 @@ from types import SimpleNamespace
 
 from devnet_tests.security_probes import BridgeRejectionResult, send_unauthorized_cro_bridge_call
 
-ADDRESS = "0x" + "1" * 40
+from _web3_fakes import ADDRESS, FakeBuildable as _FakeBuildable
+
 DEPLOYED_ADDRESS = "0x" + "2" * 40
 
 
@@ -14,14 +15,6 @@ class _FakeAccount:
     def sign_transaction(self, tx):
         self.signed.append(dict(tx))
         return SimpleNamespace(raw_transaction=b"raw")
-
-
-class _FakeBuildable:
-    def __init__(self, base_tx):
-        self._base_tx = base_tx
-
-    def build_transaction(self, overrides):
-        return {**self._base_tx, **overrides}
 
 
 class _FakeContract:
@@ -51,15 +44,21 @@ def _fake_w3(
     wait_for_transaction_receipt=None,
     start_nonce=5,
 ):
+    nonce_lookups = []
+
+    def get_transaction_count(addr, block="latest"):
+        nonce_lookups.append((addr, block))
+        return start_nonce
+
     eth = SimpleNamespace(
         chain_id=777,
         gas_price=1000,
-        get_transaction_count=lambda addr: start_nonce,
+        get_transaction_count=get_transaction_count,
         send_raw_transaction=send_raw_transaction,
         wait_for_transaction_receipt=wait_for_transaction_receipt or _receipts(1, 1),
         contract=lambda **kwargs: _FakeContract(address=kwargs.get("address")),
     )
-    return SimpleNamespace(eth=eth)
+    return SimpleNamespace(eth=eth, nonce_lookups=nonce_lookups)
 
 
 def test_unauthorized_call_reverted_is_reported_as_rejected():
@@ -67,6 +66,7 @@ def test_unauthorized_call_reverted_is_reported_as_rejected():
     w3 = _fake_w3(wait_for_transaction_receipt=_receipts(1, 0))
     result = send_unauthorized_cro_bridge_call(w3, account)
     assert result == BridgeRejectionResult(rejected=True)
+    assert w3.nonce_lookups == [(ADDRESS, "pending")]
 
 
 def test_unexpectedly_successful_call_is_reported_as_not_rejected():
@@ -118,10 +118,8 @@ def test_deploy_and_call_use_consecutive_nonces():
 
 
 def test_call_sets_an_explicit_gas_value():
-    # A missing "gas" key makes real web3.py estimate gas by simulating the
-    # call, which raises on a revert before the tx is ever sent — this guards
-    # against reintroducing that (see security_probes.py's comment on the tx
-    # dict for send_cro_to_crypto_org).
+    # Guards against reintroducing an implicit-gas tx, which would raise on
+    # revert before send instead of returning a receipt.
     account = _FakeAccount()
     w3 = _fake_w3()
     send_unauthorized_cro_bridge_call(w3, account)

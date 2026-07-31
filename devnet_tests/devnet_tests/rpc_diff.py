@@ -4,7 +4,7 @@ from pathlib import Path
 
 import click
 
-from .conftest import Devnet, load_devnet
+from .devnet import Devnet, load_devnet
 from .rpc_methods import METHODS, RpcMethod, build_context, run_method
 
 ZERO_ADDRESS = "0x" + "0" * 40

@@ -1,10 +1,6 @@
-from dataclasses import dataclass
-
 import pytest
-from eth_account import Account
-from web3 import Web3
 
-from .config import funded_key, load_config
+from .devnet import load_devnet
 
 
 def pytest_configure(config):
@@ -19,28 +15,6 @@ def pytest_addoption(parser):
         default=None,
         help="path to a YAML config listing the devnet node(s) to test against",
     )
-
-
-@dataclass
-class Node:
-    name: str
-    w3: Web3
-    rpc: str
-
-
-@dataclass
-class Devnet:
-    nodes: list[Node]
-    funded_account: Account | None
-
-
-def load_devnet(config_path: str) -> Devnet:
-    cfg = load_config(config_path)
-    nodes = [
-        Node(n.name, Web3(Web3.HTTPProvider(n.json_rpc)), n.rpc) for n in cfg.nodes
-    ]
-    key = funded_key()
-    return Devnet(nodes, Account.from_key(key) if key else None)
 
 
 @pytest.fixture(scope="session")

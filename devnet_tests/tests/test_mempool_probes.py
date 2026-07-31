@@ -19,14 +19,20 @@ def _fake_w3(send_raw_transaction=lambda raw: None, make_request=None, start_non
     def default_make_request(method, params):
         raise AssertionError(f"unexpected RPC call: {method}")
 
+    nonce_lookups = []
+
+    def get_transaction_count(addr, block="latest"):
+        nonce_lookups.append((addr, block))
+        return start_nonce
+
     eth = SimpleNamespace(
         chain_id=777,
         gas_price=1000,
-        get_transaction_count=lambda addr: start_nonce,
+        get_transaction_count=get_transaction_count,
         send_raw_transaction=send_raw_transaction,
     )
     provider = SimpleNamespace(make_request=make_request or default_make_request)
-    return SimpleNamespace(eth=eth, provider=provider)
+    return SimpleNamespace(eth=eth, provider=provider, nonce_lookups=nonce_lookups)
 
 
 def _status_response(pending=0, queued=0):
@@ -48,6 +54,7 @@ def test_send_nonce_gap_sends_start_then_start_plus_two():
     send_nonce_gap(w3, account)
     nonces = [tx["nonce"] for tx in account.calls]
     assert nonces == [5, 7]
+    assert w3.nonce_lookups == [(ADDRESS, "pending")]
 
 
 def test_send_nonce_gap_reports_rejection_of_the_gap_tx():
@@ -110,6 +117,7 @@ def test_saturate_pool_sends_consecutive_nonces_from_current():
     saturate_pool(w3, account, batch_size=3)
     nonces = [tx["nonce"] for tx in account.calls]
     assert nonces == [10, 11, 12]
+    assert w3.nonce_lookups == [(ADDRESS, "pending")]
 
 
 def test_saturate_pool_reports_status_query_failure_without_raising():

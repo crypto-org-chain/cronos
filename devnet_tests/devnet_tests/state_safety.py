@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 import requests
 
-from .conftest import Node
+from .devnet import Node
 
 
 def app_hash_at(node: Node, height: int) -> str:

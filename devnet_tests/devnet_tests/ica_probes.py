@@ -39,11 +39,10 @@ def register_ica_with_unknown_connection(w3, account) -> IcaRejectionResult:
             {
                 "chainId": w3.eth.chain_id,
                 "from": account.address,
-                "nonce": w3.eth.get_transaction_count(account.address),
+                "nonce": w3.eth.get_transaction_count(account.address, "pending"),
                 "gasPrice": w3.eth.gas_price,
-                # An explicit gas value skips web3.py's implicit eth_estimateGas
-                # call, which raises on a reverting call before the tx is ever
-                # sent — we need the tx mined so we can read receipt.status.
+                # Explicit gas skips web3.py's implicit eth_estimateGas, which
+                # would raise on the revert before we can read receipt.status.
                 "gas": 500_000,
             }
         )

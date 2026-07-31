@@ -48,7 +48,7 @@ def send_nonce_gap(w3, account) -> NonceGapResult:
     a queued pool at all (ethermint's txpool API hard-codes queued as
     empty/zero), so there's no RPC-observable "queued" state to check."""
     gas_price = w3.eth.gas_price
-    start = w3.eth.get_transaction_count(account.address)
+    start = w3.eth.get_transaction_count(account.address, "pending")
     try:
         _sign_and_send(w3, account, start, gas_price)
     except Exception as exc:  # noqa: BLE001
@@ -67,7 +67,7 @@ def saturate_pool(w3, account, batch_size: int) -> SaturationResult:
     The caller decides what "saturated" means for this devnet's actual pool
     size; this probe only reports counts, it doesn't assert a threshold."""
     gas_price = w3.eth.gas_price
-    start = w3.eth.get_transaction_count(account.address)
+    start = w3.eth.get_transaction_count(account.address, "pending")
     accepted = 0
     rejected = 0
     sample_rejection = None

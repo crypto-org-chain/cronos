@@ -26,8 +26,8 @@ class _FakeAccount:
 def _fake_w3(send_raw_transaction=lambda raw: None, base_fee=1000):
     nonce_lookups = []
 
-    def get_transaction_count(addr):
-        nonce_lookups.append(addr)
+    def get_transaction_count(addr, block="latest"):
+        nonce_lookups.append((addr, block))
         return 5
 
     eth = SimpleNamespace(
@@ -42,8 +42,10 @@ def _fake_w3(send_raw_transaction=lambda raw: None, base_fee=1000):
 
 def test_submit_reports_accepted_on_success():
     account = _FakeAccount()
-    result = send_over_max_tx_gas(_fake_w3(), account)
+    w3 = _fake_w3()
+    result = send_over_max_tx_gas(w3, account)
     assert result == ProbeResult(accepted=True, error=None)
+    assert w3.nonce_lookups == [(ADDRESS, "pending")]
 
 
 def test_submit_captures_exception_as_error():

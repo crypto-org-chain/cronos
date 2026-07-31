@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from devnet_tests.conftest import Node
+from devnet_tests.devnet import Node
 from devnet_tests.state_safety import check_app_hash_agreement, historical_query_soak
 
 
