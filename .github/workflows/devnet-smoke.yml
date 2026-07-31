@@ -49,7 +49,8 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install pystarport and poetry
-        run: pip install pystarport==0.2.5 poetry
+        run: |
+          pip install "git+https://github.com/crypto-com/pystarport.git@a7dac7f485b9acef30540d803b53fadaf1a1850a" poetry
       - name: Run one-validator devnet smoke test
         run: ./scripts/run-devnet-smoke.sh
       - name: Tar devnet data dir
@@ -61,3 +62,4 @@ jobs:
           name: devnet-smoke-data
           path: devnet-smoke-data.tar.gz
           if-no-files-found: ignore
+          retention-days: 7
