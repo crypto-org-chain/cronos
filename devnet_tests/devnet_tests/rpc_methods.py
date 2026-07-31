@@ -111,6 +111,11 @@ METHODS = [
     ),
     RpcMethod("eth_getTransactionReceipt", "receipts", lambda ctx: [ctx.tx_hash]),
     RpcMethod(
+        "debug_traceTransaction",
+        "traces",
+        lambda ctx: [ctx.tx_hash, {"tracer": "callTracer"}],
+    ),
+    RpcMethod(
         "eth_getLogs",
         "logs",
         lambda ctx: [{"fromBlock": hex(ctx.height), "toBlock": hex(ctx.height)}],
