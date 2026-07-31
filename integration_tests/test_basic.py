@@ -15,6 +15,7 @@ from web3 import Web3, exceptions
 
 from .cosmoscli import CosmosCLI, module_address
 from .network import Geth, setup_custom_cronos
+from .upgrade_rehearsal import assert_no_divergence
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -453,6 +454,21 @@ def test_export_genesis_equality(cronos):
 
     for i, exported in enumerate(exports[1:], start=1):
         assert exported == exports[0], f"node{i} exported genesis diverges"
+
+
+def test_app_hash_agreement(cronos):
+    """
+    All validators must agree on app_hash at every height - any divergence
+    means non-deterministic execution across nodes. Runs during ordinary
+    block production, independent of the upgrade-rehearsal check which only
+    watches around an upgrade boundary.
+    """
+    n = len(cronos.config["validators"])
+    rpc_ports = [ports.rpc_port(cronos.base_port(i)) for i in range(n)]
+    cli0 = cronos.cosmos_cli(0)
+    start = cli0.block_height()
+    end = wait_for_new_blocks(cli0, 5)
+    assert_no_divergence(rpc_ports, start, end)
 
 
 def test_historical_query_fd_soak(cronos):
