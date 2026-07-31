@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -452,6 +453,36 @@ def test_export_genesis_equality(cronos):
 
     for i, exported in enumerate(exports[1:], start=1):
         assert exported == exports[0], f"node{i} exported genesis diverges"
+
+
+def test_historical_query_fd_soak(cronos):
+    """
+    Historical queries (height < current) open a fresh memiavl instance outside
+    the version cache, so the caller must close its fd/mmap. Regression guard for
+    the cronos-store memiavl fd leak (cosmos-sdk #1816; Go-level equivalent in
+    app/query_close_test.go) - defeat the cache with many distinct heights and
+    confirm the open fd count doesn't grow per query.
+    """
+    if not sys.platform.startswith("linux"):
+        pytest.skip("/proc fd listing not available on this platform")
+
+    pid = int(cronos.supervisorctl("pid", "cronos_777-1-node0").strip())
+    fd_dir = Path(f"/proc/{pid}/fd")
+
+    def open_fds():
+        return len(list(fd_dir.iterdir()))
+
+    cli0 = cronos.cosmos_cli(0)
+    num_queries = 30
+    height = wait_for_new_blocks(cli0, num_queries + 5)
+
+    before = open_fds()
+    for h in range(height - num_queries, height):
+        cli0.balance(ADDRS["validator"], height=h)
+    after = open_fds()
+
+    # slack for transient peer/RPC connection churn during the loop
+    assert after <= before + 10, f"fd count grew {before} -> {after}"
 
 
 def test_transaction(cronos):
