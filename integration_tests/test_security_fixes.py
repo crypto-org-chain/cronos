@@ -30,11 +30,9 @@ def ibc(tmp_path_factory):
     network = next(gen)
     try:
         ibc_transfer(network)
-    except Exception:
+        yield network
+    finally:
         next(gen, None)
-        raise
-    yield network
-    next(gen, None)
 
 
 def test_cro_bridge_contract_unauthorized_rejected(ibc):

@@ -36,9 +36,7 @@ def test_eip7825_gas_cap_rejected_at_admission(cronos):
     """A tx with gas limit above the EIP-7825 cap (1<<24) is rejected at
     eth_sendRawTransaction, not merely wasted once included in a block.
 
-    keeper.CheckMaxTxGas is called from ante's CheckEthGasConsume, which
-    runs for both CheckTx and DeliverTx via the shared ante handler, so
-    the rejection happens before the tx ever reaches the mempool.
+    keeper.CheckMaxTxGas runs inside ante's CheckEthGasConsume.
     """
     w3: Web3 = cronos.w3
     tx = {
@@ -60,9 +58,7 @@ def test_eip7623_floor_data_gas_rejected_at_admission(cronos):
     the same admission-time path as the EIP-7825 cap above.
 
     keeper.VerifyFee runs the FloorDataGas check unconditionally
-    whenever Prague rules are active, from within ante's
-    CheckEthGasConsume for both CheckTx and DeliverTx, so the tx never
-    reaches the mempool.
+    whenever Prague rules are active, inside ante's CheckEthGasConsume.
 
     1000 non-zero calldata bytes: intrinsic gas is 21000 + 1000*16 =
     37000, but the floor is 21000 + 1000*4*10 = 61000 (EIP-7623 charges
@@ -91,9 +87,6 @@ def test_eip1559_fee_cap_balance_check_rejected_at_admission(cronos):
     the EIP-1559 upfront cost check (gasLimit * feeCap + value) is what
     ante.CheckSenderBalance enforces, not the effective gas price the
     tx would actually pay.
-
-    keeper.CheckSenderBalance runs inside CheckEthGasConsume for both
-    CheckTx and DeliverTx, so this fails before touching the mempool.
     """
     w3: Web3 = cronos.w3
     gas_limit = 21000

@@ -8,8 +8,11 @@ from .upgrade_rehearsal import LoadGenerator, assert_no_divergence
 REQUESTS_GET = "integration_tests.upgrade_rehearsal.requests.get"
 
 
-def _wait_for_results(gen, n):
+def _wait_for_results(gen, n, timeout=5):
+    deadline = time.monotonic() + timeout
     while len(gen.results) < n:
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"LoadGenerator only produced {len(gen.results)}/{n} results")
         time.sleep(0.01)
 
 
@@ -66,3 +69,14 @@ def test_assert_no_divergence_ignores_a_height_only_one_node_answered():
 
     with mock.patch(REQUESTS_GET, side_effect=get):
         assert_no_divergence([26657, 26667], start=1, end=1)
+
+
+def test_assert_no_divergence_raises_when_a_node_fails_every_height():
+    def get(url, timeout):
+        if "26667" in url:
+            raise ConnectionError("node unreachable")
+        return _fake_response("same")
+
+    with mock.patch(REQUESTS_GET, side_effect=get):
+        with pytest.raises(AssertionError, match="unreachable"):
+            assert_no_divergence([26657, 26667], start=1, end=2)

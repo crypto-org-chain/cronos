@@ -577,6 +577,10 @@ def _flood_high_tip(w3, base_fee):
         )
 
 
+# must match mempool.max-txs in mempool_app_low_capacity.jsonnet
+MEMPOOL_MAX_TXS = 5
+
+
 @pytest.fixture(scope="module")
 def cronos_app_low_capacity(tmp_path_factory):
     """App-mempool node with mempool.max-txs=5, so a test can reach
@@ -590,17 +594,13 @@ def cronos_app_low_capacity(tmp_path_factory):
 @pytest.mark.flaky(max_runs=3)
 def test_txpool_saturation_rejects_and_reports(cronos_app_low_capacity):
     """Filling the pool to mempool.max-txs shows up in txpool_status, and the
-    next tx is rejected with the mempool-full error.
-
-    All fill txs are submitted before any receipt is awaited, to narrow the
-    window for a 500ms reap to drain the pool mid-fill. A second window sits
-    between the pending-count check and the overflow submission, where a reap
-    could free a slot and let the overflow tx through. Both are covered by the
-    flaky-retry decorator rather than an explicit guard.
+    next tx is rejected with the mempool-full error. A reap can race the fill
+    or the overflow submission; @pytest.mark.flaky retries rather than
+    guarding against it explicitly.
     """
     w3 = cronos_app_low_capacity.w3
     sender = ADDRS["validator"]
-    max_txs = 5  # must match mempool.max-txs in mempool_app_low_capacity.jsonnet
+    max_txs = MEMPOOL_MAX_TXS
     nonce = w3.eth.get_transaction_count(sender)
 
     txhashes = [
@@ -624,17 +624,13 @@ def test_txpool_saturation_rejects_and_reports(cronos_app_low_capacity):
 def test_txpool_saturation_sustained_backpressure(cronos_app_low_capacity):
     """Overflow at max-txs is CodeTypeRetry ("try again"), not a permanent
     rejection: across several blocks of continuous refill the pool stays
-    capped and keeps rejecting overflow, then drains once refill stops —
-    proving it recovers instead of wedging on a stale entry.
-
-    Each round tops the pool back up to capacity before checking it, so a reap
-    that frees a slot just gets refilled instead of causing a false read. The
-    residual race is the same class as in
-    test_txpool_saturation_rejects_and_reports, covered by flaky-retry.
+    capped and keeps rejecting overflow, then drains and mines once refill
+    stops. Same reap-race class as test_txpool_saturation_rejects_and_reports;
+    @pytest.mark.flaky retries rather than guarding against it explicitly.
     """
     w3 = cronos_app_low_capacity.w3
     cli = cronos_app_low_capacity.cosmos_cli()
-    max_txs = 5  # must match mempool.max-txs in mempool_app_low_capacity.jsonnet
+    max_txs = MEMPOOL_MAX_TXS
     nonce = w3.eth.get_transaction_count(ADDRS["validator"])
 
     fill_hashes = []

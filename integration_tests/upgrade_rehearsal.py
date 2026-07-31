@@ -32,7 +32,8 @@ class LoadGenerator:
 
     def stop(self):
         self._stop.set()
-        self._thread.join()
+        self._thread.join(timeout=self._interval + 10)
+        assert not self._thread.is_alive(), "LoadGenerator thread did not stop in time"
 
 
 def app_hash_at(rpc_port, height):
@@ -44,13 +45,22 @@ def app_hash_at(rpc_port, height):
 def assert_no_divergence(rpc_ports, start, end):
     """Raise if any two nodes disagree on the app_hash at any height in
     [start, end]. Heights not yet produced when the fastest node was queried
-    are excluded, not treated as a mismatch."""
+    are excluded, not treated as a mismatch. A node that fails at every
+    height across a multi-height range is unreachable, not merely behind,
+    and raises rather than being silently excluded from every comparison."""
+    num_heights = end - start + 1
+    failures = {port: 0 for port in rpc_ports}
     for height in range(start, end + 1):
         hashes = {}
         for port in rpc_ports:
             try:
                 hashes[port] = app_hash_at(port, height)
             except Exception:  # noqa: BLE001
+                failures[port] += 1
                 continue
         if len(set(hashes.values())) > 1:
             raise AssertionError(f"app_hash divergence at height {height}: {hashes}")
+    if num_heights > 1:
+        unreachable = [port for port, count in failures.items() if count == num_heights]
+        if unreachable:
+            raise AssertionError(f"node(s) unreachable for [{start}, {end}]: {unreachable}")
