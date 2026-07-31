@@ -19,11 +19,6 @@ disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 # or a positive integer.
 tx-cache-size = {{ .Cronos.TxCacheSize }}
 
-# Per-entry raw payload byte cap for the tx encode/decode cache. Bigger txs are
-# decoded normally but not cached. Worst-case raw-byte footprint is roughly
-# 2 * tx-cache-size * this value. Default 65536 (64 KiB) covers >p99 of EVM txs.
-tx-cache-max-tx-bytes = {{ .Cronos.TxCacheMaxTxBytes }}
-
 # Re-gossip suppression window for mempool.type=app. A tx reaped for gossip is
 # not re-broadcast until this elapses, stopping the AppReactor from flooding the
 # whole pool to peers every reap_interval (~500ms). Default "15s".

@@ -23,9 +23,6 @@ type CronosConfig struct {
 	// Capacity of the sharded LRU tx encode/decode cache.
 	// 0 = derive from mempool.max-txs at startup (cache off if unbounded/disabled). -1 = disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
-	// Per-entry raw payload byte cap. Txs larger than this are decoded but
-	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
-	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
@@ -86,7 +83,6 @@ func DefaultCronosConfig() CronosConfig {
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
 		TxCacheSize:                0, // 0 = derive from mempool.max-txs, -1 disables
-		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,

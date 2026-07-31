@@ -184,7 +184,6 @@ const (
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxCacheSize                = "cronos.tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
@@ -401,22 +400,13 @@ func New(
 		}
 	}
 	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
-	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
-		}
-		if parsed > 0 {
-			maxTxBytes = parsed
-		}
+	if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 {
+		maxTxBytes = mempoolMaxTxBytes
 	}
 	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
-			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
-		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
