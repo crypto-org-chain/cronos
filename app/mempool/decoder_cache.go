@@ -28,8 +28,7 @@ var xxhashSeed = func() uint64 {
 const shardCount = 16
 
 // defaultCacheSize is the tx encode/decode cache capacity fallback for callers
-// that construct a cache with size 0 directly (app.New always derives a size
-// from mempool.max-txs first, so this only matters for direct construction).
+// that construct a cache with size 0 directly.
 const defaultCacheSize = cmdcfg.DefaultMempoolTxsPerBlock
 
 // shardMask maps a hash to a shard via h&shardMask (== h%shardCount for a
