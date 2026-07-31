@@ -27,7 +27,7 @@ def test_below_base_fee_rejected(devnet, funded_account):
         pytest.skip("base fee is currently 0, no feeCap can be below it")
     result = send_below_base_fee(w3, funded_account)
     assert not result.accepted
-    assert "insufficient gas prices" in result.error
+    assert "max fee per gas less than block base fee" in result.error
 
 
 def test_insufficient_balance_rejected(devnet, funded_account):

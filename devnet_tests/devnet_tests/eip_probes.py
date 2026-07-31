@@ -81,12 +81,15 @@ def send_under_floor_data_gas(w3, account) -> ProbeResult:
 
 def send_below_base_fee(w3, account) -> ProbeResult:
     """A fee cap below the current base fee must be rejected by the dynamic-fee
-    ante checker with 'insufficient gas prices'. No feeCap can be below a
-    base fee of 0, so this probe is meaningless (and shouldn't be run) if the
-    devnet's base fee is currently 0."""
+    ante checker. No feeCap can be below a base fee of 0, so this probe is
+    meaningless (and shouldn't be run) if the devnet's base fee is currently 0.
+
+    Uses half the queried base fee rather than base_fee - 1: on an idle devnet
+    the base fee decays every empty block, so a margin of 1 can be erased by
+    the time this tx actually lands in CheckTx, making the probe flaky."""
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     tx = _base_tx(
-        w3, account, maxFeePerGas=max(base_fee - 1, 0), maxPriorityFeePerGas=0
+        w3, account, maxFeePerGas=max(base_fee // 2, 0), maxPriorityFeePerGas=0
     )
     return _submit(w3, account, tx)
 

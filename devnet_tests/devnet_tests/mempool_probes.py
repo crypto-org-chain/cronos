@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from time import sleep, time
 
 
 @dataclass
@@ -61,11 +62,16 @@ def send_nonce_gap(w3, account) -> NonceGapResult:
     return NonceGapResult(gap_tx_rejected=False)
 
 
-def saturate_pool(w3, account, batch_size: int) -> SaturationResult:
+def saturate_pool(w3, account, batch_size: int, drain_timeout: float = 30) -> SaturationResult:
     """Send `batch_size` sequential low-fee txs as fast as possible and report
     how many were accepted/rejected along with a post-burst txpool snapshot.
     The caller decides what "saturated" means for this devnet's actual pool
-    size; this probe only reports counts, it doesn't assert a threshold."""
+    size; this probe only reports counts, it doesn't assert a threshold.
+
+    Waits for the burst to be fully committed before returning: the account
+    is shared across the whole test session, so leaving accepted txs stuck in
+    the mempool would desync later tests' "pending" nonce lookups from what
+    CheckTx actually expects next."""
     gas_price = w3.eth.gas_price
     start = w3.eth.get_transaction_count(account.address, "pending")
     accepted = 0
@@ -86,6 +92,11 @@ def saturate_pool(w3, account, batch_size: int) -> SaturationResult:
         pool_pending, pool_queued = _txpool_status(w3)
     except Exception as exc:  # noqa: BLE001
         error = str(exc)
+
+    deadline = time() + drain_timeout
+    target = start + accepted
+    while w3.eth.get_transaction_count(account.address, "latest") < target and time() < deadline:
+        sleep(0.5)
 
     return SaturationResult(
         sent=batch_size,
