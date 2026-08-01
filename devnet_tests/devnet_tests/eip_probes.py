@@ -55,15 +55,17 @@ def _base_tx(w3, account, **overrides) -> dict:
 def send_over_max_tx_gas(w3, account) -> ProbeResult:
     """A tx over the EIP-7825 cap must be rejected with ErrGasLimitTooHigh.
 
-    Uses the minimum fee cap that clears the base-fee check (see
-    send_below_base_fee) so the huge gas limit here doesn't also require the
-    funded account to hold an unusually large balance."""
+    Keeps the fee cap near the base fee so the huge gas limit here doesn't also
+    require the funded account to hold an unusually large balance, but doubles it
+    for margin: the base fee moves between this query and CheckTx (see
+    send_below_base_fee), and an exact match would let a base-fee rise reject the
+    tx for the wrong reason."""
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     tx = _base_tx(
         w3,
         account,
         gas=_MAX_TX_GAS + 1,
-        maxFeePerGas=base_fee,
+        maxFeePerGas=base_fee * 2,
         maxPriorityFeePerGas=0,
     )
     return _submit(w3, account, tx)

@@ -22,7 +22,9 @@ def devnet(request):
     config_path = request.config.getoption("--devnet-config")
     if not config_path:
         pytest.skip("--devnet-config not provided")
-    return load_devnet(config_path)
+    devnet = load_devnet(config_path)
+    devnet.verify_chain_ids()
+    return devnet
 
 
 @pytest.fixture

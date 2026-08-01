@@ -14,6 +14,13 @@ cronos_777-1:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
       mnemonic: ${VALIDATOR1_MNEMONIC}
+    # Second node so the cross-node checks (rpc-diff, app-hash agreement) have
+    # something to compare; with one node they skip themselves. Its stake is
+    # deliberately tiny — node0 alone must hold >2/3 of the voting power, or a
+    # hiccup on either node halts the chain and every test times out.
+    - coins: 1000000000000000stake,10000000000000000000000basetcro
+      staked: 1000000000000000stake
+      mnemonic: ${VALIDATOR2_MNEMONIC}
   accounts:
     - name: community
       coins: 10000000000000000000000basetcro

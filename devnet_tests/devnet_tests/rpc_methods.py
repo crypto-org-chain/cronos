@@ -12,6 +12,10 @@ class DiffContext:
     address: str
     calldata: str
     sender: str
+    # False when the sampled block held no tx targeting deployed bytecode, so
+    # `address`/`calldata` are a no-op fallback and the `call` category executes
+    # no EVM code at this height.
+    call_target_is_contract: bool = False
 
 
 # Compares two raw JSON-RPC responses ({"result": ...} or {"error": ...}) and
@@ -20,17 +24,43 @@ Comparator = Callable[[dict, dict], list[str]]
 ParamsBuilder = Callable[[DiffContext], list]
 
 
+def _hex(value) -> str:
+    text = value.hex() if hasattr(value, "hex") else str(value)
+    return text if text.startswith("0x") else "0x" + text
+
+
+# Bounds the get_code probing below on a full block; a contract call in a devnet
+# block is either near the front or not worth the extra round trips.
+_CALL_TARGET_SCAN_LIMIT = 20
+
+
+def _contract_call_tx(w3, transactions):
+    """First tx in the block that invokes deployed bytecode, so the `call`-category
+    methods actually execute EVM code instead of no-op'ing against an EOA."""
+    for tx in transactions[:_CALL_TARGET_SCAN_LIMIT]:
+        if not tx["to"] or not tx["input"]:
+            continue
+        try:
+            if len(w3.eth.get_code(tx["to"])) > 0:
+                return tx
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
 def build_context(w3, height: int, sender: str) -> DiffContext:
     block = w3.eth.get_block(height, full_transactions=True)
     first_tx = block.transactions[0] if block.transactions else None
+    call_tx = _contract_call_tx(w3, block.transactions)
     return DiffContext(
         height=height,
-        block_hash=block.hash.hex(),
-        tx_hash=first_tx["hash"].hex() if first_tx else None,
+        block_hash=_hex(block.hash),
+        tx_hash=_hex(first_tx["hash"]) if first_tx else None,
         # Contract creations and empty blocks leave no callee, so fall back to sender.
-        address=(first_tx["to"] if first_tx else None) or sender,
-        calldata="0x",
+        address=(call_tx or first_tx or {}).get("to") or sender,
+        calldata=_hex(call_tx["input"]) if call_tx else "0x",
         sender=sender,
+        call_target_is_contract=call_tx is not None,
     )
 
 
@@ -44,15 +74,41 @@ def _equal_compare(a: dict, b: dict) -> list[str]:
 
 
 def _shape_only_compare(required_keys: set) -> Comparator:
+    """For methods whose values are legitimately node-local (txpool contents):
+    both responses must carry the required keys, agree on their key set, *and*
+    agree on each shared key's value type, so a node exposing a different result
+    shape — an ethermint version that returns a count where the other returns a
+    map — is still flagged."""
+
     def compare(a: dict, b: dict) -> list[str]:
+        # Two nodes erroring identically exercises nothing; the caller classifies
+        # that as both_errored rather than as a cross-node mismatch.
+        if "error" in a and "error" in b:
+            return []
         mismatches = []
+        results = {}
         for label, response in (("a", a), ("b", b)):
             if "error" in response:
                 mismatches.append(f"{label} returned an error: {response['error']}")
                 continue
-            missing = required_keys - response.get("result", {}).keys()
+            # `{"result": null}` is a legal response shape, so coerce before
+            # taking keys rather than trusting the default.
+            results[label] = response.get("result") or {}
+            missing = required_keys - set(results[label])
             if missing:
                 mismatches.append(f"{label} result missing keys: {sorted(missing)}")
+        # Only worth reporting once both sides are otherwise well-formed;
+        # otherwise it just restates the error/missing-keys mismatch above.
+        if mismatches:
+            return mismatches
+        keys_a, keys_b = set(results["a"]), set(results["b"])
+        if keys_a != keys_b:
+            return [f"result keys differ: {sorted(keys_a)} != {sorted(keys_b)}"]
+        for key in sorted(keys_a):
+            type_a = type(results["a"][key]).__name__
+            type_b = type(results["b"][key]).__name__
+            if type_a != type_b:
+                mismatches.append(f"{key} value type differs: {type_a} != {type_b}")
         return mismatches
 
     return compare
@@ -128,7 +184,7 @@ METHODS = [
     RpcMethod(
         "eth_estimateGas",
         "call",
-        lambda ctx: [{"to": ctx.address, "data": ctx.calldata}],
+        lambda ctx: [{"to": ctx.address, "data": ctx.calldata}, hex(ctx.height)],
     ),
     RpcMethod(
         "eth_createAccessList",

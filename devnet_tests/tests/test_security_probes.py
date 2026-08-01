@@ -32,9 +32,22 @@ def _receipts(*statuses):
     remaining = iter(statuses)
 
     def wait_for_transaction_receipt(tx_hash):
-        return SimpleNamespace(contractAddress=DEPLOYED_ADDRESS, status=next(remaining))
+        return SimpleNamespace(
+            contractAddress=DEPLOYED_ADDRESS,
+            status=next(remaining),
+            transactionHash=b"\x01",
+            logs=[],
+        )
 
     return wait_for_transaction_receipt
+
+
+def _trace_response(response):
+    def make_request(method, params):
+        assert method == "debug_traceTransaction"
+        return dict(response)
+
+    return make_request
 
 
 def _fake_w3(
@@ -43,6 +56,7 @@ def _fake_w3(
     # own receipt iterator instead of sharing one captured at import time.
     wait_for_transaction_receipt=None,
     start_nonce=5,
+    make_request=None,
 ):
     nonce_lookups = []
 
@@ -58,22 +72,53 @@ def _fake_w3(
         wait_for_transaction_receipt=wait_for_transaction_receipt or _receipts(1, 1),
         contract=lambda **kwargs: _FakeContract(address=kwargs.get("address")),
     )
-    return SimpleNamespace(eth=eth, nonce_lookups=nonce_lookups)
+    provider = SimpleNamespace(
+        make_request=make_request or _trace_response({"result": {"type": "CALL"}})
+    )
+    return SimpleNamespace(
+        eth=eth,
+        provider=provider,
+        to_hex=lambda value: "0x" + value.hex(),
+        nonce_lookups=nonce_lookups,
+    )
 
 
 def test_unauthorized_call_reverted_is_reported_as_rejected():
     account = _FakeAccount()
     w3 = _fake_w3(wait_for_transaction_receipt=_receipts(1, 0))
     result = send_unauthorized_cro_bridge_call(w3, account)
-    assert result == BridgeRejectionResult(rejected=True)
+    assert result == BridgeRejectionResult(rejected=True, evm_error=None, receipt_logs=0)
     assert w3.nonce_lookups == [(ADDRESS, "pending")]
+
+
+def test_a_plain_evm_revert_is_distinguished_from_the_allowlist_rejection():
+    account = _FakeAccount()
+    w3 = _fake_w3(
+        wait_for_transaction_receipt=_receipts(1, 0),
+        make_request=_trace_response({"result": {"error": "execution reverted"}}),
+    )
+    result = send_unauthorized_cro_bridge_call(w3, account)
+    assert result.rejected
+    assert result.evm_error == "execution reverted"
+
+
+def test_a_missing_debug_namespace_is_surfaced_as_an_evm_error():
+    account = _FakeAccount()
+    w3 = _fake_w3(
+        wait_for_transaction_receipt=_receipts(1, 0),
+        make_request=_trace_response({"error": {"message": "method not found"}}),
+    )
+    result = send_unauthorized_cro_bridge_call(w3, account)
+    assert "debug_traceTransaction unavailable" in result.evm_error
 
 
 def test_unexpectedly_successful_call_is_reported_as_not_rejected():
     account = _FakeAccount()
     w3 = _fake_w3(wait_for_transaction_receipt=_receipts(1, 1))
     result = send_unauthorized_cro_bridge_call(w3, account)
-    assert result == BridgeRejectionResult(rejected=False)
+    assert result == BridgeRejectionResult(
+        rejected=False, evm_error=None, receipt_logs=0
+    )
 
 
 def test_deploy_failure_is_captured_without_raising():

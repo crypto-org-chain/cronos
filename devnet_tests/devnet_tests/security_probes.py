@@ -27,6 +27,10 @@ CRO_BRIDGE_BYTECODE = "608060405234801561001057600080fd5b5061036d806100206000396
 class BridgeRejectionResult:
     rejected: bool
     error: str | None = None
+    # callTracer's top-level error for the reverted call, or None when the EVM
+    # itself ran clean. See _traced_evm_error.
+    evm_error: str | None = None
+    receipt_logs: int | None = None
 
 
 def _send_and_wait(w3, account, tx: dict):
@@ -37,17 +41,34 @@ def _send_and_wait(w3, account, tx: dict):
     return w3.eth.wait_for_transaction_receipt(tx_hash)
 
 
+def _traced_evm_error(w3, tx_hash) -> str | None:
+    """debug_traceTransaction replays the message through ApplyMessageWithConfig
+    without ethermint's PostTxProcessing hooks (x/evm/keeper/grpc_query.go), so
+    an allowlist rejection — which happens inside the hook — leaves no trace
+    error, while a plain EVM revert or out-of-gas does. That difference is what
+    separates the two identical-looking `status == 0` receipts."""
+    rsp = w3.provider.make_request(
+        "debug_traceTransaction", [w3.to_hex(tx_hash), {"tracer": "callTracer"}]
+    )
+    if "result" not in rsp:
+        # A missing debug namespace is itself a problem worth failing on, not a
+        # reason to fall back to the loose status-only check.
+        return f"debug_traceTransaction unavailable: {rsp.get('error')}"
+    return rsp["result"].get("error")
+
+
 def send_unauthorized_cro_bridge_call(w3, account) -> BridgeRejectionResult:
     """Deploy a fresh, never-authorized CroBridge contract and call
     send_cro_to_crypto_org on it. SendCroToIbcHandler.Handle only allows
     contracts listed in CroBridgeContractAddresses (x/cronos/keeper/
-    evmhandlers/send_cro_to_ibc.go); this contract is never registered, so
-    the handler returns an error and ethermint's PostTxProcessing hook path
-    reverts the whole tx, leaving receipt.status == 0. Note: a plain EVM
-    revert unrelated to the allowlist check would also produce status == 0,
-    so rejected=True on its own doesn't prove the allowlist check fired —
-    this harness has no debug_traceTransaction access to distinguish the
-    two over RPC."""
+    evmhandlers/send_cro_to_ibc.go); this contract is never registered, so the
+    handler errors, ethermint sets VmError to "failed to execute post
+    processing", clears the tx's logs and reverts the whole tx.
+
+    `rejected` alone can't tell that apart from an ordinary EVM revert, so the
+    result also carries the traced EVM error and the receipt's log count: the
+    allowlist rejection is the one combination where the EVM ran clean yet the
+    tx still failed with its logs dropped."""
     contract = w3.eth.contract(abi=CRO_BRIDGE_ABI, bytecode=CRO_BRIDGE_BYTECODE)
 
     try:
@@ -73,7 +94,12 @@ def send_unauthorized_cro_bridge_call(w3, account) -> BridgeRejectionResult:
                 {**common, "nonce": nonce + 1, "value": 1, "gas": 200_000}
             ),
         )
+        evm_error = _traced_evm_error(w3, call_receipt.transactionHash)
     except Exception as exc:  # noqa: BLE001
         return BridgeRejectionResult(rejected=False, error=str(exc))
 
-    return BridgeRejectionResult(rejected=call_receipt.status == 0)
+    return BridgeRejectionResult(
+        rejected=call_receipt.status == 0,
+        evm_error=evm_error,
+        receipt_logs=len(call_receipt.logs),
+    )

@@ -62,7 +62,9 @@ def test_send_over_max_tx_gas_builds_tx_above_cap():
     send_over_max_tx_gas(_fake_w3(base_fee=1000), account)
     (tx, _blobs), = account.calls
     assert tx["gas"] > _MAX_TX_GAS
-    assert tx["maxFeePerGas"] == 1000
+    # Margin above the queried base fee, so a base-fee move before CheckTx can't
+    # reject the tx for a fee reason instead of the gas limit under test.
+    assert tx["maxFeePerGas"] > 1000
 
 
 def test_send_under_floor_data_gas_stays_between_intrinsic_and_floor():

@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from devnet_tests.mempool_probes import NonceGapResult, saturate_pool, send_nonce_gap
 
 ADDRESS = "0x" + "1" * 40
@@ -15,21 +17,36 @@ class _FakeAccount:
         return SimpleNamespace(raw_transaction=b"raw")
 
 
-def _fake_w3(send_raw_transaction=lambda raw: None, make_request=None, start_nonce=5):
+def _fake_w3(
+    send_raw_transaction=lambda raw: None,
+    make_request=None,
+    start_nonce=5,
+    commits_sends=True,
+):
+    """`commits_sends=False` models a node whose nonce never advances (txs stuck
+    in the mempool), which is what `saturate_pool`'s drain wait must catch."""
+
     def default_make_request(method, params):
         raise AssertionError(f"unexpected RPC call: {method}")
 
     nonce_lookups = []
+    nonce = [start_nonce]
+
+    def send(raw):
+        result = send_raw_transaction(raw)
+        if commits_sends:
+            nonce[0] += 1
+        return result
 
     def get_transaction_count(addr, block="latest"):
         nonce_lookups.append((addr, block))
-        return start_nonce
+        return nonce[0]
 
     eth = SimpleNamespace(
         chain_id=777,
         gas_price=1000,
         get_transaction_count=get_transaction_count,
-        send_raw_transaction=send_raw_transaction,
+        send_raw_transaction=send,
     )
     provider = SimpleNamespace(make_request=make_request or default_make_request)
     return SimpleNamespace(eth=eth, provider=provider, nonce_lookups=nonce_lookups)
@@ -117,7 +134,49 @@ def test_saturate_pool_sends_consecutive_nonces_from_current():
     saturate_pool(w3, account, batch_size=3)
     nonces = [tx["nonce"] for tx in account.calls]
     assert nonces == [10, 11, 12]
-    assert w3.nonce_lookups == [(ADDRESS, "pending")]
+    # One "pending" lookup to pick the starting nonce, then the drain wait's
+    # "latest" lookup confirming the burst committed.
+    assert w3.nonce_lookups == [(ADDRESS, "pending"), (ADDRESS, "latest")]
+
+
+def test_saturate_pool_waits_only_for_the_contiguous_run_before_a_rejection():
+    # Nonces commit as a contiguous run, so txs sent after a mid-burst rejection
+    # can never commit; waiting on the total accepted count always times out.
+    sends = []
+    committed = [5]
+
+    def send_raw_transaction(raw):
+        sends.append(raw)
+        if len(sends) == 2:
+            raise RuntimeError("mempool is full")
+        # Only nonce 5 is reachable: 6 was rejected, so 7 and 8 stay parked
+        # behind the gap and never commit.
+        if len(sends) == 1:
+            committed[0] += 1
+
+    account = _FakeAccount()
+    w3 = SimpleNamespace(
+        eth=SimpleNamespace(
+            chain_id=777,
+            gas_price=1000,
+            get_transaction_count=lambda addr, block="latest": committed[0],
+            send_raw_transaction=send_raw_transaction,
+        ),
+        provider=SimpleNamespace(make_request=_status_response()),
+    )
+
+    result = saturate_pool(w3, account, batch_size=4, drain_timeout=0.01)
+
+    assert result.accepted == 3
+    assert result.rejected == 1
+
+
+def test_saturate_pool_raises_when_the_burst_never_commits():
+    account = _FakeAccount()
+    w3 = _fake_w3(make_request=_status_response(), commits_sends=False)
+
+    with pytest.raises(TimeoutError, match="mempool did not drain"):
+        saturate_pool(w3, account, batch_size=2, drain_timeout=0.01)
 
 
 def test_saturate_pool_reports_status_query_failure_without_raising():

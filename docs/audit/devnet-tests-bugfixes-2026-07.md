@@ -1,14 +1,21 @@
 # Devnet test-run bug fixes (2026-07)
 
 Found by running `devnet_tests/` against a real local single-validator devnet
-(pystarport, `scripts/cronos-single-devnet.yaml`). Five issues total: one real
-chain-correctness bug, four test/config/isolation fixes. All verified passing
-together in one combined run (see "Final verification" below).
+(pystarport, `scripts/cronos-single-devnet.yaml`). Six issues total: one real
+chain-correctness bug, five test/config/isolation fixes. All verified together
+in one combined run (see "Final verification" below).
 
 ## 1. Blob transactions were silently accepted instead of rejected
 
 **Severity:** chain-correctness bug (the only one in this list that isn't a
 test-only fix).
+
+**Status: not fixed in this repo.** The patch below exists only as a local edit
+to the gitignored `vendor/` tree (`.gitignore` line 6: `/vendor`), so it is
+committed nowhere and is absent from any binary anyone can build from this
+repository. Landing it needs a PR to the `crypto-org-chain/ethermint` fork,
+after which the vendored copy is refreshed. Until then
+`test_blob_tx_rejected` stays skipped.
 
 **Root cause:** `EthereumTx.Validate()` in
 `vendor/github.com/evmos/ethermint/x/evm/types/eth.go` never checked
@@ -19,7 +26,7 @@ case, and is dead code anyway — zero callers in the whole codebase). Because
 `ValidateBasic()` and got broadcast/accepted as if it were a plain transfer,
 silently dropping its blob-specific fields (`BlobHashes`, sidecar).
 
-**Fix:** added an explicit type check at the top of `Validate()`:
+**Proposed fix:** an explicit type check at the top of `Validate()`:
 
 ```go
 if tx.Type() == ethtypes.BlobTxType {
@@ -45,7 +52,9 @@ build/cronosd` returned nothing after `make build`, and returned the string
 after the `-mod=vendor` build.
 
 **Verification:** `devnet_tests/test_eip_behavior.py::test_blob_tx_rejected`
-— PASSED against a devnet running the `-mod=vendor` binary.
+— PASSED against a devnet running a locally patched `-mod=vendor` binary. It
+does not pass against a binary built from this repo alone, which is why the
+test carries a `pytest.mark.skip` pointing back here.
 
 ## 2. `test_below_base_fee_rejected` was flaky and asserted the wrong error text
 
@@ -109,7 +118,7 @@ before returning.
 **Verification:** `test_mempool_behavior.py` + `test_security_behavior.py`
 run together — PASSED, no nonce desync.
 
-## 5. `test_pool_saturation_reports_growth` asserted a metric that's unobservable on this devnet config
+## 5. The pool-saturation test asserted a metric that's unobservable on this devnet config
 
 File: `devnet_tests/devnet_tests/test_mempool_behavior.py`.
 
@@ -129,7 +138,8 @@ separate, already-paused investigation — see project memory on the v0.54
 **Fix:** changed the assertion to check the actually-observable signal —
 `result.accepted == SATURATION_BATCH` (the burst was fully absorbed at
 submission time) — with a comment explaining why `pool_pending` can't be
-used here.
+used here. The test is now named `test_pool_absorbs_saturation_burst` to
+match what it checks.
 
 **Verification:** `test_mempool_behavior.py` + `test_security_behavior.py`
 run together — PASSED.
@@ -173,27 +183,31 @@ devnet_tests/test_eip_behavior.py::test_max_tx_gas_rejected PASSED
 devnet_tests/test_eip_behavior.py::test_floor_data_gas_rejected PASSED
 devnet_tests/test_eip_behavior.py::test_below_base_fee_rejected PASSED
 devnet_tests/test_eip_behavior.py::test_insufficient_balance_rejected PASSED
-devnet_tests/test_eip_behavior.py::test_blob_tx_rejected PASSED
+devnet_tests/test_eip_behavior.py::test_blob_tx_rejected SKIPPED (vendor-only fix, see 1)
 devnet_tests/test_mempool_behavior.py::test_nonce_gap_rejected_at_submission PASSED
-devnet_tests/test_mempool_behavior.py::test_pool_saturation_reports_growth PASSED
+devnet_tests/test_mempool_behavior.py::test_pool_absorbs_saturation_burst PASSED
 devnet_tests/test_rpc_diff.py::test_rpc_diff_equivalence SKIPPED (needs >=2 nodes)
 devnet_tests/test_security_behavior.py::test_unauthorized_cro_bridge_call_is_rejected PASSED
 devnet_tests/test_state_safety.py::test_app_hash_agreement SKIPPED (needs >=2 nodes)
 devnet_tests/test_state_safety.py::test_historical_query_soak PASSED
 devnet_tests/test_ica_behavior.py::test_register_ica_with_unknown_connection_is_rejected SKIPPED (precompile removed)
 
-9 passed, 3 skipped
+8 passed, 4 skipped
 ```
 
-The 3 skips are all by design on a single-node devnet / with the ICA
-precompile intentionally absent — not failures.
+The 4 skips are all by design on a single-node devnet, with the ICA precompile
+intentionally absent and the blob-tx fix not yet landed upstream — not
+failures.
 
 ## Files changed
 
-- `vendor/github.com/evmos/ethermint/x/evm/types/eth.go` — blob-tx rejection (chain fix)
 - `devnet_tests/devnet_tests/eip_probes.py` — base-fee margin fix
-- `devnet_tests/devnet_tests/test_eip_behavior.py` — base-fee assertion fix
+- `devnet_tests/devnet_tests/test_eip_behavior.py` — base-fee assertion fix, blob-tx skip
 - `scripts/cronos-single-devnet.yaml` — added `txpool` RPC namespace
 - `devnet_tests/devnet_tests/mempool_probes.py` — drain-before-return fix
 - `devnet_tests/devnet_tests/test_mempool_behavior.py` — re-scoped saturation assertion
 - `devnet_tests/devnet_tests/test_ica_behavior.py` — skip (precompile removed upstream)
+
+Not committed (gitignored, local working tree only):
+
+- `vendor/github.com/evmos/ethermint/x/evm/types/eth.go` — proposed blob-tx rejection (see 1)
