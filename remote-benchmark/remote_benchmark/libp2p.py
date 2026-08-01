@@ -7,7 +7,6 @@ self-contained derivation logic is copied rather than imported.
 """
 
 import base64
-import hashlib
 import json
 from pathlib import Path
 
@@ -35,8 +34,8 @@ def libp2p_id_from_node_key(node_key_path) -> str:
 
     Matches go-libp2p `peer.IDFromPublicKey` for an Ed25519 key:
       - protobuf-marshal PublicKey{Type=Ed25519(1), Data=pub32}
-      - keys <= 42 bytes use identity multihash (code 0x00)
-      - otherwise sha256 multihash (code 0x12)
+      - identity multihash (code 0x00), since go-libp2p hashes with sha256 only
+        above 42 marshaled bytes and an Ed25519 key marshals to 36
       - base58btc encode
     """
     nk = json.loads(Path(node_key_path).read_text())
@@ -47,11 +46,7 @@ def libp2p_id_from_node_key(node_key_path) -> str:
         raise ValueError(f"unexpected ed25519 pub length: {len(pub)}")
     # protobuf wire: field 1 varint=1 ("\x08\x01"); field 2 lendelim 32B
     marshaled = b"\x08\x01\x12\x20" + pub
-    if len(marshaled) <= 42:
-        mh = b"\x00" + bytes([len(marshaled)]) + marshaled
-    else:
-        h = hashlib.sha256(marshaled).digest()
-        mh = b"\x12\x20" + h
+    mh = b"\x00" + bytes([len(marshaled)]) + marshaled
     return _b58encode(mh)
 
 

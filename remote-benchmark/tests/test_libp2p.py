@@ -1,3 +1,4 @@
+import base64
 import json
 
 from remote_benchmark.libp2p import bootstrap_peers, libp2p_id_from_node_key
@@ -9,25 +10,22 @@ def _write_node_key(tmp_path, name, priv_b64):
     return path
 
 
-def test_libp2p_id_from_node_key_is_deterministic_and_uses_identity_multihash(tmp_path):
-    # 64-byte tendermint ed25519 priv (seed || pub); pub is the last 32 bytes.
-    # The marshaled PublicKey is 36 bytes (<=42), so encoding uses the
-    # identity multihash (code 0x00), whose leading zero byte base58-encodes
-    # to a leading '1'.
-    priv = bytes(range(32)) + bytes(range(32, 64))
-    import base64
-
+def test_libp2p_id_from_node_key_matches_go_libp2p_for_a_known_key(tmp_path):
+    # Golden vector: peer.IDFromPublicKey(crypto.UnmarshalEd25519PublicKey(pub))
+    # from go-libp2p v0.48.0 (the version CometBFT pulls in) for the pubkey
+    # bytes(range(32, 64)). Without a fixed expected string, a wrong protobuf
+    # wrapper or multihash prefix still produces a deterministic, plausible ID.
+    priv = bytes(range(32)) + bytes(range(32, 64))  # tendermint priv: seed || pub
     path = _write_node_key(tmp_path, "n0", base64.b64encode(priv).decode())
 
     peer_id = libp2p_id_from_node_key(path)
 
-    assert isinstance(peer_id, str)
-    assert peer_id.startswith("1")
+    assert peer_id == "12D3KooWBynX2HaNg73xSLq9TJDQjQKozxCh7MgVqKgGGXWXYzQn"
     assert libp2p_id_from_node_key(path) == peer_id
 
 
 def test_libp2p_id_from_node_key_rejects_wrong_length_pubkey(tmp_path):
-    path = _write_node_key(tmp_path, "bad", __import__("base64").b64encode(b"\x00" * 40).decode())
+    path = _write_node_key(tmp_path, "bad", base64.b64encode(b"\x00" * 40).decode())
 
     try:
         libp2p_id_from_node_key(path)

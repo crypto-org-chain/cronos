@@ -1,7 +1,10 @@
+import asyncio
+
 from eth_account import Account
 from eth_account._utils.legacy_transactions import Transaction
 from hexbytes import HexBytes
 
+from remote_benchmark import transaction as tx_module
 from remote_benchmark.contracts import NFT_ADDRESS, POOL_ADDRESS
 from remote_benchmark.erc20 import CONTRACT_ADDRESS
 from remote_benchmark.transaction import (
@@ -159,3 +162,90 @@ def test_weighted_mix_tx_frequencies_roughly_match_configured_weights():
 
 def test_weighted_mix_is_registered_under_tx_types():
     assert TX_TYPES["weighted-mix"] is weighted_mix_tx
+
+
+def _capture_sends(monkeypatch):
+    sent = []
+
+    async def fake_sendtx(_session, raw, rpc, _sync, _mode):
+        sent.append((raw, rpc))
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+    return sent
+
+
+def test_send_stops_at_the_deadline(monkeypatch, capsys):
+    # An open-loop rate target defines the run by its duration; overrunning it
+    # to drain the generated txs benchmarks a longer window than requested.
+    sent = _capture_sends(monkeypatch)
+
+    asyncio.run(
+        tx_module.send(
+            [f"tx-{i}" for i in range(10)],
+            "http://node0",
+            batch_size=2,
+            batch_interval=0,
+            deadline_s=0,
+        )
+    )
+
+    assert sent == []
+    assert "10/10 txs unsent" in capsys.readouterr().err
+
+
+def test_send_without_a_deadline_sends_everything(monkeypatch):
+    sent = _capture_sends(monkeypatch)
+
+    asyncio.run(
+        tx_module.send(
+            [f"tx-{i}" for i in range(4)], "http://node0", batch_size=2, batch_interval=0
+        )
+    )
+
+    assert [raw for raw, _ in sent] == ["tx-0", "tx-1", "tx-2", "tx-3"]
+
+
+def test_send_round_robin_routes_each_account_to_one_endpoint(monkeypatch):
+    # gen() interleaves accounts, so position p belongs to account
+    # p % num_accounts; every tx of one account must land on the same node or a
+    # later nonce can arrive before an earlier one propagates.
+    sent = _capture_sends(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(12)],
+            ["http://node0", "http://node1"],
+            batch_size=5,
+            batch_interval=0,
+            num_accounts=3,
+        )
+    )
+
+    assert len(sent) == 12
+    routing = {}
+    for raw, rpc in sent:
+        account = int(raw.removeprefix("tx-")) % 3
+        routing.setdefault(account, set()).add(rpc)
+    assert routing == {
+        0: {"http://node0"},
+        1: {"http://node1"},
+        2: {"http://node0"},
+    }
+
+
+def test_send_round_robin_stops_at_the_deadline(monkeypatch):
+    sent = _capture_sends(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(10)],
+            ["http://node0", "http://node1"],
+            batch_size=2,
+            batch_interval=0,
+            num_accounts=2,
+            deadline_s=0,
+        )
+    )
+
+    assert sent == []

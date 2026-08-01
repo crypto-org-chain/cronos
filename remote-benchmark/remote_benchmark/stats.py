@@ -66,14 +66,16 @@ def _extract_gas(eth_blk):
 
 
 def _get_failed_tx_count(height, rpc):
-    """Return the number of failed txs from CometBFT block_results."""
+    """Number of failed txs from CometBFT block_results, or None when the
+    query fails — a zero there would read as "no failures" and let the
+    saturation gate pass on data that was never measured."""
     try:
         res = block_results(height, rpc)
         tx_results = res.get("result", {}).get("txs_results") or []
         return sum(1 for r in tx_results if int(r.get("code", 0)) != 0)
     except Exception:
         log.debug("block_results unavailable for height %d", height, exc_info=True)
-        return 0
+        return None
 
 
 def get_block_info_hybrid(height, rpc, json_rpc):
@@ -127,6 +129,10 @@ def _fetch_prometheus(telemetry_url):
 def _parse_histogram_sum_count(lines, metric_name, label_filter=None):
     """Return (sum, count) from a Prometheus histogram's _sum/_count lines.
 
+    Samples are accumulated, not overwritten: a histogram split across several
+    label sets (e.g. one per ABCI method) emits one _sum/_count pair per set,
+    and the aggregate over all matching lines is what the callers want.
+
     Returns (sum_or_None, count). Sum is in the metric's native unit.
     """
     total = None
@@ -137,9 +143,9 @@ def _parse_histogram_sum_count(lines, metric_name, label_filter=None):
         if label_filter and label_filter not in line:
             continue
         if f"{metric_name}_sum" in line:
-            total = float(line.split()[-1])
+            total = (total or 0.0) + float(line.split()[-1])
         elif f"{metric_name}_count" in line:
-            count = int(float(line.split()[-1]))
+            count += int(float(line.split()[-1]))
     return total, count
 
 
@@ -209,6 +215,41 @@ def scrape_consensus_raw(prom_text):
     return raw
 
 
+def _parse_label_block(line, metric_name):
+    """Parse `{k="v",...} value` following a metric name into (labels, value).
+
+    Scans character by character because a quoted label value may legally
+    contain `,` and `}`, which splitting on those characters mis-parses.
+    Returns None for a line whose label list is never closed.
+    """
+    rest = line[len(metric_name) + 1 :]  # skip past the opening '{'
+    items = []
+    current = []
+    in_quotes = False
+    escaped = False
+    for idx, char in enumerate(rest):
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif in_quotes and char == "\\":
+            escaped = True
+        elif char == '"':
+            in_quotes = not in_quotes
+        elif char == "," and not in_quotes:
+            items.append("".join(current))
+            current = []
+        elif char == "}" and not in_quotes:
+            items.append("".join(current))
+            tail = rest[idx + 1 :].split()
+            if not tail:
+                return None
+            labels = dict(item.split("=", 1) for item in items if item)
+            return labels, float(tail[-1])
+        else:
+            current.append(char)
+    return None
+
+
 def _parse_labeled_metric(lines, metric_name):
     """Parse every sample of a labeled or unlabeled Prometheus counter/gauge.
 
@@ -224,19 +265,12 @@ def _parse_labeled_metric(lines, metric_name):
         if line.startswith("#"):
             continue
         if line.startswith(labeled_prefix):
-            labels_str, _, rest = line[len(metric_name):].partition("}")
-            value = float(rest.split()[-1])
-            labels = dict(
-                item.split("=", 1) for item in labels_str.strip("{}").split(",") if item
-            )
-            results.append(({k: v.strip('"') for k, v in labels.items()}, value))
+            parsed = _parse_label_block(line, metric_name)
+            if parsed is not None:
+                results.append(parsed)
         elif line.startswith(bare_prefix):
             results.append(({}, float(line.split()[-1])))
     return results
-
-
-def _sum_labeled_metric(lines, metric_name):
-    return sum(value for _, value in _parse_labeled_metric(lines, metric_name))
 
 
 def _labeled_metric_by(lines, metric_name, label_key):
@@ -261,21 +295,37 @@ _CONSENSUS_HEALTH_COUNTERS = [
 
 def scrape_consensus_health_raw(prom_text):
     """Snapshot raw cumulative consensus-health counters (see
-    scrape_consensus_health for the baseline-relative view)."""
-    lines = prom_text.splitlines()
-    raw = {key: _sum_labeled_metric(lines, metric) for key, metric in _CONSENSUS_HEALTH_COUNTERS}
-    raw["rejected_proposals"] = sum(
-        value
-        for labels, value in _parse_labeled_metric(lines, "cometbft_consensus_proposal_receive_count")
-        if labels.get("status") == "rejected"
+    scrape_consensus_health for the baseline-relative view).
+
+    Returns None when the text carries none of the counters (telemetry
+    unreachable, or a scrape that raced node startup): an all-zero dict is
+    truthy and would pass as a valid baseline, turning the later "delta" into
+    the node's lifetime total.
+    """
+    lines = (prom_text or "").splitlines()
+    raw = {}
+    found = False
+
+    def _sum(metric, predicate=None):
+        nonlocal found
+        samples = _parse_labeled_metric(lines, metric)
+        found = found or bool(samples)
+        return sum(
+            value for labels, value in samples if predicate is None or predicate(labels)
+        )
+
+    for key, metric in _CONSENSUS_HEALTH_COUNTERS:
+        raw[key] = _sum(metric)
+    raw["rejected_proposals"] = _sum(
+        "cometbft_consensus_proposal_receive_count",
+        lambda labels: labels.get("status") == "rejected",
     )
-    raw["late_votes"] = _sum_labeled_metric(lines, "cometbft_consensus_late_votes")
-    raw["block_gossip_parts_mismatched"] = sum(
-        value
-        for labels, value in _parse_labeled_metric(lines, "cometbft_consensus_block_gossip_parts_received")
-        if labels.get("matches_current") == "false"
+    raw["late_votes"] = _sum("cometbft_consensus_late_votes")
+    raw["block_gossip_parts_mismatched"] = _sum(
+        "cometbft_consensus_block_gossip_parts_received",
+        lambda labels: labels.get("matches_current") == "false",
     )
-    return raw
+    return raw if found else None
 
 
 def scrape_consensus_health(prom_text, baseline=None):
@@ -290,12 +340,19 @@ def scrape_consensus_health(prom_text, baseline=None):
 
     With `baseline` (a scrape_consensus_health_raw snapshot from load start),
     counters are deltas over the load period; without it, they're lifetime
-    totals.
+    totals. A baseline that measured nothing is None, so it is skipped rather
+    than subtracted as zeros.
     """
-    lines = prom_text.splitlines()
+    lines = (prom_text or "").splitlines()
     raw = scrape_consensus_health_raw(prom_text)
-    if baseline:
-        raw = {key: raw.get(key, 0) - baseline.get(key, 0) for key in raw}
+    if raw is None:
+        raw = dict.fromkeys(
+            [key for key, _ in _CONSENSUS_HEALTH_COUNTERS]
+            + ["rejected_proposals", "late_votes", "block_gossip_parts_mismatched"],
+            0,
+        )
+    elif baseline:
+        raw = {key: raw[key] - baseline.get(key, 0) for key in raw}
 
     result = dict(raw)
     result["current_round"] = _parse_labeled_metric(lines, "cometbft_consensus_rounds")
@@ -398,7 +455,8 @@ def _analyze_load_window(
 
     blocks: list of (tx_count, timestamp) for every queried height.
     gas_data: list of (gas_used, gas_limit), parallel to blocks.
-    per_tx_gas_values: per-tx gas (int) for blocks with tx_count > 0.
+    per_tx_gas_values: (per-tx gas, block gas limit) for blocks with
+        tx_count > 0.
 
     Returns None if no block in the range had any transactions (the
     "no_load_period" case), else a dict consumed by
@@ -434,6 +492,10 @@ def _analyze_load_window(
         if bt > 0:
             gu, _ = load_gas[j]
             load_gps_values.append(gu / bt)
+        else:
+            # Keep index alignment with block_times so the stall filter below
+            # drops the right samples; a zero-length interval has no rate.
+            load_gps_values.append(None)
 
         win_start = max(0, j + 1 - TPS_WINDOW)
         window = load_blocks[win_start : j + 1]
@@ -462,7 +524,9 @@ def _analyze_load_window(
         v for j, v in enumerate(load_tps_values) if j not in stall_indices
     ]
     steady_gps_values = [
-        v for j, v in enumerate(load_gps_values) if j not in stall_indices
+        v
+        for j, v in enumerate(load_gps_values)
+        if j not in stall_indices and v is not None
     ]
 
     counted = load_blocks[1:] if anchor_is_separate else load_blocks
@@ -495,14 +559,21 @@ def _analyze_load_window(
     # --- Gas metrics ---
     counted_gas = load_gas[1:] if anchor_is_separate else load_gas
     total_gas_used = sum(gu for gu, _ in counted_gas)
-    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
+    # Only gl == 0 is dropped: that means the block's gas was never measured
+    # (an unreachable block reads as (0, 0)). A block with a gas limit and zero
+    # gas used is an empty block, exactly the underutilization the saturation
+    # gate exists to catch, so it stays in the sample.
+    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0]
     steady_gas_used = total_gas_used - stall_gas
     overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
     peak_gps = max(steady_gps_values) if steady_gps_values else 0
     median_gps = median(steady_gps_values) if steady_gps_values else 0
 
     # --- Per-tx gas from ETH block data (EVM gas units) ---
-    tx_gas_list = [g for g in per_tx_gas_values if g > 0]
+    # Keyed off the block's gas limit for the same reason as gas_utilizations
+    # above: gl == 0 means the block's gas was never measured, while a measured
+    # block with zero gas used is real data.
+    tx_gas_list = [gu for gu, gl in per_tx_gas_values if gl > 0]
 
     return {
         "first_tx_idx": first_tx_idx,
@@ -709,9 +780,14 @@ def dump_block_stats(
             gas_used, gas_limit = 0, 0
 
         if txs > 0:
-            total_failed_txs += _get_failed_tx_count(i, rpc)
-            total_counted_txs += txs
-            per_tx_gas_values.append(gas_used // txs)
+            failed = _get_failed_tx_count(i, rpc)
+            # A block whose failure count couldn't be read contributes to
+            # neither side of the ratio, so total_counted_txs stays 0 when
+            # nothing was measurable and the failed-tx gate reports no data.
+            if failed is not None:
+                total_failed_txs += failed
+                total_counted_txs += txs
+            per_tx_gas_values.append((gas_used // txs, gas_limit))
         gas_data.append((gas_used, gas_limit))
         blocks.append((txs, timestamp))
 
@@ -744,7 +820,17 @@ def dump_block_stats(
     _print_load_summary_sections(fp, start, summary)
 
     # --- Mempool / Tx-Pool summary ---
-    load_mp = mempool_snapshots[summary["anchor_idx"] : summary["last_tx_idx"] + 1]
+    # Excludes both edges of the window. The leading anchor block predates any
+    # load tx, and the trailing block is where the last tx commits and the load
+    # generator has already stopped, so both snapshot a drained mempool and
+    # would drag mempool_min_pending to 0 and trip the saturation gate on a
+    # healthy run. A single-tx-block window has no interior left, so it keeps
+    # that one block rather than measuring nothing.
+    first_mp_idx = summary["first_tx_idx"]
+    last_mp_idx = summary["last_tx_idx"]
+    if last_mp_idx > first_mp_idx:
+        last_mp_idx -= 1
+    load_mp = mempool_snapshots[first_mp_idx : last_mp_idx + 1]
     valid_mp = [n for n, _ in load_mp if n >= 0]
     summary["mempool_min_pending"] = min(valid_mp) if valid_mp else None
     if valid_mp:
@@ -854,8 +940,15 @@ def dump_block_stats(
                 val, _ = cons[key]
                 print(f"{label} {val * 1000:.1f}ms", file=fp)
 
+    summary["missing_validators"] = None
+    summary["byzantine_validators"] = None
     if telemetry:
         health = scrape_consensus_health(prom_text, baseline=consensus_health_baseline)
+        # Carried on the summary, not just printed: a validator set that lost a
+        # member or reported byzantine behaviour is a consensus finding the
+        # caller has to be able to gate on.
+        summary["missing_validators"] = health["missing_validators"]
+        summary["byzantine_validators"] = health["byzantine_validators"]
         print(file=fp)
         print(f"=== Consensus Health ({scope}) ===", file=fp)
         print(f"round_increments {health['round_increments']:.0f}", file=fp)
@@ -905,10 +998,22 @@ def dump_block_stats(
                 print(f"heap_alloc_bytes {go['heap_alloc_bytes']:.0f}", file=fp)
         if node_exporter:
             disk_net = scrape_disk_net(fetch_node_exporter(node_exporter), baseline=disk_net_baseline)
-            print(f"disk_read_bytes {disk_net['disk_read_bytes']:.0f} ({scope})", file=fp)
-            print(f"disk_written_bytes {disk_net['disk_written_bytes']:.0f} ({scope})", file=fp)
-            print(f"network_receive_bytes {disk_net['network_receive_bytes']:.0f} ({scope})", file=fp)
-            print(f"network_transmit_bytes {disk_net['network_transmit_bytes']:.0f} ({scope})", file=fp)
+            if disk_net is None:
+                print("disk_net N/A (node_exporter scrape returned no counters)", file=fp)
+            else:
+                # Scoped independently of the consensus baseline: the disk/net
+                # baseline scrape can fail on its own, leaving lifetime totals.
+                disk_scope = "load period" if disk_net_baseline else "node lifetime"
+                print(f"disk_read_bytes {disk_net['disk_read_bytes']:.0f} ({disk_scope})", file=fp)
+                print(f"disk_written_bytes {disk_net['disk_written_bytes']:.0f} ({disk_scope})", file=fp)
+                print(
+                    f"network_receive_bytes {disk_net['network_receive_bytes']:.0f} ({disk_scope})",
+                    file=fp,
+                )
+                print(
+                    f"network_transmit_bytes {disk_net['network_transmit_bytes']:.0f} ({disk_scope})",
+                    file=fp,
+                )
 
     return summary
 
@@ -934,7 +1039,7 @@ def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
         timestamp, txs, gas_used, gas_limit = get_block_info_eth_full(i, json_rpc)
 
         if txs > 0:
-            per_tx_gas_values.append(gas_used // txs)
+            per_tx_gas_values.append((gas_used // txs, gas_limit))
         gas_data.append((gas_used, gas_limit))
         blocks.append((txs, timestamp))
 

@@ -22,10 +22,20 @@ from .compare import (
 from .config import load_config
 from .libp2p import bootstrap_peers
 from .monitor import BlockSTMMonitor, MempoolMonitor
-from .preflight import peer_connectivity_matrix, resolved_mempool_types
+from .preflight import (
+    peer_connectivity_matrix,
+    probe_peers,
+    resolved_mempool_types,
+    unreachable_nodes,
+)
 from .results import (
     build_aggregate_record,
     build_run_record,
+    check_divergence,
+    consensus_health_reasons,
+    consensus_health_warnings,
+    divergence_reasons,
+    divergence_warnings,
     evaluate_saturation,
     write_run_record,
 )
@@ -125,10 +135,17 @@ def wait_for_committed_eth_txs(
     )
 
 
-def current_sender_nonce(cfg, start, end):
-    """Return the shared current nonce for the benchmark's physical senders."""
+def current_sender_nonce(cfg, start, end, num_txs=None):
+    """Return the shared current nonce for the benchmark's physical senders.
+
+    `num_txs` overrides `cfg.num_txs` for callers that generate a different
+    per-account tx count (the soak derives its own from rate x duration): under
+    the unique-per-tx strategy that count sets how wide the physical sender
+    range is, so checking nonces with the config's value would validate a
+    different set of accounts than the run actually signs from.
+    """
     physical_start, physical_end = physical_account_range(
-        start, end, cfg.num_txs, cfg.sender_strategy
+        start, end, cfg.num_txs if num_txs is None else num_txs, cfg.sender_strategy
     )
     w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
     nonces = {
@@ -202,9 +219,12 @@ def fund(config_path, batch_size, fund_mode, start, end):
                 cfg.primary.rpc,
                 json=json_rpc_send_body(raw, method="broadcast_tx_sync"),
             ).json()
-            if rsp["result"]["code"] != 0:
-                print(rsp["result"]["log"])
-                break
+            result = rsp.get("result") or {}
+            if result.get("code", 0) != 0:
+                raise click.ClickException(
+                    f"funding broadcast failed for accounts [{begin}, {chunk_end}): "
+                    f"{result.get('log')}"
+                )
 
         # wait for nonce to change
         while w3.eth.get_transaction_count(fund_account.address) < nonce:
@@ -385,6 +405,18 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
         consensus_baseline = scrape_consensus_raw(prom_baseline_text)
         consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
         disk_net_baseline = scrape_disk_net_raw(fetch_node_exporter(cfg.primary.node_exporter))
+        if cfg.telemetry and consensus_health_baseline is None:
+            print(
+                "warning: telemetry baseline scrape returned no consensus-health "
+                "counters; those numbers will be node-lifetime totals",
+                file=sys.stderr,
+            )
+        if cfg.primary.node_exporter and disk_net_baseline is None:
+            print(
+                "warning: node_exporter baseline scrape returned no counters; "
+                "disk/net numbers will be node-lifetime totals",
+                file=sys.stderr,
+            )
 
         load_start = block_height(cfg.primary.rpc)
         mempool_monitor.start()
@@ -442,6 +474,22 @@ def _run_record_path(results_path, run_index, total_runs):
         return results_path
     path = Path(results_path)
     return str(path.with_name(f"{path.stem}-run{run_index + 1}{path.suffix}"))
+
+
+def _raise_on_divergence(failures):
+    """State divergence is a correctness failure, not a tuning signal, so it
+    fails the command unconditionally — unlike the saturation gates it is never
+    something the operator opts into."""
+    if failures:
+        raise click.ClickException("state divergence detected: " + " | ".join(failures))
+
+
+def _warn_unverified(warnings, label="divergence check unverified"):
+    """A signal that can legitimately occur on a healthy network — an
+    unreachable or slow node, a validator missing one precommit — establishes no
+    defect, so it is surfaced and not raised."""
+    for warning in warnings:
+        click.echo(f"warning: {label}: {warning}", err=True)
 
 
 @cli.command()
@@ -506,6 +554,9 @@ def bench(
         run_nonce = nonce if i == 0 else None
         run = _run_bench_once(cfg, run_nonce, probe_batches, start, end, capture_stats)
         runs.append(run)
+        # Sampled right after the load, while the nodes are still at the tip the
+        # run drove them to.
+        run["divergence"] = check_divergence(cfg.endpoints)
 
         if results_path:
             record = build_run_record(
@@ -518,6 +569,7 @@ def bench(
                 summary=run["summary"],
                 committed_txs=run["committed_txs"],
                 expected_txs=run["expected_txs"],
+                divergence=run["divergence"],
                 extra={"run_index": i} if repeat > 1 else None,
             )
             run_path = _run_record_path(results_path, i, repeat)
@@ -529,9 +581,34 @@ def bench(
             cfg=cfg,
             config_path=config_path,
             summaries=[run["summary"] for run in runs],
+            divergences=[run["divergence"] for run in runs],
         )
         write_run_record(aggregate, results_path)
         print(f"wrote aggregate record to {results_path}", file=sys.stderr)
+
+    _warn_unverified(
+        [
+            f"run {i + 1}: {warning}"
+            for i, run in enumerate(runs)
+            for warning in divergence_warnings(run["divergence"])
+        ]
+    )
+    _warn_unverified(
+        [
+            f"run {i + 1}: {warning}"
+            for i, run in enumerate(runs)
+            for warning in consensus_health_warnings(run["summary"])
+        ],
+        label="consensus health",
+    )
+    _raise_on_divergence(
+        [
+            f"run {i + 1}: {reason}"
+            for i, run in enumerate(runs)
+            for reason in divergence_reasons(run["divergence"])
+            + consensus_health_reasons(run["summary"])
+        ]
+    )
 
     if require_saturation:
         failing = []
@@ -563,6 +640,94 @@ def bench(
         )
 
 
+def _soak_batch_size(rate, batch_interval, evm_txs_per_wire_tx, warn=True):
+    """Wire txs to send per batch to sustain `rate` EVM tx/s.
+
+    `evm_txs_per_wire_tx` is the effective packing, not the configured
+    batch_size: `gen` batches only within one account, so it is
+    min(num_txs_per_account, batch_size). A single wire tx per batch is already
+    the floor rate. Targets below that floor can only be met by overshooting,
+    which would silently benchmark a different rate than the operator asked
+    for.
+    """
+    per_wire_tx = max(1, evm_txs_per_wire_tx)
+    min_rate = per_wire_tx / batch_interval
+    if rate < min_rate:
+        raise click.ClickException(
+            f"target rate {rate:g} tx/s is below the {min_rate:g} tx/s floor set by "
+            f"batch_size={per_wire_tx}: lower batch_size or raise --rate"
+        )
+    exact = rate * batch_interval / per_wire_tx
+    batch_size = round(exact)
+    # Achievable, but only at a quantised rate: warn rather than reject so the
+    # operator knows which rate the numbers they get actually describe.
+    if warn and abs(batch_size - exact) > 0.05 * exact:
+        effective_rate = batch_size * per_wire_tx / batch_interval
+        click.echo(
+            f"warning: target rate {rate:g} tx/s is not reachable in whole wire txs "
+            f"with batch_size={per_wire_tx}; using {effective_rate:g} tx/s",
+            err=True,
+        )
+    return batch_size
+
+
+# Each pass raises num_txs, which raises the packing and so lowers the batch size
+# the next pass needs; a handful of passes is far more than the crossing takes.
+_SOAK_SIZING_PASSES = 8
+
+
+def _soak_tx_supply(rate, duration, num_accounts, batch_interval, cfg_batch_size):
+    """(num_txs per account, wire txs per batch) sized so the paced sender cannot
+    run out of txs before `duration` elapses.
+
+    Pacing rounds to a whole number of wire txs per batch, so the rate actually
+    sent can overshoot the requested one. Sizing the supply from the requested
+    rate then drains it early: the sender returns, the checkpoint sampler is
+    stopped before the final interval closes, and a healthy soak fails for want
+    of a second checkpoint. Coverage has to be counted in wire txs, since that is
+    what the sender consumes.
+
+    Packing is min(num_txs, cfg.batch_size), so the batch size depends on the
+    supply that depends on the batch size; this iterates until the supply covers
+    the batch size it implies.
+    """
+    num_txs = max(1, math.ceil(rate * duration / num_accounts))
+    for _ in range(_SOAK_SIZING_PASSES):
+        per_wire_tx = max(1, min(num_txs, cfg_batch_size))
+        batch_size = _soak_batch_size(rate, batch_interval, per_wire_tx, warn=False)
+        wire_txs_needed = math.ceil(batch_size * duration / batch_interval)
+        wire_txs_generated = num_accounts * math.ceil(num_txs / per_wire_tx)
+        if wire_txs_generated >= wire_txs_needed:
+            break
+        num_txs = per_wire_tx * math.ceil(wire_txs_needed / num_accounts)
+    per_wire_tx = max(1, min(num_txs, cfg_batch_size))
+    return num_txs, _soak_batch_size(rate, batch_interval, per_wire_tx)
+
+
+def _wait_out_soak_duration(started, duration):
+    """Hold until `duration` has elapsed since `started`.
+
+    The sampler emits a checkpoint at the end of each interval, so returning as
+    soon as the sender drains would drop the final one.
+    """
+    remaining = duration - (time.monotonic() - started)
+    if remaining > 0:
+        time.sleep(remaining)
+
+
+def _check_soak_duration(duration, checkpoint_interval):
+    """Trend fitting needs two checkpoints, and the sampler emits one per
+    interval, so a too-short soak can only fail after burning the whole run.
+    """
+    if duration < 2 * checkpoint_interval:
+        raise click.ClickException(
+            f"--duration {duration:g}s yields fewer than 2 checkpoints at "
+            f"--checkpoint-interval {checkpoint_interval:g}s, so no trend can be "
+            f"fitted: raise --duration to at least {2 * checkpoint_interval:g}s or "
+            "lower --checkpoint-interval"
+        )
+
+
 @cli.command()
 @click.option("--config", "config_path", required=True)
 @click.option("--nonce", type=click.IntRange(min=0), default=None)
@@ -584,13 +749,22 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     cfg = load_config(config_path)
     if cfg.mode == "eth":
         raise click.ClickException("soak currently only supports cosmos mode")
+    _check_soak_duration(duration, checkpoint_interval)
 
     num_accounts = end - start + 1
+    # A batch every second, sized to hit the target rate, paces sends across the
+    # soak duration without waiting for prior batches to commit.
+    batch_interval = 1.0
+    num_txs, batch_size = _soak_tx_supply(
+        rate, duration, num_accounts, batch_interval, cfg.batch_size
+    )
+    # Nonces are checked after num_txs is known: it selects the physical sender
+    # range under unique-per-tx, so the check has to cover exactly the accounts
+    # gen() below signs from.
     if nonce is None:
-        nonce = current_sender_nonce(cfg, start, end)
+        nonce = current_sender_nonce(cfg, start, end, num_txs=num_txs)
         print(f"using current sender nonce {nonce}", file=sys.stderr)
 
-    num_txs = max(1, math.ceil(rate * duration / num_accounts))
     print(
         f"generating ~{num_txs} txs/account for a {duration:.0f}s soak at {rate:.1f} tx/s...",
         file=sys.stderr,
@@ -610,12 +784,8 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         sender_strategy=cfg.sender_strategy,
     )
 
-    # A batch every second, sized to hit the target rate, paces sends across
-    # the soak duration without waiting for prior batches to commit.
-    batch_interval = 1.0
-    batch_size = max(1, round(rate * batch_interval))
-
     sampler = CheckpointSampler(cfg.primary.rpc, cfg.telemetry, checkpoint_interval)
+    started = time.monotonic()
     sampler.start()
     try:
         print("sending txs...", file=sys.stderr)
@@ -626,8 +796,10 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 batch_size=batch_size,
                 batch_interval=batch_interval,
                 num_accounts=num_accounts,
+                deadline_s=duration,
             )
         )
+        _wait_out_soak_duration(started, duration)
     finally:
         sampler.stop()
 
@@ -637,31 +809,45 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     for c in checkpoints:
         block_time = f"{c['avg_block_time_ms']:.0f}ms" if c["avg_block_time_ms"] is not None else "N/A"
         rss = f"{c['rss_bytes']:.0f}" if c["rss_bytes"] is not None else "N/A"
+        tps = f"{c['tps']:.2f}" if c["tps"] is not None else "N/A"
         print(
-            f"t={c['elapsed_s']:.0f}s height={c['height']} tps={c['tps']:.2f}"
+            f"t={c['elapsed_s']:.0f}s height={c['height']} tps={tps}"
             f" block_time={block_time} rss_bytes={rss}"
         )
 
     trends = fit_trends(checkpoints)
-    verdict = soak_verdict(trends)
+    verdict = soak_verdict(trends, checkpoints, cfg.telemetry)
+    divergence = check_divergence(cfg.endpoints)
     print()
     print("=== Soak Verdict ===")
     for key, slope in trends.items():
         print(f"{key}_trend_per_s {slope if slope is not None else 'N/A'}")
+    for gate, state in verdict["gates"].items():
+        print(f"gate {gate}: {state}")
     print(f"ok {verdict['ok']}")
     for reason in verdict["reasons"]:
         print(f"  {reason}")
+    for reason in divergence_reasons(divergence):
+        print(f"  divergence: {reason}")
+    for warning in divergence_warnings(divergence):
+        print(f"  divergence unverified: {warning}")
 
     if results_path:
         Path(results_path).write_text(
             ujson.dumps(
-                {"checkpoints": checkpoints, "trends": trends, "verdict": verdict},
+                {
+                    "checkpoints": checkpoints,
+                    "trends": trends,
+                    "verdict": verdict,
+                    "divergence": divergence,
+                },
                 indent=2,
                 default=str,
             )
         )
         print(f"wrote soak record to {results_path}", file=sys.stderr)
 
+    _raise_on_divergence(divergence_reasons(divergence))
     if not verdict["ok"]:
         raise click.ClickException("soak flagged: " + "; ".join(verdict["reasons"]))
 
@@ -703,12 +889,17 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
     # None so _run_bench_once re-queries the live chain nonce, since earlier
     # cells already consumed nonces by sending transactions.
     cell_index = 0
+    divergence_failures = []
+    divergence_unverified = []
+    health_warnings = []
+    undercommitted = []
 
     def run_cell(cell):
         nonlocal cell_index
         run_nonce = nonce if cell_index == 0 else None
         cell_index += 1
         run = _run_bench_once(cfg, run_nonce, 1, start, end, capture_stats=True)
+        divergence = check_divergence(cfg.endpoints)
         record = build_run_record(
             cfg=cfg,
             config_path=config_path,
@@ -720,10 +911,31 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
             committed_txs=run["committed_txs"],
             expected_txs=run["expected_txs"],
             run_kind="sweep-cell",
+            divergence=divergence,
             extra={"cell": cell},
         )
+        # Safe to interpolate into a path: cell keys/values come from the
+        # operator's own local sweep matrix file, same trust assumption as
+        # sweep.apply_config's shell hook.
         cell_name = "-".join(f"{k}{v}" for k, v in cell.items()) or "cell"
         write_run_record(record, results_path / f"{cell_name}.json")
+        divergence_failures.extend(
+            f"{cell_name}: {reason}"
+            for reason in divergence_reasons(divergence)
+            + consensus_health_reasons(run["summary"])
+        )
+        divergence_unverified.extend(
+            f"{cell_name}: {warning}"
+            for warning in divergence_warnings(divergence)
+        )
+        health_warnings.extend(
+            f"{cell_name}: {warning}"
+            for warning in consensus_health_warnings(run["summary"])
+        )
+        if run["committed_txs"] < run["expected_txs"]:
+            undercommitted.append(
+                f"{cell_name}: {run['committed_txs']}/{run['expected_txs']}"
+            )
         return run["summary"]
 
     print(f"sweeping {len(matrix['cells'])} cells...", file=sys.stderr)
@@ -739,6 +951,32 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
         print(
             f"stopped after {ran}/{total} cells: cell {ran} failed the saturation gates",
             file=sys.stderr,
+        )
+
+    _warn_unverified(divergence_unverified)
+    _warn_unverified(health_warnings, label="consensus health")
+    _raise_on_divergence(divergence_failures)
+    # Same hard failure `bench` applies: a cell whose load never fully committed
+    # measured a truncated window, so its numbers describe a different run than
+    # the one requested.
+    if undercommitted:
+        kind = "Ethereum" if cfg.mode == "eth" else "Cosmos"
+        raise click.ClickException(
+            f"timed out waiting for generated transactions to commit "
+            f"({kind}): " + "; ".join(undercommitted)
+        )
+    # A sweep whose every cell (or only its last cell) failed the gates has to
+    # exit non-zero: `ran == total` alone says nothing about the verdicts.
+    failed = [entry for entry in cell_results if not entry["ok"]]
+    if failed:
+        details = " | ".join(
+            (" ".join(f"{k}={v}" for k, v in entry["cell"].items()) or "(no params)")
+            + ": "
+            + "; ".join(entry["reasons"])
+            for entry in failed
+        )
+        raise click.ClickException(
+            f"saturation gates not met in {len(failed)}/{ran} run cells: {details}"
         )
 
 
@@ -788,33 +1026,40 @@ def preflight(config_path):
     access, which this tool doesn't have; check those manually.
     """
     cfg = load_config(config_path)
+    failures = []
 
     print("mempool.type by node:")
     mempool_types = resolved_mempool_types(cfg.endpoints)
     for name, mtype in mempool_types.items():
         print(f"  {name}: {mtype or '(undeclared)'}")
     declared = {v for v in mempool_types.values() if v}
+    # Undeclared everywhere just means nobody told the tool; two *different*
+    # declared types mean the nodes are running different mempools, and any
+    # number measured across them describes neither configuration.
     if len(declared) > 1:
-        print(f"  WARNING: nodes disagree on mempool.type: {declared}", file=sys.stderr)
+        failures.append(f"nodes disagree on mempool.type: {mempool_types}")
 
     print("peer connectivity matrix:")
-    matrix = peer_connectivity_matrix(cfg.endpoints)
+    if len(cfg.endpoints) < 2:
+        print("  (single endpoint: no peer links to verify)")
+    probe = probe_peers(cfg.endpoints)
+    matrix = peer_connectivity_matrix(cfg.endpoints, probe=probe)
     for name, row in matrix.items():
         print(f"  {name}: " + ", ".join(f"{other}={v}" for other, v in row.items()))
 
-    unreachable = [name for name, row in matrix.items() if row and all(v is None for v in row.values())]
+    unreachable = unreachable_nodes(*probe)
     missing_links = [
         f"{name}->{other}"
         for name, row in matrix.items()
         for other, v in row.items()
         if v is False
     ]
-    if unreachable or missing_links:
-        raise click.ClickException(
-            "preflight failed: "
-            + (f"unreachable nodes: {unreachable}; " if unreachable else "")
-            + (f"missing peer links: {missing_links}" if missing_links else "")
-        )
+    if unreachable:
+        failures.append(f"unreachable nodes: {unreachable}")
+    if missing_links:
+        failures.append(f"missing peer links: {missing_links}")
+    if failures:
+        raise click.ClickException("preflight failed: " + "; ".join(failures))
 
 
 if __name__ == "__main__":

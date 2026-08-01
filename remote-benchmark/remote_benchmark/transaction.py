@@ -5,6 +5,7 @@ import itertools
 import multiprocessing
 import os
 import sys
+import time
 from collections import namedtuple
 from pathlib import Path
 
@@ -403,6 +404,7 @@ async def send(
     batch_interval=0.5,
     mode="cosmos",
     probe_batches=1,
+    deadline_s=None,
 ):
     """Send transactions to a single rpc endpoint in rate-limited batches.
 
@@ -410,6 +412,11 @@ async def send(
     then sends the next batch.  The pause lets the chain produce blocks and
     drain the mempool between batches, preventing the CheckTx flood that
     overwhelms the proposer and causes repeated consensus round timeouts.
+
+    ``deadline_s`` caps the send loop at that many seconds of wall clock,
+    leaving any remaining txs unsent. An open-loop rate target defines the run
+    by its duration, so overrunning it to drain the generated txs would
+    benchmark a longer window than was asked for.
 
     The first ``probe_batches`` batches are always sent with
     ``broadcast_tx_sync``/``eth_sendRawTransaction`` regardless of ``sync``,
@@ -420,10 +427,13 @@ async def send(
     zero-load runs with no error printed anywhere.
     """
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
+    started = time.monotonic()
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
         for i in range(0, len(txs), batch_size):
+            if _past_deadline(started, deadline_s, i, len(txs)):
+                break
             chunk = txs[i : i + batch_size]
             batch_sync = sync or (i // batch_size) < probe_batches
             tasks = [
@@ -435,6 +445,21 @@ async def send(
                 await asyncio.sleep(batch_interval)
 
 
+def _past_deadline(started, deadline_s, sent, total):
+    """True once the send loop has run past ``deadline_s`` seconds."""
+    if deadline_s is None:
+        return False
+    elapsed = time.monotonic() - started
+    if elapsed < deadline_s:
+        return False
+    print(
+        f"deadline {deadline_s:g}s reached after {elapsed:.1f}s, "
+        f"stopping with {total - sent}/{total} txs unsent",
+        file=sys.stderr,
+    )
+    return True
+
+
 async def send_round_robin(
     txs,
     rpcs: [str],
@@ -444,6 +469,7 @@ async def send_round_robin(
     mode="cosmos",
     num_accounts=1,
     probe_batches=1,
+    deadline_s=None,
 ):
     """Send transactions across multiple rpc endpoints in rate-limited batches.
 
@@ -457,7 +483,7 @@ async def send_round_robin(
     node's CheckTx rejects as a nonce gap. Falls back to plain ``send`` when
     only one endpoint is configured.
 
-    See ``send``'s docstring for why ``probe_batches`` exists.
+    See ``send``'s docstring for why ``probe_batches`` and ``deadline_s`` exist.
     """
     if len(rpcs) == 1:
         return await send(
@@ -468,13 +494,17 @@ async def send_round_robin(
             batch_interval=batch_interval,
             mode=mode,
             probe_batches=probe_batches,
+            deadline_s=deadline_s,
         )
 
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
+    started = time.monotonic()
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
         for i in range(0, len(txs), batch_size):
+            if _past_deadline(started, deadline_s, i, len(txs)):
+                break
             chunk = txs[i : i + batch_size]
             batch_sync = sync or (i // batch_size) < probe_batches
             tasks = [

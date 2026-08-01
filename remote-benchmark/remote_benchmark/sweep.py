@@ -47,6 +47,9 @@ def apply_config(hook_cmd, cell, restart_wait_s=0):
     """
     if hook_cmd:
         env = dict(os.environ, CELL_PARAMS=json.dumps(cell))
+        # shell=True is intentional: hook_cmd is an operator-written shell
+        # snippet from their own sweep config, and no swept value is
+        # interpolated into it — cell params only travel through the env.
         subprocess.run(hook_cmd, shell=True, check=True, env=env)
     if restart_wait_s:
         time.sleep(restart_wait_s)

@@ -9,6 +9,11 @@ from hexbytes import HexBytes
 DEFAULT_DENOM = "basecro"
 CRONOS_ADDRESS_PREFIX = "crc"
 
+# Every RPC helper here is called in per-height loops across every endpoint
+# (divergence checks issue blocks x nodes requests), so an unbounded read on a
+# single hung node would stall the whole run.
+HTTP_TIMEOUT_S = 10
+
 
 def decode_bech32(addr):
     _, bz = bech32.bech32_decode(addr)
@@ -32,13 +37,24 @@ def gen_account(global_seq: int, index: int) -> Account:
     return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))
 
 
+def status(rpc):
+    return requests.get(f"{rpc}/status", timeout=HTTP_TIMEOUT_S).json()
+
+
+def node_id(rpc):
+    return status(rpc)["result"]["node_info"]["id"]
+
+
 def block_height(rpc):
-    rsp = requests.get(f"{rpc}/status").json()
-    return int(rsp["result"]["sync_info"]["latest_block_height"])
+    return int(status(rpc)["result"]["sync_info"]["latest_block_height"])
 
 
 def block(height, rpc):
-    return requests.get(f"{rpc}/block?height={height}").json()
+    return requests.get(f"{rpc}/block?height={height}", timeout=HTTP_TIMEOUT_S).json()
+
+
+def abci_info(rpc):
+    return requests.get(f"{rpc}/abci_info", timeout=HTTP_TIMEOUT_S).json()
 
 
 def block_eth(height: int, json_rpc):
@@ -50,6 +66,7 @@ def block_eth(height: int, json_rpc):
             "params": [hex(height), False],
             "id": 1,
         },
+        timeout=HTTP_TIMEOUT_S,
     ).json()["result"]
 
 
@@ -57,21 +74,24 @@ def eth_block_number(json_rpc) -> int:
     rsp = requests.post(
         json_rpc,
         json={"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
+        timeout=HTTP_TIMEOUT_S,
     ).json()
     return int(rsp["result"], 16)
 
 
 def block_results(height, rpc):
-    return requests.get(f"{rpc}/block_results?height={height}").json()
+    return requests.get(
+        f"{rpc}/block_results?height={height}", timeout=HTTP_TIMEOUT_S
+    ).json()
 
 
 def net_info(rpc):
-    return requests.get(f"{rpc}/net_info").json()
+    return requests.get(f"{rpc}/net_info", timeout=HTTP_TIMEOUT_S).json()
 
 
 def mempool_status(rpc):
     """Return (n_txs, total_bytes) from CometBFT's unconfirmed txs endpoint."""
-    rsp = requests.get(f"{rpc}/num_unconfirmed_txs").json()
+    rsp = requests.get(f"{rpc}/num_unconfirmed_txs", timeout=HTTP_TIMEOUT_S).json()
     r = rsp.get("result", {})
     return int(r.get("n_txs", 0)), int(r.get("total_bytes", 0))
 

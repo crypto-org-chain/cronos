@@ -1,5 +1,6 @@
 import json
 
+from remote_benchmark import sweep as sweep_module
 from remote_benchmark.sweep import apply_config, load_matrix, run_sweep, summarize_sweep
 
 
@@ -39,8 +40,16 @@ def test_apply_config_passes_cell_params_as_json_env_var(tmp_path):
     assert json.loads(out_path.read_text()) == {"workers": 16}
 
 
-def test_apply_config_no_hook_is_a_noop():
+def test_apply_config_no_hook_runs_nothing_and_does_not_wait(monkeypatch):
+    calls = []
+    monkeypatch.setattr(sweep_module.subprocess, "run", lambda *a, **kw: calls.append(a))
+    monkeypatch.setattr(sweep_module.time, "sleep", lambda s: calls.append(("sleep", s)))
+
+    # No hook and no restart wait: nothing to run, and no reason to stall the
+    # sweep for a restart that never happened.
     apply_config(None, {"workers": 16}, restart_wait_s=0)
+
+    assert calls == []
 
 
 def test_run_sweep_stops_after_first_saturation_failure():

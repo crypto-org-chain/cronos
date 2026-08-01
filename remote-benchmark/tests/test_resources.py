@@ -89,3 +89,17 @@ def test_scrape_disk_net_with_baseline_reports_deltas():
 
     assert delta["disk_read_bytes"] == 600
     assert delta["disk_written_bytes"] == 0
+
+
+def test_scrape_disk_net_raw_returns_none_for_a_failed_scrape():
+    # An all-zero dict is truthy and would pass as a valid baseline, then get
+    # subtracted from a real reading.
+    assert scrape_disk_net_raw("") is None
+    assert scrape_disk_net_raw(None) is None
+    assert scrape_disk_net_raw(GO_RUNTIME_TEXT) is None
+
+
+def test_scrape_disk_net_returns_none_for_a_failed_scrape():
+    baseline = scrape_disk_net_raw(NODE_EXPORTER_TEXT)
+
+    assert scrape_disk_net("", baseline=baseline) is None
