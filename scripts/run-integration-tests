@@ -16,6 +16,8 @@ TESTS_TO_RUN="${TESTS_TO_RUN:-all}"
 if [[ "$TESTS_TO_RUN" == "upgrade" || "$TESTS_TO_RUN" == "all" ]]; then
   echo "pre-building upgrade test packages (this may take a while if not cached)..."
   nix-build ./integration_tests/configs/upgrade-test-package.nix
+  # no out-link so the (gitignored) `result` symlink above is kept
+  nix-build --no-out-link ./integration_tests/configs/upgrade-rehearsal-package.nix
 fi
 
 if [[ "$TESTS_TO_RUN" == "all" ]]; then

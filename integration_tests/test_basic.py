@@ -28,6 +28,7 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
+    eth_to_bech32,
     fund_acc,
     get_expedited_params,
     get_receipts_by_block,
@@ -339,8 +340,12 @@ def test_local_statesync(cronos, tmp_path_factory):
     check_addrs = ("validator", "validator2", "community")
     # baseline from node0's own store, which the restore below never touches
     baseline_balances = {
-        name: cli0.balance(ADDRS[name], height=height) for name in check_addrs
+        name: cli0.balance(eth_to_bech32(ADDRS[name]), height=height)
+        for name in check_addrs
     }
+    # CosmosCLI.balance returns 0 for a denom it cannot find, so an all-zero
+    # baseline would make the post-restore equality check below vacuous
+    assert all(v > 0 for v in baseline_balances.values()), baseline_balances
 
     home = tmp_path_factory.mktemp("local_statesync")
     print("home", home)
@@ -423,7 +428,8 @@ def test_local_statesync(cronos, tmp_path_factory):
         # guards against cronos-store d61fd70d (branch nodes silently
         # overwriting a leaf's value at restore)
         assert {
-            name: cli.balance(ADDRS[name], height=height) for name in check_addrs
+            name: cli.balance(eth_to_bech32(ADDRS[name]), height=height)
+            for name in check_addrs
         } == baseline_balances
 
 
@@ -458,30 +464,42 @@ def test_export_genesis_equality(cronos):
 
 def test_app_hash_agreement(cronos):
     """
-    All validators must agree on app_hash at every height - any divergence
-    means non-deterministic execution across nodes. Runs during ordinary
-    block production, independent of the upgrade-rehearsal check which only
-    watches around an upgrade boundary.
+    All validators must agree on the app hash they compute for a height - any
+    divergence means non-deterministic execution across nodes. Runs during
+    ordinary block production, independent of the upgrade-rehearsal check which
+    only watches around an upgrade boundary.
     """
     n = len(cronos.config["validators"])
     rpc_ports = [ports.rpc_port(cronos.base_port(i)) for i in range(n)]
-    cli0 = cronos.cosmos_cli(0)
-    start = cli0.block_height()
-    end = wait_for_new_blocks(cli0, 5)
-    assert_no_divergence(rpc_ports, start, end)
+    assert_no_divergence(rpc_ports, blocks=5)
 
 
-def test_historical_query_fd_soak(cronos):
+@pytest.fixture(scope="module")
+def cronos_memiavl_only(tmp_path_factory):
+    """Node0 with memiavl on and versiondb off, so historical queries are served
+    by memiavl instead of the versiondb query multistore."""
+    path = tmp_path_factory.mktemp("memiavl-only")
+    yield from setup_custom_cronos(
+        path, 27400, Path(__file__).parent / "configs/memiavl_no_versiondb.jsonnet"
+    )
+
+
+def test_historical_query_fd_soak(cronos_memiavl_only):
     """
     Historical queries (height < current) open a fresh memiavl instance outside
     the version cache, so the caller must close its fd/mmap. Regression guard for
     the cronos-store memiavl fd leak (cosmos-sdk #1816; Go-level equivalent in
     app/query_close_test.go) - defeat the cache with many distinct heights and
     confirm the open fd count doesn't grow per query.
+
+    Needs its own cluster: with versiondb enabled - the default everywhere else -
+    BaseApp.CreateQueryContext resolves past heights against the versiondb
+    multistore and never touches memiavl.
     """
     if not sys.platform.startswith("linux"):
         pytest.skip("/proc fd listing not available on this platform")
 
+    cronos = cronos_memiavl_only
     pid = int(cronos.supervisorctl("pid", "cronos_777-1-node0").strip())
     fd_dir = Path(f"/proc/{pid}/fd")
 
@@ -494,7 +512,7 @@ def test_historical_query_fd_soak(cronos):
 
     before = open_fds()
     for h in range(height - num_queries, height):
-        cli0.balance(ADDRS["validator"], height=h)
+        cli0.balance(eth_to_bech32(ADDRS["validator"]), height=h)
     after = open_fds()
 
     # slack for transient peer/RPC connection churn during the loop

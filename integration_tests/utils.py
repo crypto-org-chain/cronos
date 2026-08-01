@@ -476,10 +476,10 @@ def get_account_nonce(w3, key=KEYS["validator"]):
     return w3.eth.get_transaction_count(acct.address)
 
 
-def send_transaction(w3, tx, key=KEYS["validator"]):
+def send_transaction(w3, tx, key=KEYS["validator"], timeout=120):
     signed = sign_transaction(w3, tx, key)
     txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
-    return w3.eth.wait_for_transaction_receipt(txhash)
+    return w3.eth.wait_for_transaction_receipt(txhash, timeout=timeout)
 
 
 def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):

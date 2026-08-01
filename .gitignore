@@ -25,6 +25,11 @@ integration_tests/configs/*.yaml
 # integration test coverage output
 integration_tests/coverage/
 
+# coverage artifacts (go tool cover -html output dir, python coverage.py data)
+/coverage/
+.coverage
+.coverage.*
+
 # direnv
 .envrc
 .direnv

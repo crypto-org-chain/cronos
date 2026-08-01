@@ -22,6 +22,8 @@ Covers:
     cleanly rejected or silently executed with blobs dropped
 """
 
+import time
+
 import pytest
 from eth_account import Account
 from web3 import Web3
@@ -31,6 +33,39 @@ from .utils import ADDRS, KEYS, derive_new_account, send_transaction, sign_trans
 # EIP-7825 (params.MaxTxGas): 1 << 24.
 MAX_TX_GAS = 16_777_216
 
+# json-rpc `txfee-cap: 2` in configs/default.jsonnet, in wei.
+RPC_TXFEE_CAP = 2 * 10**18
+
+
+def _gas_price_under_fee_cap(w3, gas, attempts=12):
+    """A gas price for a `gas`-limit tx that stays under the node's txfee-cap
+    while still beating the base fee of the block that validates it.
+
+    SendRawTransaction runs CheckTxFee before CheckTx, so the price is bounded
+    by cap/gas, which for a cap-sized gas limit sits only a little above the
+    genesis base fee. Earlier tests in the session fill blocks and push the base
+    fee up, so wait for it to decay instead of assuming it is still at genesis.
+    The margin required is 1/8: feemarket's BaseFeeChangeDenominator caps
+    EIP-1559's per-block move at 12.5%, so a price above 9/8 of the base fee
+    just read is still above the base fee one block later.
+    """
+    # 99% of the cap, not all of it: CheckTxFee compares the fee in ether as a
+    # float, so leave room for rounding right at the boundary.
+    affordable = RPC_TXFEE_CAP * 99 // (100 * gas)
+    for _ in range(attempts):
+        base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+        if affordable * 8 >= base_fee * 9:
+            return min(max(w3.eth.gas_price, base_fee * 9 // 8), affordable)
+        height = w3.eth.block_number
+        deadline = time.monotonic() + 20
+        while w3.eth.block_number == height and time.monotonic() < deadline:
+            time.sleep(0.5)
+    raise AssertionError(
+        f"base fee {base_fee} never fell far enough for a {gas} gas tx to fit "
+        f"under the {RPC_TXFEE_CAP} wei fee cap (max affordable gas price "
+        f"{affordable})"
+    )
+
 
 def test_eip7825_gas_cap_rejected_at_admission(cronos):
     """A tx with gas limit above the EIP-7825 cap (1<<24) is rejected at
@@ -39,17 +74,21 @@ def test_eip7825_gas_cap_rejected_at_admission(cronos):
     keeper.CheckMaxTxGas runs inside ante's CheckEthGasConsume.
     """
     w3: Web3 = cronos.w3
+    gas = MAX_TX_GAS + 1
+    gas_price = _gas_price_under_fee_cap(w3, gas)
     tx = {
         "to": ADDRS["community"],
         "value": 1,
-        "gas": MAX_TX_GAS + 1,
-        "gasPrice": w3.eth.gas_price,
+        "gas": gas,
+        "gasPrice": gas_price,
     }
     signed = sign_transaction(w3, tx)
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed.raw_transaction)
+    # core.ErrGasLimitTooHigh ("transaction gas limit too high"); match the
+    # exact wording so a generic RPC/nonce/fee error can't satisfy this.
     msg = str(exc_info.value).lower()
-    assert any(s in msg for s in ("too high", "cap", "gas limit")), msg
+    assert "gas limit too high" in msg, msg
 
 
 def test_eip7623_floor_data_gas_rejected_at_admission(cronos):
@@ -77,8 +116,11 @@ def test_eip7623_floor_data_gas_rejected_at_admission(cronos):
     signed = sign_transaction(w3, tx)
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed.raw_transaction)
+    # core.ErrFloorDataGas ("insufficient gas for floor data gas cost"); a bare
+    # "gas" or "insufficient" substring would also match the intrinsic-gas and
+    # balance errors, which are different paths.
     msg = str(exc_info.value).lower()
-    assert any(s in msg for s in ("floor", "insufficient", "gas")), msg
+    assert "floor data gas" in msg, msg
 
 
 def test_eip1559_fee_cap_balance_check_rejected_at_admission(cronos):
@@ -112,8 +154,11 @@ def test_eip1559_fee_cap_balance_check_rejected_at_admission(cronos):
     signed = sign_transaction(w3, tx, sender.key)
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed.raw_transaction)
+    # keeper.CheckSenderBalance wraps ErrInsufficientFunds as
+    # "sender balance < tx cost (...)"; pin that so a min-gas-price or
+    # base-fee rejection can't pass as a balance check.
     msg = str(exc_info.value).lower()
-    assert any(s in msg for s in ("insufficient", "balance", "funds")), msg
+    assert "sender balance < tx cost" in msg, msg
 
 
 def _sign_blob_tx(w3, key, to):
@@ -139,6 +184,21 @@ def _sign_blob_tx(w3, key, to):
     return acct.sign_transaction(tx, blobs=[blob])
 
 
+# The unmarked marker is explicit here because conftest only auto-marks tests
+# that carry no marker at all, and CI picks legs by marker - an xfail-only test
+# would sit in no matrix leg and never run, exactly like the skip it replaces.
+@pytest.mark.unmarked
+@pytest.mark.xfail(
+    strict=True,
+    reason="the pinned ethermint (v0.22.1-0.20260716064133-ceb48bc17115) maps a "
+    "type-3 tx onto newLegacyTx in NewTxDataFromTx and has no BlobTxType check in "
+    "EthereumTx.Validate, so the blob tx is accepted with its blobs dropped. The "
+    "check only exists in the gitignored vendor/ tree, so it is not in a binary "
+    "built from this repo. strict=True so this flips to a hard failure once the "
+    "fix lands in the pinned dependency. Tracked in "
+    "docs/audit/devnet-tests-bugfixes-2026-07.md - needs a PR to "
+    "crypto-org-chain/ethermint.",
+)
 def test_eip4844_blob_tx_rejected_at_admission(cronos):
     """A type-3 (blob) transaction should be cleanly rejected at
     eth_sendRawTransaction, not silently accepted with its blobs
@@ -148,19 +208,17 @@ def test_eip4844_blob_tx_rejected_at_admission(cronos):
     AsMessage found no explicit BlobTxType check on the ethermint side:
     AsMessage never copies BlobHashes/BlobGasFeeCap onto the core.Message
     it builds, so geth's own blob checks in preCheck are structurally
-    bypassed for ethermint-originated messages. This test asserts the
-    expected/safe behavior (admission-time rejection); if it fails
-    instead with a mined receipt, that is a genuine gap -- blobs are
-    being silently stripped and the tx executed as a plain dynamic-fee
-    tx -- and should be reported rather than loosened away.
+    bypassed for ethermint-originated messages.
     """
     w3: Web3 = cronos.w3
     signed = _sign_blob_tx(w3, KEYS["community"], ADDRS["validator"])
     try:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     except Exception as exc_info:
+        # ErrTxTypeNotSupported ("transaction type not supported"), wrapped by
+        # the vendor patch as "blob transactions are not supported".
         msg = str(exc_info).lower()
-        assert any(s in msg for s in ("blob", "type", "unsupported", "invalid")), msg
+        assert "not supported" in msg, msg
         return
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
     pytest.fail(

@@ -1158,6 +1158,38 @@ class CosmosCLI:
         res = res.get("params") or res
         return res
 
+    def query_upgrade_plan(self):
+        """The upgrade plan currently stored by x/upgrade, or {} when there is
+        none. x/upgrade stores the plan the moment the proposal passes and
+        clears it when the upgrade fires, so an empty result means either "not
+        proposed yet" or "already applied" - pair it with query_upgrade_applied
+        to tell those apart."""
+        rsp = json.loads(
+            self.raw(
+                "query",
+                "upgrade",
+                "plan",
+                output="json",
+                node=self.node_rpc,
+                home=self.data_dir,
+            )
+        )
+        return rsp.get("plan") or {}
+
+    def query_upgrade_applied(self, name):
+        """Height at which the named upgrade was applied, 0 when x/upgrade holds
+        no done record for it."""
+        output = self.raw(
+            "query",
+            "upgrade",
+            "applied",
+            name,
+            output="json",
+            node=self.node_rpc,
+            home=self.data_dir,
+        )
+        return int(json.loads(output).get("height") or 0)
+
     def query_signer_set_txs(self):
         return json.loads(
             self.raw("query", "gravity", "signer-set-txs", home=self.data_dir)
@@ -1873,7 +1905,12 @@ class CosmosCLI:
         return rsp
 
     def rollback(self, hard=False):
-        self.raw("rollback", "--hard" if hard else None, home=self.data_dir)
+        "roll back one height; returns the height left behind"
+        output = self.raw("rollback", "--hard" if hard else None, home=self.data_dir)
+        match = re.search(rb"Rolled back state to height (\d+)", output)
+        if match is None:
+            raise AssertionError(f"unexpected rollback output: {output!r}")
+        return int(match.group(1))
 
     def changeset_dump(self, changeset_dir, **kwargs):
         default_kwargs = {

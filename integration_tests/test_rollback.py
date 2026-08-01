@@ -16,14 +16,17 @@ def update_node_cmd(path, cmd, i):
     ini_path = path / SUPERVISOR_CONFIG_FILE
     ini = configparser.RawConfigParser()
     ini.read(ini_path)
-    for section in ini.sections():
-        if section == f"program:cronos_777-1-node{i}":
-            ini[section].update(
-                {
-                    "command": f"{cmd} start --home %(here)s/node{i}",
-                    "autorestart": "false",  # don't restart when stopped
-                }
-            )
+    section = f"program:cronos_777-1-node{i}"
+    # A missing file or renamed section would otherwise leave the node running
+    # its original binary, and the caller's switch would silently do nothing.
+    if section not in ini:
+        raise AssertionError(f"no {section} in {ini_path}: {ini.sections()}")
+    ini[section].update(
+        {
+            "command": f"{cmd} start --home %(here)s/node{i}",
+            "autorestart": "false",  # don't restart when stopped
+        }
+    )
     with ini_path.open("w") as fp:
         ini.write(fp)
 

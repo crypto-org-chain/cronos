@@ -1,6 +1,7 @@
 // Same as mempool_app.jsonnet but with recheck disabled and a tiny block gas
-// limit, so a test can observe that a tx made stale by an earlier same-account
-// tx is never re-validated and evicted, unlike the recheck=true default.
+// limit. Full blocks keep the base fee climbing, so a tx priced just above the
+// base fee it was admitted against is left underpriced within a block or two -
+// and with recheck off it is never re-validated or evicted.
 local appmempool = import 'mempool_app.jsonnet';
 
 appmempool {

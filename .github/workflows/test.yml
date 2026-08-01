@@ -43,8 +43,20 @@ jobs:
             app/**
             x/**
             integration_tests/test_upgrade.py
+            integration_tests/test_upgrade_rehearsal.py
+            integration_tests/test_upgrade_rehearsal_helpers.py
+            integration_tests/upgrade_rehearsal.py
+            integration_tests/ibc_v18.py
+            integration_tests/staking_v1_8.py
+            integration_tests/test_rollback.py
+            integration_tests/cosmoscli.py
+            integration_tests/utils.py
+            integration_tests/network.py
+            integration_tests/conftest.py
+            integration_tests/configs/default.jsonnet
             integration_tests/configs/cosmovisor.jsonnet
             integration_tests/configs/upgrade-test-package.nix
+            integration_tests/configs/upgrade-rehearsal-package.nix
       - id: skip-upgrade
         if: matrix.tests == 'upgrade' && github.event_name == 'pull_request' && steps.changed-upgrade-files.outputs.any_changed == 'false'
         run: echo "skip=true" >> $GITHUB_OUTPUT
@@ -75,7 +87,11 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: 'build and cache upgrade test packages'
         if: steps.changed-files.outputs.only_changed == 'false' && matrix.tests == 'upgrade' && steps.skip-upgrade.outputs.skip != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
-        run: cachix watch-exec cronos -- nix-build integration_tests/configs/upgrade-test-package.nix
+        run: |
+          cachix watch-exec cronos -- nix-build integration_tests/configs/upgrade-test-package.nix
+          # the rehearsal package's own nix-build runs inside pytest's timeout,
+          # so it has to be built (and cached) here too
+          cachix watch-exec cronos -- nix-build --no-out-link integration_tests/configs/upgrade-rehearsal-package.nix
       - name: Run integration tests
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         run: make run-integration-tests
