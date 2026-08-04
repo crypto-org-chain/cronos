@@ -16,10 +16,10 @@ disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 
 # Capacity of the sharded LRU tx encode/decode cache.
 # 0 = derive from mempool-txs-per-block at startup (2×, default 5800). -1 = disable entirely.
-tx-cache-size = {{ .Cronos.MempoolTxCacheSize }}
+mempool-tx-cache-size = {{ .Cronos.MempoolTxCacheSize }}
 
 # Per-entry raw payload byte cap for the tx encode/decode cache. Default 65536 (64 KiB).
-tx-cache-max-tx-bytes = {{ .Cronos.MempoolTxCacheMaxTxBytes }}
+mempool-tx-cache-max-tx-bytes = {{ .Cronos.MempoolTxCacheMaxTxBytes }}
 
 # Re-gossip suppression window per tx for mempool.type=app. Default "15s".
 mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"

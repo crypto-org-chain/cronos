@@ -22,9 +22,9 @@ type CronosConfig struct {
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the tx encode/decode cache. Default 0 (derive from 2×MaxTxPerBlock).
 	// -1 disables the cache.
-	MempoolTxCacheSize int `mapstructure:"tx-cache-size"`
+	MempoolTxCacheSize int `mapstructure:"mempool-tx-cache-size"`
 	// Per-entry byte cap for the tx encode/decode cache. Default 65536 (64 KiB).
-	MempoolTxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
+	MempoolTxCacheMaxTxBytes int `mapstructure:"mempool-tx-cache-max-tx-bytes"`
 	// Re-gossip suppression window per tx for mempool.type=app. Default (or <= 0) 15s.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
 	// Tx budget per block for mempool.type=app. Default 2900. 0 = unlimited.

@@ -50,7 +50,6 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
-
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -184,8 +183,8 @@ const (
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagTxCacheSize                = "cronos.tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
+	FlagTxCacheSize                = "cronos.mempool-tx-cache-size"
+	FlagTxCacheMaxTxBytes          = "cronos.mempool-tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTxTTL               = "cronos.mempool-tx-ttl"
@@ -563,7 +562,7 @@ func New(
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
 			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
-				logger.Warn("mempool.type=app: tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}
 			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
