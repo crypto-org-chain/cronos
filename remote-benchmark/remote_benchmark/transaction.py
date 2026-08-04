@@ -23,8 +23,11 @@ from .utils import DEFAULT_DENOM, gen_account, split, split_batch
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
-CONNECTION_POOL_SIZE = 1024
+# raised from 1024: with send_batch_size=8000, a lower cap queued requests at
+# the connector instead of the node, which just moved the bottleneck client-side.
+CONNECTION_POOL_SIZE = 10000
 TXS_DIR = "txs"
+PROGRESS_INTERVAL_S = 3
 
 Job = namedtuple(
     "Job",
@@ -428,6 +431,7 @@ async def send(
     """
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     started = time.monotonic()
+    last_log = started
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -441,6 +445,7 @@ async def send(
                 for raw in chunk
             ]
             await asyncio.gather(*tasks)
+            last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)
 
@@ -458,6 +463,23 @@ def _past_deadline(started, deadline_s, sent, total):
         file=sys.stderr,
     )
     return True
+
+
+def _log_progress(started, last_log, sent, total):
+    """Print a "still sending" line at most once every ``PROGRESS_INTERVAL_S``.
+
+    Returns the (possibly updated) last-log timestamp. Without this, a long
+    send phase prints nothing between "sending txs..." and the final result,
+    which looks indistinguishable from a hang.
+    """
+    now = time.monotonic()
+    if now - last_log < PROGRESS_INTERVAL_S:
+        return last_log
+    print(
+        f"sent {sent}/{total} txs, {now - started:.1f}s elapsed",
+        file=sys.stderr,
+    )
+    return now
 
 
 async def send_round_robin(
@@ -499,6 +521,7 @@ async def send_round_robin(
 
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     started = time.monotonic()
+    last_log = started
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -520,5 +543,6 @@ async def send_round_robin(
                 for j, raw in enumerate(chunk)
             ]
             await asyncio.gather(*tasks)
+            last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)

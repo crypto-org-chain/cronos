@@ -16,6 +16,12 @@
     // whatever the Options JSON overrides.
     config: {
       db_backend: 'rocksdb',
+      // not part of the wiki's benchmark options - cometbft's default
+      // (~900) queues requests once a send_batch_size=8000 burst outruns it,
+      // serializing at the RPC server instead of in tx processing.
+      rpc: {
+        'max_open_connections': 10000,
+      },
       mempool: {
         size: 50000,
         recheck: false,

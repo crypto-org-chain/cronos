@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 from click import ClickException
@@ -684,6 +685,74 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
     )
 
 
+def test_bench_loads_txs_from_cache_instead_of_generating(monkeypatch, tmp_path):
+    cache_path = tmp_path / "txs.json"
+    cache_path.write_text(
+        json.dumps({"num_accounts": 3, "num_txs": 1, "txs": ["tx-1", "tx-2", "tx-3"]})
+    )
+    cfg = _cosmos_bench_cfg()
+    _mock_cosmos_bench_flow(monkeypatch, cfg)
+    gen_calls = []
+    monkeypatch.setattr(cli_module, "gen", lambda *a, **k: gen_calls.append(1) or ["unused"])
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--txs-cache", str(cache_path), "1", "3"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    assert gen_calls == []
+    assert f"loaded 3 cached cosmos txs from {cache_path}" in result.output
+    assert "committed_cosmos_txs 3/3" in result.output
+
+
+def test_bench_writes_generated_txs_to_an_empty_cache_path(monkeypatch, tmp_path):
+    cache_path = tmp_path / "txs.json"
+    cfg = _cosmos_bench_cfg()
+    _mock_cosmos_bench_flow(monkeypatch, cfg)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--nonce", "0", "--txs-cache", str(cache_path), "1", "3"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    written = json.loads(cache_path.read_text())
+    assert written == {"num_accounts": 3, "num_txs": 1, "txs": ["tx-1", "tx-2", "tx-3"]}
+    # write-then-rename must not leave a stray tmp file behind
+    assert list(tmp_path.iterdir()) == [cache_path]
+
+
+def test_bench_rejects_a_txs_cache_generated_for_a_different_account_count(monkeypatch, tmp_path):
+    cache_path = tmp_path / "txs.json"
+    cache_path.write_text(json.dumps({"num_accounts": 99, "num_txs": 1, "txs": ["tx-1"]}))
+    cfg = _cosmos_bench_cfg()
+    _mock_cosmos_bench_flow(monkeypatch, cfg)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--txs-cache", str(cache_path), "1", "3"],
+    )
+
+    assert result.exit_code != 0
+    assert "was generated for 99 accounts x 1 txs, but this run covers 3 accounts x 1 txs" in result.output
+
+
+def test_bench_rejects_a_txs_cache_generated_for_a_different_num_txs(monkeypatch, tmp_path):
+    cache_path = tmp_path / "txs.json"
+    cache_path.write_text(json.dumps({"num_accounts": 3, "num_txs": 5, "txs": ["tx-1"]}))
+    cfg = _cosmos_bench_cfg()
+    _mock_cosmos_bench_flow(monkeypatch, cfg)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--txs-cache", str(cache_path), "1", "3"],
+    )
+
+    assert result.exit_code != 0
+    assert "was generated for 3 accounts x 5 txs, but this run covers 3 accounts x 1 txs" in result.output
+
+
 def test_bench_exits_non_zero_on_app_hash_divergence(monkeypatch):
     # A divergence check that nothing gates on is a check that doesn't exist:
     # every tx committed, so without the gate this run exits 0.
@@ -1038,3 +1107,37 @@ def test_preflight_fails_when_the_only_node_is_unreachable(monkeypatch):
 
     assert result.exit_code != 0
     assert "unreachable nodes: ['node0']" in result.output
+
+
+def test_query_account_retries_the_stale_latest_height_race(monkeypatch):
+    monkeypatch.setattr(cli_module.time, "sleep", lambda _seconds: None)
+    calls = []
+
+    class FakeEth:
+        def get_transaction_count(self, _addr):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ValueError("failed to load state at height 98")
+            return 5
+
+        def get_balance(self, _addr):
+            return 100
+
+    nonce, balance = cli_module._query_account(SimpleNamespace(eth=FakeEth()), "0xabc")
+
+    assert (nonce, balance) == (5, 100)
+    assert len(calls) == 2
+
+
+def test_query_account_gives_up_immediately_on_an_unrelated_value_error(monkeypatch):
+    monkeypatch.setattr(cli_module.time, "sleep", lambda _seconds: None)
+
+    class FakeEth:
+        def get_transaction_count(self, _addr):
+            raise ValueError("boom")
+
+    try:
+        cli_module._query_account(SimpleNamespace(eth=FakeEth()), "0xabc")
+        assert False, "expected ValueError to propagate"
+    except ValueError as e:
+        assert str(e) == "boom"

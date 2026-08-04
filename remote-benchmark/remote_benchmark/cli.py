@@ -2,10 +2,12 @@ import asyncio
 import io
 import itertools
 import math
+import os
 import sys
 import time
 from pathlib import Path
 
+import backoff
 import click
 import requests
 import ujson
@@ -70,6 +72,7 @@ from .utils import (
 # reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
 LOAD_COMMIT_TIMEOUT = 120
+PROGRESS_INTERVAL_S = 3
 
 
 def _tx_options(cfg) -> dict:
@@ -91,6 +94,8 @@ def _wait_for_committed(
     next_height = start + 1
     committed_txs = 0
     deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    last_log = started
 
     while True:
         while next_height <= end:
@@ -99,7 +104,16 @@ def _wait_for_committed(
             if committed_txs >= expected_txs:
                 return end, committed_txs
 
-        if time.monotonic() >= deadline:
+        now = time.monotonic()
+        if now - last_log >= PROGRESS_INTERVAL_S:
+            print(
+                f"waiting for commits: height={next_height - 1} "
+                f"committed={committed_txs}/{expected_txs}",
+                file=sys.stderr,
+            )
+            last_log = now
+
+        if now >= deadline:
             return end, committed_txs
 
         current = get_height()
@@ -233,6 +247,15 @@ def fund(config_path, batch_size, fund_mode, start, end):
         print("sent", begin, chunk_end)
 
 
+@backoff.on_exception(
+    backoff.expo, ValueError, max_time=10, giveup=lambda e: "failed to load state" not in str(e)
+)
+def _query_account(w3, addr):
+    nonce = w3.eth.get_transaction_count(addr)
+    balance = int(w3.eth.get_balance(addr))
+    return nonce, balance
+
+
 @cli.command()
 @click.option("--config", "config_path", required=True)
 @click.argument("start", type=int)
@@ -245,8 +268,10 @@ def check(config_path, start, end):
     for i in range(start, end + 1):
         w3 = web3.Web3(web3.HTTPProvider(next(json_rpcs)))
         addr = gen_account(cfg.global_seq, i).address
-        nonce = w3.eth.get_transaction_count(addr)
-        balance = int(w3.eth.get_balance(addr))
+        # "latest" can resolve to a height the app hasn't committed yet on a
+        # fast-committing chain (20ms timeout_commit) - retry that race instead
+        # of aborting the whole account sweep.
+        nonce, balance = _query_account(w3, addr)
         print(i, addr, nonce, balance)
 
 
@@ -338,37 +363,67 @@ def stats(config_path, count):
     )
 
 
-def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats):
+def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cache=None):
     """Generate load for accounts [start, end] and report stats for one run.
 
     Returns a dict with mode, load_start, load_end, committed_txs,
     expected_txs, summary, and stats_text (None unless capture_stats).
     """
     num_accounts = end - start + 1
-    if nonce is None:
-        nonce = current_sender_nonce(cfg, start, end)
-        print(f"using current sender nonce {nonce}", file=sys.stderr)
 
-    print("generating txs...", file=sys.stderr)
-    txs = gen(
-        cfg.global_seq,
-        num_accounts,
-        cfg.num_txs,
-        cfg.tx_type,
-        cfg.batch_size,
-        start_account=start,
-        nonce=nonce,
-        msg_version=cfg.msg_version,
-        tx_options=_tx_options(cfg),
-        evm_denom=cfg.evm_denom,
-        wire_format=cfg.mode,
-        sender_strategy=cfg.sender_strategy,
-    )
-    print(
-        f"generated {num_accounts * cfg.num_txs} EVM txs "
-        f"in {len(txs)} {cfg.mode} txs",
-        file=sys.stderr,
-    )
+    cached_payload = None
+    if txs_cache and Path(txs_cache).exists():
+        cached_payload = ujson.loads(Path(txs_cache).read_text())
+        if (
+            cached_payload["num_accounts"] != num_accounts
+            or cached_payload["num_txs"] != cfg.num_txs
+        ):
+            raise click.ClickException(
+                f"--txs-cache {txs_cache} was generated for "
+                f"{cached_payload['num_accounts']} accounts x {cached_payload['num_txs']} txs, "
+                f"but this run covers {num_accounts} accounts x {cfg.num_txs} txs; remove the "
+                "stale cache file or point --txs-cache elsewhere"
+            )
+
+    if cached_payload is not None:
+        txs = cached_payload["txs"]
+        print(f"loaded {len(txs)} cached {cfg.mode} txs from {txs_cache}", file=sys.stderr)
+    else:
+        if nonce is None:
+            nonce = current_sender_nonce(cfg, start, end)
+            print(f"using current sender nonce {nonce}", file=sys.stderr)
+
+        print("generating txs...", file=sys.stderr)
+        txs = gen(
+            cfg.global_seq,
+            num_accounts,
+            cfg.num_txs,
+            cfg.tx_type,
+            cfg.batch_size,
+            start_account=start,
+            nonce=nonce,
+            msg_version=cfg.msg_version,
+            tx_options=_tx_options(cfg),
+            evm_denom=cfg.evm_denom,
+            wire_format=cfg.mode,
+            sender_strategy=cfg.sender_strategy,
+        )
+        print(
+            f"generated {num_accounts * cfg.num_txs} EVM txs "
+            f"in {len(txs)} {cfg.mode} txs",
+            file=sys.stderr,
+        )
+        if txs_cache:
+            txs_cache_path = Path(txs_cache)
+            txs_cache_path.parent.mkdir(parents=True, exist_ok=True)
+            # write-then-rename so a crash mid-write, or a concurrent run sharing
+            # this cache key, never leaves a truncated file for a reader to load.
+            tmp_path = txs_cache_path.with_suffix(f"{txs_cache_path.suffix}.tmp.{os.getpid()}")
+            tmp_path.write_text(
+                ujson.dumps({"num_accounts": num_accounts, "num_txs": cfg.num_txs, "txs": txs})
+            )
+            tmp_path.replace(txs_cache_path)
+            print(f"wrote tx cache to {txs_cache}", file=sys.stderr)
 
     stats_buffer = io.StringIO() if capture_stats else None
     stats_out = Tee(sys.stdout, stats_buffer) if capture_stats else sys.stdout
@@ -531,6 +586,18 @@ def _warn_unverified(warnings, label="divergence check unverified"):
     type=click.IntRange(min=1),
     help="Run the same load N times and aggregate metrics across runs.",
 )
+@click.option(
+    "--txs-cache",
+    "txs_cache",
+    default=None,
+    help=(
+        "Load the signed tx batch from this file instead of generating it, "
+        "or write it here if the file doesn't exist yet. Only valid when the "
+        "target accounts start at nonce 0 on every run (e.g. genesis-funded "
+        "accounts on a freshly initialized devnet) - a stale cache replayed "
+        "against accounts with a different nonce fails CheckTx."
+    ),
+)
 @click.argument("start", type=int)
 @click.argument("end", type=int)
 def bench(
@@ -540,6 +607,7 @@ def bench(
     results_path,
     require_saturation,
     repeat,
+    txs_cache,
     start,
     end,
 ):
@@ -552,7 +620,13 @@ def bench(
         if repeat > 1:
             print(f"=== run {i + 1}/{repeat} ===", file=sys.stderr)
         run_nonce = nonce if i == 0 else None
-        run = _run_bench_once(cfg, run_nonce, probe_batches, start, end, capture_stats)
+        # A cached batch is only valid for the accounts' starting nonce it was
+        # signed against; repeat runs beyond the first reuse the same accounts
+        # at a later nonce, so they must fall back to generating fresh txs.
+        run_txs_cache = txs_cache if i == 0 else None
+        run = _run_bench_once(
+            cfg, run_nonce, probe_batches, start, end, capture_stats, run_txs_cache
+        )
         runs.append(run)
         # Sampled right after the load, while the nodes are still at the tip the
         # run drove them to.

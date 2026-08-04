@@ -6,6 +6,19 @@
 # Usage: run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
 set -euo pipefail
 
+# rpc.max_open_connections in the jsonnet configs is raised past cometbft's
+# default (900, itself sized for an assumed 1024 fd ulimit); without a
+# matching bump here, a fresh shell's stock ~1024 limit hits EMFILE once
+# load approaches that cap instead of the queuing this was meant to fix.
+ulimit -n 65536 2>/dev/null || true
+# the raise above silently clamps to the shell's hard limit instead of
+# failing, so check the actual result rather than the exit code.
+if [[ "$(ulimit -n)" -lt 8192 ]]; then
+  echo "warning: nofile ulimit is $(ulimit -n) (wanted 65536) - send_batch_size=8000" \
+       "may hit \"too many open files\" instead of the queuing this benchmark expects." \
+       "Raise your shell's hard limit and retry." >&2
+fi
+
 usage() {
   echo "usage: $(basename "$0") <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>" >&2
   exit 1
@@ -41,19 +54,31 @@ END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
   "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['num_accounts'])")"
 PHYSICAL_END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
   "import yaml; c=yaml.safe_load(open('${BENCH_CONFIG}')); print(c['num_accounts'] * c['num_txs'] if c.get('sender_strategy') == 'unique-per-tx' else c['num_accounts'])")"
-if [[ "${PHYSICAL_END_ACCOUNT}" -eq "${END_ACCOUNT}" ]]; then
-  FUND_BATCH_SIZE=200
-else
-  # 2000 native transfers consume 42M gas and stay below the RPC body limit.
-  FUND_BATCH_SIZE=2000
-fi
 
 BASE_PORT=26650
 NODE0_RPC="http://127.0.0.1:$((BASE_PORT + 7))"
 NODE0_EVMRPC="http://127.0.0.1:$((BASE_PORT + 1))"
 
+# Genesis init + the ERC20/native-balance patch produce identical output for a
+# given config + patch script + mnemonics, so cache and reuse them across runs
+# instead of redoing that setup work (including live funding txs) every time.
+# Hash every module that shapes the cached genesis or tx batch, not just the
+# entry-point script, so an edit anywhere in that chain invalidates the cache.
+CACHE_KEY="$(cat \
+  "${JSONNET_CONFIG}" "${BENCH_CONFIG}" "${CRONOS_ROOT}/scripts/.env" \
+  "${LOCAL_DIR}/patch_erc20_genesis.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/contracts.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/erc20.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/utils.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/transaction.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/cli.py" \
+  | shasum -a 256 | cut -c1-16)"
+CACHE_DIR="${LOCAL_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
+CHAIN_ID="cronos_777-1"
+
 DATA_DIR="$(mktemp -d)"
 PYSTARPORT_PID=""
+CACHE_TMP=""
 
 cleanup() {
   if [[ -n "${PYSTARPORT_PID}" ]] && kill -0 "${PYSTARPORT_PID}" 2>/dev/null; then
@@ -66,17 +91,48 @@ cleanup() {
   sleep 1
   pkill -9 -f "${DATA_DIR}" 2>/dev/null || true
   rm -rf "${DATA_DIR}"
+  [[ -n "${CACHE_TMP}" ]] && rm -rf "${CACHE_TMP}"
 }
 trap cleanup EXIT
 
-echo "=== initializing ${VALIDATORS}-validator devnet in ${DATA_DIR} ==="
-nix-shell "${SHELL_NIX}" --run \
-  "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove"
+if [[ -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
+  echo "=== reusing cached genesis from ${CACHE_DIR} ==="
+  cp -R "${CACHE_DIR}/." "${DATA_DIR}/"
+else
+  echo "=== initializing ${VALIDATORS}-validator devnet in ${DATA_DIR} ==="
+  nix-shell "${SHELL_NIX}" --run \
+    "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove"
 
-echo "=== injecting ERC20 contract + balances into genesis ==="
-cd "${REMOTE_BENCHMARK_DIR}"
-poetry run python "${LOCAL_DIR}/patch_erc20_genesis.py" \
-  --data-dir "${DATA_DIR}" --num-accounts "${END_ACCOUNT}"
+  echo "=== injecting ERC20 contract + native balances into genesis ==="
+  cd "${REMOTE_BENCHMARK_DIR}"
+  poetry run python "${LOCAL_DIR}/patch_erc20_genesis.py" \
+    --data-dir "${DATA_DIR}" --num-accounts "${END_ACCOUNT}" \
+    --fund-accounts "${PHYSICAL_END_ACCOUNT}"
+
+  echo "=== populating genesis cache at ${CACHE_DIR} ==="
+  CACHE_TMP="${CACHE_DIR}.tmp.$$"
+  mkdir -p "$(dirname "${CACHE_DIR}")"
+  rm -rf "${CACHE_TMP}"
+  cp -R "${DATA_DIR}" "${CACHE_TMP}"
+  # `mv` moves a source *into* an existing destination directory rather than
+  # failing, so it can't be used as a collision guard here. `mkdir` is the
+  # atomic primitive: it fails if CACHE_DIR already exists, so only one
+  # concurrent run ever wins publication. The winner moves everything except
+  # ${CHAIN_ID} first, then ${CHAIN_ID} last, since that's the single path a
+  # reader checks - readers never observe a partially-populated cache.
+  # A prior writer killed mid-publish (SIGKILL, OOM) can leave CACHE_DIR
+  # existing without ${CHAIN_ID} in it; mkdir would fail against that forever,
+  # so treat an incomplete CACHE_DIR as dead and clear it before retrying.
+  if [[ -d "${CACHE_DIR}" && ! -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
+    rm -rf "${CACHE_DIR}"
+  fi
+  if mkdir "${CACHE_DIR}" 2>/dev/null; then
+    find "${CACHE_TMP}" -mindepth 1 -maxdepth 1 ! -name "${CHAIN_ID}" \
+      -exec mv {} "${CACHE_DIR}/" \;
+    mv "${CACHE_TMP}/${CHAIN_ID}" "${CACHE_DIR}/${CHAIN_ID}"
+  fi
+  rm -rf "${CACHE_TMP}"
+fi
 
 echo "=== starting devnet ==="
 nix-shell "${SHELL_NIX}" --run "pystarport start --data '${DATA_DIR}' --quiet" \
@@ -84,56 +140,15 @@ nix-shell "${SHELL_NIX}" --run "pystarport start --data '${DATA_DIR}' --quiet" \
 PYSTARPORT_PID=$!
 
 echo "=== waiting for node0 rpc/evmrpc to accept requests ==="
-for _ in $(seq 1 120); do
+for _ in $(seq 1 600); do
   if curl -s -o /dev/null "${NODE0_RPC}/status" \
     && curl -s -X POST -H 'content-type: application/json' \
       --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
       "${NODE0_EVMRPC}" | grep -q '"result"'; then
     break
   fi
-  sleep 1
+  sleep 0.2
 done
-
-echo "=== funding the remote-benchmark funding account from the devnet's community account ==="
-source "${CRONOS_ROOT}/scripts/.env"
-# 10x headroom over the physical sender count x 50 CRO each (see the fund
-# command's own headroom comment in remote_benchmark/cli.py for why 50 CRO).
-FUND_WEI="$(python3 -c "print(${PHYSICAL_END_ACCOUNT} * 500 * 10**18)")"
-poetry run python - <<PY
-import time
-from eth_account import Account
-import web3
-
-Account.enable_unaudited_hdwallet_features()
-community = Account.from_mnemonic("${COMMUNITY_MNEMONIC}")
-
-from remote_benchmark.utils import gen_account
-
-fund_acct = gen_account(0, 0)
-w3 = web3.Web3(web3.HTTPProvider("${NODE0_EVMRPC}"))
-nonce = w3.eth.get_transaction_count(community.address)
-tx = {
-    "to": fund_acct.address,
-    "value": ${FUND_WEI},
-    "nonce": nonce,
-    "gas": 21000,
-    "gasPrice": 5000000000000,
-    "chainId": 777,
-}
-raw = community.sign_transaction(tx).rawTransaction
-w3.eth.send_raw_transaction(raw)
-while w3.eth.get_transaction_count(community.address) <= nonce:
-    time.sleep(1)
-print("fund account", fund_acct.address, "balance:", w3.eth.get_balance(fund_acct.address))
-PY
-
-echo "=== fund ==="
-# Funding is setup traffic. Use atomic Cosmos batches even when the measured
-# benchmark transport is eth: with recheck=false and 20ms blocks, streaming
-# sequential raw Ethereum transactions from one funder races CheckTx resets.
-poetry run remote-benchmark fund \
-  --config "${BENCH_CONFIG}" --mode cosmos --batch-size "${FUND_BATCH_SIZE}" \
-  "${START_ACCOUNT}" "${END_ACCOUNT}"
 
 echo "=== check ==="
 if [[ "${PHYSICAL_END_ACCOUNT}" -eq "${END_ACCOUNT}" ]]; then
@@ -162,9 +177,13 @@ echo "=== bench ==="
 # through the block where every generated Cosmos envelope has committed. It
 # exits nonzero if the full workload does not commit before the timeout,
 # unlike gen-txs+send-txs+stats, whose fixed block window can miss the tail.
+# --txs-cache reuses the same signed batch across runs against this cache
+# key's genesis-funded accounts, which always start at nonce 0.
 BENCH_STATS="${DATA_DIR}/bench-stats.log"
 poetry run remote-benchmark bench \
-  --config "${BENCH_CONFIG}" "${START_ACCOUNT}" "${END_ACCOUNT}" \
+  --config "${BENCH_CONFIG}" \
+  --txs-cache "${CACHE_DIR}/txs-${START_ACCOUNT}-${END_ACCOUNT}.json" \
+  "${START_ACCOUNT}" "${END_ACCOUNT}" \
   | tee "${BENCH_STATS}"
 
 REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
