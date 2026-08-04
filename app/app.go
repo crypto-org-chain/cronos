@@ -354,13 +354,6 @@ type App struct {
 	dummyCheckTx bool
 }
 
-func deriveTxCacheSize(mempoolMaxTxs int) int {
-	if mempoolMaxTxs > 0 {
-		return mempoolMaxTxs
-	}
-	return -1
-}
-
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -387,7 +380,10 @@ func New(
 	}
 	var activeDecoder sdk.TxDecoder
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
-	txCacheSize := deriveTxCacheSize(mempoolMaxTxs)
+	txCacheSize := -1
+	if mempoolMaxTxs > 0 {
+		txCacheSize = mempoolMaxTxs
+	}
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
@@ -397,9 +393,9 @@ func New(
 			txCacheSize = parsed
 		}
 	}
-	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
-	if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 {
-		maxTxBytes = mempoolMaxTxBytes
+	maxTxBytes := 0
+	if v := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); v > 0 {
+		maxTxBytes = v
 	}
 	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
