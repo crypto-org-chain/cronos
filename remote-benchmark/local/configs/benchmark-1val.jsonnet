@@ -25,12 +25,26 @@
       mempool: {
         size: 50000,
         recheck: false,
+        // app-side mempool (v1.8) from testground/benchmark-options.json -
+        // CheckTx admits into cronos's own mempool instead of CometBFT's,
+        // broadcast still gossips accepted txs to peers.
+        type: 'app',
+        broadcast: true,
+        // matches this config's genesis block.max_gas below, so a single
+        // reap can fill a block instead of under-reaping on a smaller cap.
+        reap_max_gas: 363000000,
+        reap_interval: '500ms',
       },
       consensus: {
         timeout_commit: '20ms',
       },
       tx_index: {
         indexer: 'null',
+      },
+      p2p: {
+        libp2p: {
+          enabled: true,
+        },
       },
     },
     // app_patch (app.toml) from the wiki benchmark options
@@ -51,7 +65,9 @@
         'enable-indexer': false,
       },
       mempool: {
-        'max-txs': -1,
+        // app-side mempool's own cap (v1.8) - matches config_patch's
+        // mempool.size above so the app mempool isn't the tighter limit.
+        'max-txs': 50000,
       },
       evm: {
         'block-executor': 'block-stm',
@@ -60,7 +76,7 @@
         // overridden in its app_patch), instead of a hardcoded worker count
         // that can oversubscribe smaller machines.
         'block-stm-workers': 0,
-        'block-stm-pre-estimate': false,
+        'block-stm-pre-estimate': true,
       },
       memiavl: {
         enable: true,
@@ -71,6 +87,14 @@
       },
       grpc: {
         'skip-check-header': true,
+      },
+      cronos: {
+        // caps how many txs cronos reaps per block from the app mempool
+        // (v1.8). 363000000 max block gas / 21000 gas per simple-transfer
+        // = 17285 txs/block, so the cap matches what a full block can hold.
+        'mempool-txs-per-block': 17285,
+        // matches config_patch's mempool.size above.
+        'tx-cache-size': 50000,
       },
     },
     validators: [

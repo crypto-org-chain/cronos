@@ -273,7 +273,8 @@ def check(config_path, start, end):
     json_rpcs = itertools.cycle(cfg.json_rpcs)
     total = end - start + 1
     unfunded = 0
-    for i in range(start, end + 1):
+    last_log = time.monotonic()
+    for checked, i in enumerate(range(start, end + 1), start=1):
         w3 = web3.Web3(web3.HTTPProvider(next(json_rpcs)))
         addr = gen_account(cfg.global_seq, i).address
         # "latest" can resolve to a height the app hasn't committed yet on a
@@ -283,6 +284,10 @@ def check(config_path, start, end):
         if balance == 0 or nonce != 0:
             unfunded += 1
             print(i, addr, nonce, balance)
+        now = time.monotonic()
+        if now - last_log >= 3:
+            print(f"checked {checked}/{total} accounts, {unfunded} unfunded/unexpected so far")
+            last_log = now
     print(f"checked {total} accounts, {unfunded} unfunded/unexpected")
 
 
