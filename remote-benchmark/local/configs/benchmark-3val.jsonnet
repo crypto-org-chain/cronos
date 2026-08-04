@@ -7,7 +7,10 @@
   dotenv: '../../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
-    'start-flags': '--trace',
+    // --async-check-tx matches testground/benchmark/benchmark/stateless.py's
+    // do_run() - lets CheckTx run off the consensus reactor's goroutine so a
+    // burst of nonce-ordered txs from one sender doesn't serialize behind it.
+    'start-flags': '--trace --async-check-tx',
     // config_patch (CometBFT config.toml) from the wiki benchmark options,
     // plus testground/benchmark/benchmark/peer.py's hardcoded defaults that
     // the wiki's own "Options" JSON never lists (mempool.recheck,

@@ -25,4 +25,4 @@ num_accounts: 10000
 num_txs: 5
 batch_size: 1
 send_batch_size: 10000
-send_interval: 0.05
+send_interval: 0.2
