@@ -25,7 +25,25 @@ from remote_benchmark.utils import gen_account
 SENDER = "0x1111111111111111111111111111111111111111"
 
 
+class ImmediateResult:
+    def __init__(self, value):
+        self._value = value
+
+    def ready(self):
+        return True
+
+    def wait(self, _timeout=None):
+        pass
+
+    def get(self):
+        return self._value
+
+
 class ImmediatePool:
+    def __init__(self, initializer=None, initargs=()):
+        if initializer is not None:
+            initializer(*initargs)
+
     def __enter__(self):
         return self
 
@@ -34,6 +52,9 @@ class ImmediatePool:
 
     def map(self, func, jobs):
         return [func(job) for job in jobs]
+
+    def map_async(self, func, jobs):
+        return ImmediateResult([func(job) for job in jobs])
 
 
 def recover_sender(raw):

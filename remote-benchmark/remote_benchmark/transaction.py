@@ -207,6 +207,14 @@ MSG_VERSIONS = {
 }
 
 
+_progress_counter = None
+
+
+def _init_progress(counter):
+    global _progress_counter
+    _progress_counter = counter
+
+
 def _do_job(job: Job):
     acct_txs = []
     total = 0
@@ -246,6 +254,9 @@ def _do_job(job: Job):
                 for start, end in split_batch(len(txs), job.batch)
             ]
         acct_txs.append(txs)
+        if _progress_counter is not None:
+            with _progress_counter.get_lock():
+                _progress_counter.value += 1
     print(
         f"generated {total} EVM txs for accounts {job.chunk[0]}-{job.chunk[1] - 1}",
         file=sys.stderr,
@@ -289,8 +300,20 @@ def gen(
         for start, end in chunks
     ]
 
-    with multiprocessing.Pool() as pool:
-        acct_txs = pool.map(_do_job, jobs)
+    counter = multiprocessing.Value("i", 0)
+    with multiprocessing.Pool(initializer=_init_progress, initargs=(counter,)) as pool:
+        result = pool.map_async(_do_job, jobs)
+        last_log = time.monotonic()
+        while not result.ready():
+            result.wait(0.2)
+            now = time.monotonic()
+            if now - last_log >= PROGRESS_INTERVAL_S:
+                print(
+                    f"generated txs for {counter.value}/{num_accounts} accounts",
+                    file=sys.stderr,
+                )
+                last_log = now
+        acct_txs = result.get()
 
     # mix the account txs together, ordered by nonce.
     all_txs = []
