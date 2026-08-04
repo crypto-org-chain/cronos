@@ -128,7 +128,7 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     loaded_txs = {174: ["tx-1"], 175: ["tx-2", "tx-3"]}
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     def fake_dump(fp, *, start, end, **_kwargs):
         for height in range(start, end + 1):
@@ -165,6 +165,67 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     assert "no_load_period" not in result.output
 
 
+def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
+    """A tx whose async_sendtx retries exhaust never reaches the mempool, so
+    waiting for it to commit would time out even though nothing else is
+    wrong - expected_txs must shrink by the reported failure count instead."""
+    cfg = SimpleNamespace(
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        endpoints=_ONE_ENDPOINT,
+        rpcs=["http://node0", "http://node1", "http://node2"],
+        global_seq=0,
+        num_txs=1,
+        sender_strategy="reuse",
+        tx_type="simple-transfer",
+        mix_weights=None,
+        batch_size=100,
+        msg_version="1.4",
+        gas_price=1,
+        chain_id=777,
+        evm_denom="basetcro",
+        mode="cosmos",
+        send_batch_size=3,
+        send_interval=0,
+        telemetry=None,
+    )
+    heights = iter([171, 173, 174])
+    loaded_txs = {174: ["tx-1", "tx-2"]}
+
+    async def fake_send(*_args, **_kwargs):
+        return 1
+
+    def fake_dump(fp, *, start, end, **_kwargs):
+        for height in range(start, end + 1):
+            print(f"block {height} txs={len(loaded_txs.get(height, []))}", file=fp)
+
+    monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(
+        cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"]
+    )
+    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: next(heights))
+    monkeypatch.setattr(
+        cli_module,
+        "block_txs",
+        lambda height, _rpc: loaded_txs.get(height, []),
+        raising=False,
+    )
+    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(cli_module, "dump_block_stats", fake_dump)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--nonce", "0", "1", "3"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    assert "1/3 txs never reached the mempool" in result.output
+    assert "committed_cosmos_txs 2/3" in result.output
+
+
 def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
     cfg = SimpleNamespace(
         primary=SimpleNamespace(json_rpc="http://anvil"),
@@ -188,7 +249,7 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
     loaded_txs = {1038: [f"tx-{i}" for i in range(50)]}
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     def fake_dump(fp, *, start, end, **_kwargs):
         for height in range(start, end + 1):
@@ -245,7 +306,7 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
     )
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2"])
@@ -460,6 +521,7 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
 
     async def fake_send(_txs, _rpcs, **kwargs):
         captured.update(kwargs)
+        return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx"] * 200)
@@ -554,7 +616,7 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
             pass
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(
@@ -667,7 +729,7 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
     loaded_txs = {174: ["tx-1"], 175: ["tx-2", "tx-3"]}
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"])
@@ -1012,7 +1074,7 @@ def test_soak_exits_non_zero_on_app_hash_divergence(monkeypatch, tmp_path):
     cfg = _cosmos_bench_cfg()
 
     async def fake_send(*_args, **_kwargs):
-        pass
+        return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx"] * 200)

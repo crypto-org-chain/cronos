@@ -261,10 +261,18 @@ def _query_account(w3, addr):
 @click.argument("start", type=int)
 @click.argument("end", type=int)
 def check(config_path, start, end):
-    """Query nonce/balance for generated test accounts [start, end]."""
+    """Query nonce/balance for generated test accounts [start, end].
+
+    Prints one line per account with an unfunded balance or nonzero nonce
+    (either means the genesis-funding step didn't do its job), then a
+    summary count - not every account, since a healthy run has nothing
+    interesting to say about thousands of identical funded accounts.
+    """
     cfg = load_config(config_path)
     start, end = physical_account_range(start, end, cfg.num_txs, cfg.sender_strategy)
     json_rpcs = itertools.cycle(cfg.json_rpcs)
+    total = end - start + 1
+    unfunded = 0
     for i in range(start, end + 1):
         w3 = web3.Web3(web3.HTTPProvider(next(json_rpcs)))
         addr = gen_account(cfg.global_seq, i).address
@@ -272,7 +280,10 @@ def check(config_path, start, end):
         # fast-committing chain (20ms timeout_commit) - retry that race instead
         # of aborting the whole account sweep.
         nonce, balance = _query_account(w3, addr)
-        print(i, addr, nonce, balance)
+        if balance == 0 or nonce != 0:
+            unfunded += 1
+            print(i, addr, nonce, balance)
+    print(f"checked {total} accounts, {unfunded} unfunded/unexpected")
 
 
 @cli.command("gen-txs")
@@ -323,7 +334,7 @@ def send_txs(config_path, sync, path):
     txs = payload["txs"]
     num_accounts = payload["num_accounts"]
     rpcs = cfg.json_rpcs if cfg.mode == "eth" else cfg.rpcs
-    asyncio.run(
+    failed = asyncio.run(
         send_round_robin(
             txs,
             rpcs,
@@ -334,6 +345,8 @@ def send_txs(config_path, sync, path):
             num_accounts=num_accounts,
         )
     )
+    if failed:
+        print(f"{failed}/{len(txs)} txs never reached the mempool (send retries exhausted)", file=sys.stderr)
 
 
 @cli.command()
@@ -431,7 +444,7 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
     if cfg.mode == "eth":
         load_start = eth_block_number(cfg.primary.json_rpc)
         print("sending txs...", file=sys.stderr)
-        asyncio.run(
+        failed = asyncio.run(
             send_round_robin(
                 txs,
                 cfg.json_rpcs,
@@ -442,9 +455,15 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
                 probe_batches=probe_batches,
             )
         )
+        if failed:
+            print(
+                f"warning: {failed}/{len(txs)} txs never reached the mempool "
+                "(send retries exhausted)",
+                file=sys.stderr,
+            )
         load_end = eth_block_number(cfg.primary.json_rpc)
         load_end, committed_txs = wait_for_committed_eth_txs(
-            cfg.primary.json_rpc, load_start, load_end, len(txs)
+            cfg.primary.json_rpc, load_start, load_end, len(txs) - failed
         )
         summary = dump_eth_block_stats(
             stats_out,
@@ -477,9 +496,10 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
         mempool_monitor.start()
         stm_monitor.start()
         committed_txs = 0
+        failed = 0
         try:
             print("sending txs...", file=sys.stderr)
-            asyncio.run(
+            failed = asyncio.run(
                 send_round_robin(
                     txs,
                     cfg.rpcs,
@@ -489,9 +509,15 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
                     probe_batches=probe_batches,
                 )
             )
+            if failed:
+                print(
+                    f"warning: {failed}/{len(txs)} txs never reached the mempool "
+                    "(send retries exhausted)",
+                    file=sys.stderr,
+                )
             load_end = block_height(cfg.primary.rpc)
             load_end, committed_txs = wait_for_committed_txs(
-                cfg.primary.rpc, load_start, load_end, len(txs)
+                cfg.primary.rpc, load_start, load_end, len(txs) - failed
             )
         finally:
             mempool_monitor.stop()
@@ -518,7 +544,7 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
         "load_start": load_start,
         "load_end": load_end,
         "committed_txs": committed_txs,
-        "expected_txs": len(txs),
+        "expected_txs": len(txs) - failed,
         "summary": summary,
         "stats_text": stats_buffer.getvalue() if capture_stats else None,
     }
@@ -863,7 +889,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     sampler.start()
     try:
         print("sending txs...", file=sys.stderr)
-        asyncio.run(
+        failed = asyncio.run(
             send_round_robin(
                 txs,
                 cfg.rpcs,
@@ -873,6 +899,12 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 deadline_s=duration,
             )
         )
+        if failed:
+            print(
+                f"warning: {failed}/{len(txs)} txs never reached the mempool "
+                "(send retries exhausted)",
+                file=sys.stderr,
+            )
         _wait_out_soak_duration(started, duration)
     finally:
         sampler.stop()

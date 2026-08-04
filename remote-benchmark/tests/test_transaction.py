@@ -249,3 +249,42 @@ def test_send_round_robin_stops_at_the_deadline(monkeypatch):
     )
 
     assert sent == []
+
+
+def test_send_returns_the_count_of_txs_whose_retries_never_succeeded(monkeypatch):
+    # A tx that keeps failing until async_sendtx's own backoff gives up must be
+    # counted, not silently dropped - the caller uses this to size how many
+    # commits to actually wait for.
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode):
+        return raw != "tx-1"
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    failed = asyncio.run(
+        tx_module.send(
+            [f"tx-{i}" for i in range(4)], "http://node0", batch_size=2, batch_interval=0
+        )
+    )
+
+    assert failed == 1
+
+
+def test_send_round_robin_returns_the_count_of_txs_whose_retries_never_succeeded(
+    monkeypatch,
+):
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode):
+        return raw not in ("tx-1", "tx-3")
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    failed = asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(4)],
+            ["http://node0", "http://node1"],
+            batch_size=2,
+            batch_interval=0,
+            num_accounts=2,
+        )
+    )
+
+    assert failed == 2

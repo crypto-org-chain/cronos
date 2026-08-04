@@ -428,10 +428,22 @@ async def send(
     can silently reject every tx (e.g. a bad nonce or unsupported batch
     encoding) while every send still "succeeds" and reports look like
     zero-load runs with no error printed anywhere.
+
+    Returns the number of txs whose ``async_sendtx`` retries were still
+    failing when its backoff gave up - those never reached the mempool, so
+    counting on them to show up in the commit count would time out waiting
+    for txs that are never coming.
+
+    That count only covers give-ups that return ``False`` (HTTP-level error
+    responses). A give-up on a persistent ``aiohttp.ClientError`` instead
+    raises out of ``async_sendtx``, which propagates through
+    ``asyncio.gather`` uncaught - it crashes the send loop rather than being
+    counted here.
     """
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     started = time.monotonic()
     last_log = started
+    failed = 0
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -444,10 +456,12 @@ async def send(
                 asyncio.ensure_future(async_sendtx(session, raw, rpc, batch_sync, mode))
                 for raw in chunk
             ]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks)
+            failed += results.count(False)
             last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)
+    return failed
 
 
 def _past_deadline(started, deadline_s, sent, total):
@@ -505,7 +519,8 @@ async def send_round_robin(
     node's CheckTx rejects as a nonce gap. Falls back to plain ``send`` when
     only one endpoint is configured.
 
-    See ``send``'s docstring for why ``probe_batches`` and ``deadline_s`` exist.
+    See ``send``'s docstring for why ``probe_batches``, ``deadline_s``, and the
+    return value exist.
     """
     if len(rpcs) == 1:
         return await send(
@@ -522,6 +537,7 @@ async def send_round_robin(
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     started = time.monotonic()
     last_log = started
+    failed = 0
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -542,7 +558,9 @@ async def send_round_robin(
                 )
                 for j, raw in enumerate(chunk)
             ]
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks)
+            failed += results.count(False)
             last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)
+    return failed
