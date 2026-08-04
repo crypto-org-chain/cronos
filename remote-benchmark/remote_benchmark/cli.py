@@ -102,7 +102,12 @@ def _wait_for_committed(
             committed_txs += count_txs(next_height)
             next_height += 1
             if committed_txs >= expected_txs:
-                return end, committed_txs
+                # stop at the height that actually hit the threshold, not the
+                # (possibly further-extended) outer `end` - returning `end`
+                # here overshoots and lets downstream block-stats recount
+                # blocks past the drain point, inflating totals past what was
+                # sent.
+                return next_height - 1, committed_txs
 
         now = time.monotonic()
         if now - last_log >= PROGRESS_INTERVAL_S:

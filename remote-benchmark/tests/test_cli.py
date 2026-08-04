@@ -39,6 +39,25 @@ class FakeMonitor:
         pass
 
 
+def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold():
+    # The chain runs ahead to height 205 (get_height) before the block that
+    # actually hits expected_txs (202) gets counted. Returning that stale,
+    # further-extended `end` instead of the height just counted would make
+    # callers re-scan blocks 203-205 for stats, over-counting txs that were
+    # never part of this load.
+    per_block = {201: 2, 202: 3, 203: 1, 204: 1, 205: 1}
+    end, committed = cli_module._wait_for_committed(
+        get_height=lambda: 205,
+        count_txs=lambda height: per_block.get(height, 0),
+        start=200,
+        end=201,
+        expected_txs=5,
+    )
+
+    assert end == 202
+    assert committed == 5
+
+
 def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
     requested_addresses = []
 

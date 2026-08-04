@@ -53,17 +53,20 @@ def libp2p_id_from_node_key(node_key_path) -> str:
 def bootstrap_peers(nodes, port=26656):
     """Derive libp2p peer IDs for `nodes` and build each node's bootstrap_peers list.
 
-    `nodes` is [{"name", "ip", "node_key_path"}, ...]. Returns
-    {name: [entry, ...]}, one entry per *other* node, in the shape CometBFT's
-    `[[p2p.libp2p.bootstrap_peers]]` TOML expects (same shape as testground's
-    `connect_all_libp2p`).
+    `nodes` is [{"name", "ip", "node_key_path"}, ...], with an optional
+    per-node "port" for setups (like a local devnet) where nodes share an ip
+    but each listens on its own port - falls back to `port` when absent, so
+    testground's uniform-port-per-container case still works unchanged.
+    Returns {name: [entry, ...]}, one entry per *other* node, in the shape
+    CometBFT's `[[p2p.libp2p.bootstrap_peers]]` TOML expects (same shape as
+    testground's `connect_all_libp2p`).
     """
     ids = {node["name"]: libp2p_id_from_node_key(node["node_key_path"]) for node in nodes}
     result = {}
     for node in nodes:
         result[node["name"]] = [
             {
-                "host": f"{other['ip']}:{port}",
+                "host": f"{other['ip']}:{other.get('port', port)}",
                 "id": ids[other["name"]],
                 "persistent": True,
                 "unconditional": True,
@@ -72,3 +75,52 @@ def bootstrap_peers(nodes, port=26656):
             if other["name"] != node["name"]
         ]
     return result
+
+
+def append_bootstrap_peers_toml(config_toml_path, peers):
+    """Append `[[p2p.libp2p.bootstrap_peers]]` entries to a node's config.toml.
+
+    Appending at EOF is valid TOML regardless of position in the file - each
+    array-of-tables header is independent of the existing `[p2p.libp2p]`
+    `enabled` line, so this never needs to parse/rewrite the file. Only meant
+    to run once per freshly-`pystarport init`'d config.toml.
+    """
+    if not peers:
+        return
+    lines = []
+    for p in peers:
+        lines.append("\n[[p2p.libp2p.bootstrap_peers]]\n")
+        lines.append(f'host = "{p["host"]}"\n')
+        lines.append(f'id = "{p["id"]}"\n')
+        lines.append(f"persistent = {str(p['persistent']).lower()}\n")
+        lines.append(f"unconditional = {str(p['unconditional']).lower()}\n")
+    with open(config_toml_path, "a") as f:
+        f.writelines(lines)
+
+
+def _main():
+    import sys
+
+    data_dir, num_validators, base_port = Path(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3])
+    # pystarport assigns each validator i's base_port as base_port + i * 10
+    # by default (its own p2p_port() is just base_port itself) when the
+    # jsonnet config leaves per-validator base_port unset, which is the case
+    # for both benchmark-1val.jsonnet and benchmark-3val.jsonnet.
+    nodes = [
+        {
+            "name": f"node{i}",
+            "ip": "127.0.0.1",
+            "port": base_port + i * 10,
+            "node_key_path": data_dir / f"node{i}" / "config" / "node_key.json",
+        }
+        for i in range(num_validators)
+    ]
+    peers = bootstrap_peers(nodes)
+    for node in nodes:
+        append_bootstrap_peers_toml(
+            data_dir / node["name"] / "config" / "config.toml", peers[node["name"]]
+        )
+
+
+if __name__ == "__main__":
+    _main()

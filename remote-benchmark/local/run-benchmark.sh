@@ -70,6 +70,7 @@ CACHE_KEY="$(cat \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/contracts.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/erc20.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/utils.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/libp2p.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/transaction.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/cli.py" \
   | shasum -a 256 | cut -c1-16)"
@@ -102,6 +103,13 @@ else
   echo "=== initializing ${VALIDATORS}-validator devnet in ${DATA_DIR} ==="
   nix-shell "${SHELL_NIX}" --run \
     "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove"
+
+  # pystarport only wires the classic reactor's persistent_peers - it has no
+  # idea libp2p exists, so a >1-validator libp2p mesh needs bootstrap_peers
+  # derived from each node's node_key.json and patched in by hand.
+  echo "=== wiring libp2p bootstrap_peers across ${VALIDATORS} validator(s) ==="
+  cd "${REMOTE_BENCHMARK_DIR}"
+  poetry run python -m remote_benchmark.libp2p "${DATA_DIR}/${CHAIN_ID}" "${VALIDATORS}" "${BASE_PORT}"
 
   echo "=== injecting ERC20 contract + native balances into genesis ==="
   cd "${REMOTE_BENCHMARK_DIR}"
