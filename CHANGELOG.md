@@ -4,9 +4,9 @@
 
 *Jul 16, 2026*
 
-### Bug fixes
+### Improvements
 
-* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) fix(mempool): drop pending-cache TTL for unordered dump + epoch invalidation.
+* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): epoch-invalidated cache for unordered PendingTxs dump.
 
 ### Chores
 
