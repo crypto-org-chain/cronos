@@ -157,7 +157,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoinsOverflow() {
 
 	err = suite.app.CronosKeeper.ConvertVouchersToEvmCoins(suite.ctx, address.String(), coins)
 
-	suite.Require().ErrorIs(err, types.ErrAmountOverflow)
+	suite.Require().ErrorIs(err, sdkmath.ErrIntOverflow)
 
 	suite.Require().Equal(amount, suite.GetBalance(address, types.IbcCroDenomDefaultValue).Amount)
 	suite.Require().True(suite.GetBalance(address, suite.evmParam.EvmDenom).Amount.IsZero())

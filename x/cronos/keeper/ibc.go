@@ -32,7 +32,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			if params.IbcCroDenom == "" {
 				return errorsmod.Wrap(types.ErrIbcCroDenomEmpty, "ibc is disabled")
 			}
-			
+
 			amount, err := c.Amount.SafeMul(sdkmath.NewIntFromBigInt(types.TenPowTen))
 			if err != nil {
 				return errorsmod.Wrapf(err, "converting %s to 18 decimals", c)
