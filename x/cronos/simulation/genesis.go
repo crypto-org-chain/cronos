@@ -27,8 +27,8 @@ func GenIbcCroDenom(r *rand.Rand) string {
 }
 
 func GenIbcTimeout(r *rand.Rand) uint64 {
-	timeout := r.Uint64()
-	return timeout
+	// random number between [1, MaxIbcTimeoutValue]
+	return uint64(r.Int63n(int64(types.MaxIbcTimeoutValue))) + 1
 }
 
 func GenCronosAdmin(r *rand.Rand, simState *module.SimulationState) string {

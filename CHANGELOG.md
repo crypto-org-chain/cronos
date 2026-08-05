@@ -15,6 +15,10 @@
 
 *Jul 16, 2026*
 
+### Bug fixes
+
+* [#2173](https://github.com/crypto-org-chain/cronos/pull/2173) fix(cronos): bound `IbcTimeout` in params validation to 30 days so a governance-set value cannot overflow the outbound IBC packet timeout.
+
 ### Chores
 
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
