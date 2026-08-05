@@ -33,7 +33,7 @@ type CronosConfig struct {
 	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
 	// MempoolTxTTL evicts mempool.type=app txs older than DefaultMempoolTTLNumBlocks
 	// blocks (by arrival height), draining proposal-skipped txs whose sender never
-	// commits. false disables; true enables.
+	// commits. Default true.
 	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
 	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
 	// and block completion. Default true. false always walks the pool.
