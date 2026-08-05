@@ -3,52 +3,42 @@ package mempool
 import (
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// pendingCache TTL-caches a PendingTxs() snapshot so concurrent RPC readers
-// single-flight onto one pool walk instead of one each.
+// pendingCache caches a PendingTxs() snapshot so concurrent RPC readers
+// single-flight onto one pool walk instead of one each. Invalidated purely on
+// tx admission and block completion (see Manager.admit, CheckTxHandler,
+// StageRecheckSenders) — no TTL.
 type pendingCache struct {
 	mu          sync.Mutex
-	ttl         time.Duration
+	enabled     bool
 	snapshot    []sdk.Tx
-	expiry      time.Time
+	loaded      bool
 	loadedEpoch uint64
 	epoch       atomic.Uint64
-	now         func() time.Time
-}
-
-func (c *pendingCache) clock() time.Time {
-	if c.now != nil {
-		return c.now()
-	}
-	return time.Now()
 }
 
 func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
-	if c.ttl <= 0 {
+	if !c.enabled {
 		return load()
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := c.clock()
+	// Read epoch before the walk, commit loadedEpoch after: an invalidate
+	// racing the walk is never swallowed.
 	epoch := c.epoch.Load()
-
-	if !c.expiry.IsZero() && now.Before(c.expiry) && c.loadedEpoch == epoch {
+	if c.loaded && c.loadedEpoch == epoch {
 		telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "hit")
 		return c.copySnapshot()
 	}
 
 	telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "miss")
-
-	c.snapshot = load()
-	c.expiry = c.clock().Add(c.ttl)
-	c.loadedEpoch = epoch
+	c.snapshot, c.loaded, c.loadedEpoch = load(), true, epoch
 	return c.copySnapshot()
 }
 
@@ -58,7 +48,9 @@ func (c *pendingCache) copySnapshot() []sdk.Tx {
 	return out
 }
 
-// invalidate marks the snapshot stale on every block boundary
+// invalidate marks the snapshot stale. Lock-free: admit()/CheckTxHandler hold
+// a.mu while calling this, and StageRecheckSenders runs on the consensus
+// path — neither may block on c.mu, which get() can hold for a full pool walk.
 func (c *pendingCache) invalidate() {
 	c.epoch.Add(1)
 }

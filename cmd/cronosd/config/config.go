@@ -32,8 +32,8 @@ type CronosConfig struct {
 	// Evicts mempool.type=app txs older than 120 blocks by arrival height.
 	// Default true. false disables.
 	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
-	// Caches the PendingTxs() pool-scan result for 100ms. Default true.
-	// false disables.
+	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
+	// and block completion. Default true. false always walks the pool.
 	RPCPendingTxCache bool `mapstructure:"rpc-pending-tx-cache"`
 }
 
@@ -47,8 +47,6 @@ const (
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
 	// DefaultMempoolTTLNumBlocks is the block-age eviction threshold used when MempoolTxTTL is true.
 	DefaultMempoolTTLNumBlocks = 120
-	// DefaultMempoolPendingCacheTTL is the PendingTxs() cache TTL used when RPCPendingTxCache is true.
-	DefaultMempoolPendingCacheTTL = 100 * time.Millisecond
 )
 
 const (

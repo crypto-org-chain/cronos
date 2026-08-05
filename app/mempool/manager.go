@@ -69,7 +69,7 @@ type Manager struct {
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool, pendingCacheTTL time.Duration) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
@@ -77,7 +77,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
 	a.recheckDisabled = recheckDisabled
-	a.pendingCache.ttl = pendingCacheTTL
+	a.pendingCache.enabled = pendingCacheEnabled
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
@@ -173,13 +173,12 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 }
 
 // PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
-// It may lag the live pool by up to the configured cache TTL.
 func (a *Manager) PendingTxs() []sdk.Tx {
 	if a.mpool == nil {
 		return nil
 	}
 	return a.pendingCache.get(func() []sdk.Tx {
-		return PoolSnapshot(context.Background(), a.mpool)
+		return UnorderedPoolSnapshot(context.Background(), a.mpool)
 	})
 }
 
@@ -229,6 +228,7 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 	}
 
 	a.cacheTx(tx, txBytes)
+	a.pendingCache.invalidate()
 	return abci.CodeTypeOK, "", ""
 }
 
@@ -267,6 +267,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 		}
 
 		a.cacheTx(tx, req.Tx)
+		a.pendingCache.invalidate()
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.

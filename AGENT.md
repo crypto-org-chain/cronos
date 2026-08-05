@@ -134,7 +134,7 @@ upstream project on GitHub — the fork can and does differ. Resolve the actual 
 
 | Concern | Module (import path) | Actual source after `replace` | Pinned version |
 |---|---|---|---|
-| Cosmos SDK (app framework, auth/bank/gov/staking, ante handlers, baseapp) | `github.com/cosmos/cosmos-sdk` | **`github.com/crypto-org-chain/cosmos-sdk`** (fork) | `v0.54.4-...20260729145615-5264d5f57f84` |
+| Cosmos SDK (app framework, auth/bank/gov/staking, ante handlers, baseapp) | `github.com/cosmos/cosmos-sdk` | **`github.com/crypto-org-chain/cosmos-sdk`** (fork) | `v0.54.4-...20260805151328-65c6841e7bdb` |
 | EVM execution & JSON-RPC (`x/evm`, `x/feemarket`, statedb) | `github.com/evmos/ethermint` | **`github.com/crypto-org-chain/ethermint`** (fork) | `v0.22.1-...20260702171011-a639532d9759` |
 | Consensus / networking / mempool | `github.com/cometbft/cometbft` | **`github.com/crypto-org-chain/cometbft`** (fork) | `v0.0.0-...20260729145603-14b7b93046e3` |
 | Custom store: memiavl, versiondb, store | `github.com/crypto-org-chain/cronos-store/{memiavl,versiondb,store}` | **`crypto-org-chain/cronos-store`** (fork target pins) | `...20260728044748-2fd6432e07e1` |

@@ -31,7 +31,8 @@ mempool-txs-per-block = {{ .Cronos.MaxTxPerBlock }}
 # Default true. false disables.
 mempool-tx-ttl = {{ .Cronos.MempoolTxTTL }}
 
-# Caches the PendingTxs() pool-scan result for 100ms. Default true. false disables.
+# Caches the PendingTxs() pool-scan result, invalidated on tx admission and
+# block completion. Default true. false always walks the pool.
 rpc-pending-tx-cache = {{ .Cronos.RPCPendingTxCache }}
 `
 

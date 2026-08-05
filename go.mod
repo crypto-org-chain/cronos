@@ -389,7 +389,7 @@ replace (
 	// v0.39.x
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3
 	// release/v0.54.x
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260729145615-5264d5f57f84
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260805151328-65c6841e7bdb
 	// master
 	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260728044748-2fd6432e07e1
 	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260728044748-2fd6432e07e1

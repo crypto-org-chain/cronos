@@ -479,9 +479,9 @@ func New(
 	if v := appOpts.Get(FlagMempoolTxTTL); v != nil && !parseBoolFlag(FlagMempoolTxTTL, v) {
 		ttlNumBlocks = 0
 	}
-	pendingCacheTTL := cmdcfg.DefaultMempoolPendingCacheTTL
-	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil && !parseBoolFlag(FlagRPCPendingTxCache, v) {
-		pendingCacheTTL = 0
+	pendingCacheEnabled := true
+	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil {
+		pendingCacheEnabled = parseBoolFlag(FlagRPCPendingTxCache, v)
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
@@ -586,7 +586,7 @@ func New(
 			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheTTL)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
