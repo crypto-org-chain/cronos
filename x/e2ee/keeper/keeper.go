@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/crypto-org-chain/cronos/x/e2ee/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"cosmossdk.io/core/address"
 
@@ -11,6 +13,8 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+const MaxKeysAddresses = 10000
 
 type Keeper struct {
 	storeKey     storetypes.StoreKey
@@ -95,6 +99,11 @@ func (k Keeper) Key(ctx context.Context, req *types.KeyRequest) (*types.KeyRespo
 }
 
 func (k Keeper) Keys(ctx context.Context, requests *types.KeysRequest) (*types.KeysResponse, error) {
+	if len(requests.Addresses) > MaxKeysAddresses {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"too many addresses in Keys request: %d (max %d)", len(requests.Addresses), MaxKeysAddresses)
+	}
+
 	store := sdk.UnwrapSDKContext(ctx).KVStore(k.storeKey)
 	var rsp types.KeysResponse
 	for _, address := range requests.Addresses {
