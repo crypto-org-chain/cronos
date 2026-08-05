@@ -184,7 +184,6 @@ const (
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxCacheSize                = "cronos.mempool-tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.mempool-tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTxTTL               = "cronos.mempool-tx-ttl"

@@ -33,8 +33,8 @@ type CronosConfig struct {
 	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
 	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
 	// (by arrival height), draining proposal-skipped txs whose sender never commits.
-	// 0 disables.
-	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
+	// false disables; true uses DefaultMempoolTTLNumBlocks.
+	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
 	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
 	// and block completion. Default true. false always walks the pool.
 	RPCPendingTxCache bool `mapstructure:"rpc-pending-tx-cache"`
@@ -83,7 +83,7 @@ func DefaultCronosConfig() CronosConfig {
 		MempoolTxCacheSize:         0, // 0 = derive from mempool.max-txs, -1 disables
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
-		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
+		MempoolTxTTL:               true,
 		RPCPendingTxCache:          true,
 	}
 }
