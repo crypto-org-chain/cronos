@@ -5,6 +5,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
@@ -80,4 +81,17 @@ func (suite *KeeperTestSuite) TestUpdateParams() {
 			}
 		})
 	}
+}
+
+func (suite *KeeperTestSuite) TestTurnBridgeIsRejected() {
+	suite.SetupTest()
+
+	msgServer := cronosmodulekeeper.NewMsgServerImpl(suite.app.CronosKeeper)
+	rsp, err := msgServer.TurnBridge(suite.ctx, &types.MsgTurnBridge{
+		Sender: authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+		Enable: true,
+	})
+
+	suite.Require().Nil(rsp)
+	suite.Require().ErrorIs(err, sdkerrors.ErrNotSupported)
 }
