@@ -4,6 +4,8 @@
 # https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 #
 # Usage: run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
+# Set CRONOS_BIN to an executable path to run against a specific cronosd
+# binary (e.g. a downloaded release) instead of the nix-built HEAD binary.
 set -euo pipefail
 
 # rpc.max_open_connections in the jsonnet configs is raised past cometbft's
@@ -43,8 +45,29 @@ LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REMOTE_BENCHMARK_DIR="$(cd "${LOCAL_DIR}/.." && pwd)"
 CRONOS_ROOT="$(cd "${REMOTE_BENCHMARK_DIR}/.." && pwd)"
 SHELL_NIX="${CRONOS_ROOT}/integration_tests/shell.nix"
-JSONNET_CONFIG="${LOCAL_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
 BENCH_CONFIG="${LOCAL_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
+
+# CRONOS_BIN lets this script run against a specific tagged release binary
+# (e.g. a downloaded/extracted cronosd) instead of the nix-built HEAD binary.
+# mempool.type='app' is app-mempool (v1.8.0-alpha+); older binaries panic on
+# it ("unknown mempool type: app", cometbft/node/setup.go), so fall back to a
+# config without it below v1.8.0. --async-check-tx is NOT a reliable signal
+# for this - it's a generic cometbft/ethermint server flag that already
+# exists in v1.7.8's dependency pins, well before cronos wired up app-mempool.
+CRONOS_BIN="${CRONOS_BIN:-}"
+JSONNET_CONFIG="${LOCAL_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
+if [[ -n "${CRONOS_BIN}" ]]; then
+  [[ -x "${CRONOS_BIN}" ]] || { echo "CRONOS_BIN=${CRONOS_BIN} is not executable" >&2; exit 1; }
+  echo "=== using external cronosd: ${CRONOS_BIN} ==="
+  "${CRONOS_BIN}" version --long || true
+  CRONOS_BIN_VERSION="$("${CRONOS_BIN}" version 2>/dev/null | tr -d 'v[:space:]')"
+  if [[ -n "${CRONOS_BIN_VERSION}" ]] \
+    && [[ "${CRONOS_BIN_VERSION}" != "1.8.0" ]] \
+    && [[ "$(printf '%s\n1.8.0\n' "${CRONOS_BIN_VERSION}" | sort -V | head -1)" == "${CRONOS_BIN_VERSION}" ]]; then
+    JSONNET_CONFIG="${LOCAL_DIR}/configs/benchmark-${VALIDATORS}val-legacy-mempool.jsonnet"
+    echo "=== ${CRONOS_BIN} (v${CRONOS_BIN_VERSION}) predates app-mempool support, using legacy-mempool config ==="
+  fi
+fi
 
 # read straight from the config so it always matches num_accounts in
 # configs/*.yaml; this is also what patch_erc20_genesis.py funds ERC20
@@ -74,6 +97,13 @@ CACHE_KEY="$(cat \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/transaction.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/cli.py" \
   | shasum -a 256 | cut -c1-16)"
+# Two different pre-v1.8 binaries would otherwise hash identically (same
+# legacy jsonnet, same everything else) and could wrongly share a cached
+# genesis if their genesis validation/output format differs.
+if [[ -n "${CRONOS_BIN}" ]]; then
+  CACHE_KEY="$(printf '%s' "${CACHE_KEY}$(shasum -a 256 "${CRONOS_BIN}" | cut -d' ' -f1)" \
+    | shasum -a 256 | cut -c1-16)"
+fi
 CACHE_DIR="${LOCAL_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
 CHAIN_ID="cronos_777-1"
 
@@ -101,8 +131,10 @@ if [[ -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
   cp -R "${CACHE_DIR}/." "${DATA_DIR}/"
 else
   echo "=== initializing ${VALIDATORS}-validator devnet in ${DATA_DIR} ==="
+  CMD_FLAG=""
+  [[ -n "${CRONOS_BIN}" ]] && CMD_FLAG="--cmd '${CRONOS_BIN}'"
   nix-shell "${SHELL_NIX}" --run \
-    "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove"
+    "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove ${CMD_FLAG}"
 
   # pystarport only wires the classic reactor's persistent_peers - it has no
   # idea libp2p exists, so a >1-validator libp2p mesh needs bootstrap_peers
@@ -187,9 +219,31 @@ echo "=== bench ==="
 # unlike gen-txs+send-txs+stats, whose fixed block window can miss the tail.
 # --txs-cache reuses the same signed batch across runs against this cache
 # key's genesis-funded accounts, which always start at nonce 0.
+EFFECTIVE_BENCH_CONFIG="${BENCH_CONFIG}"
+if [[ "${JSONNET_CONFIG}" == *-legacy-mempool.jsonnet ]]; then
+  # The legacy CometBFT mempool validates a tx's sequence at CheckTx against
+  # committed on-chain state only - it has no pending-nonce tracking like
+  # cronos's v1.8 app-mempool. Every config here already sends one full
+  # nonce-round per batch (send_batch_size == num_accounts), but at the
+  # default send_interval the next round's CheckTx arrives before the
+  # current round commits, so it's rejected - silently, since sends beyond
+  # the first probe batch are fire-and-forget broadcast_tx_async. Slow the
+  # pacing so each round commits before the next round is sent.
+  EFFECTIVE_BENCH_CONFIG="${DATA_DIR}/bench-config-legacy.yaml"
+  cd "${REMOTE_BENCHMARK_DIR}"
+  poetry run python -c "
+import yaml
+with open('${BENCH_CONFIG}') as f:
+    cfg = yaml.safe_load(f)
+cfg['send_interval'] = max(cfg.get('send_interval', 0), 1.0)
+with open('${EFFECTIVE_BENCH_CONFIG}', 'w') as f:
+    yaml.safe_dump(cfg, f)
+"
+  echo "=== legacy-mempool pacing: send_interval raised to $(poetry run python -c "import yaml; print(yaml.safe_load(open('${EFFECTIVE_BENCH_CONFIG}'))['send_interval'])") ==="
+fi
 BENCH_STATS="${DATA_DIR}/bench-stats.log"
 poetry run remote-benchmark bench \
-  --config "${BENCH_CONFIG}" \
+  --config "${EFFECTIVE_BENCH_CONFIG}" \
   --txs-cache "${CACHE_DIR}/txs-${START_ACCOUNT}-${END_ACCOUNT}.json" \
   "${START_ACCOUNT}" "${END_ACCOUNT}" \
   | tee "${BENCH_STATS}"
