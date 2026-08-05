@@ -289,6 +289,19 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	}
 }
 
+func TestRecheckTxs_InvalidatesPendingCacheAfterEviction(t *testing.T) {
+	f := newRecheckFixture()
+	f.addTimeout(1, "carol", 0, "carol-0", 5)
+
+	f.a.StageRecheckSenders(5, nil)
+	before := f.a.pendingCache.epoch.Load()
+	f.a.RecheckTxs()
+
+	if got := f.a.pendingCache.epoch.Load(); got == before {
+		t.Fatal("RecheckTxs must invalidate the pending cache after evicting txs, not just rely on StageRecheckSenders's earlier bump")
+	}
+}
+
 // Two committed blocks staged without an intervening RecheckTxs drain (e.g. a
 // Commit error skipped the recheck) must union their senders, not drop the first.
 func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
