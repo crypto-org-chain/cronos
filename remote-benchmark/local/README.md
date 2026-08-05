@@ -29,6 +29,23 @@ count and EVM gas consumed. Second-by-second charts show committed TPS and gas
 throughput; the TPS view overlays a 5-second moving average to make sustained
 throughput easier to distinguish from short block-time spikes.
 
+Set `CRONOS_BIN=/path/to/cronosd` to run against an already-downloaded release
+binary instead of building HEAD via nix:
+
+```bash
+CRONOS_BIN=/path/to/cronosd ./run-benchmark.sh 1 simple-transfer
+```
+
+Binaries older than v1.8.0 (no app-mempool support) automatically fall back to
+`configs/benchmark-{1,3}val-legacy-mempool.jsonnet`, which drops the v1.8-only
+CometBFT mempool fields but keeps the app-level `PriorityNonceMempool`
+(`app-config.mempool.max-txs`) so proposers still order by nonce/priority
+instead of falling back to `NoOpMempool`. These legacy configs also raise
+`send_interval` at bench time to at least 1s: the classic CometBFT mempool
+checks a tx's sequence against committed state only (no pending-nonce
+tracking), so sending nonce rounds faster than they commit gets silently
+rejected via `broadcast_tx_async`.
+
 To run the same fund/check/bench/report workflow against an already-running
 network described by an arbitrary config file, use:
 
