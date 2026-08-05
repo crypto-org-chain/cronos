@@ -27,10 +27,10 @@ type CronosConfig struct {
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
-	// MempoolTxsPerBlock is the shared budget used as both the gossip-reap cap
+	// MaxTxPerBlock is the shared budget used as both the gossip-reap cap
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
-	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
+	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
 	// MempoolTxTTL evicts mempool.type=app txs older than DefaultMempoolTTLNumBlocks
 	// blocks (by arrival height), draining proposal-skipped txs whose sender never
 	// commits. Default true.
@@ -44,8 +44,8 @@ const (
 	DefaultTxCacheMaxTxBytes = 65536
 	// DefaultMempoolGossipTTL is the re-gossip suppression window used when MempoolGossipTTL is unset.
 	DefaultMempoolGossipTTL = 15 * time.Second
-	// DefaultMempoolTxsPerBlock is the tx-per-block budget used when MaxTxPerBlock is unset.
-	DefaultMempoolTxsPerBlock = 2900
+	// DefaultMaxTxPerBlock is the tx-per-block budget used when MaxTxPerBlock is unset.
+	DefaultMaxTxPerBlock = 2900
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
@@ -82,7 +82,7 @@ func DefaultCronosConfig() CronosConfig {
 		DisableOptimisticExecution: false,
 		MempoolTxCacheSize:         0, // 0 = derive from mempool.max-txs, -1 disables
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
+		MaxTxPerBlock:              DefaultMaxTxPerBlock,
 		MempoolTxTTL:               true,
 		RPCPendingTxCache:          true,
 	}

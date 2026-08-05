@@ -185,7 +185,7 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxCacheSize                = "cronos.mempool-tx-cache-size"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
-	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
+	FlagMaxTxPerBlock              = "cronos.mempool-txs-per-block"
 	FlagMempoolTxTTL               = "cronos.mempool-tx-ttl"
 	FlagRPCPendingTxCache          = "cronos.rpc-pending-tx-cache"
 )
@@ -383,11 +383,11 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
-	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
-	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
+	txsPerBlock := cmdcfg.DefaultMaxTxPerBlock
+	if v := appOpts.Get(FlagMaxTxPerBlock); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMaxTxPerBlock, v))
 		}
 		txsPerBlock = parsed
 	}
