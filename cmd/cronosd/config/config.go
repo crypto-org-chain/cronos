@@ -21,11 +21,8 @@ type CronosConfig struct {
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the sharded LRU tx encode/decode cache.
-	// 0 = derive from MempoolTxsPerBlock at startup (2×, or -1 when unlimited). -1 = disable.
+	// 0 = derive from mempool.max-txs at startup (cache off if unbounded/disabled). -1 = disable.
 	TxCacheSize int `mapstructure:"tx-cache-size"`
-	// Per-entry raw payload byte cap. Txs larger than this are decoded but
-	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
-	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
@@ -51,10 +48,6 @@ const (
 	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
 	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
 	DefaultMempoolTxsPerBlock = 2900
-	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
-	// is unset (0): two full blocks so the cache survives one proposal + one gossip
-	// reap cycle without eviction pressure.
-	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
@@ -89,8 +82,7 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxCacheSize:                0, // 0 = derive: 2×MempoolTxsPerBlock at startup, -1 when unlimited
-		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
+		TxCacheSize:                0, // 0 = derive from mempool.max-txs, -1 disables
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
