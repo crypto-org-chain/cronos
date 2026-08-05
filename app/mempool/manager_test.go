@@ -620,6 +620,12 @@ func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool)
 	}
 }
 
+func (p *fakePool) UnorderedTxs(context.Context) []sdk.Tx {
+	txs := make([]sdk.Tx, len(p.txs))
+	copy(txs, p.txs)
+	return txs
+}
+
 func TestManagerPendingTxs(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	if got := a.PendingTxs(); got != nil {
@@ -761,6 +767,11 @@ func (p *countingPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.T
 	p.fakePool.SelectBy(ctx, txs, cb)
 }
 
+func (p *countingPool) UnorderedTxs(ctx context.Context) []sdk.Tx {
+	p.scans.Add(1)
+	return p.fakePool.UnorderedTxs(ctx)
+}
+
 // hookPool runs onScan once, mid-walk, to interleave an event with a pool scan.
 type hookPool struct {
 	fakePool
@@ -774,6 +785,15 @@ func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) b
 		hook()
 	}
 	p.fakePool.SelectBy(ctx, txs, cb)
+}
+
+func (p *hookPool) UnorderedTxs(ctx context.Context) []sdk.Tx {
+	if p.onScan != nil {
+		hook := p.onScan
+		p.onScan = nil
+		hook()
+	}
+	return p.fakePool.UnorderedTxs(ctx)
 }
 
 func TestNewManagerWiresPendingCache(t *testing.T) {

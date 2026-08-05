@@ -302,6 +302,19 @@ func TestRecheckTxs_InvalidatesPendingCacheAfterEviction(t *testing.T) {
 	}
 }
 
+func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
+	f := newRecheckFixture("alice-0") // alice's seq-0 tx now fails recheck
+	f.add(1, "alice", 0, "alice-0")
+
+	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	before := f.a.pendingCache.epoch.Load()
+	f.a.RecheckTxs()
+
+	if got := f.a.pendingCache.epoch.Load(); got == before {
+		t.Fatal("RecheckTxs must invalidate the pending cache after runRecheck evicts a tx via RunTx failure")
+	}
+}
+
 // Two committed blocks staged without an intervening RecheckTxs drain (e.g. a
 // Commit error skipped the recheck) must union their senders, not drop the first.
 func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
