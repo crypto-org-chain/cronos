@@ -3,7 +3,7 @@
 # via nix-shell) and drive one of the wiki's benchmark test cases against it:
 # https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 #
-# Usage: run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
+# Usage: run-benchmark.sh <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
 # Set CRONOS_BIN to an executable path to run against a specific cronosd
 # binary (e.g. a downloaded release) instead of the nix-built HEAD binary.
 set -euo pipefail
@@ -22,14 +22,14 @@ if [[ "$(ulimit -n)" -lt 8192 ]]; then
 fi
 
 usage() {
-  echo "usage: $(basename "$0") <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>" >&2
+  echo "usage: $(basename "$0") <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>" >&2
   exit 1
 }
 
 VALIDATORS="${1:-}"
 TESTCASE="${2:-}"
 case "${VALIDATORS}" in
-  1|3) ;;
+  1|3|5) ;;
   *) usage ;;
 esac
 case "${TESTCASE}" in

@@ -1,0 +1,35 @@
+# 5-validator local devnet - erc20-transfer (single MsgEthereumTx per tx,
+# calling the predeployed ERC20 contract).
+# Reference target: ~6511 TPS on an M4 MacBook Pro (wiki "5 Validators" table).
+# num_accounts/num_txs match the 3-validator case (wiki lists no separate
+# options for 5 validators).
+# Requires patch_erc20_genesis.py to have run with --num-accounts >=
+# num_accounts below.
+endpoints:
+  - name: node0
+    rpc: http://127.0.0.1:26657
+    json_rpc: http://127.0.0.1:26651
+  - name: node1
+    rpc: http://127.0.0.1:26667
+    json_rpc: http://127.0.0.1:26661
+  - name: node2
+    rpc: http://127.0.0.1:26677
+    json_rpc: http://127.0.0.1:26671
+  - name: node3
+    rpc: http://127.0.0.1:26687
+    json_rpc: http://127.0.0.1:26681
+  - name: node4
+    rpc: http://127.0.0.1:26697
+    json_rpc: http://127.0.0.1:26691
+mode: cosmos
+chain_id: 777
+evm_denom: basetcro
+gas_price: 5000000000000
+global_seq: 0
+tx_type: erc20-transfer
+msg_version: "1.4"
+num_accounts: 10000
+num_txs: 5
+batch_size: 1
+send_batch_size: 10000
+send_interval: 0.2
