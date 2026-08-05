@@ -2,11 +2,19 @@
 
 ## UNRELEASED
 
+### Bug fixes
+
+* [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
+
 *Jul 16, 2026*
 
 ### Improvements
 
 * [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
+
+### Bug fixes
+
+* [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 
 ### Chores
 

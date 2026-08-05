@@ -21,7 +21,9 @@ mempool-tx-cache-size = {{ .Cronos.MempoolTxCacheSize }}
 # Per-entry raw payload byte cap for the tx encode/decode cache. Default 65536 (64 KiB).
 mempool-tx-cache-max-tx-bytes = {{ .Cronos.MempoolTxCacheMaxTxBytes }}
 
-# Re-gossip suppression window per tx for mempool.type=app. Default "15s".
+# Re-gossip suppression window for mempool.type=app. A tx reaped for gossip is
+# not re-broadcast until this elapses, stopping the AppReactor from flooding the
+# whole pool to peers every reap_interval (~500ms). Default "15s".
 mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 
 # Tx budget per block for mempool.type=app. Default 2900. 0 = unlimited.

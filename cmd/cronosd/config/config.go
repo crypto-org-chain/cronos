@@ -25,7 +25,9 @@ type CronosConfig struct {
 	MempoolTxCacheSize int `mapstructure:"mempool-tx-cache-size"`
 	// Per-entry byte cap for the tx encode/decode cache. Default 65536 (64 KiB).
 	MempoolTxCacheMaxTxBytes int `mapstructure:"mempool-tx-cache-max-tx-bytes"`
-	// Re-gossip suppression window per tx for mempool.type=app. Default (or <= 0) 15s.
+	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
+	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
+	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
 	// Tx budget per block for mempool.type=app. Default 2900. 0 = unlimited.
 	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
@@ -45,7 +47,8 @@ const (
 	DefaultMempoolTxsPerBlock = 2900
 	// DefaultTxCacheSize is the tx encode/decode cache capacity used when MempoolTxCacheSize is unset (0).
 	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
-	// DefaultMempoolTTLNumBlocks is the block-age eviction threshold used when MempoolTxTTL is true.
+	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
+	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
 )
 
