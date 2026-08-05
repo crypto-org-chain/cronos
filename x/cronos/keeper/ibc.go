@@ -32,15 +32,17 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			if params.IbcCroDenom == "" {
 				return errorsmod.Wrap(types.ErrIbcCroDenomEmpty, "ibc is disabled")
 			}
+			
+			amount, err := c.Amount.SafeMul(sdkmath.NewIntFromBigInt(types.TenPowTen))
+			if err != nil {
+				return errorsmod.Wrapf(err, "converting %s to 18 decimals", c)
+			}
+			amount18dec := sdk.NewCoin(evmParams.EvmDenom, amount)
 
 			// Send ibc tokens to escrow address
-			err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, acc, types.ModuleName, sdk.NewCoins(c))
-			if err != nil {
+			if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, acc, types.ModuleName, sdk.NewCoins(c)); err != nil {
 				return err
 			}
-			// Compute new amount, because basecro is a 8 decimals token, we need to multiply by 10^10 to make it
-			// a 18 decimals token
-			amount18dec := sdk.NewCoin(evmParams.EvmDenom, c.Amount.Mul(sdkmath.NewIntFromBigInt(types.TenPowTen)))
 
 			// Mint new evm tokens
 			if err := k.bankKeeper.MintCoins(

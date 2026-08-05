@@ -142,6 +142,27 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 	}
 }
 
+func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoinsOverflow() {
+	privKey, err := ethsecp256k1.GenerateKey()
+	suite.Require().NoError(err)
+	address := sdk.AccAddress(privKey.PubKey().Address())
+
+	// 10^68 * 10^10 = 10^78, above the 256-bit ceiling of sdkmath.Int (~1.16*10^77),
+	// so the 8->18 decimal conversion overflows.
+	amount := sdkmath.NewIntFromBigInt(big.NewInt(0).Exp(big.NewInt(10), big.NewInt(68), nil))
+	coins := sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, amount))
+
+	suite.SetupTest()
+	suite.Require().NoError(suite.MintCoins(address, coins))
+
+	err = suite.app.CronosKeeper.ConvertVouchersToEvmCoins(suite.ctx, address.String(), coins)
+
+	suite.Require().ErrorIs(err, types.ErrAmountOverflow)
+
+	suite.Require().Equal(amount, suite.GetBalance(address, types.IbcCroDenomDefaultValue).Amount)
+	suite.Require().True(suite.GetBalance(address, suite.evmParam.EvmDenom).Amount.IsZero())
+}
+
 func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
