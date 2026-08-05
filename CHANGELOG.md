@@ -4,9 +4,10 @@
 
 *Jul 16, 2026*
 
-### Improvements
+### Bug fixes
 
-* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): TTL-cache the PendingTxs pool scan.
+* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) fix(mempool): drop pending-cache TTL for unordered dump + epoch invalidation.
+
 ### Chores
 
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
