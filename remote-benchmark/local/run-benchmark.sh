@@ -267,7 +267,7 @@ if [[ "${JSONNET_CONFIG}" == *-legacy-mempool.jsonnet ]]; then
 import yaml
 with open('${BENCH_CONFIG}') as f:
     cfg = yaml.safe_load(f)
-cfg['send_interval'] = max(cfg.get('send_interval', 0), 1.0)
+cfg['send_interval'] = max(cfg.get('send_interval', 0), 0.3)
 with open('${EFFECTIVE_BENCH_CONFIG}', 'w') as f:
     yaml.safe_dump(cfg, f)
 "

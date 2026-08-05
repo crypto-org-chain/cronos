@@ -34,6 +34,7 @@
       'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
+      'async-check-tx': true,
       'iavl-lazy-loading': true,
       'json-rpc': {
         address: '127.0.0.1:{EVMRPC_PORT}',
