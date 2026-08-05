@@ -131,7 +131,7 @@ cleanup() {
   # Only release a lock this process itself holds - if we crash mid-spin,
   # before ever winning the mkdir, rmdir-ing unconditionally here could tear
   # down another process's live critical section instead of just our own.
-  [[ -n "${CACHE_LOCK_HELD}" ]] && rmdir "${CACHE_LOCK_DIR}" 2>/dev/null || true
+  [[ -n "${CACHE_LOCK_HELD}" ]] && rm -rf "${CACHE_LOCK_DIR}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -141,18 +141,34 @@ trap cleanup EXIT
 # the need to guess whether an in-progress CACHE_DIR is a live writer or a
 # leftover from a killed one - only one process can ever be in this section
 # per cache key. A lock left behind by a SIGKILL'd holder (bypasses the EXIT
-# trap) is reclaimed once it's older than the timeout below.
+# trap) is reclaimed by checking whether its owning pid is still alive, not by
+# a fixed timeout - genesis funding for a large num_accounts can legitimately
+# run past any fixed threshold, and reclaiming from a live-but-slow holder
+# would let two processes populate the same CACHE_DIR at once.
 CACHE_LOCK_STALE_S=300
 mkdir -p "$(dirname "${CACHE_LOCK_DIR}")"
 while ! mkdir "${CACHE_LOCK_DIR}" 2>/dev/null; do
-  lock_mtime="$(stat -f %m "${CACHE_LOCK_DIR}" 2>/dev/null || stat -c %Y "${CACHE_LOCK_DIR}" 2>/dev/null || echo "")"
-  if [[ -n "${lock_mtime}" ]] && (( $(date +%s) - lock_mtime > CACHE_LOCK_STALE_S )); then
-    echo "=== reclaiming stale cache lock ${CACHE_LOCK_DIR} (>${CACHE_LOCK_STALE_S}s old) ===" >&2
-    rmdir "${CACHE_LOCK_DIR}" 2>/dev/null || true
-    continue
+  lock_pid="$(cat "${CACHE_LOCK_DIR}/pid" 2>/dev/null || echo "")"
+  if [[ -n "${lock_pid}" ]]; then
+    if ! kill -0 "${lock_pid}" 2>/dev/null; then
+      echo "=== reclaiming cache lock ${CACHE_LOCK_DIR} held by dead pid ${lock_pid} ===" >&2
+      rm -rf "${CACHE_LOCK_DIR}"
+      continue
+    fi
+  else
+    # No pid file yet - either the holder is mid-acquire (about to write it)
+    # or it died between mkdir and the write. Fall back to a fixed timeout so
+    # a died-before-writing holder doesn't wedge every waiter forever.
+    lock_mtime="$(stat -f %m "${CACHE_LOCK_DIR}" 2>/dev/null || stat -c %Y "${CACHE_LOCK_DIR}" 2>/dev/null || echo "")"
+    if [[ -n "${lock_mtime}" ]] && (( $(date +%s) - lock_mtime > CACHE_LOCK_STALE_S )); then
+      echo "=== reclaiming stale cache lock ${CACHE_LOCK_DIR} (>${CACHE_LOCK_STALE_S}s old, no pid) ===" >&2
+      rm -rf "${CACHE_LOCK_DIR}"
+      continue
+    fi
   fi
   sleep 0.2
 done
+echo "$$" >"${CACHE_LOCK_DIR}/pid"
 CACHE_LOCK_HELD=1
 
 if [[ -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
@@ -187,7 +203,7 @@ else
   CACHE_TMP=""
 fi
 
-rmdir "${CACHE_LOCK_DIR}"
+rm -rf "${CACHE_LOCK_DIR}"
 CACHE_LOCK_HELD=""
 
 echo "=== starting devnet ==="
