@@ -6,7 +6,7 @@
 
 ### Improvements
 
-* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): epoch-invalidated cache for unordered PendingTxs dump.
+* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
 
 ### Chores
 
