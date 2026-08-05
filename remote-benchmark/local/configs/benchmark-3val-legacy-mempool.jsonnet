@@ -25,7 +25,7 @@
       },
       p2p: {
         libp2p: {
-          enabled: true,
+          enabled: false,
         },
       },
     },

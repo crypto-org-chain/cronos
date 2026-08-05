@@ -16,6 +16,7 @@
     // whatever the Options JSON overrides.
     config: {
       db_backend: 'rocksdb',
+      event_bus_buffer_capacity: 128,
       // not part of the wiki's benchmark options - cometbft's default
       // (~900) queues requests once a send_batch_size=8000 burst outruns it,
       // serializing at the RPC server instead of in tx processing.
@@ -76,7 +77,7 @@
         // overridden in its app_patch), instead of a hardcoded worker count
         // that can oversubscribe smaller machines.
         'block-stm-workers': 0,
-        'block-stm-pre-estimate': true,
+        'block-stm-pre-estimate': false,
       },
       memiavl: {
         enable: true,

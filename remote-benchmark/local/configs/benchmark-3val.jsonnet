@@ -18,6 +18,7 @@
     // whatever the Options JSON overrides.
     config: {
       db_backend: 'rocksdb',
+      event_bus_buffer_capacity: 128,
       // not part of the wiki's benchmark options - cometbft's default
       // (~900) queues requests once a send_batch_size=8000 burst outruns it,
       // serializing at the RPC server instead of in tx processing.
@@ -70,6 +71,16 @@
         // app-side mempool's own cap (v1.8) - matches config_patch's
         // mempool.size above so the app mempool isn't the tighter limit.
         'max-txs': 100000,
+        recheck: false,
+        // app-side mempool (v1.8) from testground/benchmark-options.json -
+        // CheckTx admits into cronos's own mempool instead of CometBFT's,
+        // broadcast still gossips accepted txs to peers.
+        type: 'app',
+        broadcast: true,
+        // matches this config's genesis block.max_gas below, so a single
+        // reap can fill a block instead of under-reaping on a smaller cap.
+        reap_max_gas: 363000000,
+        reap_interval: '500ms',
       },
       evm: {
         'block-executor': 'block-stm',
@@ -78,7 +89,7 @@
         // overridden in its app_patch), instead of a hardcoded worker count
         // that can oversubscribe smaller machines.
         'block-stm-workers': 0,
-        'block-stm-pre-estimate': true,
+        'block-stm-pre-estimate': false,
       },
       memiavl: {
         enable: true,
