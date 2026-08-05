@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
-* [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check for during voucher conversion to evm coins.
+* [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
 
 *Jul 16, 2026*
 
