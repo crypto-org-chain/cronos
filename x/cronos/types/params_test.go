@@ -106,7 +106,7 @@ func Test_validateIbcTimeout(t *testing.T) {
 		wantErr bool
 	}{
 		{"invalid type", args{"a"}, true},
-		{"zero", args{uint64(0)}, true},
+		{"zero is valid", args{uint64(0)}, false},
 		{"default", args{IbcTimeoutDefaultValue}, false},
 		{"at max", args{MaxIbcTimeoutValue}, false},
 		{"above max", args{MaxIbcTimeoutValue + 1}, true},

@@ -32,7 +32,7 @@ const (
 	MaxCallbackGasDefaultValue = uint64(50000)
 	// MaxIbcTimeoutValue bounds IbcTimeout so that ctx.BlockTime().UnixNano() + IbcTimeout
 	// cannot overflow uint64 and wrap the packet timeout into the past
-	MaxIbcTimeoutValue         = uint64(30 * 24 * time.Hour) // 30 days
+	MaxIbcTimeoutValue = uint64(30 * 24 * time.Hour) // 30 days
 )
 
 // ParamKeyTable returns the parameter key table.
@@ -119,9 +119,6 @@ func validateIbcTimeout(i interface{}) error {
 	timeout, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-	if timeout == 0 {
-		return fmt.Errorf("invalid ibc timeout: must be positive")
 	}
 	if timeout > MaxIbcTimeoutValue {
 		return fmt.Errorf("invalid ibc timeout %d: must not exceed %d", timeout, MaxIbcTimeoutValue)
