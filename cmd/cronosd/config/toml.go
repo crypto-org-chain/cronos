@@ -15,8 +15,9 @@ disable-tx-replacement = {{ .Cronos.DisableTxReplacement }}
 disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
 
 # Capacity of the sharded LRU tx encode/decode cache.
-# 0 = derive from mempool-txs-per-block at startup (2×, default 5800). -1 = disable entirely.
-mempool-tx-cache-size = {{ .Cronos.MempoolTxCacheSize }}
+# -1 = disabled, 0 = derived from mempool.max-txs (-1 if unbounded or disabled),
+# or a positive integer.
+tx-cache-size = {{ .Cronos.TxCacheSize }}
 
 # Per-entry raw payload byte cap for the tx encode/decode cache. Default 65536 (64 KiB).
 mempool-tx-cache-max-tx-bytes = {{ .Cronos.MempoolTxCacheMaxTxBytes }}
@@ -26,12 +27,17 @@ mempool-tx-cache-max-tx-bytes = {{ .Cronos.MempoolTxCacheMaxTxBytes }}
 # whole pool to peers every reap_interval (~500ms). Default "15s".
 mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 
-# Tx budget per block for mempool.type=app. Default 2900. 0 = unlimited.
-mempool-txs-per-block = {{ .Cronos.MaxTxPerBlock }}
+# Tx budget per block for mempool.type=app (cronos mainnet empirical: ~2900).
+# Controls both the gossip-reap cap (txs per 500ms reap tick ≈ one block) and
+# the recheck-batch cap (candidates re-validated per Commit cycle ≈ one block of
+# senders). 0 = unlimited. Default 2900.
+mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
 
-# Evicts mempool.type=app txs older than 120 blocks by arrival height.
-# Default true. false disables.
-mempool-tx-ttl = {{ .Cronos.MempoolTxTTL }}
+# Evict mempool.type=app txs older than this many blocks (by arrival height),
+# independent of per-tx TimeoutHeight (EVM txs have TimeoutHeight 0 = never
+# expire). Drains txs the proposal keeps skipping (baseFee gate, blocklist) whose
+# sender never commits. 0 = disabled. Default 120.
+mempool-ttl-num-blocks = {{ .Cronos.MempoolTTLNumBlocks }}
 
 # Caches the PendingTxs() pool-scan result, invalidated on tx admission and
 # block completion. Default true. false always walks the pool.

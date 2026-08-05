@@ -359,9 +359,6 @@ func (a *Manager) RecheckTxs() {
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
 
-	// selectTxs/runRecheck evict txs after StageRecheckSenders's own invalidate()
-	// already fired; without this, a read racing this cycle could cache a
-	// snapshot containing a tx evicted moments later, stale until next block.
 	a.pendingCache.invalidate()
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }

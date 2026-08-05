@@ -35,9 +35,7 @@ func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	return snap
 }
 
-// UnorderedPoolSnapshot returns pooled txs without priority ordering. Cheaper
-// than PoolSnapshot: RPC pending-tx reads don't need order, unlike
-// ReapTxsHandler's gossip budget scan.
+// UnorderedPoolSnapshot returns pooled txs without priority ordering.
 func UnorderedPoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot", "unordered")
 	return sdkmempool.UnorderedTxs(ctx, mp)

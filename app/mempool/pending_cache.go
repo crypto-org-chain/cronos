@@ -10,8 +10,7 @@ import (
 
 // pendingCache caches a PendingTxs() snapshot so concurrent RPC readers
 // single-flight onto one pool walk instead of one each. Invalidated purely on
-// tx admission and block completion (see Manager.admit, CheckTxHandler,
-// StageRecheckSenders) — no TTL.
+// tx admission and block completion.
 type pendingCache struct {
 	mu          sync.Mutex
 	enabled     bool
@@ -29,8 +28,6 @@ func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Read epoch before the walk, commit loadedEpoch after: an invalidate
-	// racing the walk is never swallowed.
 	epoch := c.epoch.Load()
 	if c.loaded && c.loadedEpoch == epoch {
 		telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "hit")
@@ -48,9 +45,7 @@ func (c *pendingCache) copySnapshot() []sdk.Tx {
 	return out
 }
 
-// invalidate marks the snapshot stale. Lock-free: admit()/CheckTxHandler hold
-// a.mu while calling this, and StageRecheckSenders runs on the consensus
-// path — neither may block on c.mu, which get() can hold for a full pool walk.
+// invalidate marks the snapshot stale.
 func (c *pendingCache) invalidate() {
 	c.epoch.Add(1)
 }
