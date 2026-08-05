@@ -31,9 +31,9 @@ type CronosConfig struct {
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
 	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
-	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
-	// (by arrival height), draining proposal-skipped txs whose sender never commits.
-	// false disables; true uses DefaultMempoolTTLNumBlocks.
+	// MempoolTxTTL evicts mempool.type=app txs older than DefaultMempoolTTLNumBlocks
+	// blocks (by arrival height), draining proposal-skipped txs whose sender never
+	// commits. false disables; true enables.
 	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
 	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
 	// and block completion. Default true. false always walks the pool.
