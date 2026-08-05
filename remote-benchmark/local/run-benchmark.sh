@@ -97,19 +97,24 @@ CACHE_KEY="$(cat \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/transaction.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/cli.py" \
   | shasum -a 256 | cut -c1-16)"
-# Two different pre-v1.8 binaries would otherwise hash identically (same
-# legacy jsonnet, same everything else) and could wrongly share a cached
-# genesis if their genesis validation/output format differs.
-if [[ -n "${CRONOS_BIN}" ]]; then
-  CACHE_KEY="$(printf '%s' "${CACHE_KEY}$(shasum -a 256 "${CRONOS_BIN}" | cut -d' ' -f1)" \
-    | shasum -a 256 | cut -c1-16)"
+# Two different binaries would otherwise hash identically (same jsonnet, same
+# everything else) and could wrongly share a cached genesis if their genesis
+# validation/output format differs - including two different nix-built HEAD
+# commits, so resolve and hash the binary that will actually run either way.
+HASHED_CRONOS_BIN="${CRONOS_BIN}"
+if [[ -z "${HASHED_CRONOS_BIN}" ]]; then
+  HASHED_CRONOS_BIN="$(nix-shell "${SHELL_NIX}" --run 'command -v cronosd')"
 fi
+CACHE_KEY="$(printf '%s' "${CACHE_KEY}$(shasum -a 256 "${HASHED_CRONOS_BIN}" | cut -d' ' -f1)" \
+  | shasum -a 256 | cut -c1-16)"
 CACHE_DIR="${LOCAL_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
 CHAIN_ID="cronos_777-1"
 
 DATA_DIR="$(mktemp -d)"
 PYSTARPORT_PID=""
 CACHE_TMP=""
+CACHE_LOCK_DIR="${CACHE_DIR}.lock"
+CACHE_LOCK_HELD=""
 
 cleanup() {
   if [[ -n "${PYSTARPORT_PID}" ]] && kill -0 "${PYSTARPORT_PID}" 2>/dev/null; then
@@ -123,8 +128,32 @@ cleanup() {
   pkill -9 -f "${DATA_DIR}" 2>/dev/null || true
   rm -rf "${DATA_DIR}"
   [[ -n "${CACHE_TMP}" ]] && rm -rf "${CACHE_TMP}"
+  # Only release a lock this process itself holds - if we crash mid-spin,
+  # before ever winning the mkdir, rmdir-ing unconditionally here could tear
+  # down another process's live critical section instead of just our own.
+  [[ -n "${CACHE_LOCK_HELD}" ]] && rmdir "${CACHE_LOCK_DIR}" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+# macOS has no flock(1), so use mkdir as the mutex: it's atomic (fails if the
+# dir already exists), which is exactly what a lock needs. Holding it across
+# the whole read-or-populate section (not just the final publish step) removes
+# the need to guess whether an in-progress CACHE_DIR is a live writer or a
+# leftover from a killed one - only one process can ever be in this section
+# per cache key. A lock left behind by a SIGKILL'd holder (bypasses the EXIT
+# trap) is reclaimed once it's older than the timeout below.
+CACHE_LOCK_STALE_S=300
+mkdir -p "$(dirname "${CACHE_LOCK_DIR}")"
+while ! mkdir "${CACHE_LOCK_DIR}" 2>/dev/null; do
+  lock_mtime="$(stat -f %m "${CACHE_LOCK_DIR}" 2>/dev/null || stat -c %Y "${CACHE_LOCK_DIR}" 2>/dev/null || echo "")"
+  if [[ -n "${lock_mtime}" ]] && (( $(date +%s) - lock_mtime > CACHE_LOCK_STALE_S )); then
+    echo "=== reclaiming stale cache lock ${CACHE_LOCK_DIR} (>${CACHE_LOCK_STALE_S}s old) ===" >&2
+    rmdir "${CACHE_LOCK_DIR}" 2>/dev/null || true
+    continue
+  fi
+  sleep 0.2
+done
+CACHE_LOCK_HELD=1
 
 if [[ -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
   echo "=== reusing cached genesis from ${CACHE_DIR} ==="
@@ -152,27 +181,14 @@ else
   echo "=== populating genesis cache at ${CACHE_DIR} ==="
   CACHE_TMP="${CACHE_DIR}.tmp.$$"
   mkdir -p "$(dirname "${CACHE_DIR}")"
-  rm -rf "${CACHE_TMP}"
+  rm -rf "${CACHE_TMP}" "${CACHE_DIR}"
   cp -R "${DATA_DIR}" "${CACHE_TMP}"
-  # `mv` moves a source *into* an existing destination directory rather than
-  # failing, so it can't be used as a collision guard here. `mkdir` is the
-  # atomic primitive: it fails if CACHE_DIR already exists, so only one
-  # concurrent run ever wins publication. The winner moves everything except
-  # ${CHAIN_ID} first, then ${CHAIN_ID} last, since that's the single path a
-  # reader checks - readers never observe a partially-populated cache.
-  # A prior writer killed mid-publish (SIGKILL, OOM) can leave CACHE_DIR
-  # existing without ${CHAIN_ID} in it; mkdir would fail against that forever,
-  # so treat an incomplete CACHE_DIR as dead and clear it before retrying.
-  if [[ -d "${CACHE_DIR}" && ! -d "${CACHE_DIR}/${CHAIN_ID}" ]]; then
-    rm -rf "${CACHE_DIR}"
-  fi
-  if mkdir "${CACHE_DIR}" 2>/dev/null; then
-    find "${CACHE_TMP}" -mindepth 1 -maxdepth 1 ! -name "${CHAIN_ID}" \
-      -exec mv {} "${CACHE_DIR}/" \;
-    mv "${CACHE_TMP}/${CHAIN_ID}" "${CACHE_DIR}/${CHAIN_ID}"
-  fi
-  rm -rf "${CACHE_TMP}"
+  mv "${CACHE_TMP}" "${CACHE_DIR}"
+  CACHE_TMP=""
 fi
+
+rmdir "${CACHE_LOCK_DIR}"
+CACHE_LOCK_HELD=""
 
 echo "=== starting devnet ==="
 nix-shell "${SHELL_NIX}" --run "pystarport start --data '${DATA_DIR}' --quiet" \

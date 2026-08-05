@@ -419,6 +419,7 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
         result = data["result"]
         if result["code"] != 0:
             print("tx is invalid, won't retry,", result["log"])
+            return False
         return True
 
 
