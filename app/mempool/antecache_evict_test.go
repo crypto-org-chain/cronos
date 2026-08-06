@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	antecache "github.com/evmos/ethermint/ante/cache"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
-	antecache "github.com/evmos/ethermint/ante/cache"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 type ethTx struct {
@@ -30,7 +31,38 @@ func anteKey(tx *ethTx) (string, uint64) {
 	return tx.msg.GetFrom().String(), tx.msg.AsTransaction().Nonce()
 }
 
-func TestEvict_ClearsAnteCacheEntry(t *testing.T) {
+type multiMsgTx struct{ msgs []sdk.Msg }
+
+func (t *multiMsgTx) GetMsgs() []sdk.Msg                    { return t.msgs }
+func (t *multiMsgTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+
+type AnteCacheEvictTestSuite struct {
+	suite.Suite
+}
+
+func TestAnteCacheEvictTestSuite(t *testing.T) {
+	suite.Run(t, new(AnteCacheEvictTestSuite))
+}
+
+func (s *AnteCacheEvictTestSuite) TestEvictScenarios() {
+	testCases := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{"direct evict clears the tx's ante-cache entry", evictClearsAnteCacheEntry},
+		{"nil ante cache is a no-op", evictNilAnteCacheNoPanic},
+		{"non-eth message is skipped", evictNonEthMsgSkipsAnteCache},
+		{"TTL eviction clears the entry", evictTTLEvictionClearsAnteCache},
+		{"recheck failure clears the entry", evictRecheckFailureClearsAnteCache},
+		{"multiple eth messages clear all entries", evictMultipleMsgsClearsAll},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() { tc.run(s.T()) })
+	}
+}
+
+func evictClearsAnteCacheEntry(t *testing.T) {
 	tx := newEthTx(common.Address{0x1}, 5)
 	addr, nonce := anteKey(tx)
 
@@ -51,7 +83,7 @@ func TestEvict_ClearsAnteCacheEntry(t *testing.T) {
 	}
 }
 
-func TestEvict_NilAnteCacheNoPanic(t *testing.T) {
+func evictNilAnteCacheNoPanic(t *testing.T) {
 	tx := newEthTx(common.Address{0x2}, 1)
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
@@ -59,7 +91,7 @@ func TestEvict_NilAnteCacheNoPanic(t *testing.T) {
 	a.evict(tx) // anteCache nil: must be a no-op, not a panic
 }
 
-func TestEvict_NonEthMsgSkipsAnteCache(t *testing.T) {
+func evictNonEthMsgSkipsAnteCache(t *testing.T) {
 	tx := &ptrTx{id: 1}
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
@@ -68,7 +100,7 @@ func TestEvict_NonEthMsgSkipsAnteCache(t *testing.T) {
 	a.evict(tx)
 }
 
-func TestRecheckTxs_TTLEvictionClearsAnteCache(t *testing.T) {
+func evictTTLEvictionClearsAnteCache(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.ttlNumBlocks = 5
 	ac := antecache.NewAnteCache(0)
@@ -101,7 +133,7 @@ func TestRecheckTxs_TTLEvictionClearsAnteCache(t *testing.T) {
 	}
 }
 
-func TestRecheckTxs_RecheckFailureClearsAnteCache(t *testing.T) {
+func evictRecheckFailureClearsAnteCache(t *testing.T) {
 	tx := newEthTx(common.Address{0x4}, 2)
 	addr, nonce := anteKey(tx)
 
@@ -127,7 +159,7 @@ func TestRecheckTxs_RecheckFailureClearsAnteCache(t *testing.T) {
 	}
 }
 
-func TestEvictAnteCache_MultipleMsgsClearsAll(t *testing.T) {
+func evictMultipleMsgsClearsAll(t *testing.T) {
 	msg1 := newEthTx(common.Address{0x5}, 1)
 	msg2 := newEthTx(common.Address{0x6}, 9)
 	ac := antecache.NewAnteCache(0)
@@ -147,8 +179,3 @@ func TestEvictAnteCache_MultipleMsgsClearsAll(t *testing.T) {
 		t.Fatal("evict must clear every eth message's ante-cache entry")
 	}
 }
-
-type multiMsgTx struct{ msgs []sdk.Msg }
-
-func (t *multiMsgTx) GetMsgs() []sdk.Msg                    { return t.msgs }
-func (t *multiMsgTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
