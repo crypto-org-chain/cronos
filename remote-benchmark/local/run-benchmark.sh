@@ -6,6 +6,8 @@
 # Usage: run-benchmark.sh <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
 # Set CRONOS_BIN to an executable path to run against a specific cronosd
 # binary (e.g. a downloaded release) instead of the nix-built HEAD binary.
+# Set KEEP_DATA=1 to leave the devnet data dir (node logs included) behind for
+# post-mortem inspection instead of deleting it on exit.
 set -euo pipefail
 
 # rpc.max_open_connections in the jsonnet configs is raised past cometbft's
@@ -126,7 +128,11 @@ cleanup() {
   pkill -f "${DATA_DIR}" 2>/dev/null || true
   sleep 1
   pkill -9 -f "${DATA_DIR}" 2>/dev/null || true
-  rm -rf "${DATA_DIR}"
+  if [[ -n "${KEEP_DATA:-}" ]]; then
+    echo "=== KEEP_DATA set, leaving devnet data at ${DATA_DIR} ==="
+  else
+    rm -rf "${DATA_DIR}"
+  fi
   [[ -n "${CACHE_TMP}" ]] && rm -rf "${CACHE_TMP}"
   # Only release a lock this process itself holds - if we crash mid-spin,
   # before ever winning the mkdir, rmdir-ing unconditionally here could tear
