@@ -104,7 +104,6 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	baseFee *big.Int,
 	err error,
 ) {
-	var blockNum rpctypes.BlockNumber
 	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
 		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
@@ -114,7 +113,7 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
 	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
-		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
+		api.logger.Debug("failed to retrieve block results", "height", blockNumber, "error", err.Error())
 		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 	}
 	if err = checkTxsResultsLength(resBlock, blockRes); err != nil {
