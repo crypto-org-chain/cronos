@@ -197,7 +197,11 @@
         },
         feemarket: {
           params: {
-            no_base_fee: false,
+            // baseFee escalation would permanently gate-skip fixed-fee-cap txs
+            // during this benchmark's unthrottled burst (no pacing between
+            // sends, unlike the wiki tooling's send_interval); disable it so
+            // the run measures raw throughput instead of fee-market dynamics.
+            no_base_fee: true,
             base_fee: '100000000000',
           },
         },
