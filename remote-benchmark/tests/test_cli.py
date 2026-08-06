@@ -141,6 +141,7 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        commit_timeout=120,
         telemetry=None,
     )
     heights = iter([171, 173, 174, 175])
@@ -205,6 +206,7 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        commit_timeout=120,
         telemetry=None,
     )
     heights = iter([171, 173, 174])
@@ -263,6 +265,7 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
         sender_strategy="reuse",
         send_batch_size=50,
         send_interval=0,
+        commit_timeout=120,
     )
     heights = iter([1037, 1037, 1038])
     loaded_txs = {1038: [f"tx-{i}" for i in range(50)]}
@@ -321,6 +324,7 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
         mode="cosmos",
         send_batch_size=2,
         send_interval=0,
+        commit_timeout=120,
         telemetry=None,
     )
 
@@ -735,6 +739,7 @@ def _cosmos_bench_cfg(**overrides):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        commit_timeout=120,
         telemetry=None,
     )
     for key, value in overrides.items():
@@ -1222,3 +1227,60 @@ def test_query_account_gives_up_immediately_on_an_unrelated_value_error(monkeypa
         assert False, "expected ValueError to propagate"
     except ValueError as e:
         assert str(e) == "boom"
+
+
+def test_bench_honors_the_configured_commit_timeout(monkeypatch):
+    # Batch workloads saturate every block and need tens of them, so they
+    # legitimately outlast the 120s default. Ignoring the per-testcase value
+    # would cut the wait short and report a partial commit count as a failure.
+    cfg = SimpleNamespace(
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        endpoints=_ONE_ENDPOINT,
+        rpcs=["http://node0"],
+        global_seq=0,
+        num_txs=1,
+        sender_strategy="reuse",
+        tx_type="simple-transfer",
+        mix_weights=None,
+        batch_size=1,
+        msg_version="1.4",
+        gas_price=1,
+        chain_id=777,
+        evm_denom="basetcro",
+        mode="cosmos",
+        send_batch_size=1,
+        send_interval=0,
+        commit_timeout=600,
+        telemetry=None,
+    )
+    forwarded = {}
+
+    async def fake_send(*_args, **_kwargs):
+        return 0
+
+    def fake_wait(*_args, **kwargs):
+        forwarded.update(kwargs)
+        return 11, 1
+
+    monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1"])
+    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: 10)
+    monkeypatch.setattr(cli_module, "wait_for_committed_txs", fake_wait)
+    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(
+        cli_module,
+        "dump_block_stats",
+        lambda fp, *, start, end, **_kwargs: print(f"block {end} txs=1", file=fp),
+    )
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--nonce", "0", "1", "1"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    assert forwarded["timeout"] == 600

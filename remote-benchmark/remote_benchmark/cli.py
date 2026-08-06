@@ -21,7 +21,7 @@ from .compare import (
     render_comparison_text,
     write_comparison_html,
 )
-from .config import load_config
+from .config import Config, load_config
 from .libp2p import bootstrap_peers
 from .monitor import BlockSTMMonitor, MempoolMonitor
 from .preflight import (
@@ -71,7 +71,7 @@ from .utils import (
 
 # reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
-LOAD_COMMIT_TIMEOUT = 120
+LOAD_COMMIT_TIMEOUT = Config.model_fields["commit_timeout"].default
 PROGRESS_INTERVAL_S = 3
 
 
@@ -473,7 +473,11 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
             )
         load_end = eth_block_number(cfg.primary.json_rpc)
         load_end, committed_txs = wait_for_committed_eth_txs(
-            cfg.primary.json_rpc, load_start, load_end, len(txs) - failed
+            cfg.primary.json_rpc,
+            load_start,
+            load_end,
+            len(txs) - failed,
+            timeout=cfg.commit_timeout,
         )
         summary = dump_eth_block_stats(
             stats_out,
@@ -527,7 +531,11 @@ def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_ca
                 )
             load_end = block_height(cfg.primary.rpc)
             load_end, committed_txs = wait_for_committed_txs(
-                cfg.primary.rpc, load_start, load_end, len(txs) - failed
+                cfg.primary.rpc,
+                load_start,
+                load_end,
+                len(txs) - failed,
+                timeout=cfg.commit_timeout,
             )
         finally:
             mempool_monitor.stop()

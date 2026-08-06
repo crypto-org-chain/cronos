@@ -18,3 +18,8 @@ sender_strategy: unique-per-tx
 batch_size: 100
 send_batch_size: 8000
 send_interval: 0.05
+
+# Batch envelopes saturate every block, so this workload needs tens of blocks
+# rather than the handful an unbatched run needs; the 120s default expires
+# mid-run and reports a partial commit count as a failure.
+commit_timeout: 600

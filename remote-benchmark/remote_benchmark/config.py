@@ -39,6 +39,12 @@ class Config(BaseModel):
     batch_size: int = 1
     send_batch_size: int = 500
     send_interval: float = 0.5
+    # Seconds to keep waiting for the generated txs to commit after the last
+    # send. Per-testcase because the floor is set by how many blocks the
+    # workload needs: batched txs pack ~100x more gas per Cosmos tx, so they
+    # fill far more blocks than the same tx count sent unbatched, and each of
+    # those blocks is gas-saturated rather than near-empty.
+    commit_timeout: float = 120
     telemetry: str | None = None
 
     @model_validator(mode="after")

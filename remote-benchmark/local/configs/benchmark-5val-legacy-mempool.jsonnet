@@ -19,6 +19,14 @@
       },
       consensus: {
         timeout_commit: '20ms',
+        // A full 363000000-gas block takes longer to propagate and validate
+        // across every validator than the 3s default allows, so round 0's
+        // proposal always arrived late: every load height prevoted nil, burned
+        // ~8.5s in propose/prevote/precommit timeouts, and re-ran
+        // ProcessProposal to commit the same block at round 1. This is an
+        // upper bound, not a fixed delay - a prompt proposal still commits
+        // immediately, so empty blocks stay fast.
+        timeout_propose: '15s',
       },
       tx_index: {
         indexer: 'null',
