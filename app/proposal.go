@@ -255,8 +255,6 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	}
 
 	h.blocklist = m
-	// Only record the blob once it has been successfully applied, so a failed
-	// decrypt/parse is retried on the next call instead of getting stuck.
 	h.lastBlockList = make([]byte, len(blob))
 	copy(h.lastBlockList, blob)
 	return nil
