@@ -179,6 +179,8 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	// We use current time for timeout timestamp and zero height for timeoutHeight
 	// it means it can never fail by timeout
 	params := k.GetParams(ctx)
+	// MaxIbcTimeoutValue bounds IbcTimeout so that ctx.BlockTime().UnixNano() + IbcTimeout
+	// cannot overflow uint64 and wrap the packet timeout into the past
 	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
 	timeoutHeight := ibcclienttypes.ZeroHeight()
 	msg := ibctransfertypes.MsgTransfer{
