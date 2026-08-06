@@ -13,8 +13,6 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
-// ethTx wraps a real *evmtypes.MsgEthereumTx so evictAnteCache's type assertion
-// succeeds, unlike the plain ptrTx fixture used elsewhere in this package.
 type ethTx struct {
 	msg *evmtypes.MsgEthereumTx
 }
@@ -22,8 +20,6 @@ type ethTx struct {
 func (t *ethTx) GetMsgs() []sdk.Msg                    { return []sdk.Msg{t.msg} }
 func (t *ethTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 
-// newEthTx builds a legacy MsgEthereumTx for `from` at `nonce`, unsigned: evict
-// only reads GetFrom/AsTransaction, neither of which requires a valid signature.
 func newEthTx(from common.Address, nonce uint64) *ethTx {
 	msg := evmtypes.NewTx(nil, nonce, &common.Address{0xab}, big.NewInt(0), 21000, big.NewInt(1), nil, nil, nil, nil)
 	msg.From = from.Bytes()
@@ -34,9 +30,6 @@ func anteKey(tx *ethTx) (string, uint64) {
 	return tx.msg.GetFrom().String(), tx.msg.AsTransaction().Nonce()
 }
 
-// TestEvict_ClearsAnteCacheEntry proves the TTL/timeout eviction path (evict,
-// shared by RecheckTxs' expiry/TTL sweep and the post-recheck-failure path)
-// removes the tx's ante-cache nonce entry instead of leaking it.
 func TestEvict_ClearsAnteCacheEntry(t *testing.T) {
 	tx := newEthTx(common.Address{0x1}, 5)
 	addr, nonce := anteKey(tx)
@@ -58,8 +51,6 @@ func TestEvict_ClearsAnteCacheEntry(t *testing.T) {
 	}
 }
 
-// TestEvict_NilAnteCacheNoPanic: Manager built without SetAnteCache (e.g. tests,
-// or a future caller that doesn't wire one) must not panic on eviction.
 func TestEvict_NilAnteCacheNoPanic(t *testing.T) {
 	tx := newEthTx(common.Address{0x2}, 1)
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
@@ -68,9 +59,6 @@ func TestEvict_NilAnteCacheNoPanic(t *testing.T) {
 	a.evict(tx) // anteCache nil: must be a no-op, not a panic
 }
 
-// TestEvict_NonEthMsgSkipsAnteCache: a non-eth tx (e.g. ptrTx, standing in for a
-// cosmos-native message) has no ante-cache entry to clear; evict must not panic
-// walking its (empty) message list.
 func TestEvict_NonEthMsgSkipsAnteCache(t *testing.T) {
 	tx := &ptrTx{id: 1}
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
@@ -80,9 +68,6 @@ func TestEvict_NonEthMsgSkipsAnteCache(t *testing.T) {
 	a.evict(tx)
 }
 
-// TestRecheckTxs_TTLEvictionClearsAnteCache drives the eviction through the real
-// TTL sweep (selectTxs -> evictForRecheck -> evict) instead of calling evict
-// directly, proving the recheck-triggered eviction path also clears the cache.
 func TestRecheckTxs_TTLEvictionClearsAnteCache(t *testing.T) {
 	f := newRecheckFixture()
 	f.a.ttlNumBlocks = 5
@@ -116,8 +101,6 @@ func TestRecheckTxs_TTLEvictionClearsAnteCache(t *testing.T) {
 	}
 }
 
-// TestRecheckTxs_RecheckFailureClearsAnteCache drives the runRecheck eviction
-// path (RunTx(ReCheck) failure -> evict), the other call site sharing evict.
 func TestRecheckTxs_RecheckFailureClearsAnteCache(t *testing.T) {
 	tx := newEthTx(common.Address{0x4}, 2)
 	addr, nonce := anteKey(tx)
@@ -144,8 +127,6 @@ func TestRecheckTxs_RecheckFailureClearsAnteCache(t *testing.T) {
 	}
 }
 
-// TestEvictAnteCache_MultipleMsgsClearsAll: a tx with more than one eth message
-// (batched) must clear every message's nonce entry, not just the first.
 func TestEvictAnteCache_MultipleMsgsClearsAll(t *testing.T) {
 	msg1 := newEthTx(common.Address{0x5}, 1)
 	msg2 := newEthTx(common.Address{0x6}, 9)
