@@ -349,6 +349,12 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
+	// anteCache is the EVM ante's per-(sender, nonce) admission cache. Stored on
+	// App (not just local to setAnteHandler) so mempoolManager's eviction hook
+	// can share the same instance and delete a stale entry when the mempool
+	// evicts its tx without ever spending a RunTx on it (cascade/TTL eviction).
+	anteCache *cache.AnteCache
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -1190,6 +1196,16 @@ func New(
 			tmos.Exit(err.Error())
 		}
 
+		if app.mempoolManager != nil {
+			// Earliest correct point for the first mempoolState refresh: stores are
+			// now loaded, so the branch it takes sees committed state instead of an
+			// empty pre-load tree.
+			mu := app.mempoolManager.AdmissionMutex()
+			mu.Lock()
+			app.mempoolManager.RefreshMempoolStateLocked()
+			mu.Unlock()
+		}
+
 		if qmsVersion > 0 {
 			// it should not happens since we constraint the loaded iavl version to not exceed the versiondb version,
 			// still keep the check for safety.
@@ -1274,6 +1290,14 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		blockedMap[addr.String()] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap, app.CronosKeeper.GetParams)
+	app.anteCache = cache.NewAnteCache(mempoolMaxTxs)
+	// mempoolManager (built earlier, inside the SetMempool baseAppOptions
+	// closure applied by NewBaseApp) is already set on app by this point, so
+	// wiring the eviction hook here can share app.anteCache with the ante
+	// options below rather than each holding a separate instance.
+	if app.mempoolManager != nil {
+		app.mempoolManager.SetEvictionHook(app.anteCache.Delete)
+	}
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -1293,7 +1317,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
+		AnteCache:         app.anteCache,
 		SenderCache:       app.senderCache,
 	}
 
@@ -1668,11 +1692,23 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
+		// AppMempool.Lock() is a no-op; mu serializes BaseApp.Commit() and the
+		// mempoolState refresh against concurrent RunTx-based admission/recheck.
 		mu := app.mempoolManager.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
-		return app.BaseApp.Commit()
+		resp, err := app.BaseApp.Commit()
+		if err == nil {
+			app.mempoolManager.RefreshMempoolStateLocked()
+		}
+		// On error, base is left pointing at the superseded store. Same for
+		// ApplySnapshotChunk: RestoreChunk streams straight into the live
+		// CommitMultiStore (snapshots.Manager.doRestoreSnapshot ->
+		// multistore.Restore) without ever calling RefreshMempoolStateLocked. A
+		// Commit error is effectively fatal and a state-syncing node isn't
+		// admitting or proposing, so nothing reads base until the next
+		// successful Commit refreshes it.
+		return resp, err
 	}()
 
 	if err == nil {
