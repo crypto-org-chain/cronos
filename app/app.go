@@ -50,6 +50,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -349,9 +350,6 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
-	// anteCache is the ante-layer nonce cache; sized independently of the app
-	// mempool (see anteCacheMaxTxs in New). Exposed for tests that check its bound
-	// is decoupled from --mempool.max-txs.
 	anteCache *cache.AnteCache
 
 	// unsafe to set for validator, used for testing
@@ -463,15 +461,7 @@ func New(
 		}
 		ttlNumBlocks = parsed
 	}
-	// anteCacheMaxTxs bounds the ante-layer nonce cache (cache.AnteCache) independently
-	// of the app mempool: an entry there is normally cleared by inclusion or a
-	// recheck nonce-mismatch, but a TTL/timeout-evicted tx skips both, so the cache
-	// can outlive mempool residency. AnteCache's own maxTx==0 means "unbounded",
-	// which is dangerous paired with the documented --mempool.max-txs=0 (unbounded
-	// PriorityMempool) setting: any funded sender could grow it without limit.
-	// Substitute cmdcfg.DefaultMempoolTxsPerBlock (already the encode/decode cache
-	// default) in that case; a negative value (tx replacement disabled) still
-	// yields a no-op cache.
+
 	anteCacheMaxTxs := mempoolMaxTxs
 	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
 		anteCacheMaxTxs = -1
@@ -1343,8 +1333,6 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
 
 // AnteCache returns the ante-layer nonce cache installed on the ante handler.
-// Its bound is derived from, but not equal to, --mempool.max-txs: see
-// anteCacheMaxTxs in New.
 func (app *App) AnteCache() *cache.AnteCache { return app.anteCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding

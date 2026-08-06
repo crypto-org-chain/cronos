@@ -38,13 +38,9 @@ type Manager struct {
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
-	mpool   sdkmempool.Mempool
-	signer  sdkmempool.SignerExtractionAdapter
-	decoder sdk.TxDecoder
-	// anteCache is the ante-layer nonce cache (keyed by sender, nonce); its entries
-	// are normally cleared by inclusion or a recheck nonce-mismatch, but a TTL/
-	// timeout-evicted tx skips both, so evict must clear it explicitly. Set via
-	// SetAnteCache; nil skips the delete (e.g. in tests without an ante handler).
+	mpool     sdkmempool.Mempool
+	signer    sdkmempool.SignerExtractionAdapter
+	decoder   sdk.TxDecoder
 	anteCache *antecache.AnteCache
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
@@ -162,9 +158,7 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 }
 
 // SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
-// entries. The cache outlives mempool residency (only inclusion and recheck
-// nonce-mismatch clear it otherwise), so a TTL/timeout-evicted tx must be
-// cleared here too, or its (sender, nonce) entry leaks forever.
+// entries.
 func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
 	a.anteCache = ac
 }
@@ -556,9 +550,6 @@ func (a *Manager) evict(tx sdk.Tx) {
 	a.evictAnteCache(tx)
 }
 
-// evictAnteCache clears the ante-cache entries for tx's eth messages, using the
-// same (sender, nonce) key the ante handler itself sets: msg.GetFrom().String()
-// and the eth tx's nonce. No-op without an ante cache or for non-eth messages.
 func (a *Manager) evictAnteCache(tx sdk.Tx) {
 	if a.anteCache == nil || tx == nil {
 		return

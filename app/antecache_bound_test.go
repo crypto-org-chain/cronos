@@ -14,11 +14,6 @@ import (
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
-// TestNewApp_AnteCacheBoundedWhenMempoolMaxTxsZero proves the AnteCache's size is
-// decoupled from --mempool.max-txs=0 (the documented "unbounded PriorityMempool"
-// setting): AnteCache itself treats maxTx==0 as unbounded, so without the app-side
-// substitution a funded sender could grow it forever. App.New must substitute a
-// bounded default instead.
 func TestNewApp_AnteCacheBoundedWhenMempoolMaxTxsZero(t *testing.T) {
 	opts := baseTestAppOpts(0)
 	opts[server.FlagMempoolMaxTxs] = 0
@@ -37,8 +32,6 @@ func TestNewApp_AnteCacheBoundedWhenMempoolMaxTxsZero(t *testing.T) {
 	require.False(t, ac.Exists("addr-0", 0), "oldest entry must be evicted once the cache is bounded")
 }
 
-// TestNewApp_AnteCacheUsesMempoolMaxTxsWhenPositive: a positive --mempool.max-txs
-// still bounds the AnteCache at that same value (unchanged behavior).
 func TestNewApp_AnteCacheUsesMempoolMaxTxsWhenPositive(t *testing.T) {
 	const maxTxs = 3
 	opts := baseTestAppOpts(0)
@@ -57,9 +50,6 @@ func TestNewApp_AnteCacheUsesMempoolMaxTxsWhenPositive(t *testing.T) {
 	require.False(t, ac.Exists("addr-0", 0), "oldest entry must be evicted at capacity")
 }
 
-// TestNewApp_AnteCacheNoOpWhenTxReplacementDisabled: cronos.disable-tx-replacement
-// must still yield a no-op AnteCache (maxTx<0), independent of the maxTx==0
-// substitution above.
 func TestNewApp_AnteCacheNoOpWhenTxReplacementDisabled(t *testing.T) {
 	opts := baseTestAppOpts(0)
 	opts[server.FlagMempoolMaxTxs] = 0
