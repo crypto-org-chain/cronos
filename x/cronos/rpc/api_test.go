@@ -37,12 +37,11 @@ func TestCheckTxsResultsLength(t *testing.T) {
 
 	t.Run("fewer tx results than txs returns error instead of panicking", func(t *testing.T) {
 		err := checkTxsResultsLength(newResBlock(3), newBlockRes(2))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "mismatched tx results length")
+		require.EqualError(t, err, "mismatched tx results length at height 100: block has 3 txs, but got 2 tx results")
 	})
 
 	t.Run("more tx results than txs returns error", func(t *testing.T) {
 		err := checkTxsResultsLength(newResBlock(2), newBlockRes(3))
-		require.Error(t, err)
+		require.EqualError(t, err, "mismatched tx results length at height 100: block has 2 txs, but got 3 tx results")
 	})
 }
