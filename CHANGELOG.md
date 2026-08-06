@@ -13,6 +13,10 @@
 * [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.
 * [#2173](https://github.com/crypto-org-chain/cronos/pull/2173) fix(cronos): bound `IbcTimeout` in params validation to 30 days so a governance-set value cannot overflow the outbound IBC packet timeout.
 
+### Chores
+
+* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to pick up zero-copy historical-query UAF fix.
+
 
 *Jul 16, 2026*
 
