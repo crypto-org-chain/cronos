@@ -9,7 +9,8 @@ option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 message Params {
   option (gogoproto.goproto_stringer) = false;
   string ibc_cro_denom                = 1 [(gogoproto.moretags) = "yaml:\"ibc_cro_denom,omitempty\""];
-  uint64 ibc_timeout                  = 2;
+  // ibc_timeout of 0 means an instant timeout
+  uint64 ibc_timeout = 2;
   // the admin address who can update token mapping
   string cronos_admin           = 3;
   bool   enable_auto_deployment = 4;
