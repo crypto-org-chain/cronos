@@ -181,13 +181,13 @@ const (
 	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
 	FlagMempoolRecheck    = "mempool.recheck"      // CometBFT's own recheck toggle; app-mempool recheck honors it too
 
-	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
-	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagTxCacheSize                = "cronos.mempool-tx-cache-size"
-	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
-	FlagMaxTxPerBlock              = "cronos.mempool-txs-per-block"
-	FlagMempoolTxTTL               = "cronos.mempool-tx-ttl"
-	FlagRPCPendingTxCache          = "cronos.rpc-pending-tx-cache"
+	FlagDisableTxReplacement         = "cronos.disable-tx-replacement"
+	FlagDisableOptimisticExecution   = "cronos.disable-optimistic-execution"
+	FlagTxCacheSize                  = "cronos.mempool-tx-cache-size"
+	FlagMempoolGossipTTL             = "cronos.mempool-gossip-ttl"
+	FlagMaxTxPerBlock                = "cronos.mempool-txs-per-block"
+	FlagMempoolTxTTLEnabled          = "cronos.mempool-tx-ttl-enabled"
+	FlagMempoolPendingTxCacheEnabled = "cronos.mempool-pending-tx-cache-enabled"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -464,12 +464,12 @@ func New(
 		gossipTTL = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
-	if v := appOpts.Get(FlagMempoolTxTTL); v != nil && !parseBoolFlag(FlagMempoolTxTTL, v) {
+	if v := appOpts.Get(FlagMempoolTxTTLEnabled); v != nil && !parseBoolFlag(FlagMempoolTxTTLEnabled, v) {
 		ttlNumBlocks = 0
 	}
 	pendingCacheEnabled := true
-	if v := appOpts.Get(FlagRPCPendingTxCache); v != nil {
-		pendingCacheEnabled = parseBoolFlag(FlagRPCPendingTxCache, v)
+	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
+		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx

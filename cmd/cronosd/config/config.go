@@ -31,13 +31,13 @@ type CronosConfig struct {
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
 	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
-	// MempoolTxTTL evicts mempool.type=app txs older than DefaultMempoolTTLNumBlocks
-	// blocks (by arrival height), draining proposal-skipped txs whose sender never
-	// commits. Default true.
-	MempoolTxTTL bool `mapstructure:"mempool-tx-ttl"`
+	// MempoolTxTTLEnabled evicts mempool.type=app txs older than
+	// DefaultMempoolTTLNumBlocks blocks (by arrival height), draining
+	// proposal-skipped txs whose sender never commits. Default true.
+	MempoolTxTTLEnabled bool `mapstructure:"mempool-tx-ttl-enabled"`
 	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
 	// and block completion. Default true. false always walks the pool.
-	RPCPendingTxCache bool `mapstructure:"rpc-pending-tx-cache"`
+	MempoolPendingTxCacheEnabled bool `mapstructure:"mempool-pending-tx-cache-enabled"`
 }
 
 const (
@@ -78,13 +78,13 @@ func (c *RocksDBConfig) Validate() error {
 
 func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
-		DisableTxReplacement:       false,
-		DisableOptimisticExecution: false,
-		MempoolTxCacheSize:         0, // 0 = derive from mempool.max-txs, -1 disables
-		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MaxTxPerBlock:              DefaultMaxTxPerBlock,
-		MempoolTxTTL:               true,
-		RPCPendingTxCache:          true,
+		DisableTxReplacement:         false,
+		DisableOptimisticExecution:   false,
+		MempoolTxCacheSize:           0, // 0 = derive from mempool.max-txs, -1 disables
+		MempoolGossipTTL:             DefaultMempoolGossipTTL,
+		MaxTxPerBlock:                DefaultMaxTxPerBlock,
+		MempoolTxTTLEnabled:          true,
+		MempoolPendingTxCacheEnabled: true,
 	}
 }
 

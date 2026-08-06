@@ -33,11 +33,11 @@ mempool-txs-per-block = {{ .Cronos.MaxTxPerBlock }}
 # independent of per-tx TimeoutHeight (EVM txs have TimeoutHeight 0 = never
 # expire). Drains txs the proposal keeps skipping (baseFee gate, blocklist) whose
 # sender never commits. Default true. false disables.
-mempool-tx-ttl = {{ .Cronos.MempoolTxTTL }}
+mempool-tx-ttl-enabled = {{ .Cronos.MempoolTxTTLEnabled }}
 
 # Caches the PendingTxs() pool-scan result, invalidated on tx admission and
 # block completion. Default true. false always walks the pool.
-rpc-pending-tx-cache = {{ .Cronos.RPCPendingTxCache }}
+mempool-pending-tx-cache-enabled = {{ .Cronos.MempoolPendingTxCacheEnabled }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

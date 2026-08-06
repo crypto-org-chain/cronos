@@ -8,10 +8,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// pendingCache caches a PendingTxs() snapshot so concurrent RPC readers
+// pendingTxCache caches a PendingTxs() snapshot so concurrent RPC readers
 // single-flight onto one pool walk instead of one each. Invalidated purely on
 // tx admission and block completion.
-type pendingCache struct {
+type pendingTxCache struct {
 	mu          sync.Mutex
 	enabled     bool
 	snapshot    []sdk.Tx
@@ -20,7 +20,7 @@ type pendingCache struct {
 	epoch       atomic.Uint64
 }
 
-func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
+func (c *pendingTxCache) get(load func() []sdk.Tx) []sdk.Tx {
 	if !c.enabled {
 		return load()
 	}
@@ -39,13 +39,13 @@ func (c *pendingCache) get(load func() []sdk.Tx) []sdk.Tx {
 	return c.copySnapshot()
 }
 
-func (c *pendingCache) copySnapshot() []sdk.Tx {
+func (c *pendingTxCache) copySnapshot() []sdk.Tx {
 	out := make([]sdk.Tx, len(c.snapshot))
 	copy(out, c.snapshot)
 	return out
 }
 
 // invalidate marks the snapshot stale.
-func (c *pendingCache) invalidate() {
+func (c *pendingTxCache) invalidate() {
 	c.epoch.Add(1)
 }

@@ -295,7 +295,7 @@ func TestCheckTxHandler_MapsSuccess(t *testing.T) {
 func TestCheckTxHandler_InvalidatesPendingCache(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
-	before := a.pendingCache.epoch.Load()
+	before := a.pendingTxCache.epoch.Load()
 
 	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
@@ -307,7 +307,7 @@ func TestCheckTxHandler_InvalidatesPendingCache(t *testing.T) {
 	if resp.Code != abci.CodeTypeOK {
 		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
 	}
-	if got := a.pendingCache.epoch.Load(); got != before+1 {
+	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
 		t.Fatalf("CheckTxHandler must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
 	}
 }
@@ -518,12 +518,12 @@ func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
 
 func TestManagerInsertTx_InvalidatesPendingCache(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	before := a.pendingCache.epoch.Load()
+	before := a.pendingTxCache.epoch.Load()
 
 	if resp, _ := a.InsertTx([]byte("tx")); resp.Code != abci.CodeTypeOK {
 		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
 	}
-	if got := a.pendingCache.epoch.Load(); got != before+1 {
+	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
 		t.Fatalf("admit must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
 	}
 }
@@ -643,7 +643,7 @@ func TestManagerPendingTxs(t *testing.T) {
 
 func newCachedManager(enabled bool, pool *fakePool) *Manager {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.pendingCache.enabled = enabled
+	a.pendingTxCache.enabled = enabled
 	a.mpool = pool
 	return a
 }

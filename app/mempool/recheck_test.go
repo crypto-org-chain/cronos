@@ -294,10 +294,10 @@ func TestRecheckTxs_InvalidatesPendingCacheAfterEviction(t *testing.T) {
 	f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.StageRecheckSenders(5, nil)
-	before := f.a.pendingCache.epoch.Load()
+	before := f.a.pendingTxCache.epoch.Load()
 	f.a.RecheckTxs()
 
-	if got := f.a.pendingCache.epoch.Load(); got == before {
+	if got := f.a.pendingTxCache.epoch.Load(); got == before {
 		t.Fatal("RecheckTxs must invalidate the pending cache after evicting txs, not just rely on StageRecheckSenders's earlier bump")
 	}
 }
@@ -307,10 +307,10 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 	f.add(1, "alice", 0, "alice-0")
 
 	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	before := f.a.pendingCache.epoch.Load()
+	before := f.a.pendingTxCache.epoch.Load()
 	f.a.RecheckTxs()
 
-	if got := f.a.pendingCache.epoch.Load(); got == before {
+	if got := f.a.pendingTxCache.epoch.Load(); got == before {
 		t.Fatal("RecheckTxs must invalidate the pending cache after runRecheck evicts a tx via RunTx failure")
 	}
 }
