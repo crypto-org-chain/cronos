@@ -15,6 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	antecache "github.com/evmos/ethermint/ante/cache"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 type txRunner interface {
@@ -39,6 +41,11 @@ type Manager struct {
 	mpool   sdkmempool.Mempool
 	signer  sdkmempool.SignerExtractionAdapter
 	decoder sdk.TxDecoder
+	// anteCache is the ante-layer nonce cache (keyed by sender, nonce); its entries
+	// are normally cleared by inclusion or a recheck nonce-mismatch, but a TTL/
+	// timeout-evicted tx skips both, so evict must clear it explicitly. Set via
+	// SetAnteCache; nil skips the delete (e.g. in tests without an ante handler).
+	anteCache *antecache.AnteCache
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
@@ -152,6 +159,14 @@ func (a *Manager) AdmissionMutex() *sync.Mutex {
 // SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.preVerify = fn
+}
+
+// SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
+// entries. The cache outlives mempool residency (only inclusion and recheck
+// nonce-mismatch clear it otherwise), so a TTL/timeout-evicted tx must be
+// cleared here too, or its (sender, nonce) entry leaks forever.
+func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
+	a.anteCache = ac
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
@@ -533,11 +548,32 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool and encoder cache together, so the cache never
-// outlives its pool entry.
+// evict removes tx from the pool, encoder cache, and ante cache together, so
+// no cache outlives its pool entry.
 func (a *Manager) evict(tx sdk.Tx) {
 	_ = a.mpool.Remove(tx)
 	a.encCache.Evict(tx)
+	a.evictAnteCache(tx)
+}
+
+// evictAnteCache clears the ante-cache entries for tx's eth messages, using the
+// same (sender, nonce) key the ante handler itself sets: msg.GetFrom().String()
+// and the eth tx's nonce. No-op without an ante cache or for non-eth messages.
+func (a *Manager) evictAnteCache(tx sdk.Tx) {
+	if a.anteCache == nil || tx == nil {
+		return
+	}
+	for _, msg := range tx.GetMsgs() {
+		ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
+		if !ok {
+			continue
+		}
+		asTx := ethTx.AsTransaction()
+		if asTx == nil {
+			continue
+		}
+		a.anteCache.Delete(ethTx.GetFrom().String(), asTx.Nonce())
+	}
 }
 
 func (a *Manager) signers(tx sdk.Tx) []string {
