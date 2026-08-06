@@ -32,15 +32,16 @@
       p2p: {
         libp2p: {
           enabled: true,
-          // lp2p.Peer.Send opens a new libp2p stream per envelope (no reuse), so
-          // sustained mempool gossip + consensus messaging across 5 peers quickly
-          // exceeds go-libp2p's default per-peer stream cap; the receiver then
-          // resets streams mid-write, dropping the message and stalling consensus.
-          // Raise the cap well above what this benchmark's fan-out can produce.
+          // 256 matches go-libp2p's hardcoded QUIC concurrent-stream ceiling,
+          // which is what actually binds - the resource manager's per-peer
+          // stream limit is never reached, so a higher value here buys nothing.
+          // The stall this config originally tried to work around came from
+          // lp2p.Peer.Send opening a stream per envelope; that is fixed in the
+          // transport by multiplexing envelopes over one stream per channel.
           limits: {
             mode: 'custom',
             max_peers: 16,
-            max_peer_streams: 4096,
+            max_peer_streams: 256,
           },
         },
       },
