@@ -463,14 +463,11 @@ func New(
 	}
 
 	anteCacheMaxTxs := mempoolMaxTxs
-	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
+	txReplacementDisabled := cast.ToBool(appOpts.Get(FlagDisableTxReplacement))
+	if txReplacementDisabled {
 		anteCacheMaxTxs = -1
-		logger.Info("Tx replacement is disabled")
-	} else {
-		logger.Info("Tx replacement is enabled")
-		if anteCacheMaxTxs == 0 {
-			anteCacheMaxTxs = cmdcfg.DefaultMempoolTxsPerBlock
-		}
+	} else if anteCacheMaxTxs == 0 {
+		anteCacheMaxTxs = cmdcfg.DefaultMempoolTxsPerBlock
 	}
 	anteCache := cache.NewAnteCache(anteCacheMaxTxs)
 
@@ -1159,6 +1156,12 @@ func New(
 	app.SetPreBlocker(app.PreBlocker)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
+
+	if txReplacementDisabled {
+		logger.Info("Tx replacement is disabled")
+	} else {
+		logger.Info("Tx replacement is enabled")
+	}
 
 	if err := app.setAnteHandler(txConfig,
 		anteCache,
