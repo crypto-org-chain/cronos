@@ -42,7 +42,6 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdConvertTokens())
 	cmd.AddCommand(CmdSendToCryptoOrg())
 	cmd.AddCommand(CmdUpdateTokenMapping())
-	cmd.AddCommand(CmdTurnBridge())
 	cmd.AddCommand(CmdUpdatePermissions())
 	cmd.AddCommand(CmdStoreBlockList())
 	cmd.AddCommand(MigrateGenesisCmd())
@@ -261,39 +260,11 @@ func CmdUpdateTokenMapping() *cobra.Command {
 	return cmd
 }
 
-// CmdTurnBridge returns a CLI command handler for enable or disable the bridge
-func CmdTurnBridge() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "turn-bridge [true/false]",
-		Short: "Turn Bridge",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-
-			enable, err := strconv.ParseBool(args[0])
-			if err != nil {
-				return err
-			}
-			msg := types.NewMsgTurnBridge(clientCtx.GetFromAddress().String(), enable)
-			if err := msg.ValidateBasic(); err != nil {
-				return err
-			}
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
-		},
-	}
-
-	flags.AddTxFlagsToCmd(cmd)
-	return cmd
-}
-
 // CmdUpdatePermissions returns a CLI command handler for updating cronos permissions
 func CmdUpdatePermissions() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-permissions [address] [permissions]",
-		Short: "Update Permissions, permission value: 1=CanChangeTokenMapping, 2:=CanTurnBridge, 3=All",
+		Short: "Update Permissions, permission value: 1=CanChangeTokenMapping, 2=CanTurnBridge(deprecated), 3=All",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

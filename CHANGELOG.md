@@ -2,15 +2,18 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
+
 ### Bug fixes
 
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
+* [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
+
 
 *Jul 16, 2026*
 
-### Bug fixes
-
-* [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 ### Chores
 
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
