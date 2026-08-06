@@ -86,6 +86,20 @@ func NewCronosAPI(
 	}
 }
 
+// checkTxsResultsLength guards against indexing blockRes.TxsResults by the position of a tx in
+// resBlock.Block.Txs: resBlock and blockRes come from separate RPC calls, so a re-sync, pruning
+// race, or a mismatched node behind a multiplexed setup can return results for a different set of
+// txs than the block itself.
+func checkTxsResultsLength(resBlock *coretypes.ResultBlock, blockRes *coretypes.ResultBlockResults) error {
+	if len(blockRes.TxsResults) != len(resBlock.Block.Txs) {
+		return fmt.Errorf(
+			"mismatched tx results length at height %d: block has %d txs, but got %d tx results",
+			resBlock.Block.Height, len(resBlock.Block.Txs), len(blockRes.TxsResults),
+		)
+	}
+	return nil
+}
+
 func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock *coretypes.ResultBlock,
 	blockNumber int64,
@@ -105,6 +119,9 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
+		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+	}
+	if err = checkTxsResultsLength(resBlock, blockRes); err != nil {
 		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 	}
 	baseFee, err = api.backend.BaseFee(blockRes)
