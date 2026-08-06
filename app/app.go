@@ -184,7 +184,6 @@ const (
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxCacheSize                = "cronos.tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
 	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
@@ -379,12 +378,11 @@ func New(
 		txsPerBlock = parsed
 	}
 	var activeDecoder sdk.TxDecoder
-	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
-	defaultTxCacheSize := 2 * txsPerBlock
-	if txsPerBlock == 0 {
-		defaultTxCacheSize = -1
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	txCacheSize := -1
+	if mempoolMaxTxs > 0 {
+		txCacheSize = mempoolMaxTxs
 	}
-	txCacheSize := defaultTxCacheSize
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
@@ -394,23 +392,14 @@ func New(
 			txCacheSize = parsed
 		}
 	}
-	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
-	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
-		}
-		if parsed > 0 {
-			maxTxBytes = parsed
-		}
+	maxTxBytes := 0
+	if v := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); v > 0 {
+		maxTxBytes = v
 	}
 	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
-			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
-		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
@@ -444,7 +433,6 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	var senderCache *cache.SenderCache
 	if mempoolMaxTxs <= 0 {
 		logger.Info("sender cache disabled")

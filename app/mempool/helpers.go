@@ -9,6 +9,21 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
+// maxPreallocEntries bounds up-front map allocation; cache capacity tracks
+// the derived tx-cache-size (which can scale with mempool.max-txs) and the
+// map grows on demand past this.
+const maxPreallocEntries = 4096
+
+func preallocEntries(capacity int) int {
+	if capacity < 0 {
+		return 0
+	}
+	if capacity > maxPreallocEntries {
+		return maxPreallocEntries
+	}
+	return capacity
+}
+
 // PoolSnapshot returns a snapshot of the current mempool transactions.
 func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot")
