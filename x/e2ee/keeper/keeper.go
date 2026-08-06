@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// 10K × ~100B ≈ ~1MB response
 const MaxKeysAddresses = 10000
 
 type Keeper struct {
