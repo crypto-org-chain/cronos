@@ -1,7 +1,9 @@
 package types
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -92,4 +94,41 @@ func Test_validateIsAddress(t *testing.T) {
 			require.Equal(t, tt.wantErr, validateIsAddress(tt.args.i) != nil)
 		})
 	}
+}
+
+func Test_validateIbcTimeout(t *testing.T) {
+	type args struct {
+		i interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"invalid type", args{"a"}, true},
+		{"zero is valid", args{uint64(0)}, false},
+		{"default", args{IbcTimeoutDefaultValue}, false},
+		{"at max", args{MaxIbcTimeoutValue}, false},
+		{"above max", args{MaxIbcTimeoutValue + 1}, true},
+		{"max uint64 wraps the timeout into the past", args{uint64(math.MaxUint64)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.wantErr, validateIbcTimeout(tt.args.i) != nil)
+		})
+	}
+}
+
+func Test_validateIbcTimeoutCannotOverflowBlockTime(t *testing.T) {
+	require.NoError(t, validateIbcTimeout(MaxIbcTimeoutValue))
+	require.Greater(t, uint64(math.MaxUint64)-MaxIbcTimeoutValue, uint64(time.Now().UnixNano()))
+}
+
+func Test_ParamsValidateRejectsOversizedIbcTimeout(t *testing.T) {
+	params := DefaultParams()
+	params.IbcTimeout = math.MaxUint64
+	require.Error(t, params.Validate())
+
+	params.IbcTimeout = IbcTimeoutDefaultValue
+	require.NoError(t, params.Validate())
 }
