@@ -131,6 +131,34 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 			false,
 		},
 		{
+			"Source denom external mapping mismatched contract panics",
+			func() {},
+			&types.GenesisState{
+				Params: types.DefaultParams(),
+				ExternalContracts: []types.TokenMapping{
+					{
+						Denom:    "cronos0x0000000000000000000000000000000000000005",
+						Contract: "0x0000000000000000000000000000000000000006",
+					},
+				},
+			},
+			true,
+		},
+		{
+			"Source denom auto mapping mismatched contract panics",
+			func() {},
+			&types.GenesisState{
+				Params: types.DefaultParams(),
+				AutoContracts: []types.TokenMapping{
+					{
+						Denom:    "cronos0x0000000000000000000000000000000000000007",
+						Contract: "0x0000000000000000000000000000000000000008",
+					},
+				},
+			},
+			true,
+		},
+		{
 			"Conflicting auto mapping panics",
 			func() {},
 			&types.GenesisState{

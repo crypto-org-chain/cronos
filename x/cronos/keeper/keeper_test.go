@@ -250,7 +250,7 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"success, SetExternalContractForDenom accepts mismatched contract for source denom",
+			"failure, SetExternalContractForDenom rejects mismatched contract for source denom",
 			func() {
 				keeper := suite.app.CronosKeeper
 
@@ -259,10 +259,9 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				mismatched := common.BigToAddress(big.NewInt(13))
 
 				err := keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, mismatched)
-				suite.Require().NoError(err)
-				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
-				suite.Require().True(found)
-				suite.Require().Equal(mismatched, contract)
+				suite.Require().Error(err)
+				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().False(found)
 			},
 		},
 		{

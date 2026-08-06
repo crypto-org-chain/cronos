@@ -19,12 +19,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 
 	for _, m := range genState.ExternalContracts {
-		// Only allow IBC, gravity, or cronos denoms at genesis.
-		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) && !types.IsValidCronosDenom(m.Denom) {
-			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
-		}
-		if !common.IsHexAddress(m.Contract) {
-			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
+		// Only allow IBC, gravity, or cronos denoms at genesis, and for a source
+		// (cronos) denom, require the contract to match the address embedded in it.
+		if err := types.ValidateTokenMapping(m.Denom, m.Contract); err != nil {
+			panic(err)
 		}
 		if err := k.SetExternalContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
 			panic(err)
@@ -32,12 +30,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 
 	for _, m := range genState.AutoContracts {
-		// Only allow IBC, gravity, or cronos denoms at genesis.
-		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) && !types.IsValidCronosDenom(m.Denom) {
-			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
-		}
-		if !common.IsHexAddress(m.Contract) {
-			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
+		// Only allow IBC, gravity, or cronos denoms at genesis, and for a source
+		// (cronos) denom, require the contract to match the address embedded in it.
+		if err := types.ValidateTokenMapping(m.Denom, m.Contract); err != nil {
+			panic(err)
 		}
 		if err := k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
 			if errors.Is(err, types.ErrExternalMappingExists) || errors.Is(err, types.ErrDenomAlreadyMapped) {

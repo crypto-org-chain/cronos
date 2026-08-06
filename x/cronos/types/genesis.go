@@ -22,5 +22,20 @@ func (gs GenesisState) Validate() error {
 
 	// this line is used by starport scaffolding # genesis/types/validate
 
-	return gs.Params.Validate()
+	if err := gs.Params.Validate(); err != nil {
+		return err
+	}
+
+	for _, m := range gs.ExternalContracts {
+		if err := ValidateTokenMapping(m.Denom, m.Contract); err != nil {
+			return err
+		}
+	}
+	for _, m := range gs.AutoContracts {
+		if err := ValidateTokenMapping(m.Denom, m.Contract); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

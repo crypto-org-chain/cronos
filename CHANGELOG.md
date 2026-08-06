@@ -4,6 +4,7 @@
 
 ### State Machine Breaking
 
+* [#2177](https://github.com/crypto-org-chain/cronos/pull/2177) fix(cronos): enforce the source-denom contract address match on the genesis token mapping path.
 * [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
 
 ### Bug fixes

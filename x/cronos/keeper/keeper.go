@@ -200,8 +200,10 @@ func validateContractAddressForSourceDenom(denom string, address common.Address,
 }
 
 // SetExternalContractForDenom sets denom→external CRC21 mapping for an unmapped denom.
-// Caller is responsible for source-denom specific validation before calling this method.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
+	if err := validateContractAddressForSourceDenom(denom, address, types.IsSourceCoin(denom)); err != nil {
+		return err
+	}
 	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
 	}

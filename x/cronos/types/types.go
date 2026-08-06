@@ -60,3 +60,29 @@ func GetContractAddressFromDenom(denom string) (string, error) {
 	}
 	return contractAddress, nil
 }
+
+// ValidateTokenMapping performs the stateless checks a denom/contract token mapping
+// must satisfy: the denom must be a valid IBC, gravity, or cronos denom; the contract
+// must be a hex address; and for a source (cronos) denom, the contract must equal the
+// address embedded in the denom itself.
+func ValidateTokenMapping(denom, contract string) error {
+	if !IsValidCoinDenom(denom) {
+		return fmt.Errorf("invalid denom to map to contract: %s", denom)
+	}
+	if !common.IsHexAddress(contract) {
+		return fmt.Errorf("invalid contract address: %s", contract)
+	}
+	if IsSourceCoin(denom) {
+		contractFromDenom, err := GetContractAddressFromDenom(denom)
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(contractFromDenom, contract) {
+			return fmt.Errorf(
+				"the contract address for source denom %s is %s, mismatch with requested contract %s",
+				denom, common.HexToAddress(contractFromDenom).Hex(), common.HexToAddress(contract).Hex(),
+			)
+		}
+	}
+	return nil
+}
