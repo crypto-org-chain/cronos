@@ -87,6 +87,7 @@ func (suite *KeeperTestSuite) TestTurnBridgeIsRejected() {
 	suite.SetupTest()
 
 	msgServer := cronosmodulekeeper.NewMsgServerImpl(suite.app.CronosKeeper)
+	//nolint:staticcheck // exercising the deprecated message is the point of this test
 	rsp, err := msgServer.TurnBridge(suite.ctx, &types.MsgTurnBridge{
 		Sender: authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		Enable: true,

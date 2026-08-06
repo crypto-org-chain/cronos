@@ -2,7 +2,7 @@
 
 ## UNRELEASED
 
-### Bug fixes
+### State Machine Breaking
 
 * [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
 
