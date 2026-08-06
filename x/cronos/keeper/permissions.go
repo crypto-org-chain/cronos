@@ -12,7 +12,7 @@ import (
 // The next permission should be added before All
 const (
 	CanChangeTokenMapping uint64                                  = 1 << iota // 1
-	CanTurnBridge                                                             // 2
+	CanTurnBridge                                                             // 2, deprecated
 	All                   = CanChangeTokenMapping | CanTurnBridge             // 3
 )
 
