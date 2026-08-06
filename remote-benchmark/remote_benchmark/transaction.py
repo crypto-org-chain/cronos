@@ -122,9 +122,10 @@ def erc20_transfer_hot_tx(sender: str, nonce: int, options: dict):
 
 def uniswap_swap_tx(sender: str, nonce: int, options: dict):
     zero_for_one = nonce % 2 == 0
-    data = SWAP_SELECTOR + eth_abi.encode(
-        ["uint112", "bool"], [SWAP_AMOUNT, zero_for_one]
-    ).hex()
+    data = (
+        SWAP_SELECTOR
+        + eth_abi.encode(["uint112", "bool"], [SWAP_AMOUNT, zero_for_one]).hex()
+    )
     return _contract_call_tx(POOL_ADDRESS, data, SWAP_GAS, nonce, options)
 
 
@@ -374,6 +375,12 @@ def build_cosmos_tx(*txs: EthTx, msg_version="1.4", evm_denom=DEFAULT_DENOM) -> 
     ).decode()
 
 
+# CometBFT reports a duplicate send differently depending on which mempool is
+# running: the legacy mempool's ErrTxInCache vs app-mempool's ErrSeenTx. Both
+# mean the same thing, and a benchmark run must recognize whichever it gets.
+DUPLICATE_SEND_MARKERS = ("already exists in cache", "tx already seen")
+
+
 def json_rpc_send_body(raw, method="broadcast_tx_async"):
     return {
         "jsonrpc": "2.0",
@@ -407,12 +414,15 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
     async with session.post(rpc, json=json_rpc_send_body(raw, method)) as rsp:
         data = await rsp.json()
         if "error" in data:
-            # "tx already exists in cache" means this exact tx hash was already
+            # A duplicate-send rejection means this exact tx hash was already
             # accepted by a prior attempt (still pending or already committed -
-            # CometBFT's mempool cache doesn't distinguish the two). Retrying it
-            # can never succeed differently, so treat it as success rather than
-            # burning up to 60s of backoff per tx chasing an already-done send.
-            if "already exists in cache" in str(data["error"].get("data", "")):
+            # neither mempool distinguishes the two). Retrying it can never
+            # succeed differently, so treat it as success rather than burning
+            # up to 60s of backoff per tx chasing an already-done send.
+            if any(
+                marker in str(data["error"].get("data", ""))
+                for marker in DUPLICATE_SEND_MARKERS
+            ):
                 return True
             print("send tx error, will retry,", data["error"])
             return False

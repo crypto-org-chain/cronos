@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from eth_account import Account
 from eth_account._utils.legacy_transactions import Transaction
 from hexbytes import HexBytes
@@ -220,7 +221,10 @@ def test_send_without_a_deadline_sends_everything(monkeypatch):
 
     asyncio.run(
         tx_module.send(
-            [f"tx-{i}" for i in range(4)], "http://node0", batch_size=2, batch_interval=0
+            [f"tx-{i}" for i in range(4)],
+            "http://node0",
+            batch_size=2,
+            batch_interval=0,
         )
     )
 
@@ -283,7 +287,10 @@ def test_send_returns_the_count_of_txs_whose_retries_never_succeeded(monkeypatch
 
     failed = asyncio.run(
         tx_module.send(
-            [f"tx-{i}" for i in range(4)], "http://node0", batch_size=2, batch_interval=0
+            [f"tx-{i}" for i in range(4)],
+            "http://node0",
+            batch_size=2,
+            batch_interval=0,
         )
     )
 
@@ -309,3 +316,46 @@ def test_send_round_robin_returns_the_count_of_txs_whose_retries_never_succeeded
     )
 
     assert failed == 2
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
+
+
+class _FakePost:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def __aenter__(self):
+        return _FakeResponse(self._payload)
+
+    async def __aexit__(self, *_exc):
+        return False
+
+
+class _FakeSession:
+    def __init__(self, payload):
+        self._payload = payload
+        self.calls = 0
+
+    def post(self, _rpc, json):  # noqa: A002 - matches aiohttp's signature
+        self.calls += 1
+        return _FakePost(self._payload)
+
+
+# Pinned as literals rather than read from DUPLICATE_SEND_MARKERS: sourcing them
+# from the constant would silently drop a case if a marker were ever removed.
+# These are CometBFT's ErrTxInCache and app-mempool's ErrSeenTx.
+@pytest.mark.parametrize("marker", ["already exists in cache", "tx already seen"])
+def test_async_sendtx_treats_a_duplicate_send_as_success(marker):
+    # Whichever mempool is running, a duplicate rejection means the tx is
+    # already in flight. Retrying burns the full 60s backoff and then reports
+    # the tx as never sent, so it must short-circuit on the first response.
+    session = _FakeSession({"error": {"code": -32603, "data": marker}})
+
+    assert asyncio.run(tx_module.async_sendtx(session, "rawtx", "http://node0"))
+    assert session.calls == 1
