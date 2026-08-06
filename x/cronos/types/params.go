@@ -30,8 +30,6 @@ const (
 	IbcCroDenomDefaultValue    = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
 	IbcTimeoutDefaultValue     = uint64(86400000000000) // 1 day
 	MaxCallbackGasDefaultValue = uint64(50000)
-	// MaxIbcTimeoutValue bounds IbcTimeout so that ctx.BlockTime().UnixNano() + IbcTimeout
-	// cannot overflow uint64 and wrap the packet timeout into the past
 	MaxIbcTimeoutValue = uint64(30 * 24 * time.Hour) // 30 days
 )
 
