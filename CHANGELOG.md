@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(app): retry block list decryption instead of caching the blob before it is applied.
 * [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
 * [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.
