@@ -14,7 +14,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+<<<<<<< HEAD
 // MaxKeysAddresses caps request body under 1MB (10000* ~100B ≈ ~1MB)
+=======
+// 10K × ~100B ≈ ~1MB response
+>>>>>>> 26d9e8df (add comment)
 const MaxKeysAddresses = 10000
 
 type Keeper struct {
