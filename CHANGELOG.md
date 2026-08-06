@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2178](https://github.com/crypto-org-chain/cronos/pull/2178) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
 * [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
 * [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.

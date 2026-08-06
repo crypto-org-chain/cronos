@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,7 +26,33 @@ const (
 	// ReplayBlockGasCap caps per-message EVM gas in a ReplayBlock query.
 	// Since historical blocks may have used different limits, we use a fixed upper bound value.
 	ReplayBlockGasCap = 60_000_000
+
+	// replayBlockConcurrency bounds how many ReplayBlock queries may run their
+	// EVM replay loop at once. The per-call caps above bound a single call, not
+	// aggregate load: this endpoint is unauthenticated, and each call can burn
+	// up to gasBudget (2x ReplayBlockGasCap) of EVM compute, so a handful of
+	// concurrent callers could otherwise saturate the node's execution
+	// capacity and starve legitimate queries.
+	replayBlockConcurrency = 4
+
+	// replayBlockMaxQueued bounds how many callers may wait for a free slot.
+	// Waiting is unbounded compute (goroutines only block), but each waiter
+	// keeps its decoded request - up to MaxReplayBlockMsgs eth messages - live
+	// in memory for as long as it queues, so an unauthenticated caller could
+	// otherwise pile up unbounded memory just by opening many streams and
+	// never completing. Once this many callers are already running or
+	// queued, further calls are rejected instead of queuing.
+	replayBlockMaxQueued = 4 * replayBlockConcurrency
 )
+
+// replayBlockSem limits concurrent ReplayBlock executions across all calls to
+// this process. It is package-level rather than a Keeper field so it doesn't
+// change how the Keeper is constructed; the endpoint is the only caller.
+var replayBlockSem = make(chan struct{}, replayBlockConcurrency)
+
+// replayBlockQueued counts callers currently running or waiting for a slot,
+// enforcing replayBlockMaxQueued.
+var replayBlockQueued int32
 
 var _ types.QueryServer = Keeper{}
 
@@ -65,6 +92,26 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	if len(req.Msgs) > MaxReplayBlockMsgs {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"too many messages in ReplayBlock request: %d (max %d)", len(req.Msgs), MaxReplayBlockMsgs)
+	}
+
+	// Reject outright once too many callers are already running or queued,
+	// so an attacker can't pile up unbounded waiters (each holding a decoded
+	// request in memory) behind the semaphore below.
+	if atomic.AddInt32(&replayBlockQueued, 1) > replayBlockMaxQueued {
+		atomic.AddInt32(&replayBlockQueued, -1)
+		return nil, status.Error(codes.ResourceExhausted, "too many concurrent ReplayBlock queries")
+	}
+	defer atomic.AddInt32(&replayBlockQueued, -1)
+
+	// Wait for a free execution slot rather than rejecting outright: replay is
+	// a legitimate (if heavy) debugging query, so a burst of concurrent
+	// callers should queue instead of failing. A client disconnect (goCtx
+	// cancelled) frees the caller without consuming a slot.
+	select {
+	case replayBlockSem <- struct{}{}:
+		defer func() { <-replayBlockSem }()
+	case <-goCtx.Done():
+		return nil, status.FromContextError(goCtx.Err()).Err()
 	}
 
 	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
@@ -110,6 +157,12 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 	// we assume the message executions are successful, they are filtered in json-rpc api
 	for _, msg := range req.Msgs {
+		// abort a long batch as soon as the caller goes away, instead of
+		// burning the remaining gas budget on a query nobody is waiting for.
+		if err := ctx.Err(); err != nil {
+			return nil, status.FromContextError(err).Err()
+		}
+
 		// deduct fee
 		// populate the `From` field
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {
