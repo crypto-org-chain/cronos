@@ -3,18 +3,23 @@
 ## UNRELEASED
 
 ### Improvements
+
 * [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
 
 ### State Machine Breaking
+
 * [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
 
 ### Bug fixes
+
+* [#2176](https://github.com/crypto-org-chain/cronos/pull/2176) fix(app): retry block list decryption instead of caching the blob before it is applied.
 * [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
 * [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.
 * [#2173](https://github.com/crypto-org-chain/cronos/pull/2173) fix(cronos): bound `IbcTimeout` in params validation to 30 days so a governance-set value cannot overflow the outbound IBC packet timeout.
  
 ### Chores
+
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
 
 ### Chores
