@@ -9,7 +9,7 @@ import (
 
 func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 	const accounts = 4
-	f := setupAdmissionAppWithOpts(t, accounts, minimalOptionsMap{"cronos.tx-cache-size": 1})
+	f := setupAdmissionAppWithOpts(t, accounts, minimalOptionsMap{"cronos.mempool-tx-cache-size": 1})
 	require.NotNil(t, f.app.SenderCache(), "sender cache must be enabled by default")
 
 	txBytes := f.signTransfer(t, &f.accounts[0], nil)

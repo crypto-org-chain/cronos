@@ -35,6 +35,12 @@ func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	return snap
 }
 
+// UnorderedPoolSnapshot returns pooled txs without priority ordering.
+func UnorderedPoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
+	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot", "unordered")
+	return sdkmempool.UnorderedTxs(ctx, mp)
+}
+
 // EncodeTx returns the raw bytes of a transaction, prioritizing the cache if available.
 func EncodeTx(encCache *EncoderCache, enc sdk.TxEncoder, tx sdk.Tx) (bz []byte, hit bool, err error) {
 	if b, ok := encCache.Get(tx); ok {
