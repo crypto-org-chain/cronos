@@ -1,17 +1,21 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"testing"
 
+	"filippo.io/age"
 	cmttypes "github.com/cometbft/cometbft/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 )
 
 const invalidTx = "invalid"
@@ -156,6 +160,43 @@ func TestCacheProposalTxVerifier(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []byte("raw"), bz)
 	})
+}
+
+func encryptBlockList(t *testing.T, recipient age.Recipient, addrs ...string) []byte {
+	t.Helper()
+	body, err := json.Marshal(BlockList{Addresses: addrs})
+	require.NoError(t, err)
+
+	dst := bytes.NewBuffer(nil)
+	w, err := age.Encrypt(dst, recipient)
+	require.NoError(t, err)
+	_, err = w.Write(body)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	return dst.Bytes()
+}
+
+func TestSetBlockListRetriesAfterFailure(t *testing.T) {
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	addressCodec := authcodec.NewBech32Codec("cosmos")
+	h := NewProposalHandler(nil, identity, addressCodec)
+
+	blocked, err := addressCodec.BytesToString(bytes.Repeat([]byte{0x1}, 20))
+	require.NoError(t, err)
+
+	corrupt := []byte("not a valid age ciphertext")
+	require.Error(t, h.SetBlockList(corrupt))
+
+	// Same blob again: must retry the decrypt/parse instead of caching the
+	// prior failure and short-circuiting on the equality check.
+	require.Error(t, h.SetBlockList(corrupt))
+	require.Empty(t, h.blocklist)
+
+	valid := encryptBlockList(t, identity.Recipient(), blocked)
+	require.NoError(t, h.SetBlockList(valid))
+	_, ok := h.blocklist[blocked]
+	require.True(t, ok)
 }
 
 func TestProtoSizeForTx(t *testing.T) {
