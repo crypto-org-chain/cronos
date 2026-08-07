@@ -67,10 +67,12 @@ type Manager struct {
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction
 	recheckDisabled bool
+	// pendingTxCache avoids re-walking the pool on every PendingTxs() call.
+	pendingTxCache pendingTxCache
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
@@ -78,6 +80,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
 	a.recheckDisabled = recheckDisabled
+	a.pendingTxCache.enabled = pendingCacheEnabled
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
@@ -178,11 +181,14 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
+// PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
 func (a *Manager) PendingTxs() []sdk.Tx {
 	if a.mpool == nil {
 		return nil
 	}
-	return PoolSnapshot(context.Background(), a.mpool)
+	return a.pendingTxCache.get(func() []sdk.Tx {
+		return UnorderedPoolSnapshot(context.Background(), a.mpool)
+	})
 }
 
 func (a *Manager) CountTx() int {
@@ -231,6 +237,7 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 	}
 
 	a.cacheTx(tx, txBytes)
+	a.pendingTxCache.invalidate()
 	return abci.CodeTypeOK, "", ""
 }
 
@@ -269,6 +276,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 		}
 
 		a.cacheTx(tx, req.Tx)
+		a.pendingTxCache.invalidate()
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.
@@ -282,10 +290,11 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	}
 }
 
-// StageRecheckSenders records the senders of the just-committed block's txs so
-// RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height.
+// StageRecheckSenders records committed-block senders for RecheckTxs and stages
+// the committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
+	a.pendingTxCache.invalidate()
+
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
@@ -359,6 +368,7 @@ func (a *Manager) RecheckTxs() {
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
 	a.runRecheck(candidates)
 
+	a.pendingTxCache.invalidate()
 	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 

@@ -48,9 +48,9 @@ func (s *AnteCacheBoundTestSuite) TestBound() {
 			malleate: func(opts simtestutil.AppOptionsMap) {
 				opts[server.FlagMempoolMaxTxs] = 0
 			},
-			fill: cmdcfg.DefaultMempoolTxsPerBlock + 1,
+			fill: cmdcfg.DefaultMaxTxPerBlock + 1,
 			check: func(ac *cache.AnteCache) {
-				s.Require().Equal(cmdcfg.DefaultMempoolTxsPerBlock, ac.Size(), "AnteCache must stay bounded when mempool.max-txs=0")
+				s.Require().Equal(cmdcfg.DefaultMaxTxPerBlock, ac.Size(), "AnteCache must stay bounded when mempool.max-txs=0")
 				s.Require().False(ac.Exists("addr-0", 0), "oldest entry must be evicted once the cache is bounded")
 			},
 		},
