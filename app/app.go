@@ -350,6 +350,8 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
+	anteCache *cache.AnteCache
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -471,6 +473,19 @@ func New(
 	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
 		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
+
+	anteCacheMaxTxs := mempoolMaxTxs
+	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
+		anteCacheMaxTxs = -1
+		logger.Info("Tx replacement is disabled")
+	} else {
+		logger.Info("Tx replacement is enabled")
+		if anteCacheMaxTxs == 0 {
+			anteCacheMaxTxs = cmdcfg.DefaultMaxTxPerBlock
+		}
+	}
+	anteCache := cache.NewAnteCache(anteCacheMaxTxs)
+
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -575,6 +590,7 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
+			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
@@ -630,6 +646,7 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		senderCache:          senderCache,
+		anteCache:            anteCache,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1144,17 +1161,8 @@ func New(
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
 
-	mempoolCacheMaxTxs := mempoolMaxTxs
-	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
-		mempoolCacheMaxTxs = -1
-	}
-	if mempoolCacheMaxTxs >= 0 {
-		logger.Info("Tx replacement is enabled")
-	} else {
-		logger.Info("Tx replacement is disabled")
-	}
 	if err := app.setAnteHandler(txConfig,
-		mempoolCacheMaxTxs,
+		anteCache,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
@@ -1245,7 +1253,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCache, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1295,7 +1303,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
+		AnteCache:         anteCache,
 		SenderCache:       app.senderCache,
 	}
 
@@ -1324,6 +1332,9 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
 // by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
+
+// AnteCache returns the ante-layer nonce cache installed on the ante handler.
+func (app *App) AnteCache() *cache.AnteCache { return app.anteCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding
 // with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
