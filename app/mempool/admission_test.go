@@ -103,10 +103,10 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 	tb.Helper()
 
 	appOpts := minimalOptionsMap{
-		flags.FlagHome:         tb.TempDir(),
-		"mempool.type":         "app",
-		"mempool.max-txs":      100000,
-		"cronos.tx-cache-size": 200000,
+		flags.FlagHome:                 tb.TempDir(),
+		"mempool.type":                 "app",
+		"mempool.max-txs":              100000,
+		"cronos.mempool-tx-cache-size": 200000,
 	}
 	maps.Copy(appOpts, overrides)
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))

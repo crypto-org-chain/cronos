@@ -29,7 +29,7 @@ const shardCount = 16
 
 // defaultCacheSize is the tx encode/decode cache capacity fallback for callers
 // that construct a cache with size 0 directly.
-const defaultCacheSize = cmdcfg.DefaultMempoolTxsPerBlock
+const defaultCacheSize = cmdcfg.DefaultMaxTxPerBlock
 
 // shardMask maps a hash to a shard via h&shardMask (== h%shardCount for a
 // power-of-two shardCount).
