@@ -15,7 +15,7 @@
 
 ### Chores
 
-* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to pick up zero-copy historical-query UAF fix.
+* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to prevent historical-query use-after-free failures and reduce merge-iterator copy overhead.
 
 
 *Jul 16, 2026*
