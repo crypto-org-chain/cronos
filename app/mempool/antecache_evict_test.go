@@ -63,6 +63,7 @@ func (s *AnteCacheEvictTestSuite) TestEvictScenarios() {
 }
 
 func evictClearsAnteCacheEntry(t *testing.T) {
+	t.Helper()
 	tx := newEthTx(common.Address{0x1}, 5)
 	addr, nonce := anteKey(tx)
 
@@ -84,6 +85,7 @@ func evictClearsAnteCacheEntry(t *testing.T) {
 }
 
 func evictNilAnteCacheNoPanic(t *testing.T) {
+	t.Helper()
 	tx := newEthTx(common.Address{0x2}, 1)
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
@@ -92,6 +94,7 @@ func evictNilAnteCacheNoPanic(t *testing.T) {
 }
 
 func evictNonEthMsgSkipsAnteCache(t *testing.T) {
+	t.Helper()
 	tx := &ptrTx{id: 1}
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
@@ -101,6 +104,7 @@ func evictNonEthMsgSkipsAnteCache(t *testing.T) {
 }
 
 func evictTTLEvictionClearsAnteCache(t *testing.T) {
+	t.Helper()
 	f := newRecheckFixture()
 	f.a.ttlNumBlocks = 5
 	ac := antecache.NewAnteCache(0)
@@ -134,6 +138,7 @@ func evictTTLEvictionClearsAnteCache(t *testing.T) {
 }
 
 func evictRecheckFailureClearsAnteCache(t *testing.T) {
+	t.Helper()
 	tx := newEthTx(common.Address{0x4}, 2)
 	addr, nonce := anteKey(tx)
 
@@ -160,6 +165,7 @@ func evictRecheckFailureClearsAnteCache(t *testing.T) {
 }
 
 func evictMultipleMsgsClearsAll(t *testing.T) {
+	t.Helper()
 	msg1 := newEthTx(common.Address{0x5}, 1)
 	msg2 := newEthTx(common.Address{0x6}, 9)
 	ac := antecache.NewAnteCache(0)
