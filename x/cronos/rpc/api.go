@@ -86,16 +86,18 @@ func NewCronosAPI(
 	}
 }
 
-func checkTxsResultsLength(resBlock *coretypes.ResultBlock, blockRes *coretypes.ResultBlockResults) error {
-	if len(blockRes.TxsResults) != len(resBlock.Block.Txs) {
+func checkTxsResultsLength(block *coretypes.ResultBlock, blockResults *coretypes.ResultBlockResults) error {
+	if len(blockResults.TxsResults) != len(block.Block.Txs) {
 		return fmt.Errorf(
 			"mismatched tx results length at height %d: block has %d txs, but got %d tx results",
-			resBlock.Block.Height, len(resBlock.Block.Txs), len(blockRes.TxsResults),
+			block.Block.Height, len(block.Block.Txs), len(blockResults.TxsResults),
 		)
 	}
 	return nil
 }
 
+// getBlockDetail returns valid, length-matched resBlock/blockRes only when err is nil;
+// on error all other return values are zero.
 func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock *coretypes.ResultBlock,
 	blockNumber int64,
@@ -107,21 +109,21 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
 		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return nil, 0, "", nil, nil, err
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
 	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNumber, "error", err.Error())
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return nil, 0, "", nil, nil, err
 	}
 	if err = checkTxsResultsLength(resBlock, blockRes); err != nil {
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return nil, 0, "", nil, nil, err
 	}
 	baseFee, err = api.backend.BaseFee(blockRes)
 	if err != nil {
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return nil, 0, "", nil, nil, err
 	}
 	return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 }
