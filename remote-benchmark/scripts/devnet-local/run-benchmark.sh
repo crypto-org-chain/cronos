@@ -43,11 +43,14 @@ if [[ "${VALIDATORS}" != "1" && "${TESTCASE}" == *-unique ]]; then
   exit 1
 fi
 
-LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REMOTE_BENCHMARK_DIR="$(cd "${LOCAL_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REMOTE_BENCHMARK_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CRONOS_ROOT="$(cd "${REMOTE_BENCHMARK_DIR}/.." && pwd)"
 SHELL_NIX="${CRONOS_ROOT}/integration_tests/shell.nix"
-BENCH_CONFIG="${LOCAL_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
+# report/ and .cache/ are generated output, kept alongside the devnet
+# binaries under remote-benchmark/local/ rather than moving with this script.
+LOCAL_ARTIFACTS_DIR="${REMOTE_BENCHMARK_DIR}/local"
+BENCH_CONFIG="${SCRIPT_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
 
 # CRONOS_BIN lets this script run against a specific tagged release binary
 # (e.g. a downloaded/extracted cronosd) instead of the nix-built HEAD binary.
@@ -57,7 +60,7 @@ BENCH_CONFIG="${LOCAL_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
 # for this - it's a generic cometbft/ethermint server flag that already
 # exists in v1.7.8's dependency pins, well before cronos wired up app-mempool.
 CRONOS_BIN="${CRONOS_BIN:-}"
-JSONNET_CONFIG="${LOCAL_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
+JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
 if [[ -n "${CRONOS_BIN}" ]]; then
   [[ -x "${CRONOS_BIN}" ]] || { echo "CRONOS_BIN=${CRONOS_BIN} is not executable" >&2; exit 1; }
   echo "=== using external cronosd: ${CRONOS_BIN} ==="
@@ -66,7 +69,7 @@ if [[ -n "${CRONOS_BIN}" ]]; then
   if [[ -n "${CRONOS_BIN_VERSION}" ]] \
     && [[ "${CRONOS_BIN_VERSION}" != "1.8.0" ]] \
     && [[ "$(printf '%s\n1.8.0\n' "${CRONOS_BIN_VERSION}" | sort -V | head -1)" == "${CRONOS_BIN_VERSION}" ]]; then
-    JSONNET_CONFIG="${LOCAL_DIR}/configs/benchmark-${VALIDATORS}val-legacy-mempool.jsonnet"
+    JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val-legacy-mempool.jsonnet"
     echo "=== ${CRONOS_BIN} (v${CRONOS_BIN_VERSION}) predates app-mempool support, using legacy-mempool config ==="
   fi
 fi
@@ -75,9 +78,9 @@ fi
 # configs/*.yaml; this is also what patch_erc20_genesis.py funds ERC20
 # balance for.
 START_ACCOUNT=1
-END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
+END_ACCOUNT="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['num_accounts'])")"
-PHYSICAL_END_ACCOUNT="$(cd "${LOCAL_DIR}/.." && poetry run python -c \
+PHYSICAL_END_ACCOUNT="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; c=yaml.safe_load(open('${BENCH_CONFIG}')); print(c['num_accounts'] * c['num_txs'] if c.get('sender_strategy') == 'unique-per-tx' else c['num_accounts'])")"
 
 BASE_PORT=26650
@@ -91,7 +94,7 @@ NODE0_EVMRPC="http://127.0.0.1:$((BASE_PORT + 1))"
 # entry-point script, so an edit anywhere in that chain invalidates the cache.
 CACHE_KEY="$(cat \
   "${JSONNET_CONFIG}" "${BENCH_CONFIG}" "${CRONOS_ROOT}/scripts/.env" \
-  "${LOCAL_DIR}/patch_erc20_genesis.py" \
+  "${SCRIPT_DIR}/patch_erc20_genesis.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/contracts.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/erc20.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/utils.py" \
@@ -109,7 +112,7 @@ if [[ -z "${HASHED_CRONOS_BIN}" ]]; then
 fi
 CACHE_KEY="$(printf '%s' "${CACHE_KEY}$(shasum -a 256 "${HASHED_CRONOS_BIN}" | cut -d' ' -f1)" \
   | shasum -a 256 | cut -c1-16)"
-CACHE_DIR="${LOCAL_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
+CACHE_DIR="${LOCAL_ARTIFACTS_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
 CHAIN_ID="cronos_777-1"
 
 DATA_DIR="$(mktemp -d)"
@@ -196,7 +199,7 @@ else
 
   echo "=== injecting ERC20 contract + native balances into genesis ==="
   cd "${REMOTE_BENCHMARK_DIR}"
-  poetry run python "${LOCAL_DIR}/patch_erc20_genesis.py" \
+  poetry run python "${SCRIPT_DIR}/patch_erc20_genesis.py" \
     --data-dir "${DATA_DIR}" --num-accounts "${END_ACCOUNT}" \
     --fund-accounts "${PHYSICAL_END_ACCOUNT}"
 
@@ -288,7 +291,7 @@ poetry run remote-benchmark bench \
 
 REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 REPORT_GENERATED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
-REPORT_PATH="${LOCAL_DIR}/report/${REPORT_TIMESTAMP}.html"
+REPORT_PATH="${LOCAL_ARTIFACTS_DIR}/report/${REPORT_TIMESTAMP}.html"
 poetry run python -m remote_benchmark.report \
   --config "${BENCH_CONFIG}" \
   --stats "${BENCH_STATS}" \

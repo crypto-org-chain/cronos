@@ -3,7 +3,7 @@
 // benchmark-5val.jsonnet's non-mempool fields by hand - there is no shared
 // base to inherit from.
 {
-  dotenv: '../../../scripts/.env',
+  dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
     'start-flags': '--trace',

@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-SCRIPT = ROOT / "local" / "run-config-benchmark.sh"
+SCRIPT = ROOT / "scripts" / "devnet-local" / "run-config-benchmark.sh"
 
 
 def test_script_runs_with_posix_sh(tmp_path):

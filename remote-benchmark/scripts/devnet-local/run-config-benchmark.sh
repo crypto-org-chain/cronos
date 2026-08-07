@@ -34,8 +34,11 @@ require_non_negative_integer() {
 }
 
 CALLER_DIR="$(pwd -P)"
-LOCAL_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-REMOTE_BENCHMARK_DIR="$(cd "${LOCAL_DIR}/.." && pwd -P)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+REMOTE_BENCHMARK_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd -P)"
+# report/ is generated output, kept alongside the devnet binaries under
+# remote-benchmark/local/ rather than moving with this script.
+LOCAL_ARTIFACTS_DIR="${REMOTE_BENCHMARK_DIR}/local"
 
 CONFIG_PATH=""
 START_ACCOUNT=1
@@ -162,7 +165,7 @@ REPORT_GENERATED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
 if [ -z "${REPORT_PATH}" ]; then
   CONFIG_NAME="$(basename "${CONFIG_PATH}")"
   CONFIG_NAME="${CONFIG_NAME%.*}"
-  REPORT_PATH="${LOCAL_DIR}/report/${CONFIG_NAME}-${REPORT_TIMESTAMP}.html"
+  REPORT_PATH="${LOCAL_ARTIFACTS_DIR}/report/${CONFIG_NAME}-${REPORT_TIMESTAMP}.html"
 else
   case "${REPORT_PATH}" in
     /*) ;;

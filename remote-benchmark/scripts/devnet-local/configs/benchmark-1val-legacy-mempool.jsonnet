@@ -1,14 +1,12 @@
-// 5-validator devnet config matching the "5 Validators" setup described in
-// https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
-//
-// Extends benchmark-3val.jsonnet with 2 more validators; the wiki does not
-// list separate mempool/gas options for 5 validators, so all non-validator
-// fields are kept identical to the 3-validator config.
+// Legacy-mempool variant of benchmark-1val.jsonnet for cronosd binaries that
+// predate v1.8.0-alpha's app-mempool feature (no --async-check-tx flag, no
+// mempool.type='app'). Keep this in sync with benchmark-1val.jsonnet's
+// non-mempool fields by hand - there is no shared base to inherit from.
 {
-  dotenv: '../../../scripts/.env',
+  dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
-    'start-flags': '--trace --async-check-tx',
+    'start-flags': '--trace',
     config: {
       db_backend: 'rocksdb',
       event_bus_buffer_capacity: 128,
@@ -16,41 +14,18 @@
         'max_open_connections': 10000,
       },
       mempool: {
-        size: 100000,
+        size: 50000,
         recheck: false,
-        type: 'app',
-        broadcast: true,
-        reap_max_gas: 363000000,
-        reap_interval: '500ms',
       },
       consensus: {
         timeout_commit: '20ms',
-        // A full 363000000-gas block takes longer to propagate and validate
-        // across every validator than the 3s default allows, so round 0's
-        // proposal always arrived late: every load height prevoted nil, burned
-        // ~8.5s in propose/prevote/precommit timeouts, and re-ran
-        // ProcessProposal to commit the same block at round 1. This is an
-        // upper bound, not a fixed delay - a prompt proposal still commits
-        // immediately, so empty blocks stay fast.
-        timeout_propose: '15s',
       },
       tx_index: {
         indexer: 'null',
       },
       p2p: {
         libp2p: {
-          enabled: true,
-          // 256 matches go-libp2p's hardcoded QUIC concurrent-stream ceiling,
-          // which is what actually binds - the resource manager's per-peer
-          // stream limit is never reached, so a higher value here buys nothing.
-          // The stall this config originally tried to work around came from
-          // lp2p.Peer.Send opening a stream per envelope; that is fixed in the
-          // transport by multiplexing envelopes over one stream per channel.
-          limits: {
-            mode: 'custom',
-            max_peers: 16,
-            max_peer_streams: 256,
-          },
+          enabled: false,
         },
       },
     },
@@ -70,13 +45,12 @@
         'logs-cap': 10000,
         'enable-indexer': false,
       },
+      // app-level PriorityNonceMempool (predates v1.8's app-mempool bridge -
+      // app/app.go wires this whenever mempool.max-txs is set) - without it
+      // PrepareProposal falls back to NoOpMempool, which selects txs in
+      // arbitrary gossip-arrival order instead of nonce/priority order.
       mempool: {
-        'max-txs': 100000,
-        recheck: false,
-        type: 'app',
-        broadcast: true,
-        reap_max_gas: 363000000,
-        reap_interval: '500ms',
+        'max-txs': 50000,
       },
       evm: {
         'block-executor': 'block-stm',
@@ -94,48 +68,14 @@
         'skip-check-header': true,
       },
       cronos: {
-        'mempool-txs-per-block': 17285,
-        'tx-cache-size': 100000,
+        'tx-cache-size': 50000,
       },
     },
-    // 5 uniform validators, all rocksdb-backed
     validators: [
       {
         coins: '1000000000000000000stake,10000000000000000000000basetcro',
         staked: '1000000000000000000stake',
         mnemonic: '${VALIDATOR1_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'sync',
-        },
-      },
-      {
-        coins: '1000000000000000000stake,10000000000000000000000basetcro',
-        staked: '1000000000000000000stake',
-        mnemonic: '${VALIDATOR2_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'sync',
-        },
-      },
-      {
-        coins: '1000000000000000000stake,10000000000000000000000basetcro',
-        staked: '1000000000000000000stake',
-        mnemonic: '${VALIDATOR3_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'sync',
-        },
-      },
-      {
-        coins: '1000000000000000000stake,10000000000000000000000basetcro',
-        staked: '1000000000000000000stake',
-        mnemonic: '${VALIDATOR4_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'sync',
-        },
-      },
-      {
-        coins: '1000000000000000000stake,10000000000000000000000basetcro',
-        staked: '1000000000000000000stake',
-        mnemonic: '${VALIDATOR5_MNEMONIC}',
         client_config: {
           'broadcast-mode': 'sync',
         },

@@ -6,9 +6,9 @@ registers them by default. Disk and network counters need a separate
 node_exporter target, since CometBFT doesn't expose host-level I/O.
 """
 
-from .stats import _fetch_prometheus, _parse_labeled_metric
+from .promtext import fetch_prometheus_text, parse_labeled_metric
 
-fetch_node_exporter = _fetch_prometheus
+fetch_node_exporter = fetch_prometheus_text
 
 
 def scrape_go_runtime(prom_text):
@@ -16,7 +16,7 @@ def scrape_go_runtime(prom_text):
     lines = prom_text.splitlines()
 
     def _gauge(name):
-        values = _parse_labeled_metric(lines, name)
+        values = parse_labeled_metric(lines, name)
         return values[0][1] if values else None
 
     return {
@@ -50,14 +50,14 @@ def scrape_disk_net_raw(node_exporter_text):
     raw = {}
     found = False
     for key, metric in _DISK_NET_COUNTERS:
-        samples = _parse_labeled_metric(lines, metric)
+        samples = parse_labeled_metric(lines, metric)
         found = found or bool(samples)
         raw[key] = sum(value for _, value in samples)
     for key, metric in [
         ("network_receive_bytes", "node_network_receive_bytes_total"),
         ("network_transmit_bytes", "node_network_transmit_bytes_total"),
     ]:
-        samples = _parse_labeled_metric(lines, metric)
+        samples = parse_labeled_metric(lines, metric)
         found = found or bool(samples)
         raw[key] = sum(value for labels, value in samples if labels.get("device") != "lo")
     return raw if found else None

@@ -10,7 +10,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _load_patch_module():
     spec = importlib.util.spec_from_file_location(
-        "patch_erc20_genesis", REPO_ROOT / "local" / "patch_erc20_genesis.py"
+        "patch_erc20_genesis",
+        REPO_ROOT / "scripts" / "devnet-local" / "patch_erc20_genesis.py",
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -1,8 +1,5 @@
 import asyncio
-import io
 import itertools
-import math
-import os
 import sys
 import time
 from pathlib import Path
@@ -21,9 +18,8 @@ from .compare import (
     render_comparison_text,
     write_comparison_html,
 )
-from .config import Config, load_config
+from .config import load_config
 from .libp2p import bootstrap_peers
-from .monitor import BlockSTMMonitor, MempoolMonitor
 from .preflight import (
     peer_connectivity_matrix,
     probe_peers,
@@ -33,24 +29,21 @@ from .preflight import (
 from .results import (
     build_aggregate_record,
     build_run_record,
-    check_divergence,
-    consensus_health_reasons,
-    consensus_health_warnings,
-    divergence_reasons,
-    divergence_warnings,
     evaluate_saturation,
+    format_undercommitted,
+    gate_run,
     write_run_record,
 )
-from .resources import fetch_node_exporter, scrape_disk_net_raw
-from .soak import CheckpointSampler, fit_trends, soak_verdict
-from .sweep import load_matrix, run_sweep, summarize_sweep
-from .stats import (
-    _fetch_prometheus,
-    dump_block_stats,
-    dump_eth_block_stats,
-    scrape_consensus_health_raw,
-    scrape_consensus_raw,
+from .runner import current_sender_nonce, run_bench_once, tx_options
+from .soak import (
+    CheckpointSampler,
+    fit_trends,
+    soak_tx_supply,
+    soak_verdict,
+    wait_out_soak_duration,
 )
+from .sweep import load_matrix, run_sweep, summarize_sweep
+from .stats import dump_block_stats, dump_eth_block_stats
 from .transaction import (
     EthTx,
     build_cosmos_tx,
@@ -59,125 +52,10 @@ from .transaction import (
     physical_account_range,
     send_round_robin,
 )
-from .utils import (
-    Tee,
-    block_eth,
-    block_height,
-    block_txs,
-    eth_block_number,
-    gen_account,
-    split_batch,
-)
+from .utils import block_height, eth_block_number, gen_account, split_batch
 
 # reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
-LOAD_COMMIT_TIMEOUT = Config.model_fields["commit_timeout"].default
-PROGRESS_INTERVAL_S = 3
-
-
-def _tx_options(cfg) -> dict:
-    return {
-        "gas_price": cfg.gas_price,
-        "chain_id": cfg.chain_id,
-        "mix": cfg.mix_weights,
-    }
-
-
-def _wait_for_committed(
-    get_height, count_txs, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
-):
-    """Extend the sample until `expected_txs` have been counted committed.
-
-    ``start`` is the pre-send anchor and can still contain setup traffic,
-    so only count txs committed after it.
-    """
-    next_height = start + 1
-    committed_txs = 0
-    deadline = time.monotonic() + timeout
-    started = time.monotonic()
-    last_log = started
-
-    while True:
-        while next_height <= end:
-            committed_txs += count_txs(next_height)
-            next_height += 1
-            if committed_txs >= expected_txs:
-                # stop at the height that actually hit the threshold, not the
-                # (possibly further-extended) outer `end` - returning `end`
-                # here overshoots and lets downstream block-stats recount
-                # blocks past the drain point, inflating totals past what was
-                # sent.
-                return next_height - 1, committed_txs
-
-        now = time.monotonic()
-        if now - last_log >= PROGRESS_INTERVAL_S:
-            print(
-                f"waiting for commits: height={next_height - 1} "
-                f"committed={committed_txs}/{expected_txs}",
-                file=sys.stderr,
-            )
-            last_log = now
-
-        if now >= deadline:
-            return end, committed_txs
-
-        current = get_height()
-        if current > end:
-            end = current
-        else:
-            time.sleep(0.2)
-
-
-def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
-    """Extend the sample until all generated Cosmos txs are committed."""
-    return _wait_for_committed(
-        lambda: block_height(rpc),
-        lambda height: len(block_txs(height, rpc) or []),
-        start,
-        end,
-        expected_txs,
-        timeout,
-    )
-
-
-def wait_for_committed_eth_txs(
-    json_rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
-):
-    """Extend the sample until all generated Ethereum txs are committed."""
-    return _wait_for_committed(
-        lambda: eth_block_number(json_rpc),
-        lambda height: len(block_eth(height, json_rpc)["transactions"]),
-        start,
-        end,
-        expected_txs,
-        timeout,
-    )
-
-
-def current_sender_nonce(cfg, start, end, num_txs=None):
-    """Return the shared current nonce for the benchmark's physical senders.
-
-    `num_txs` overrides `cfg.num_txs` for callers that generate a different
-    per-account tx count (the soak derives its own from rate x duration): under
-    the unique-per-tx strategy that count sets how wide the physical sender
-    range is, so checking nonces with the config's value would validate a
-    different set of accounts than the run actually signs from.
-    """
-    physical_start, physical_end = physical_account_range(
-        start, end, cfg.num_txs if num_txs is None else num_txs, cfg.sender_strategy
-    )
-    w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
-    nonces = {
-        w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address)
-        for i in range(physical_start, physical_end + 1)
-    }
-    if len(nonces) != 1:
-        values = ", ".join(str(value) for value in sorted(nonces))
-        raise click.ClickException(
-            f"benchmark sender accounts have different nonces ({values}); "
-            "pass --nonce explicitly or use a fresh account range"
-        )
-    return nonces.pop()
 
 
 @click.group()
@@ -316,7 +194,7 @@ def gen_txs(config_path, nonce, start_account, output_path, start, end):
         start_account=start + start_account,
         nonce=nonce,
         msg_version=cfg.msg_version,
-        tx_options=_tx_options(cfg),
+        tx_options=tx_options(cfg),
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
         sender_strategy=cfg.sender_strategy,
@@ -384,188 +262,6 @@ def stats(config_path, count):
         start=max(2, current - count),
         end=current,
     )
-
-
-def _run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cache=None):
-    """Generate load for accounts [start, end] and report stats for one run.
-
-    Returns a dict with mode, load_start, load_end, committed_txs,
-    expected_txs, summary, and stats_text (None unless capture_stats).
-    """
-    num_accounts = end - start + 1
-
-    cached_payload = None
-    if txs_cache and Path(txs_cache).exists():
-        cached_payload = ujson.loads(Path(txs_cache).read_text())
-        if (
-            cached_payload["num_accounts"] != num_accounts
-            or cached_payload["num_txs"] != cfg.num_txs
-        ):
-            raise click.ClickException(
-                f"--txs-cache {txs_cache} was generated for "
-                f"{cached_payload['num_accounts']} accounts x {cached_payload['num_txs']} txs, "
-                f"but this run covers {num_accounts} accounts x {cfg.num_txs} txs; remove the "
-                "stale cache file or point --txs-cache elsewhere"
-            )
-
-    if cached_payload is not None:
-        txs = cached_payload["txs"]
-        print(f"loaded {len(txs)} cached {cfg.mode} txs from {txs_cache}", file=sys.stderr)
-    else:
-        if nonce is None:
-            nonce = current_sender_nonce(cfg, start, end)
-            print(f"using current sender nonce {nonce}", file=sys.stderr)
-
-        print("generating txs...", file=sys.stderr)
-        txs = gen(
-            cfg.global_seq,
-            num_accounts,
-            cfg.num_txs,
-            cfg.tx_type,
-            cfg.batch_size,
-            start_account=start,
-            nonce=nonce,
-            msg_version=cfg.msg_version,
-            tx_options=_tx_options(cfg),
-            evm_denom=cfg.evm_denom,
-            wire_format=cfg.mode,
-            sender_strategy=cfg.sender_strategy,
-        )
-        print(
-            f"generated {num_accounts * cfg.num_txs} EVM txs "
-            f"in {len(txs)} {cfg.mode} txs",
-            file=sys.stderr,
-        )
-        if txs_cache:
-            txs_cache_path = Path(txs_cache)
-            txs_cache_path.parent.mkdir(parents=True, exist_ok=True)
-            # write-then-rename so a crash mid-write, or a concurrent run sharing
-            # this cache key, never leaves a truncated file for a reader to load.
-            tmp_path = txs_cache_path.with_suffix(f"{txs_cache_path.suffix}.tmp.{os.getpid()}")
-            tmp_path.write_text(
-                ujson.dumps({"num_accounts": num_accounts, "num_txs": cfg.num_txs, "txs": txs})
-            )
-            tmp_path.replace(txs_cache_path)
-            print(f"wrote tx cache to {txs_cache}", file=sys.stderr)
-
-    stats_buffer = io.StringIO() if capture_stats else None
-    stats_out = Tee(sys.stdout, stats_buffer) if capture_stats else sys.stdout
-
-    if cfg.mode == "eth":
-        load_start = eth_block_number(cfg.primary.json_rpc)
-        print("sending txs...", file=sys.stderr)
-        failed = asyncio.run(
-            send_round_robin(
-                txs,
-                cfg.json_rpcs,
-                batch_size=cfg.send_batch_size,
-                batch_interval=cfg.send_interval,
-                mode=cfg.mode,
-                num_accounts=num_accounts,
-                probe_batches=probe_batches,
-            )
-        )
-        if failed:
-            print(
-                f"warning: {failed}/{len(txs)} txs never reached the mempool "
-                "(send retries exhausted)",
-                file=sys.stderr,
-            )
-        load_end = eth_block_number(cfg.primary.json_rpc)
-        load_end, committed_txs = wait_for_committed_eth_txs(
-            cfg.primary.json_rpc,
-            load_start,
-            load_end,
-            len(txs) - failed,
-            timeout=cfg.commit_timeout,
-        )
-        summary = dump_eth_block_stats(
-            stats_out,
-            json_rpc=cfg.primary.json_rpc,
-            start=load_start,
-            end=load_end,
-        )
-        print(f"committed_eth_txs {committed_txs}/{len(txs)}")
-    else:
-        mempool_monitor = MempoolMonitor(cfg.primary.rpc)
-        stm_monitor = BlockSTMMonitor(cfg.primary.rpc, cfg.telemetry)
-        prom_baseline_text = _fetch_prometheus(cfg.telemetry)
-        consensus_baseline = scrape_consensus_raw(prom_baseline_text)
-        consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
-        disk_net_baseline = scrape_disk_net_raw(fetch_node_exporter(cfg.primary.node_exporter))
-        if cfg.telemetry and consensus_health_baseline is None:
-            print(
-                "warning: telemetry baseline scrape returned no consensus-health "
-                "counters; those numbers will be node-lifetime totals",
-                file=sys.stderr,
-            )
-        if cfg.primary.node_exporter and disk_net_baseline is None:
-            print(
-                "warning: node_exporter baseline scrape returned no counters; "
-                "disk/net numbers will be node-lifetime totals",
-                file=sys.stderr,
-            )
-
-        load_start = block_height(cfg.primary.rpc)
-        mempool_monitor.start()
-        stm_monitor.start()
-        committed_txs = 0
-        failed = 0
-        try:
-            print("sending txs...", file=sys.stderr)
-            failed = asyncio.run(
-                send_round_robin(
-                    txs,
-                    cfg.rpcs,
-                    batch_size=cfg.send_batch_size,
-                    batch_interval=cfg.send_interval,
-                    num_accounts=num_accounts,
-                    probe_batches=probe_batches,
-                )
-            )
-            if failed:
-                print(
-                    f"warning: {failed}/{len(txs)} txs never reached the mempool "
-                    "(send retries exhausted)",
-                    file=sys.stderr,
-                )
-            load_end = block_height(cfg.primary.rpc)
-            load_end, committed_txs = wait_for_committed_txs(
-                cfg.primary.rpc,
-                load_start,
-                load_end,
-                len(txs) - failed,
-                timeout=cfg.commit_timeout,
-            )
-        finally:
-            mempool_monitor.stop()
-            stm_monitor.stop()
-
-        summary = dump_block_stats(
-            stats_out,
-            rpc=cfg.primary.rpc,
-            json_rpc=cfg.primary.json_rpc,
-            telemetry=cfg.telemetry,
-            start=load_start,
-            end=load_end,
-            mempool_data=mempool_monitor.data,
-            stm_data=stm_monitor.data,
-            consensus_baseline=consensus_baseline,
-            consensus_health_baseline=consensus_health_baseline,
-            node_exporter=cfg.primary.node_exporter,
-            disk_net_baseline=disk_net_baseline,
-        )
-        print(f"committed_cosmos_txs {committed_txs}/{len(txs)}")
-
-    return {
-        "mode": cfg.mode,
-        "load_start": load_start,
-        "load_end": load_end,
-        "committed_txs": committed_txs,
-        "expected_txs": len(txs) - failed,
-        "summary": summary,
-        "stats_text": stats_buffer.getvalue() if capture_stats else None,
-    }
 
 
 def _run_record_path(results_path, run_index, total_runs):
@@ -660,6 +356,9 @@ def bench(
     capture_stats = bool(results_path)
 
     runs = []
+    gate_reasons = []
+    gate_divergence_warnings = []
+    gate_health_warnings = []
     for i in range(repeat):
         if repeat > 1:
             print(f"=== run {i + 1}/{repeat} ===", file=sys.stderr)
@@ -668,13 +367,23 @@ def bench(
         # signed against; repeat runs beyond the first reuse the same accounts
         # at a later nonce, so they must fall back to generating fresh txs.
         run_txs_cache = txs_cache if i == 0 else None
-        run = _run_bench_once(
-            cfg, run_nonce, probe_batches, start, end, capture_stats, run_txs_cache
-        )
+        try:
+            run = run_bench_once(
+                cfg, run_nonce, probe_batches, start, end, capture_stats, run_txs_cache
+            )
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
         runs.append(run)
-        # Sampled right after the load, while the nodes are still at the tip the
-        # run drove them to.
-        run["divergence"] = check_divergence(cfg.endpoints)
+        # gate_run samples divergence right after the load, while the nodes
+        # are still at the tip the run drove them to.
+        gate = gate_run(cfg, run)
+        gate_reasons += [f"run {i + 1}: {reason}" for reason in gate["reasons"]]
+        gate_divergence_warnings += [
+            f"run {i + 1}: {warning}" for warning in gate["divergence_warnings"]
+        ]
+        gate_health_warnings += [
+            f"run {i + 1}: {warning}" for warning in gate["health_warnings"]
+        ]
 
         if results_path:
             record = build_run_record(
@@ -704,29 +413,9 @@ def bench(
         write_run_record(aggregate, results_path)
         print(f"wrote aggregate record to {results_path}", file=sys.stderr)
 
-    _warn_unverified(
-        [
-            f"run {i + 1}: {warning}"
-            for i, run in enumerate(runs)
-            for warning in divergence_warnings(run["divergence"])
-        ]
-    )
-    _warn_unverified(
-        [
-            f"run {i + 1}: {warning}"
-            for i, run in enumerate(runs)
-            for warning in consensus_health_warnings(run["summary"])
-        ],
-        label="consensus health",
-    )
-    _raise_on_divergence(
-        [
-            f"run {i + 1}: {reason}"
-            for i, run in enumerate(runs)
-            for reason in divergence_reasons(run["divergence"])
-            + consensus_health_reasons(run["summary"])
-        ]
-    )
+    _warn_unverified(gate_divergence_warnings)
+    _warn_unverified(gate_health_warnings, label="consensus health")
+    _raise_on_divergence(gate_reasons)
 
     if require_saturation:
         failing = []
@@ -739,98 +428,14 @@ def bench(
                 "saturation gates not met: " + " | ".join(failing)
             )
 
-    uncommitted = [run for run in runs if run["committed_txs"] < run["expected_txs"]]
+    uncommitted = [
+        (f"run {i + 1}" if repeat > 1 else None, run["committed_txs"], run["expected_txs"])
+        for i, run in enumerate(runs)
+        if run["committed_txs"] < run["expected_txs"]
+    ]
     if uncommitted:
         kind = "Ethereum" if cfg.mode == "eth" else "Cosmos"
-        if repeat == 1:
-            run = uncommitted[0]
-            raise click.ClickException(
-                f"timed out waiting for generated transactions to commit: "
-                f"{run['committed_txs']}/{run['expected_txs']} {kind} transactions committed"
-            )
-        details = "; ".join(
-            f"run {runs.index(run) + 1}: {run['committed_txs']}/{run['expected_txs']}"
-            for run in uncommitted
-        )
-        raise click.ClickException(
-            f"timed out waiting for generated transactions to commit "
-            f"({kind}): {details}"
-        )
-
-
-def _soak_batch_size(rate, batch_interval, evm_txs_per_wire_tx, warn=True):
-    """Wire txs to send per batch to sustain `rate` EVM tx/s.
-
-    `evm_txs_per_wire_tx` is the effective packing, not the configured
-    batch_size: `gen` batches only within one account, so it is
-    min(num_txs_per_account, batch_size). A single wire tx per batch is already
-    the floor rate. Targets below that floor can only be met by overshooting,
-    which would silently benchmark a different rate than the operator asked
-    for.
-    """
-    per_wire_tx = max(1, evm_txs_per_wire_tx)
-    min_rate = per_wire_tx / batch_interval
-    if rate < min_rate:
-        raise click.ClickException(
-            f"target rate {rate:g} tx/s is below the {min_rate:g} tx/s floor set by "
-            f"batch_size={per_wire_tx}: lower batch_size or raise --rate"
-        )
-    exact = rate * batch_interval / per_wire_tx
-    batch_size = round(exact)
-    # Achievable, but only at a quantised rate: warn rather than reject so the
-    # operator knows which rate the numbers they get actually describe.
-    if warn and abs(batch_size - exact) > 0.05 * exact:
-        effective_rate = batch_size * per_wire_tx / batch_interval
-        click.echo(
-            f"warning: target rate {rate:g} tx/s is not reachable in whole wire txs "
-            f"with batch_size={per_wire_tx}; using {effective_rate:g} tx/s",
-            err=True,
-        )
-    return batch_size
-
-
-# Each pass raises num_txs, which raises the packing and so lowers the batch size
-# the next pass needs; a handful of passes is far more than the crossing takes.
-_SOAK_SIZING_PASSES = 8
-
-
-def _soak_tx_supply(rate, duration, num_accounts, batch_interval, cfg_batch_size):
-    """(num_txs per account, wire txs per batch) sized so the paced sender cannot
-    run out of txs before `duration` elapses.
-
-    Pacing rounds to a whole number of wire txs per batch, so the rate actually
-    sent can overshoot the requested one. Sizing the supply from the requested
-    rate then drains it early: the sender returns, the checkpoint sampler is
-    stopped before the final interval closes, and a healthy soak fails for want
-    of a second checkpoint. Coverage has to be counted in wire txs, since that is
-    what the sender consumes.
-
-    Packing is min(num_txs, cfg.batch_size), so the batch size depends on the
-    supply that depends on the batch size; this iterates until the supply covers
-    the batch size it implies.
-    """
-    num_txs = max(1, math.ceil(rate * duration / num_accounts))
-    for _ in range(_SOAK_SIZING_PASSES):
-        per_wire_tx = max(1, min(num_txs, cfg_batch_size))
-        batch_size = _soak_batch_size(rate, batch_interval, per_wire_tx, warn=False)
-        wire_txs_needed = math.ceil(batch_size * duration / batch_interval)
-        wire_txs_generated = num_accounts * math.ceil(num_txs / per_wire_tx)
-        if wire_txs_generated >= wire_txs_needed:
-            break
-        num_txs = per_wire_tx * math.ceil(wire_txs_needed / num_accounts)
-    per_wire_tx = max(1, min(num_txs, cfg_batch_size))
-    return num_txs, _soak_batch_size(rate, batch_interval, per_wire_tx)
-
-
-def _wait_out_soak_duration(started, duration):
-    """Hold until `duration` has elapsed since `started`.
-
-    The sampler emits a checkpoint at the end of each interval, so returning as
-    soon as the sender drains would drop the final one.
-    """
-    remaining = duration - (time.monotonic() - started)
-    if remaining > 0:
-        time.sleep(remaining)
+        raise click.ClickException(format_undercommitted(kind, uncommitted))
 
 
 def _check_soak_duration(duration, checkpoint_interval):
@@ -873,14 +478,20 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     # A batch every second, sized to hit the target rate, paces sends across the
     # soak duration without waiting for prior batches to commit.
     batch_interval = 1.0
-    num_txs, batch_size = _soak_tx_supply(
-        rate, duration, num_accounts, batch_interval, cfg.batch_size
-    )
+    try:
+        num_txs, batch_size = soak_tx_supply(
+            rate, duration, num_accounts, batch_interval, cfg.batch_size
+        )
+    except ValueError as e:
+        raise click.ClickException(str(e)) from e
     # Nonces are checked after num_txs is known: it selects the physical sender
     # range under unique-per-tx, so the check has to cover exactly the accounts
     # gen() below signs from.
     if nonce is None:
-        nonce = current_sender_nonce(cfg, start, end, num_txs=num_txs)
+        try:
+            nonce = current_sender_nonce(cfg, start, end, num_txs=num_txs)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
         print(f"using current sender nonce {nonce}", file=sys.stderr)
 
     print(
@@ -896,7 +507,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         start_account=start,
         nonce=nonce,
         msg_version=cfg.msg_version,
-        tx_options=_tx_options(cfg),
+        tx_options=tx_options(cfg),
         evm_denom=cfg.evm_denom,
         wire_format=cfg.mode,
         sender_strategy=cfg.sender_strategy,
@@ -923,7 +534,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 "(send retries exhausted)",
                 file=sys.stderr,
             )
-        _wait_out_soak_duration(started, duration)
+        wait_out_soak_duration(started, duration)
     finally:
         sampler.stop()
 
@@ -941,20 +552,24 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
 
     trends = fit_trends(checkpoints)
     verdict = soak_verdict(trends, checkpoints, cfg.telemetry)
-    divergence = check_divergence(cfg.endpoints)
+    soak_run = {"summary": None}
+    gate = gate_run(cfg, soak_run)
+    divergence = soak_run["divergence"]
     print()
     print("=== Soak Verdict ===")
     for key, slope in trends.items():
         print(f"{key}_trend_per_s {slope if slope is not None else 'N/A'}")
-    for gate, state in verdict["gates"].items():
-        print(f"gate {gate}: {state}")
+    for gate_key, state in verdict["gates"].items():
+        print(f"gate {gate_key}: {state}")
     print(f"ok {verdict['ok']}")
     for reason in verdict["reasons"]:
         print(f"  {reason}")
-    for reason in divergence_reasons(divergence):
+    for reason in gate["reasons"]:
         print(f"  divergence: {reason}")
-    for warning in divergence_warnings(divergence):
+    for warning in gate["divergence_warnings"]:
         print(f"  divergence unverified: {warning}")
+    for warning in gate["health_warnings"]:
+        print(f"  consensus health unverified: {warning}")
 
     if results_path:
         Path(results_path).write_text(
@@ -971,7 +586,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         )
         print(f"wrote soak record to {results_path}", file=sys.stderr)
 
-    _raise_on_divergence(divergence_reasons(divergence))
+    _raise_on_divergence(gate["reasons"])
     if not verdict["ok"]:
         raise click.ClickException("soak flagged: " + "; ".join(verdict["reasons"]))
 
@@ -1010,7 +625,7 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
     results_path.mkdir(parents=True, exist_ok=True)
 
     # Only the first cell gets the explicit nonce; every later cell passes
-    # None so _run_bench_once re-queries the live chain nonce, since earlier
+    # None so run_bench_once re-queries the live chain nonce, since earlier
     # cells already consumed nonces by sending transactions.
     cell_index = 0
     divergence_failures = []
@@ -1022,8 +637,11 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
         nonlocal cell_index
         run_nonce = nonce if cell_index == 0 else None
         cell_index += 1
-        run = _run_bench_once(cfg, run_nonce, 1, start, end, capture_stats=True)
-        divergence = check_divergence(cfg.endpoints)
+        try:
+            run = run_bench_once(cfg, run_nonce, 1, start, end, capture_stats=True)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
+        gate = gate_run(cfg, run)
         record = build_run_record(
             cfg=cfg,
             config_path=config_path,
@@ -1035,7 +653,7 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
             committed_txs=run["committed_txs"],
             expected_txs=run["expected_txs"],
             run_kind="sweep-cell",
-            divergence=divergence,
+            divergence=run["divergence"],
             extra={"cell": cell},
         )
         # Safe to interpolate into a path: cell keys/values come from the
@@ -1043,22 +661,16 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
         # sweep.apply_config's shell hook.
         cell_name = "-".join(f"{k}{v}" for k, v in cell.items()) or "cell"
         write_run_record(record, results_path / f"{cell_name}.json")
-        divergence_failures.extend(
-            f"{cell_name}: {reason}"
-            for reason in divergence_reasons(divergence)
-            + consensus_health_reasons(run["summary"])
-        )
+        divergence_failures.extend(f"{cell_name}: {reason}" for reason in gate["reasons"])
         divergence_unverified.extend(
-            f"{cell_name}: {warning}"
-            for warning in divergence_warnings(divergence)
+            f"{cell_name}: {warning}" for warning in gate["divergence_warnings"]
         )
         health_warnings.extend(
-            f"{cell_name}: {warning}"
-            for warning in consensus_health_warnings(run["summary"])
+            f"{cell_name}: {warning}" for warning in gate["health_warnings"]
         )
         if run["committed_txs"] < run["expected_txs"]:
             undercommitted.append(
-                f"{cell_name}: {run['committed_txs']}/{run['expected_txs']}"
+                (cell_name, run["committed_txs"], run["expected_txs"])
             )
         return run["summary"]
 
@@ -1085,10 +697,7 @@ def sweep_cmd(config_path, nonce, results_dir, stop_on_degradation, matrix_path,
     # the one requested.
     if undercommitted:
         kind = "Ethereum" if cfg.mode == "eth" else "Cosmos"
-        raise click.ClickException(
-            f"timed out waiting for generated transactions to commit "
-            f"({kind}): " + "; ".join(undercommitted)
-        )
+        raise click.ClickException(format_undercommitted(kind, undercommitted))
     # A sweep whose every cell (or only its last cell) failed the gates has to
     # exit non-zero: `ran == total` alone says nothing about the verdicts.
     failed = [entry for entry in cell_results if not entry["ok"]]

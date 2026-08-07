@@ -14,7 +14,7 @@ import requests
 import ujson
 
 from .divergence import check_app_hash_agreement, collect_heights, height_skew
-from .report import parse_stats
+from .statstext import parse_stats
 
 # Saturation gates from the tuning guide: below these, a run measures an
 # unsaturated system rather than the throughput ceiling.
@@ -312,6 +312,50 @@ def consensus_health_warnings(summary):
         f"{count:.0f} missing validator(s) in the sampled block — a missed "
         "precommit is expected under load and does not break consensus"
     ]
+
+
+def gate_run(cfg, run):
+    """Divergence + consensus-health check for one run's post-run gating.
+
+    Samples `check_divergence` right after the run, while the nodes are still
+    at the tip the run drove them to, and stores it into `run["divergence"]`
+    so the caller can reuse it when building a run record.
+
+    Returns {"reasons", "divergence_warnings", "health_warnings"}: `reasons`
+    are confirmed-divergence or byzantine-validator failures the caller must
+    raise on; the two warning lists are findings that could not be verified as
+    defects (unreachable/lagging node, missed precommit) and should only be
+    surfaced under their own labels, matching how `bench`/`sweep` report them.
+    """
+    divergence = check_divergence(cfg.endpoints)
+    run["divergence"] = divergence
+    summary = run.get("summary")
+    return {
+        "reasons": divergence_reasons(divergence) + consensus_health_reasons(summary),
+        "divergence_warnings": divergence_warnings(divergence),
+        "health_warnings": consensus_health_warnings(summary),
+    }
+
+
+def format_undercommitted(kind, entries):
+    """Format a "timed out waiting to commit" message for one or more runs.
+
+    `entries` is [(label, committed_txs, expected_txs)]. A single entry with
+    label=None renders the bare single-run message `bench` uses; anything
+    else (repeat runs, sweep cells) renders each entry as
+    "label: committed/expected" joined by "; ", matching `bench --repeat` and
+    `sweep`.
+    """
+    if len(entries) == 1 and entries[0][0] is None:
+        _, committed, expected = entries[0]
+        return (
+            "timed out waiting for generated transactions to commit: "
+            f"{committed}/{expected} {kind} transactions committed"
+        )
+    details = "; ".join(
+        f"{label}: {committed}/{expected}" for label, committed, expected in entries
+    )
+    return f"timed out waiting for generated transactions to commit ({kind}): {details}"
 
 
 def build_run_record(

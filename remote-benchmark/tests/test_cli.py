@@ -5,6 +5,9 @@ from click import ClickException
 from click.testing import CliRunner
 
 from remote_benchmark import cli as cli_module
+from remote_benchmark import results as results_module
+from remote_benchmark import runner as runner_module
+from remote_benchmark import soak as soak_module
 
 
 def _stub_soak_wait(monkeypatch):
@@ -14,7 +17,7 @@ def _stub_soak_wait(monkeypatch):
     waits = []
     monkeypatch.setattr(
         cli_module,
-        "_wait_out_soak_duration",
+        "wait_out_soak_duration",
         lambda _started, duration: waits.append(duration),
     )
     return waits
@@ -37,90 +40,6 @@ class FakeMonitor:
 
     def stop(self):
         pass
-
-
-def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold():
-    # The chain runs ahead to height 205 (get_height) before the block that
-    # actually hits expected_txs (202) gets counted. Returning that stale,
-    # further-extended `end` instead of the height just counted would make
-    # callers re-scan blocks 203-205 for stats, over-counting txs that were
-    # never part of this load.
-    per_block = {201: 2, 202: 3, 203: 1, 204: 1, 205: 1}
-    end, committed = cli_module._wait_for_committed(
-        get_height=lambda: 205,
-        count_txs=lambda height: per_block.get(height, 0),
-        start=200,
-        end=201,
-        expected_txs=5,
-    )
-
-    assert end == 202
-    assert committed == 5
-
-
-def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
-    requested_addresses = []
-
-    class FakeEth:
-        def get_transaction_count(self, address):
-            requested_addresses.append(address)
-            return {"account-3": 2, "account-4": 3}[address]
-
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(json_rpc="http://node0-evm"),
-        global_seq=0,
-        num_txs=2,
-        sender_strategy="unique-per-tx",
-    )
-    monkeypatch.setattr(
-        cli_module.web3,
-        "Web3",
-        lambda _provider: SimpleNamespace(eth=FakeEth()),
-    )
-    monkeypatch.setattr(
-        cli_module,
-        "gen_account",
-        lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
-    )
-
-    try:
-        cli_module.current_sender_nonce(cfg, 3, 3)
-    except ClickException as exc:
-        assert "different nonces (2, 3)" in str(exc)
-    else:
-        raise AssertionError("mixed sender nonces were accepted")
-
-    assert requested_addresses == ["account-3", "account-4"]
-
-
-def test_current_sender_nonce_num_txs_override_widens_the_sender_range(monkeypatch):
-    requested_addresses = []
-
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(json_rpc="http://node0-evm"),
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="unique-per-tx",
-    )
-    monkeypatch.setattr(
-        cli_module.web3,
-        "Web3",
-        lambda _provider: SimpleNamespace(
-            eth=SimpleNamespace(
-                get_transaction_count=lambda address: requested_addresses.append(address) or 0
-            )
-        ),
-    )
-    monkeypatch.setattr(
-        cli_module,
-        "gen_account",
-        lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
-    )
-
-    # cfg.num_txs=1 would only check account-0; the soak's own num_txs=4 is what
-    # gen() actually signs from.
-    assert cli_module.current_sender_nonce(cfg, 0, 0, num_txs=4) == 0
-    assert requested_addresses == ["account-0", "account-1", "account-2", "account-3"]
 
 
 def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
@@ -158,21 +77,21 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(
-        cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"]
+        runner_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"]
     )
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: next(heights))
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "block_txs",
         lambda height, _rpc: loaded_txs.get(height, []),
         raising=False,
     )
-    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
-    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
-    monkeypatch.setattr(cli_module, "dump_block_stats", fake_dump)
+    monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(runner_module, "dump_block_stats", fake_dump)
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -221,21 +140,21 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(
-        cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"]
+        runner_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"]
     )
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: next(heights))
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "block_txs",
         lambda height, _rpc: loaded_txs.get(height, []),
         raising=False,
     )
-    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
-    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
-    monkeypatch.setattr(cli_module, "dump_block_stats", fake_dump)
+    monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(runner_module, "dump_block_stats", fake_dump)
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -280,19 +199,19 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
             print("no_load_period", file=fp)
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "current_sender_nonce", lambda *_args: 10)
+    monkeypatch.setattr(runner_module, "current_sender_nonce", lambda *_args: 10)
     monkeypatch.setattr(
-        cli_module, "gen", lambda *_args, **_kwargs: list(loaded_txs[1038])
+        runner_module, "gen", lambda *_args, **_kwargs: list(loaded_txs[1038])
     )
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "eth_block_number", lambda _rpc: next(heights))
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "eth_block_number", lambda _rpc: next(heights))
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "block_eth",
         lambda height, _rpc: {"transactions": loaded_txs.get(height, [])},
         raising=False,
     )
-    monkeypatch.setattr(cli_module, "dump_eth_block_stats", fake_dump)
+    monkeypatch.setattr(runner_module, "dump_eth_block_stats", fake_dump)
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -332,19 +251,19 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
         return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2"])
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: 10)
+    monkeypatch.setattr(runner_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2"])
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "block_height", lambda _rpc: 10)
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "wait_for_committed_txs",
         lambda *_args, **_kwargs: (11, 1),
     )
-    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
-    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
-    monkeypatch.setattr(cli_module, "dump_block_stats", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(runner_module, "dump_block_stats", lambda *_args, **_kwargs: None)
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -437,7 +356,7 @@ def test_sweep_passes_explicit_nonce_only_to_the_first_cell_that_runs(monkeypatc
         }
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "_run_bench_once", fake_run_bench_once)
+    monkeypatch.setattr(cli_module, "run_bench_once", fake_run_bench_once)
     monkeypatch.setattr(cli_module, "build_run_record", lambda **_kwargs: {})
     monkeypatch.setattr(cli_module, "write_run_record", lambda *_args: None)
 
@@ -449,24 +368,24 @@ def test_sweep_passes_explicit_nonce_only_to_the_first_cell_that_runs(monkeypatc
 
     assert result.exit_code == 0, result.exception
     # Only the first cell that actually runs gets the explicit nonce; later
-    # cells pass None so _run_bench_once re-queries the live chain nonce,
+    # cells pass None so run_bench_once re-queries the live chain nonce,
     # since earlier cells already consumed nonces by sending transactions.
     assert run_nonces == [5, None]
 
 
 def test_soak_batch_size_for_a_reachable_rate():
     # 500 EVM tx/s at 200 EVM txs per wire tx = 2.5 -> 2 wire txs per second
-    assert cli_module._soak_batch_size(500, 1.0, 200) == 2
+    assert soak_module.soak_batch_size(500, 1.0, 200) == 2
     # unbatched (eth) mode paces one wire tx per EVM tx
-    assert cli_module._soak_batch_size(50, 1.0, 1) == 50
+    assert soak_module.soak_batch_size(50, 1.0, 1) == 50
 
 
 def test_soak_batch_size_rejects_rate_below_the_batch_size_floor():
     # rounding 50/200 down to 0 wire txs used to be floored at 1, silently
     # sending 200 EVM tx/s for a 50 tx/s target.
     try:
-        cli_module._soak_batch_size(50, 1.0, 200)
-    except ClickException as exc:
+        soak_module.soak_batch_size(50, 1.0, 200)
+    except ValueError as exc:
         assert "below the 200 tx/s floor" in str(exc)
     else:
         raise AssertionError("a rate below the batch_size floor was accepted")
@@ -474,13 +393,13 @@ def test_soak_batch_size_rejects_rate_below_the_batch_size_floor():
 
 def test_soak_batch_size_warns_when_the_rate_is_only_reachable_by_rounding(capsys):
     # 1.4 wire txs/s isn't sendable; the effective rate is 1 tx/s, not 1.4.
-    assert cli_module._soak_batch_size(1.4, 1.0, 1) == 1
+    assert soak_module.soak_batch_size(1.4, 1.0, 1) == 1
 
     assert "using 1 tx/s" in capsys.readouterr().err
 
 
 def test_soak_batch_size_does_not_warn_for_an_exact_rate(capsys):
-    assert cli_module._soak_batch_size(50, 1.0, 1) == 50
+    assert soak_module.soak_batch_size(50, 1.0, 1) == 50
 
     assert capsys.readouterr().err == ""
 
@@ -574,7 +493,7 @@ def test_soak_tx_supply_covers_the_full_duration():
     # txs, but pacing rounds up to 2 wire txs/s = 120 needed: the sender used to
     # run dry around t=50s, the sampler was stopped before the final checkpoint
     # interval closed, and the soak failed for having only one checkpoint.
-    num_txs, batch_size = cli_module._soak_tx_supply(100, 60, 100, 1.0, 100)
+    num_txs, batch_size = soak_module.soak_tx_supply(100, 60, 100, 1.0, 100)
 
     # Sizing settles at 120 txs/account, which packs 100 per wire tx into 200
     # wire txs — more than the 1 wire tx/s x 60s the pacing then consumes.
@@ -584,14 +503,14 @@ def test_soak_tx_supply_covers_the_full_duration():
 def test_wait_out_soak_duration_waits_only_for_what_is_left(monkeypatch):
     slept = []
     monkeypatch.setattr(
-        cli_module, "time", SimpleNamespace(monotonic=lambda: 100.0, sleep=slept.append)
+        soak_module, "time", SimpleNamespace(monotonic=lambda: 100.0, sleep=slept.append)
     )
 
-    cli_module._wait_out_soak_duration(80.0, 60.0)  # 20s of 60s elapsed
+    soak_module.wait_out_soak_duration(80.0, 60.0)  # 20s of 60s elapsed
     assert slept == [40.0]
 
     slept.clear()
-    cli_module._wait_out_soak_duration(30.0, 60.0)  # already past duration
+    soak_module.wait_out_soak_duration(30.0, 60.0)  # already past duration
     assert slept == []
 
 
@@ -756,18 +675,18 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
         return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"])
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: next(heights))
+    monkeypatch.setattr(runner_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"])
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
-        cli_module, "block_txs", lambda height, _rpc: loaded_txs.get(height, []), raising=False
+        runner_module, "block_txs", lambda height, _rpc: loaded_txs.get(height, []), raising=False
     )
-    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
-    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
     monkeypatch.setattr(
-        cli_module, "dump_block_stats", lambda fp, **_kwargs: print("block 175 txs=2", file=fp)
+        runner_module, "dump_block_stats", lambda fp, **_kwargs: print("block 175 txs=2", file=fp)
     )
 
 
@@ -779,7 +698,7 @@ def test_bench_loads_txs_from_cache_instead_of_generating(monkeypatch, tmp_path)
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     gen_calls = []
-    monkeypatch.setattr(cli_module, "gen", lambda *a, **k: gen_calls.append(1) or ["unused"])
+    monkeypatch.setattr(runner_module, "gen", lambda *a, **k: gen_calls.append(1) or ["unused"])
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -845,7 +764,7 @@ def test_bench_exits_non_zero_on_app_hash_divergence(monkeypatch):
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {"node0": 175, "node1": 175},
@@ -869,7 +788,7 @@ def test_bench_exits_non_zero_when_a_node_is_thousands_of_blocks_behind(monkeypa
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {"node0": 5175, "node1": 175},
@@ -890,7 +809,7 @@ def test_bench_passes_when_nodes_agree(monkeypatch):
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {"node0": 175, "node1": 174},
@@ -925,7 +844,7 @@ def test_sweep_exits_non_zero_when_a_cell_does_not_commit_all_its_txs(monkeypatc
     run["expected_txs"] = 10
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "_run_bench_once", lambda *_args, **_kwargs: run)
+    monkeypatch.setattr(cli_module, "run_bench_once", lambda *_args, **_kwargs: run)
     monkeypatch.setattr(cli_module, "build_run_record", lambda **_kwargs: {})
     monkeypatch.setattr(cli_module, "write_run_record", lambda *_args: None)
 
@@ -946,7 +865,7 @@ def test_bench_exits_non_zero_on_byzantine_validators(monkeypatch):
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "dump_block_stats",
         lambda fp, **_kwargs: {"byzantine_validators": 1.0, "missing_validators": 0.0},
     )
@@ -966,7 +885,7 @@ def test_bench_warns_but_passes_on_missing_validators(monkeypatch):
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "dump_block_stats",
         lambda fp, **_kwargs: {"byzantine_validators": 0.0, "missing_validators": 1.0},
     )
@@ -986,7 +905,7 @@ def test_bench_warns_but_passes_when_divergence_could_not_be_verified(monkeypatc
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {"node0": 175, "node1": None},
@@ -1022,7 +941,7 @@ def test_sweep_exits_non_zero_when_the_last_cell_fails_saturation(monkeypatch, t
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(
         cli_module,
-        "_run_bench_once",
+        "run_bench_once",
         lambda *_args, **_kwargs: _sweep_run(next(summaries)),
     )
     monkeypatch.setattr(cli_module, "build_run_record", lambda **_kwargs: {})
@@ -1049,7 +968,7 @@ def test_sweep_exits_non_zero_on_divergence_in_a_cell(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
     monkeypatch.setattr(
         cli_module,
-        "_run_bench_once",
+        "run_bench_once",
         lambda *_args, **_kwargs: _sweep_run(
             {"total_counted_txs": 100, "total_failed_txs": 0, "gas_utilizations": [0.95]}
         ),
@@ -1057,7 +976,7 @@ def test_sweep_exits_non_zero_on_divergence_in_a_cell(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_module, "build_run_record", lambda **_kwargs: {})
     monkeypatch.setattr(cli_module, "write_run_record", lambda *_args: None)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {},
@@ -1106,7 +1025,7 @@ def test_soak_exits_non_zero_on_app_hash_divergence(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_module, "CheckpointSampler", _HealthySampler)
     _stub_soak_wait(monkeypatch)
     monkeypatch.setattr(
-        cli_module,
+        results_module,
         "check_divergence",
         lambda _endpoints: {
             "heights": {"node0": 160, "node1": 160},
@@ -1263,16 +1182,16 @@ def test_bench_honors_the_configured_commit_timeout(monkeypatch):
         return 11, 1
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx-1"])
-    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
-    monkeypatch.setattr(cli_module, "block_height", lambda _rpc: 10)
-    monkeypatch.setattr(cli_module, "wait_for_committed_txs", fake_wait)
-    monkeypatch.setattr(cli_module, "MempoolMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "BlockSTMMonitor", FakeMonitor)
-    monkeypatch.setattr(cli_module, "_fetch_prometheus", lambda _url: "")
-    monkeypatch.setattr(cli_module, "scrape_consensus_raw", lambda _text: {})
+    monkeypatch.setattr(runner_module, "gen", lambda *_args, **_kwargs: ["tx-1"])
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(runner_module, "block_height", lambda _rpc: 10)
+    monkeypatch.setattr(runner_module, "wait_for_committed_txs", fake_wait)
+    monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
+    monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
+    monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
     monkeypatch.setattr(
-        cli_module,
+        runner_module,
         "dump_block_stats",
         lambda fp, *, start, end, **_kwargs: print(f"block {end} txs=1", file=fp),
     )

@@ -7,6 +7,7 @@ flag a memory leak or performance degradation.
 """
 
 import logging
+import math
 import sys
 import threading
 import time
@@ -283,3 +284,78 @@ def soak_verdict(trends, checkpoints, telemetry=None):
         }
 
     return {"ok": not reasons, "reasons": reasons, "gates": gates}
+
+
+def soak_batch_size(rate, batch_interval, evm_txs_per_wire_tx, warn=True):
+    """Wire txs to send per batch to sustain `rate` EVM tx/s.
+
+    `evm_txs_per_wire_tx` is the effective packing, not the configured
+    batch_size: `gen` batches only within one account, so it is
+    min(num_txs_per_account, batch_size). A single wire tx per batch is already
+    the floor rate. Targets below that floor can only be met by overshooting,
+    which would silently benchmark a different rate than the operator asked
+    for.
+    """
+    per_wire_tx = max(1, evm_txs_per_wire_tx)
+    min_rate = per_wire_tx / batch_interval
+    if rate < min_rate:
+        raise ValueError(
+            f"target rate {rate:g} tx/s is below the {min_rate:g} tx/s floor set by "
+            f"batch_size={per_wire_tx}: lower batch_size or raise --rate"
+        )
+    exact = rate * batch_interval / per_wire_tx
+    batch_size = round(exact)
+    # Achievable, but only at a quantised rate: warn rather than reject so the
+    # operator knows which rate the numbers they get actually describe.
+    if warn and abs(batch_size - exact) > 0.05 * exact:
+        effective_rate = batch_size * per_wire_tx / batch_interval
+        print(
+            f"warning: target rate {rate:g} tx/s is not reachable in whole wire txs "
+            f"with batch_size={per_wire_tx}; using {effective_rate:g} tx/s",
+            file=sys.stderr,
+        )
+    return batch_size
+
+
+# Each pass raises num_txs, which raises the packing and so lowers the batch size
+# the next pass needs; a handful of passes is far more than the crossing takes.
+_SOAK_SIZING_PASSES = 8
+
+
+def soak_tx_supply(rate, duration, num_accounts, batch_interval, cfg_batch_size):
+    """(num_txs per account, wire txs per batch) sized so the paced sender cannot
+    run out of txs before `duration` elapses.
+
+    Pacing rounds to a whole number of wire txs per batch, so the rate actually
+    sent can overshoot the requested one. Sizing the supply from the requested
+    rate then drains it early: the sender returns, the checkpoint sampler is
+    stopped before the final interval closes, and a healthy soak fails for want
+    of a second checkpoint. Coverage has to be counted in wire txs, since that is
+    what the sender consumes.
+
+    Packing is min(num_txs, cfg.batch_size), so the batch size depends on the
+    supply that depends on the batch size; this iterates until the supply covers
+    the batch size it implies.
+    """
+    num_txs = max(1, math.ceil(rate * duration / num_accounts))
+    for _ in range(_SOAK_SIZING_PASSES):
+        per_wire_tx = max(1, min(num_txs, cfg_batch_size))
+        batch_size = soak_batch_size(rate, batch_interval, per_wire_tx, warn=False)
+        wire_txs_needed = math.ceil(batch_size * duration / batch_interval)
+        wire_txs_generated = num_accounts * math.ceil(num_txs / per_wire_tx)
+        if wire_txs_generated >= wire_txs_needed:
+            break
+        num_txs = per_wire_tx * math.ceil(wire_txs_needed / num_accounts)
+    per_wire_tx = max(1, min(num_txs, cfg_batch_size))
+    return num_txs, soak_batch_size(rate, batch_interval, per_wire_tx)
+
+
+def wait_out_soak_duration(started, duration):
+    """Hold until `duration` has elapsed since `started`.
+
+    The sampler emits a checkpoint at the end of each interval, so returning as
+    soon as the sender drains would drop the final one.
+    """
+    remaining = duration - (time.monotonic() - started)
+    if remaining > 0:
+        time.sleep(remaining)

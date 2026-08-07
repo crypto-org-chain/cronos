@@ -10,7 +10,7 @@ from pathlib import Path
 
 import ujson
 
-from .report import _display, _field_label, _flatten
+from .htmlutil import display_value, field_label, flatten
 
 # Metrics carrying non-scalar data (lists/sets used for the HTML report's
 # charts) aren't meaningful in a delta table.
@@ -83,8 +83,8 @@ def compare_metrics(metrics_a, metrics_b):
 
 def diff_config(config_a, config_b):
     """Flatten both configs and return keys whose values differ."""
-    flat_a = dict(_flatten(config_a))
-    flat_b = dict(_flatten(config_b))
+    flat_a = dict(flatten(config_a))
+    flat_b = dict(flatten(config_b))
     return [
         {"key": key, "a": flat_a.get(key), "b": flat_b.get(key)}
         for key in sorted(set(flat_a) | set(flat_b))
@@ -144,8 +144,8 @@ def render_comparison_html(comparison):
         for row in comparison["metrics"]
     )
     config_rows = "\n".join(
-        f"<tr><th>{_field_label(row['key'], 'Configuration value that differs between the two runs.')}</th>"
-        f"<td>{html.escape(_display(row['a']))}</td><td>{html.escape(_display(row['b']))}</td></tr>"
+        f"<tr><th>{field_label(row['key'], 'Configuration value that differs between the two runs.')}</th>"
+        f"<td>{html.escape(display_value(row['a']))}</td><td>{html.escape(display_value(row['b']))}</td></tr>"
         for row in comparison["config_diff"]
     )
     label_a, label_b = html.escape(comparison["label_a"]), html.escape(comparison["label_b"])

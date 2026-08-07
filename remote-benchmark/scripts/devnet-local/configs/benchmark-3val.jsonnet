@@ -1,10 +1,10 @@
 // 3-validator devnet config matching the "3 Validators / Simple Transfer" setup
 // described in https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 //
-// Self-contained copy of ../../../integration_tests/configs/benchmark-3val.jsonnet
-// for remote-benchmark/local/ (only the dotenv path differs).
+// Self-contained copy of ../../../../integration_tests/configs/benchmark-3val.jsonnet
+// for remote-benchmark/scripts/devnet-local/ (only the dotenv path differs).
 {
-  dotenv: '../../../scripts/.env',
+  dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
     // --async-check-tx matches testground/benchmark/benchmark/stateless.py's

@@ -1,7 +1,23 @@
 import logging
 from datetime import datetime, timezone
-from statistics import median, quantiles
+from statistics import median
 
+from . import resources
+from .cometbft_metrics import (
+    scrape_blockstm_metrics,
+    scrape_consensus_health,
+    scrape_consensus_health_raw,
+    scrape_consensus_metrics,
+    scrape_consensus_raw,
+    scrape_per_validator_metrics,
+)
+from .promtext import (
+    fetch_prometheus_text as _fetch_prometheus,
+    labeled_metric_by as _labeled_metric_by,
+    parse_histogram_sum_count as _parse_histogram_sum_count,
+    parse_label_block as _parse_label_block,
+    parse_labeled_metric as _parse_labeled_metric,
+)
 from .utils import (
     block,
     block_eth,
@@ -10,38 +26,9 @@ from .utils import (
     eth_block_number,
     mempool_status,
 )
+from .window import TPS_WINDOW, _analyze_load_window, _percentile, calculate_tps
 
 log = logging.getLogger(__name__)
-
-# sliding window size for per-block TPS calculation
-TPS_WINDOW = 10
-
-
-def calculate_tps(blocks, anchor_is_separate=True):
-    """
-    Calculate TPS for a sequence of blocks.
-
-    blocks: list of (tx_count, timestamp) tuples, ordered by height.
-
-    When anchor_is_separate is True (default), blocks[0] is a pure time
-    anchor whose txs belong to a prior period; only blocks[1:] txs are
-    counted over the interval blocks[0].timestamp .. blocks[-1].timestamp.
-
-    When anchor_is_separate is False, blocks[0] is itself a transaction
-    block with no preceding anchor available; all blocks' txs are counted
-    over the same time interval.
-    """
-    if len(blocks) < 2:
-        return 0
-
-    counted = blocks[1:] if anchor_is_separate else blocks
-    txs = sum(n for n, _ in counted)
-    _, t1 = blocks[0]
-    _, t2 = blocks[-1]
-    time_diff = (t2 - t1).total_seconds()
-    if time_diff == 0:
-        return 0
-    return txs / time_diff
 
 
 def get_block_info_cosmos(height, rpc):
@@ -106,507 +93,6 @@ def get_block_info_eth_full(height, json_rpc):
     txs = len(eth_blk["transactions"])
     gas_used, gas_limit = _extract_gas(eth_blk)
     return timestamp, txs, gas_used, gas_limit
-
-
-def _fetch_prometheus(telemetry_url):
-    """Fetch raw Prometheus text from the /metrics endpoint.
-
-    Returns the response text, or empty string if unavailable/not configured.
-    """
-    if not telemetry_url:
-        return ""
-
-    import requests as _requests
-
-    try:
-        resp = _requests.get(f"{telemetry_url}/metrics", timeout=5)
-        resp.raise_for_status()
-        return resp.text
-    except Exception:
-        return ""
-
-
-def _parse_histogram_sum_count(lines, metric_name, label_filter=None):
-    """Return (sum, count) from a Prometheus histogram's _sum/_count lines.
-
-    Samples are accumulated, not overwritten: a histogram split across several
-    label sets (e.g. one per ABCI method) emits one _sum/_count pair per set,
-    and the aggregate over all matching lines is what the callers want.
-
-    Returns (sum_or_None, count). Sum is in the metric's native unit.
-    """
-    total = None
-    count = 0
-    for line in lines:
-        if line.startswith("#"):
-            continue
-        if label_filter and label_filter not in line:
-            continue
-        if f"{metric_name}_sum" in line:
-            total = (total or 0.0) + float(line.split()[-1])
-        elif f"{metric_name}_count" in line:
-            count += int(float(line.split()[-1]))
-    return total, count
-
-
-def scrape_blockstm_metrics(prom_text):
-    """Parse block-stm gauges from Prometheus text."""
-    result = {}
-    for line in prom_text.splitlines():
-        if line.startswith("#"):
-            continue
-        if "blockstm_executed_txs" in line:
-            result["executed_txs"] = float(line.split()[-1])
-        elif "blockstm_validated_txs" in line:
-            result["validated_txs"] = float(line.split()[-1])
-    return result
-
-
-# (key, metric_name, label_filter) for every cumulative consensus histogram.
-# Cumulative _sum/_count grow over the whole node process lifetime, so to scope
-# an average to the load period we snapshot raw (sum, count) at load start and
-# subtract — see scrape_consensus_raw / the baseline arg of
-# scrape_consensus_metrics.
-_CONSENSUS_HISTOGRAMS = [
-    *[
-        (
-            f"step_{step}",
-            "cometbft_consensus_step_duration_seconds",
-            f'step="{step}"',
-        )
-        for step in (
-            "NewHeight",
-            "NewRound",
-            "Propose",
-            "Prevote",
-            "PrevoteWait",
-            "Precommit",
-            "PrecommitWait",
-            "Commit",
-        )
-    ],
-    ("finalize_block_ms", "cometbft_state_block_processing_time", None),
-    (
-        "abci_finalize_block",
-        "cometbft_abci_connection_method_timing_seconds",
-        'method="finalize_block"',
-    ),
-    (
-        "abci_commit",
-        "cometbft_abci_connection_method_timing_seconds",
-        'method="commit"',
-    ),
-    ("block_interval", "cometbft_consensus_block_interval_seconds", None),
-]
-
-
-def scrape_consensus_raw(prom_text):
-    """Snapshot raw cumulative (sum, count) for each consensus histogram.
-
-    Pass the result as the `baseline` arg of scrape_consensus_metrics after the
-    load finishes to get load-period averages instead of lifetime ones.
-    """
-    lines = prom_text.splitlines()
-    raw = {}
-    for key, metric, label in _CONSENSUS_HISTOGRAMS:
-        total, count = _parse_histogram_sum_count(lines, metric, label)
-        if total is not None:
-            raw[key] = (total, count)
-    return raw
-
-
-def _parse_label_block(line, metric_name):
-    """Parse `{k="v",...} value` following a metric name into (labels, value).
-
-    Scans character by character because a quoted label value may legally
-    contain `,` and `}`, which splitting on those characters mis-parses.
-    Returns None for a line whose label list is never closed.
-    """
-    rest = line[len(metric_name) + 1 :]  # skip past the opening '{'
-    items = []
-    current = []
-    in_quotes = False
-    escaped = False
-    for idx, char in enumerate(rest):
-        if escaped:
-            current.append(char)
-            escaped = False
-        elif in_quotes and char == "\\":
-            escaped = True
-        elif char == '"':
-            in_quotes = not in_quotes
-        elif char == "," and not in_quotes:
-            items.append("".join(current))
-            current = []
-        elif char == "}" and not in_quotes:
-            items.append("".join(current))
-            tail = rest[idx + 1 :].split()
-            if not tail:
-                return None
-            labels = dict(item.split("=", 1) for item in items if item)
-            return labels, float(tail[-1])
-        else:
-            current.append(char)
-    return None
-
-
-def _parse_labeled_metric(lines, metric_name):
-    """Parse every sample of a labeled or unlabeled Prometheus counter/gauge.
-
-    Returns a list of (labels_dict, value) — one entry per distinct label set.
-    Matches `metric_name` exactly (either `name{...} value` or `name value`),
-    so metric names that share a prefix (e.g. `..._rounds` vs
-    `..._round_increment_total`) don't cross-match.
-    """
-    results = []
-    labeled_prefix = metric_name + "{"
-    bare_prefix = metric_name + " "
-    for line in lines:
-        if line.startswith("#"):
-            continue
-        if line.startswith(labeled_prefix):
-            parsed = _parse_label_block(line, metric_name)
-            if parsed is not None:
-                results.append(parsed)
-        elif line.startswith(bare_prefix):
-            results.append(({}, float(line.split()[-1])))
-    return results
-
-
-def _labeled_metric_by(lines, metric_name, label_key):
-    """{label_value: value} for a labeled metric, keyed by one of its labels."""
-    return {
-        labels[label_key]: value
-        for labels, value in _parse_labeled_metric(lines, metric_name)
-        if label_key in labels
-    }
-
-
-# Cumulative counters behind the consensus-health section: round changes
-# (timeouts forcing a new round), rejected/late proposals and votes,
-# duplicate/mismatched block-part gossip. Snapshotted at load start and
-# subtracted, same rationale as _CONSENSUS_HISTOGRAMS.
-_CONSENSUS_HEALTH_COUNTERS = [
-    ("round_increments", "cometbft_consensus_round_increment_total"),
-    ("duplicate_block_parts", "cometbft_consensus_duplicate_block_part"),
-    ("duplicate_votes", "cometbft_consensus_duplicate_vote"),
-]
-
-
-def scrape_consensus_health_raw(prom_text):
-    """Snapshot raw cumulative consensus-health counters (see
-    scrape_consensus_health for the baseline-relative view).
-
-    Returns None when the text carries none of the counters (telemetry
-    unreachable, or a scrape that raced node startup): an all-zero dict is
-    truthy and would pass as a valid baseline, turning the later "delta" into
-    the node's lifetime total.
-    """
-    lines = (prom_text or "").splitlines()
-    raw = {}
-    found = False
-
-    def _sum(metric, predicate=None):
-        nonlocal found
-        samples = _parse_labeled_metric(lines, metric)
-        found = found or bool(samples)
-        return sum(
-            value for labels, value in samples if predicate is None or predicate(labels)
-        )
-
-    for key, metric in _CONSENSUS_HEALTH_COUNTERS:
-        raw[key] = _sum(metric)
-    raw["rejected_proposals"] = _sum(
-        "cometbft_consensus_proposal_receive_count",
-        lambda labels: labels.get("status") == "rejected",
-    )
-    raw["late_votes"] = _sum("cometbft_consensus_late_votes")
-    raw["block_gossip_parts_mismatched"] = _sum(
-        "cometbft_consensus_block_gossip_parts_received",
-        lambda labels: labels.get("matches_current") == "false",
-    )
-    return raw if found else None
-
-
-def scrape_consensus_health(prom_text, baseline=None):
-    """Multi-round rate, missed-proposal/vote counters, and block-part
-    mismatch counters, plus point-in-time missing/byzantine validator gauges.
-
-    `round_increments` is the clearest "multi-round rate" signal: CometBFT
-    only increments the round when the current one times out without
-    reaching a decision, so a nonzero count over the load period means the
-    network needed extra rounds (missed proposals, slow votes, etc.) to
-    finalize some block.
-
-    With `baseline` (a scrape_consensus_health_raw snapshot from load start),
-    counters are deltas over the load period; without it, they're lifetime
-    totals. A baseline that measured nothing is None, so it is skipped rather
-    than subtracted as zeros.
-    """
-    lines = (prom_text or "").splitlines()
-    raw = scrape_consensus_health_raw(prom_text)
-    if raw is None:
-        raw = dict.fromkeys(
-            [key for key, _ in _CONSENSUS_HEALTH_COUNTERS]
-            + ["rejected_proposals", "late_votes", "block_gossip_parts_mismatched"],
-            0,
-        )
-    elif baseline:
-        raw = {key: raw[key] - baseline.get(key, 0) for key in raw}
-
-    result = dict(raw)
-    result["current_round"] = _parse_labeled_metric(lines, "cometbft_consensus_rounds")
-    result["current_round"] = (
-        result["current_round"][0][1] if result["current_round"] else None
-    )
-    result["missing_validators"] = _parse_labeled_metric(lines, "cometbft_consensus_missing_validators")
-    result["missing_validators"] = (
-        result["missing_validators"][0][1] if result["missing_validators"] else None
-    )
-    result["byzantine_validators"] = _parse_labeled_metric(lines, "cometbft_consensus_byzantine_validators")
-    result["byzantine_validators"] = (
-        result["byzantine_validators"][0][1] if result["byzantine_validators"] else None
-    )
-    return result
-
-
-def scrape_per_validator_metrics(prom_text):
-    """{validator_address: {missed_blocks, last_signed_height, power}} from
-    CometBFT's per-validator gauges. All point-in-time (not baseline-relative)."""
-    lines = prom_text.splitlines()
-    missed = _labeled_metric_by(lines, "cometbft_consensus_validator_missed_blocks", "validator_address")
-    signed = _labeled_metric_by(
-        lines, "cometbft_consensus_validator_last_signed_height", "validator_address"
-    )
-    power = _labeled_metric_by(lines, "cometbft_consensus_validator_power", "validator_address")
-
-    addresses = set(missed) | set(signed) | set(power)
-    return {
-        addr: {
-            "missed_blocks": missed.get(addr),
-            "last_signed_height": signed.get(addr),
-            "power": power.get(addr),
-        }
-        for addr in addresses
-    }
-
-
-def scrape_consensus_metrics(prom_text, baseline=None):
-    """Parse CometBFT consensus stage timings from Prometheus text.
-
-    Returns dict mapping stage names to (avg_seconds, sample_count).
-
-    When `baseline` (a scrape_consensus_raw snapshot from load start) is given,
-    averages are computed over the delta so they reflect only the load period
-    rather than the node's whole lifetime.
-    """
-    lines = prom_text.splitlines()
-    result = {}
-
-    for key, metric, label in _CONSENSUS_HISTOGRAMS:
-        total, count = _parse_histogram_sum_count(lines, metric, label)
-        if total is None:
-            continue
-        if baseline and key in baseline:
-            base_total, base_count = baseline[key]
-            total -= base_total
-            count -= base_count
-        if count > 0:
-            result[key] = (total / count, count)
-
-    # quorum delays are point-in-time gauges, not cumulative — report current
-    # value directly (no baseline delta applies).
-    for line in lines:
-        if line.startswith("#"):
-            continue
-        if "cometbft_consensus_quorum_prevote_delay" in line:
-            result["quorum_prevote_delay"] = (float(line.split()[-1]), 1)
-        elif "cometbft_consensus_quorum_precommit_delay" in line:
-            result["quorum_precommit_delay"] = (float(line.split()[-1]), 1)
-
-    return result
-
-
-def _percentile(values, pct):
-    """Linear-interpolated percentile (0-100) of a list of numbers."""
-    if not values:
-        return 0
-    s = sorted(values)
-    if len(s) == 1:
-        return s[0]
-    k = (len(s) - 1) * (pct / 100)
-    f = int(k)
-    c = min(f + 1, len(s) - 1)
-    if f == c:
-        return s[f]
-    return s[f] * (c - k) + s[c] * (k - f)
-
-
-def _analyze_load_window(
-    blocks,
-    gas_data,
-    per_tx_gas_values,
-    total_failed_txs=0,
-    total_counted_txs=0,
-    stall_mult=5,
-):
-    """Compute the summary statistics shared by dump_block_stats and
-    dump_eth_block_stats from a queried block range.
-
-    blocks: list of (tx_count, timestamp) for every queried height.
-    gas_data: list of (gas_used, gas_limit), parallel to blocks.
-    per_tx_gas_values: (per-tx gas, block gas limit) for blocks with
-        tx_count > 0.
-
-    Returns None if no block in the range had any transactions (the
-    "no_load_period" case), else a dict consumed by
-    _print_load_summary_sections and the callers' own extra sections
-    (mempool/failed-tx/block-stm/consensus).
-    """
-    first_tx_idx = None
-    last_tx_idx = None
-    for idx, (txs, _) in enumerate(blocks):
-        if txs > 0:
-            if first_tx_idx is None:
-                first_tx_idx = idx
-            last_tx_idx = idx
-
-    if first_tx_idx is None:
-        return None
-
-    multi_block = last_tx_idx is not None and first_tx_idx < last_tx_idx
-    anchor_is_separate = first_tx_idx > 0
-    anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
-    load_blocks = blocks[anchor_idx : last_tx_idx + 1]
-    load_gas = gas_data[anchor_idx : last_tx_idx + 1]
-
-    load_tps_values = []
-    load_gps_values = []
-    block_times = []
-    for j in range(1, len(load_blocks)):
-        _, t_prev = load_blocks[j - 1]
-        _, t_curr = load_blocks[j]
-        bt = (t_curr - t_prev).total_seconds()
-        block_times.append(bt)
-
-        if bt > 0:
-            gu, _ = load_gas[j]
-            load_gps_values.append(gu / bt)
-        else:
-            # Keep index alignment with block_times so the stall filter below
-            # drops the right samples; a zero-length interval has no rate.
-            load_gps_values.append(None)
-
-        win_start = max(0, j + 1 - TPS_WINDOW)
-        window = load_blocks[win_start : j + 1]
-        if len(window) >= 2:
-            win_has_anchor = anchor_is_separate or win_start > 0
-            load_tps_values.append(
-                calculate_tps(window, anchor_is_separate=win_has_anchor)
-            )
-
-    # --- Detect stalled blocks ---
-    # Use the 25th-percentile block time as the "normal" baseline.
-    # Blocks slower than stall_mult × baseline are stalls (e.g. tx-flood
-    # overwhelming the proposer) and are excluded from timing summaries.
-    stall_indices = set()
-    if len(block_times) >= 4:
-        q1 = quantiles(block_times, n=4)[0]
-        stall_threshold = q1 * stall_mult
-        for j, bt in enumerate(block_times):
-            if bt > stall_threshold:
-                stall_indices.add(j)
-
-    steady_block_times = [
-        bt for j, bt in enumerate(block_times) if j not in stall_indices
-    ]
-    steady_tps_values = [
-        v for j, v in enumerate(load_tps_values) if j not in stall_indices
-    ]
-    steady_gps_values = [
-        v
-        for j, v in enumerate(load_gps_values)
-        if j not in stall_indices and v is not None
-    ]
-
-    counted = load_blocks[1:] if anchor_is_separate else load_blocks
-    total_txs = sum(n for n, _ in counted)
-    _, t_start = load_blocks[0]
-    _, t_end = load_blocks[-1]
-    load_duration = (t_end - t_start).total_seconds()
-
-    # overall TPS excluding stalls. block_times[j] is the interval ending at
-    # load_blocks[j + 1], so that block's txs/gas are what get excluded along
-    # with its time — numerator and denominator stay consistent (steady-only).
-    stall_time = sum(block_times[j] for j in stall_indices)
-    stall_txs = sum(load_blocks[j + 1][0] for j in stall_indices)
-    stall_gas = sum(load_gas[j + 1][0] for j in stall_indices)
-    adjusted_duration = load_duration - stall_time
-    steady_txs = total_txs - stall_txs
-    overall_tps = steady_txs / adjusted_duration if adjusted_duration > 0 else 0
-
-    peak_tps = max(steady_tps_values) if steady_tps_values else 0
-    median_tps = median(steady_tps_values) if steady_tps_values else 0
-
-    median_bt = median(steady_block_times) if steady_block_times else 0
-    fastest_bt = min(steady_block_times) if steady_block_times else 0
-    slowest_bt = max(steady_block_times) if steady_block_times else 0
-    p95_bt = _percentile(steady_block_times, 95)
-    p99_bt = _percentile(steady_block_times, 99)
-
-    num_tx_blocks = last_tx_idx - first_tx_idx + 1
-
-    # --- Gas metrics ---
-    counted_gas = load_gas[1:] if anchor_is_separate else load_gas
-    total_gas_used = sum(gu for gu, _ in counted_gas)
-    # Only gl == 0 is dropped: that means the block's gas was never measured
-    # (an unreachable block reads as (0, 0)). A block with a gas limit and zero
-    # gas used is an empty block, exactly the underutilization the saturation
-    # gate exists to catch, so it stays in the sample.
-    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0]
-    steady_gas_used = total_gas_used - stall_gas
-    overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
-    peak_gps = max(steady_gps_values) if steady_gps_values else 0
-    median_gps = median(steady_gps_values) if steady_gps_values else 0
-
-    # --- Per-tx gas from ETH block data (EVM gas units) ---
-    # Keyed off the block's gas limit for the same reason as gas_utilizations
-    # above: gl == 0 means the block's gas was never measured, while a measured
-    # block with zero gas used is real data.
-    tx_gas_list = [gu for gu, gl in per_tx_gas_values if gl > 0]
-
-    return {
-        "first_tx_idx": first_tx_idx,
-        "last_tx_idx": last_tx_idx,
-        "anchor_idx": anchor_idx,
-        "multi_block": multi_block,
-        "num_tx_blocks": num_tx_blocks,
-        "total_txs": total_txs,
-        "load_duration": load_duration,
-        "raw_avg_tps": total_txs / load_duration if load_duration > 0 else 0,
-        "overall_tps": overall_tps,
-        "peak_tps": peak_tps,
-        "median_tps": median_tps,
-        "stall_indices": stall_indices,
-        "stall_time": stall_time,
-        "adjusted_duration": adjusted_duration,
-        # heights of stalled blocks, as offsets from the queried `start`.
-        "stall_height_offsets": sorted(anchor_idx + 1 + j for j in stall_indices),
-        "total_gas_used": total_gas_used,
-        "gas_utilizations": gas_utilizations,
-        "overall_gps": overall_gps,
-        "peak_gps": peak_gps,
-        "median_gps": median_gps,
-        "tx_gas_list": tx_gas_list,
-        "steady_block_times": steady_block_times,
-        "median_bt": median_bt,
-        "fastest_bt": fastest_bt,
-        "slowest_bt": slowest_bt,
-        "p95_bt": p95_bt,
-        "p99_bt": p99_bt,
-        "total_failed_txs": total_failed_txs,
-        "total_counted_txs": total_counted_txs,
-    }
 
 
 def _print_load_summary_sections(fp, start, summary):
@@ -718,6 +204,296 @@ def _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp, mp_str=""
         )
 
 
+def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
+    """Fetch per-block timestamp/tx/gas/failed-tx/mempool data for
+    [start, end]. Pure data collection — no printing.
+
+    mempool_data: optional dict {block_height: (peak_n_txs, peak_n_bytes)}
+        collected during the load period by a MempoolMonitor. When omitted,
+        each height's mempool is queried live as the range is walked.
+
+    Returns a dict with parallel lists blocks/gas_data/mempool_snapshots
+    (one entry per height in [start, end]), per_tx_gas_values (one entry per
+    height with tx_count > 0), and the failed-tx totals.
+    """
+    blocks = []
+    gas_data = []
+    per_tx_gas_values = []
+    total_failed_txs = 0
+    total_counted_txs = 0
+    mempool_snapshots = []
+
+    for i in range(start, end + 1):
+        if eth:
+            timestamp, txs, gas_used, gas_limit = get_block_info_hybrid(
+                i, rpc, json_rpc
+            )
+        else:
+            timestamp, txs = get_block_info_cosmos(i, rpc)
+            gas_used, gas_limit = 0, 0
+
+        if txs > 0:
+            failed = _get_failed_tx_count(i, rpc)
+            # A block whose failure count couldn't be read contributes to
+            # neither side of the ratio, so total_counted_txs stays 0 when
+            # nothing was measurable and the failed-tx gate reports no data.
+            if failed is not None:
+                total_failed_txs += failed
+                total_counted_txs += txs
+            per_tx_gas_values.append((gas_used // txs, gas_limit))
+        gas_data.append((gas_used, gas_limit))
+        blocks.append((txs, timestamp))
+
+        if mempool_data is not None:
+            mp_txs, mp_bytes = mempool_data.get(i, (-1, -1))
+        else:
+            try:
+                mp_txs, mp_bytes = mempool_status(rpc)
+            except Exception:
+                mp_txs, mp_bytes = -1, -1
+        mempool_snapshots.append((mp_txs, mp_bytes))
+
+    return {
+        "blocks": blocks,
+        "gas_data": gas_data,
+        "per_tx_gas_values": per_tx_gas_values,
+        "total_failed_txs": total_failed_txs,
+        "total_counted_txs": total_counted_txs,
+        "mempool_snapshots": mempool_snapshots,
+    }
+
+
+def _print_blocks(fp, start, blocks, gas_data, mempool_snapshots):
+    prev_timestamp = None
+    for offset, ((txs, timestamp), (gas_used, _)) in enumerate(zip(blocks, gas_data)):
+        mp_txs, _ = mempool_snapshots[offset]
+        mp_str = f" mempool={mp_txs}" if mp_txs >= 0 else ""
+        _print_block_line(fp, start + offset, txs, gas_used, timestamp, prev_timestamp, mp_str)
+        prev_timestamp = timestamp
+
+
+def _print_mempool(fp, summary, mempool_snapshots):
+    """Print the Mempool (txpool) section and record mempool_min_pending on
+    the summary.
+
+    Excludes both edges of the window. The leading anchor block predates any
+    load tx, and the trailing block is where the last tx commits and the load
+    generator has already stopped, so both snapshot a drained mempool and
+    would drag mempool_min_pending to 0 and trip the saturation gate on a
+    healthy run. A single-tx-block window has no interior left, so it keeps
+    that one block rather than measuring nothing.
+    """
+    first_mp_idx = summary["first_tx_idx"]
+    last_mp_idx = summary["last_tx_idx"]
+    if last_mp_idx > first_mp_idx:
+        last_mp_idx -= 1
+    load_mp = mempool_snapshots[first_mp_idx : last_mp_idx + 1]
+    valid_mp = [n for n, _ in load_mp if n >= 0]
+    summary["mempool_min_pending"] = min(valid_mp) if valid_mp else None
+    if not valid_mp:
+        return
+
+    print(file=fp)
+    print("=== Mempool (txpool) ===", file=fp)
+    print(f"peak_mempool_txs {max(valid_mp)}", file=fp)
+    print(f"median_mempool_txs {median(valid_mp):.0f}", file=fp)
+    print(f"end_mempool_txs {valid_mp[-1]}", file=fp)
+    valid_mb = [b for _, b in load_mp if b >= 0]
+    if valid_mb:
+        print(
+            f"peak_mempool_bytes {max(valid_mb)}"
+            f" ({max(valid_mb) / 1024 / 1024:.1f} MiB)",
+            file=fp,
+        )
+
+
+def _print_blockstm(fp, summary, start, blocks, stm_data):
+    """Print the Block-STM section from live-collected stm_data, and record
+    avg_reexecution_ratio/avg_validation_ratio on the summary."""
+    stm_samples = []
+    if stm_data:
+        for idx in range(summary["first_tx_idx"], summary["last_tx_idx"] + 1):
+            height = start + idx
+            tx_count = blocks[idx][0]
+            if tx_count > 0 and height in stm_data:
+                executed, validated = stm_data[height]
+                stm_samples.append((executed, validated, tx_count))
+
+    summary["avg_reexecution_ratio"] = None
+    summary["avg_validation_ratio"] = None
+    if not stm_samples:
+        return
+
+    print(file=fp)
+    print(f"=== Block-STM ({len(stm_samples)} tx-blocks sampled) ===", file=fp)
+    total_exec = sum(e for e, _, _ in stm_samples)
+    total_valid = sum(v for _, v, _ in stm_samples)
+    total_blk_txs = sum(t for _, _, t in stm_samples)
+    avg_exec = total_exec / len(stm_samples)
+    avg_valid = total_valid / len(stm_samples)
+    avg_blk_txs = total_blk_txs / len(stm_samples)
+    print(f"avg_stm_executed_txs {avg_exec:.0f}", file=fp)
+    print(f"avg_stm_validated_txs {avg_valid:.0f}", file=fp)
+    print(f"avg_block_txs {avg_blk_txs:.0f}", file=fp)
+    if total_blk_txs > 0:
+        reexec_ratio = total_exec / total_blk_txs
+        summary["avg_reexecution_ratio"] = reexec_ratio
+        print(
+            f"avg_reexecution_ratio {reexec_ratio:.2f}x (1.00x = no conflicts)",
+            file=fp,
+        )
+    if total_exec > 0:
+        validation_ratio = total_valid / total_exec
+        summary["avg_validation_ratio"] = validation_ratio
+        print(f"avg_validation_ratio {validation_ratio:.2f}x", file=fp)
+
+
+def _print_consensus_timing(fp, prom_text, consensus_baseline, scope):
+    """Print the Consensus Stage Timing section."""
+    cons = scrape_consensus_metrics(prom_text, baseline=consensus_baseline)
+    if not cons:
+        return
+
+    print(file=fp)
+    print(f"=== Consensus Stage Timing ({scope}) ===", file=fp)
+
+    for key, label in [
+        ("abci_finalize_block", "FinalizeBlock (ABCI)"),
+        ("abci_commit", "Commit (ABCI)"),
+    ]:
+        if key in cons:
+            avg_s, cnt = cons[key]
+            print(f"avg_{key} {avg_s * 1000:.1f}ms ({cnt} samples)", file=fp)
+
+    if "finalize_block_ms" in cons:
+        avg_ms, cnt = cons["finalize_block_ms"]
+        print(
+            f"avg_block_processing {avg_ms:.1f}ms ({cnt} samples)",
+            file=fp,
+        )
+
+    step_order = [
+        "Propose",
+        "Prevote",
+        "PrevoteWait",
+        "Precommit",
+        "PrecommitWait",
+        "Commit",
+        "NewHeight",
+        "NewRound",
+    ]
+    for step in step_order:
+        key = f"step_{step}"
+        if key in cons:
+            avg_s, cnt = cons[key]
+            print(
+                f"avg_step_{step.lower()} {avg_s * 1000:.1f}ms" f" ({cnt} samples)",
+                file=fp,
+            )
+
+    if "block_interval" in cons:
+        avg_s, cnt = cons["block_interval"]
+        print(
+            f"avg_block_interval {avg_s * 1000:.0f}ms ({cnt} samples)",
+            file=fp,
+        )
+    for key, label in [
+        ("quorum_prevote_delay", "quorum_prevote_delay"),
+        ("quorum_precommit_delay", "quorum_precommit_delay"),
+    ]:
+        if key in cons:
+            val, _ = cons[key]
+            print(f"{label} {val * 1000:.1f}ms", file=fp)
+
+
+def _print_consensus_health(fp, prom_text, consensus_health_baseline, summary, scope):
+    """Print the Consensus Health section and record missing/byzantine
+    validator counts on the summary."""
+    health = scrape_consensus_health(prom_text, baseline=consensus_health_baseline)
+    # Carried on the summary, not just printed: a validator set that lost a
+    # member or reported byzantine behaviour is a consensus finding the
+    # caller has to be able to gate on.
+    summary["missing_validators"] = health["missing_validators"]
+    summary["byzantine_validators"] = health["byzantine_validators"]
+
+    print(file=fp)
+    print(f"=== Consensus Health ({scope}) ===", file=fp)
+    print(f"round_increments {health['round_increments']:.0f}", file=fp)
+    if health["current_round"] is not None:
+        print(f"current_round {health['current_round']:.0f}", file=fp)
+    print(f"rejected_proposals {health['rejected_proposals']:.0f}", file=fp)
+    print(f"late_votes {health['late_votes']:.0f}", file=fp)
+    print(f"duplicate_block_parts {health['duplicate_block_parts']:.0f}", file=fp)
+    print(f"duplicate_votes {health['duplicate_votes']:.0f}", file=fp)
+    print(
+        f"block_gossip_parts_mismatched {health['block_gossip_parts_mismatched']:.0f}",
+        file=fp,
+    )
+    if health["missing_validators"] is not None:
+        print(f"missing_validators {health['missing_validators']:.0f}", file=fp)
+    if health["byzantine_validators"] is not None:
+        print(f"byzantine_validators {health['byzantine_validators']:.0f}", file=fp)
+
+
+def _print_per_validator(fp, prom_text):
+    """Print the Per-Validator section."""
+    per_validator = scrape_per_validator_metrics(prom_text)
+    if not per_validator:
+        return
+
+    print(file=fp)
+    print("=== Per-Validator ===", file=fp)
+    for addr, stats in sorted(per_validator.items()):
+        missed = stats["missed_blocks"]
+        signed = stats["last_signed_height"]
+        power = stats["power"]
+        print(
+            f"{addr}"
+            f" missed_blocks={missed if missed is not None else 'N/A'}"
+            f" last_signed_height={signed if signed is not None else 'N/A'}"
+            f" power={power if power is not None else 'N/A'}",
+            file=fp,
+        )
+
+
+def _print_resources(fp, telemetry, node_exporter, prom_text, disk_net_baseline):
+    """Print the Resources section: Go runtime gauges (from telemetry) and
+    disk/network I/O deltas (from node_exporter)."""
+    if not (telemetry or node_exporter):
+        return
+
+    print(file=fp)
+    print("=== Resources ===", file=fp)
+    if telemetry:
+        go = resources.scrape_go_runtime(prom_text)
+        if go["rss_bytes"] is not None:
+            print(f"rss_bytes {go['rss_bytes']:.0f}", file=fp)
+        if go["goroutines"] is not None:
+            print(f"goroutines {go['goroutines']:.0f}", file=fp)
+        if go["heap_alloc_bytes"] is not None:
+            print(f"heap_alloc_bytes {go['heap_alloc_bytes']:.0f}", file=fp)
+    if node_exporter:
+        disk_net = resources.scrape_disk_net(
+            resources.fetch_node_exporter(node_exporter), baseline=disk_net_baseline
+        )
+        if disk_net is None:
+            print("disk_net N/A (node_exporter scrape returned no counters)", file=fp)
+        else:
+            # Scoped independently of the consensus baseline: the disk/net
+            # baseline scrape can fail on its own, leaving lifetime totals.
+            disk_scope = "load period" if disk_net_baseline else "node lifetime"
+            print(f"disk_read_bytes {disk_net['disk_read_bytes']:.0f} ({disk_scope})", file=fp)
+            print(f"disk_written_bytes {disk_net['disk_written_bytes']:.0f} ({disk_scope})", file=fp)
+            print(
+                f"network_receive_bytes {disk_net['network_receive_bytes']:.0f} ({disk_scope})",
+                file=fp,
+            )
+            print(
+                f"network_transmit_bytes {disk_net['network_transmit_bytes']:.0f} ({disk_scope})",
+                file=fp,
+            )
+
+
 def dump_block_stats(
     fp,
     rpc: str,
@@ -762,258 +538,43 @@ def dump_block_stats(
     if end is None:
         end = block_height(rpc)
 
-    blocks = []
-    gas_data = []
-    per_tx_gas_values = []
-    total_failed_txs = 0
-    total_counted_txs = 0
-    mempool_snapshots = []
+    collected = _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data)
+    blocks = collected["blocks"]
+    gas_data = collected["gas_data"]
+    mempool_snapshots = collected["mempool_snapshots"]
 
-    prev_timestamp = None
-    for i in range(start, end + 1):
-        if eth:
-            timestamp, txs, gas_used, gas_limit = get_block_info_hybrid(
-                i, rpc, json_rpc
-            )
-        else:
-            timestamp, txs = get_block_info_cosmos(i, rpc)
-            gas_used, gas_limit = 0, 0
-
-        if txs > 0:
-            failed = _get_failed_tx_count(i, rpc)
-            # A block whose failure count couldn't be read contributes to
-            # neither side of the ratio, so total_counted_txs stays 0 when
-            # nothing was measurable and the failed-tx gate reports no data.
-            if failed is not None:
-                total_failed_txs += failed
-                total_counted_txs += txs
-            per_tx_gas_values.append((gas_used // txs, gas_limit))
-        gas_data.append((gas_used, gas_limit))
-        blocks.append((txs, timestamp))
-
-        if mempool_data is not None:
-            mp_txs, mp_bytes = mempool_data.get(i, (-1, -1))
-        else:
-            try:
-                mp_txs, mp_bytes = mempool_status(rpc)
-            except Exception:
-                mp_txs, mp_bytes = -1, -1
-        mempool_snapshots.append((mp_txs, mp_bytes))
-
-        mp_str = f" mempool={mp_txs}" if mp_txs >= 0 else ""
-        _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp, mp_str)
-        prev_timestamp = timestamp
-
+    _print_blocks(fp, start, blocks, gas_data, mempool_snapshots)
     print(file=fp)
 
     summary = _analyze_load_window(
         blocks,
         gas_data,
-        per_tx_gas_values,
-        total_failed_txs=total_failed_txs,
-        total_counted_txs=total_counted_txs,
+        collected["per_tx_gas_values"],
+        total_failed_txs=collected["total_failed_txs"],
+        total_counted_txs=collected["total_counted_txs"],
     )
     if summary is None:
         print("no_load_period", file=fp)
         return None
 
     _print_load_summary_sections(fp, start, summary)
-
-    # --- Mempool / Tx-Pool summary ---
-    # Excludes both edges of the window. The leading anchor block predates any
-    # load tx, and the trailing block is where the last tx commits and the load
-    # generator has already stopped, so both snapshot a drained mempool and
-    # would drag mempool_min_pending to 0 and trip the saturation gate on a
-    # healthy run. A single-tx-block window has no interior left, so it keeps
-    # that one block rather than measuring nothing.
-    first_mp_idx = summary["first_tx_idx"]
-    last_mp_idx = summary["last_tx_idx"]
-    if last_mp_idx > first_mp_idx:
-        last_mp_idx -= 1
-    load_mp = mempool_snapshots[first_mp_idx : last_mp_idx + 1]
-    valid_mp = [n for n, _ in load_mp if n >= 0]
-    summary["mempool_min_pending"] = min(valid_mp) if valid_mp else None
-    if valid_mp:
-        print(file=fp)
-        print("=== Mempool (txpool) ===", file=fp)
-        print(f"peak_mempool_txs {max(valid_mp)}", file=fp)
-        print(f"median_mempool_txs {median(valid_mp):.0f}", file=fp)
-        print(f"end_mempool_txs {valid_mp[-1]}", file=fp)
-        valid_mb = [b for _, b in load_mp if b >= 0]
-        if valid_mb:
-            print(
-                f"peak_mempool_bytes {max(valid_mb)}"
-                f" ({max(valid_mb) / 1024 / 1024:.1f} MiB)",
-                file=fp,
-            )
+    _print_mempool(fp, summary, mempool_snapshots)
 
     # --- Prometheus-based metrics (block-stm + consensus) ---
     prom_text = _fetch_prometheus(telemetry)
 
-    # --- Block-STM from live-collected stm_data ---
-    stm_samples = []
-    if stm_data:
-        for idx in range(summary["first_tx_idx"], summary["last_tx_idx"] + 1):
-            height = start + idx
-            tx_count = blocks[idx][0]
-            if tx_count > 0 and height in stm_data:
-                executed, validated = stm_data[height]
-                stm_samples.append((executed, validated, tx_count))
+    _print_blockstm(fp, summary, start, blocks, stm_data)
 
-    summary["avg_reexecution_ratio"] = None
-    summary["avg_validation_ratio"] = None
-    if stm_samples:
-        print(file=fp)
-        print(f"=== Block-STM ({len(stm_samples)} tx-blocks sampled) ===", file=fp)
-        total_exec = sum(e for e, _, _ in stm_samples)
-        total_valid = sum(v for _, v, _ in stm_samples)
-        total_blk_txs = sum(t for _, _, t in stm_samples)
-        avg_exec = total_exec / len(stm_samples)
-        avg_valid = total_valid / len(stm_samples)
-        avg_blk_txs = total_blk_txs / len(stm_samples)
-        print(f"avg_stm_executed_txs {avg_exec:.0f}", file=fp)
-        print(f"avg_stm_validated_txs {avg_valid:.0f}", file=fp)
-        print(f"avg_block_txs {avg_blk_txs:.0f}", file=fp)
-        if total_blk_txs > 0:
-            reexec_ratio = total_exec / total_blk_txs
-            summary["avg_reexecution_ratio"] = reexec_ratio
-            print(
-                f"avg_reexecution_ratio {reexec_ratio:.2f}x (1.00x = no conflicts)",
-                file=fp,
-            )
-        if total_exec > 0:
-            validation_ratio = total_valid / total_exec
-            summary["avg_validation_ratio"] = validation_ratio
-            print(f"avg_validation_ratio {validation_ratio:.2f}x", file=fp)
-
-    cons = scrape_consensus_metrics(prom_text, baseline=consensus_baseline)
     scope = "load period" if consensus_baseline else "node lifetime"
-    if cons:
-        print(file=fp)
-        print(f"=== Consensus Stage Timing ({scope}) ===", file=fp)
-
-        for key, label in [
-            ("abci_finalize_block", "FinalizeBlock (ABCI)"),
-            ("abci_commit", "Commit (ABCI)"),
-        ]:
-            if key in cons:
-                avg_s, cnt = cons[key]
-                print(f"avg_{key} {avg_s * 1000:.1f}ms ({cnt} samples)", file=fp)
-
-        if "finalize_block_ms" in cons:
-            avg_ms, cnt = cons["finalize_block_ms"]
-            print(
-                f"avg_block_processing {avg_ms:.1f}ms ({cnt} samples)",
-                file=fp,
-            )
-
-        step_order = [
-            "Propose",
-            "Prevote",
-            "PrevoteWait",
-            "Precommit",
-            "PrecommitWait",
-            "Commit",
-            "NewHeight",
-            "NewRound",
-        ]
-        for step in step_order:
-            key = f"step_{step}"
-            if key in cons:
-                avg_s, cnt = cons[key]
-                print(
-                    f"avg_step_{step.lower()} {avg_s * 1000:.1f}ms" f" ({cnt} samples)",
-                    file=fp,
-                )
-
-        if "block_interval" in cons:
-            avg_s, cnt = cons["block_interval"]
-            print(
-                f"avg_block_interval {avg_s * 1000:.0f}ms ({cnt} samples)",
-                file=fp,
-            )
-        for key, label in [
-            ("quorum_prevote_delay", "quorum_prevote_delay"),
-            ("quorum_precommit_delay", "quorum_precommit_delay"),
-        ]:
-            if key in cons:
-                val, _ = cons[key]
-                print(f"{label} {val * 1000:.1f}ms", file=fp)
+    _print_consensus_timing(fp, prom_text, consensus_baseline, scope)
 
     summary["missing_validators"] = None
     summary["byzantine_validators"] = None
     if telemetry:
-        health = scrape_consensus_health(prom_text, baseline=consensus_health_baseline)
-        # Carried on the summary, not just printed: a validator set that lost a
-        # member or reported byzantine behaviour is a consensus finding the
-        # caller has to be able to gate on.
-        summary["missing_validators"] = health["missing_validators"]
-        summary["byzantine_validators"] = health["byzantine_validators"]
-        print(file=fp)
-        print(f"=== Consensus Health ({scope}) ===", file=fp)
-        print(f"round_increments {health['round_increments']:.0f}", file=fp)
-        if health["current_round"] is not None:
-            print(f"current_round {health['current_round']:.0f}", file=fp)
-        print(f"rejected_proposals {health['rejected_proposals']:.0f}", file=fp)
-        print(f"late_votes {health['late_votes']:.0f}", file=fp)
-        print(f"duplicate_block_parts {health['duplicate_block_parts']:.0f}", file=fp)
-        print(f"duplicate_votes {health['duplicate_votes']:.0f}", file=fp)
-        print(
-            f"block_gossip_parts_mismatched {health['block_gossip_parts_mismatched']:.0f}",
-            file=fp,
-        )
-        if health["missing_validators"] is not None:
-            print(f"missing_validators {health['missing_validators']:.0f}", file=fp)
-        if health["byzantine_validators"] is not None:
-            print(f"byzantine_validators {health['byzantine_validators']:.0f}", file=fp)
+        _print_consensus_health(fp, prom_text, consensus_health_baseline, summary, scope)
+        _print_per_validator(fp, prom_text)
 
-        per_validator = scrape_per_validator_metrics(prom_text)
-        if per_validator:
-            print(file=fp)
-            print("=== Per-Validator ===", file=fp)
-            for addr, stats in sorted(per_validator.items()):
-                missed = stats["missed_blocks"]
-                signed = stats["last_signed_height"]
-                power = stats["power"]
-                print(
-                    f"{addr}"
-                    f" missed_blocks={missed if missed is not None else 'N/A'}"
-                    f" last_signed_height={signed if signed is not None else 'N/A'}"
-                    f" power={power if power is not None else 'N/A'}",
-                    file=fp,
-                )
-
-    if telemetry or node_exporter:
-        from .resources import fetch_node_exporter, scrape_disk_net, scrape_go_runtime
-
-        print(file=fp)
-        print("=== Resources ===", file=fp)
-        if telemetry:
-            go = scrape_go_runtime(prom_text)
-            if go["rss_bytes"] is not None:
-                print(f"rss_bytes {go['rss_bytes']:.0f}", file=fp)
-            if go["goroutines"] is not None:
-                print(f"goroutines {go['goroutines']:.0f}", file=fp)
-            if go["heap_alloc_bytes"] is not None:
-                print(f"heap_alloc_bytes {go['heap_alloc_bytes']:.0f}", file=fp)
-        if node_exporter:
-            disk_net = scrape_disk_net(fetch_node_exporter(node_exporter), baseline=disk_net_baseline)
-            if disk_net is None:
-                print("disk_net N/A (node_exporter scrape returned no counters)", file=fp)
-            else:
-                # Scoped independently of the consensus baseline: the disk/net
-                # baseline scrape can fail on its own, leaving lifetime totals.
-                disk_scope = "load period" if disk_net_baseline else "node lifetime"
-                print(f"disk_read_bytes {disk_net['disk_read_bytes']:.0f} ({disk_scope})", file=fp)
-                print(f"disk_written_bytes {disk_net['disk_written_bytes']:.0f} ({disk_scope})", file=fp)
-                print(
-                    f"network_receive_bytes {disk_net['network_receive_bytes']:.0f} ({disk_scope})",
-                    file=fp,
-                )
-                print(
-                    f"network_transmit_bytes {disk_net['network_transmit_bytes']:.0f} ({disk_scope})",
-                    file=fp,
-                )
+    _print_resources(fp, telemetry, node_exporter, prom_text, disk_net_baseline)
 
     return summary
 

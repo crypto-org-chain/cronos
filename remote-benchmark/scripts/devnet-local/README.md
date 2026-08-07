@@ -6,14 +6,14 @@ test cases, grouped in this one folder.
 
 ## Prerequisites
 
-Same as `../../docs/pystarport-3-validator-benchmark-setup.md`: Nix +
+Same as `../../../docs/pystarport-3-validator-benchmark-setup.md`: Nix +
 cachix (`cronos`, `dapp`) installed, and `poetry install` run once in
 `remote-benchmark/`.
 
 ## Usage
 
 ```bash
-cd remote-benchmark/local
+cd remote-benchmark/scripts/devnet-local
 ./run-benchmark.sh <1|3> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-erc20-transfer>
 ```
 
@@ -21,7 +21,7 @@ This initializes a fresh devnet under a temp data dir, patches its genesis
 with a predeployed ERC20 contract, starts it, funds test accounts (count
 read from the chosen config's `num_accounts`, matching the wiki), generates
 and sends load, prints TPS/gas stats, writes a timestamped, self-contained HTML
-report to `report/YYYYMMDD-HHMMSS.html`, then tears the devnet down (temp dir
+report to `../../local/report/YYYYMMDD-HHMMSS.html`, then tears the devnet down (temp dir
 removed, all `cronosd`/`pystarport` processes killed) on exit — `Ctrl-C` at
 any point triggers the same cleanup. The report starts with every benchmark
 parameter and includes summary metrics plus block-level charts for transaction
@@ -50,7 +50,7 @@ To run the same fund/check/bench/report workflow against an already-running
 network described by an arbitrary config file, use:
 
 ```bash
-./run-config-benchmark.sh --config ../sample-config.yaml
+./run-config-benchmark.sh --config ../../sample-config.yaml
 ```
 
 The account range defaults to `1..num_accounts` from the config. It can be
@@ -58,24 +58,24 @@ overridden, along with benchmark and report options:
 
 ```bash
 ./run-config-benchmark.sh \
-  --config ../sample-config.yaml \
+  --config ../../sample-config.yaml \
   --start-account 101 \
   --end-account 200 \
   --nonce 0 \
-  --output report/testnet.html
+  --output ../../local/report/testnet.html
 ```
 
 By default the script funds and checks the selected accounts before running
 the benchmark. Use `--skip-fund` for accounts funded in an earlier run and
 `--skip-check` when checking a large `unique-per-tx` account set would dominate
 setup time. Run `./run-config-benchmark.sh --help` for all options. Reports are
-written to `report/<config-name>-YYYYMMDD-HHMMSS.html` unless `--output` is
+written to `../../local/report/<config-name>-YYYYMMDD-HHMMSS.html` unless `--output` is
 provided. The script is POSIX-shell compatible, so both invocation forms are
 supported:
 
 ```bash
-sh run-config-benchmark.sh --config ../sample-config-anvil.yaml
-./run-config-benchmark.sh --config ../sample-config-anvil.yaml
+sh run-config-benchmark.sh --config ../../sample-config-anvil.yaml
+./run-config-benchmark.sh --config ../../sample-config-anvil.yaml
 ```
 
 When an Ethereum-mode endpoint identifies itself as Anvil, the script seeds the
