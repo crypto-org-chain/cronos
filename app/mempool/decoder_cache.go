@@ -5,6 +5,7 @@ import (
 	"container/list"
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"math"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
@@ -25,6 +26,10 @@ var xxhashSeed = func() uint64 {
 // shardCount is the number of independent LRU stripes in DecodeCache. Must be a
 // power of two so shardMask can replace modulo in shard selection.
 const shardCount = 16
+
+// defaultCacheSize is the tx encode/decode cache capacity fallback for callers
+// that construct a cache with size 0 directly.
+const defaultCacheSize = cmdcfg.DefaultMaxTxPerBlock
 
 // shardMask maps a hash to a shard via h&shardMask (== h%shardCount for a
 // power-of-two shardCount).
@@ -103,16 +108,23 @@ type DecodeCache struct {
 // payload cap maxTxBytes. Pass 0 for either to use defaults.
 func NewDecodeCache(size, maxTxBytes uint) *DecodeCache {
 	if size == 0 {
-		size = cmdcfg.DefaultTxCacheSize
+		size = defaultCacheSize
 	}
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
 	}
-	shardCap := (int(size) + shardCount - 1) / shardCount
+	shardCapUint := size / shardCount
+	if size%shardCount != 0 {
+		shardCapUint++
+	}
+	shardCap := math.MaxInt / shardCount
+	if shardCapUint <= uint(shardCap) {
+		shardCap = int(shardCapUint)
+	}
 	c := &DecodeCache{maxTxBytes: int(maxTxBytes)}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap
-		c.shards[i].items = make(map[uint64]*list.Element, shardCap)
+		c.shards[i].items = make(map[uint64]*list.Element, preallocEntries(shardCap))
 	}
 	return c
 }

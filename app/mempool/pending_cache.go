@@ -1,0 +1,51 @@
+package mempool
+
+import (
+	"sync"
+	"sync/atomic"
+
+	"github.com/cosmos/cosmos-sdk/telemetry"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+// pendingTxCache caches a PendingTxs() snapshot so concurrent RPC readers
+// single-flight onto one pool walk instead of one each. Invalidated purely on
+// tx admission and block completion.
+type pendingTxCache struct {
+	mu          sync.Mutex
+	enabled     bool
+	snapshot    []sdk.Tx
+	loaded      bool
+	loadedEpoch uint64
+	epoch       atomic.Uint64
+}
+
+func (c *pendingTxCache) get(load func() []sdk.Tx) []sdk.Tx {
+	if !c.enabled {
+		return load()
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	epoch := c.epoch.Load()
+	if c.loaded && c.loadedEpoch == epoch {
+		telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "hit")
+		return c.copySnapshot()
+	}
+
+	telemetry.IncrCounter(1, "cronos", "mempool", "pending", "cache", "miss")
+	c.snapshot, c.loaded, c.loadedEpoch = load(), true, epoch
+	return c.copySnapshot()
+}
+
+func (c *pendingTxCache) copySnapshot() []sdk.Tx {
+	out := make([]sdk.Tx, len(c.snapshot))
+	copy(out, c.snapshot)
+	return out
+}
+
+// invalidate marks the snapshot stale.
+func (c *pendingTxCache) invalidate() {
+	c.epoch.Add(1)
+}

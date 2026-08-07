@@ -181,13 +181,13 @@ const (
 	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
 	FlagMempoolRecheck    = "mempool.recheck"      // CometBFT's own recheck toggle; app-mempool recheck honors it too
 
-	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
-	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagTxCacheSize                = "cronos.tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
-	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
-	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
-	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
+	FlagDisableTxReplacement         = "cronos.disable-tx-replacement"
+	FlagDisableOptimisticExecution   = "cronos.disable-optimistic-execution"
+	FlagTxCacheSize                  = "cronos.mempool-tx-cache-size"
+	FlagMempoolGossipTTL             = "cronos.mempool-gossip-ttl"
+	FlagMaxTxPerBlock                = "cronos.mempool-txs-per-block"
+	FlagMempoolTxTTLEnabled          = "cronos.mempool-tx-ttl-enabled"
+	FlagMempoolPendingTxCacheEnabled = "cronos.mempool-pending-tx-cache-enabled"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -354,6 +354,19 @@ type App struct {
 	dummyCheckTx bool
 }
 
+func parseBoolFlag(flag string, v interface{}) bool {
+	switch v.(type) {
+	case bool, string:
+	default:
+		panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", flag, v, v))
+	}
+	parsed, err := cast.ToBoolE(v)
+	if err != nil {
+		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
+	}
+	return parsed
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -370,21 +383,20 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
-	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
-	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
+	txsPerBlock := cmdcfg.DefaultMaxTxPerBlock
+	if v := appOpts.Get(FlagMaxTxPerBlock); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMaxTxPerBlock, v))
 		}
 		txsPerBlock = parsed
 	}
 	var activeDecoder sdk.TxDecoder
-	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
-	defaultTxCacheSize := 2 * txsPerBlock
-	if txsPerBlock == 0 {
-		defaultTxCacheSize = -1
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	txCacheSize := -1
+	if mempoolMaxTxs > 0 {
+		txCacheSize = mempoolMaxTxs
 	}
-	txCacheSize := defaultTxCacheSize
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
@@ -394,23 +406,14 @@ func New(
 			txCacheSize = parsed
 		}
 	}
-	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
-	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
-		}
-		if parsed > 0 {
-			maxTxBytes = parsed
-		}
+	maxTxBytes := 0
+	if v := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); v > 0 {
+		maxTxBytes = v
 	}
 	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
-			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
-		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
@@ -444,7 +447,6 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	var senderCache *cache.SenderCache
 	if mempoolMaxTxs <= 0 {
 		logger.Info("sender cache disabled")
@@ -462,13 +464,12 @@ func New(
 		gossipTTL = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
-	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {
-		// Strict parse: a silent negative is meaningless; 0 explicitly disables.
-		parsed, err := cast.ToInt64E(v)
-		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTTLNumBlocks, v))
-		}
-		ttlNumBlocks = parsed
+	if v := appOpts.Get(FlagMempoolTxTTLEnabled); v != nil && !parseBoolFlag(FlagMempoolTxTTLEnabled, v) {
+		ttlNumBlocks = 0
+	}
+	pendingCacheEnabled := true
+	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
+		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
@@ -503,18 +504,7 @@ func New(
 	recheckEnabled := true
 	if mempoolType == cronosmempool.TypeApp {
 		if v := appOpts.Get(FlagMempoolRecheck); v != nil {
-			// cast.ToBoolE silently coerces nonzero numbers (e.g. 2) to true.
-			switch v.(type) {
-			case bool, string:
-			default:
-				panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", FlagMempoolRecheck, v, v))
-			}
-			parsed, err := cast.ToBoolE(v)
-			if err != nil {
-				// v is a string here (bool never errors, other types panicked above).
-				panic(fmt.Errorf("invalid %s %q: must be a boolean", FlagMempoolRecheck, v))
-			}
-			recheckEnabled = parsed
+			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
@@ -560,7 +550,7 @@ func New(
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
 			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
-				logger.Warn("mempool.type=app: tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}
 			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
@@ -584,7 +574,7 @@ func New(
 			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			// Register EVM module preverifier
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
