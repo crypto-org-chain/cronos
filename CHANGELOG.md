@@ -20,6 +20,7 @@
  
 ### Chores
 
+* [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
 
 
