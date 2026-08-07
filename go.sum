@@ -290,8 +290,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3 h1:kw6+G2l6M09MF0YAGkzKPDna/iw2hFYDaGr5aN2B8kM=
 github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3/go.mod h1:KcZvZTqdLgOisktAoWwwcS2fgO4E110r44KxEGyq8SI=
-github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260729145615-5264d5f57f84 h1:g4UyAVitx1C3PKU7bo7q2IXgNPXRl2/tIQZvEF+2G88=
-github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260729145615-5264d5f57f84/go.mod h1:d+mzrQ+PV+6t63HomWzLx+OoFeprkjO/b+0ih+LfvIo=
+github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260805154329-743fc8dc9dbc h1:1bj7uwX9gxoxqmWSOQs6+Iz2jse95DRu6w1OQNfiiis=
+github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260805154329-743fc8dc9dbc/go.mod h1:d+mzrQ+PV+6t63HomWzLx+OoFeprkjO/b+0ih+LfvIo=
 github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260806235227-c224b839a4b1 h1:r1349nKosU4EEMdXcXO8ALe9CQaViS4uU3p8l8w3h30=
 github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260806235227-c224b839a4b1/go.mod h1:pDMnEFkR+qMEeiTUA07p0Xk4qM1qaCHrHqbR96kJGbQ=
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260806235227-c224b839a4b1 h1:RYDGSK9kxGpj/KeA+gfLPEd96x/0/FLHnIrKzzJ0MH4=

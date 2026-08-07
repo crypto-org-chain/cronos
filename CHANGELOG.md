@@ -21,10 +21,7 @@
 ### Chores
 
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
-
-### Chores
-
-* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to prevent historical-query use-after-free failures and reduce merge-iterator copy overhead.
+* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to fix historical-query use-after-free and merge-iterator overhead.
 
 
 *Jul 16, 2026*
