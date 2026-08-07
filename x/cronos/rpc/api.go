@@ -96,8 +96,6 @@ func checkTxsResultsLength(block *coretypes.ResultBlock, blockResults *coretypes
 	return nil
 }
 
-// getBlockDetail returns valid, length-matched resBlock/blockRes only when err is nil;
-// on error all other return values are zero.
 func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock *coretypes.ResultBlock,
 	blockNumber int64,
