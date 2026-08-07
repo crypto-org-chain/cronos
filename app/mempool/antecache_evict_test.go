@@ -33,17 +33,22 @@ func anteKey(tx *ethTx) (string, uint64) {
 
 type multiMsgTx struct{ msgs []sdk.Msg }
 
-func (t *multiMsgTx) GetMsgs() []sdk.Msg                    { return t.msgs }
+// GetMsgs implements sdk.Tx.
+func (t *multiMsgTx) GetMsgs() []sdk.Msg { return t.msgs }
+
+// GetMsgsV2 implements sdk.Tx.
 func (t *multiMsgTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 
 type AnteCacheEvictTestSuite struct {
 	suite.Suite
 }
 
+// TestAnteCacheEvictTestSuite runs the AnteCacheEvictTestSuite.
 func TestAnteCacheEvictTestSuite(t *testing.T) {
 	suite.Run(t, new(AnteCacheEvictTestSuite))
 }
 
+// TestEvictScenarios covers the ways a tx's ante-cache entry gets cleared on eviction.
 func (s *AnteCacheEvictTestSuite) TestEvictScenarios() {
 	testCases := []struct {
 		name string

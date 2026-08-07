@@ -20,6 +20,7 @@ type AnteCacheBoundTestSuite struct {
 	suite.Suite
 }
 
+// TestAnteCacheBoundTestSuite runs the AnteCacheBoundTestSuite.
 func TestAnteCacheBoundTestSuite(t *testing.T) {
 	suite.Run(t, new(AnteCacheBoundTestSuite))
 }
@@ -36,6 +37,7 @@ func (s *AnteCacheBoundTestSuite) newApp(opts simtestutil.AppOptionsMap) *cache.
 	return ac
 }
 
+// TestBound verifies the AnteCache stays bounded under each mempool.max-txs configuration.
 func (s *AnteCacheBoundTestSuite) TestBound() {
 	testCases := []struct {
 		name     string
