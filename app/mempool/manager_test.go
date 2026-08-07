@@ -10,10 +10,13 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	dbm "github.com/cosmos/cosmos-db"
 	protov2 "google.golang.org/protobuf/proto"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log/v2"
 
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -289,6 +292,26 @@ func TestCheckTxHandler_MapsSuccess(t *testing.T) {
 	}
 }
 
+func TestCheckTxHandler_InvalidatesPendingCache(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	check := a.CheckTxHandler()
+	before := a.pendingTxCache.epoch.Load()
+
+	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+	}
+	resp, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("tx")})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Code != abci.CodeTypeOK {
+		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
+	}
+	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
+		t.Fatalf("CheckTxHandler must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
+	}
+}
+
 func TestCheckTxHandler_MapsError(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
@@ -493,6 +516,18 @@ func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
 	}
 }
 
+func TestManagerInsertTx_InvalidatesPendingCache(t *testing.T) {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	before := a.pendingTxCache.epoch.Load()
+
+	if resp, _ := a.InsertTx([]byte("tx")); resp.Code != abci.CodeTypeOK {
+		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
+	}
+	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
+		t.Fatalf("admit must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
+	}
+}
+
 func TestManagerInsertTx_RegistersCanonicalBytes(t *testing.T) {
 	runner := &stubRunner{}
 	tx := &ptrTx{}
@@ -585,6 +620,12 @@ func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool)
 	}
 }
 
+func (p *fakePool) UnorderedTxs(context.Context) []sdk.Tx {
+	txs := make([]sdk.Tx, len(p.txs))
+	copy(txs, p.txs)
+	return txs
+}
+
 func TestManagerPendingTxs(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	if got := a.PendingTxs(); got != nil {
@@ -597,6 +638,176 @@ func TestManagerPendingTxs(t *testing.T) {
 	got := a.PendingTxs()
 	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
 		t.Fatalf("want both pool txs, got %d", len(got))
+	}
+}
+
+func newCachedManager(enabled bool, pool *fakePool) *Manager {
+	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
+	a.pendingTxCache.enabled = enabled
+	a.mpool = pool
+	return a
+}
+
+func TestManagerPendingTxsCache(t *testing.T) {
+	tx1, tx2 := &ptrTx{id: 1}, &ptrTx{id: 2}
+
+	t.Run("nil mpool ignores cache", func(t *testing.T) {
+		a := newCachedManager(true, nil)
+		a.mpool = nil
+		if got := a.PendingTxs(); got != nil {
+			t.Fatalf("nil mpool must report no pending txs regardless of cache, got %d", len(got))
+		}
+	})
+
+	t.Run("hit until invalidated", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a := newCachedManager(true, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 || got[0] != tx1 {
+			t.Fatalf("want [tx1], got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 1 || got[0] != tx1 {
+			t.Fatalf("expected stale cached snapshot [tx1], got %d entries", len(got))
+		}
+	})
+
+	t.Run("empty pool caches", func(t *testing.T) {
+		pool := &fakePool{}
+		a := newCachedManager(true, pool)
+
+		if got := a.PendingTxs(); len(got) != 0 {
+			t.Fatalf("want empty snapshot, got %d", len(got))
+		}
+		pool.txs = []sdk.Tx{tx1}
+		if got := a.PendingTxs(); len(got) != 0 {
+			t.Fatalf("empty snapshot must still be a cache hit, got %d", len(got))
+		}
+	})
+
+	t.Run("block boundary invalidates", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a := newCachedManager(true, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		a.StageRecheckSenders(1, nil)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("expected re-scan after commit invalidation, got %d", len(got))
+		}
+	})
+
+	t.Run("invalidation during load is not swallowed", func(t *testing.T) {
+		pool := &hookPool{fakePool: fakePool{txs: []sdk.Tx{tx1}}}
+		a := newCachedManager(true, nil)
+		a.mpool = pool
+		// A block committing while the walk is in flight: the snapshot it produces
+		// already predates the invalidation.
+		pool.onScan = func() { a.StageRecheckSenders(1, nil) }
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("snapshot loaded across an invalidation must not be served, got %d", len(got))
+		}
+	})
+
+	t.Run("disabled cache always re-scans", func(t *testing.T) {
+		pool := &fakePool{txs: []sdk.Tx{tx1}}
+		a := newCachedManager(false, pool)
+
+		if got := a.PendingTxs(); len(got) != 1 {
+			t.Fatalf("want 1 tx, got %d", len(got))
+		}
+		pool.txs = append(pool.txs, tx2)
+		if got := a.PendingTxs(); len(got) != 2 {
+			t.Fatalf("disabled cache must re-scan every call, got %d", len(got))
+		}
+	})
+}
+
+func TestManagerPendingTxsSingleFlight(t *testing.T) {
+	var loads atomic.Int64
+	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}, &ptrTx{id: 2}}}, scans: &loads}
+	a := newCachedManager(true, nil)
+	a.mpool = pool
+
+	const goroutines = 16
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range 64 {
+				if got := a.PendingTxs(); len(got) != 2 {
+					t.Errorf("want 2 txs, got %d", len(got))
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	if got := loads.Load(); got != 1 {
+		t.Fatalf("expected concurrent callers to single-flight onto 1 pool scan, got %d", got)
+	}
+}
+
+// countingPool counts pool scans, to distinguish cache hits from re-walks.
+type countingPool struct {
+	fakePool
+	scans *atomic.Int64
+}
+
+func (p *countingPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+	p.scans.Add(1)
+	p.fakePool.SelectBy(ctx, txs, cb)
+}
+
+func (p *countingPool) UnorderedTxs(ctx context.Context) []sdk.Tx {
+	p.scans.Add(1)
+	return p.fakePool.UnorderedTxs(ctx)
+}
+
+// hookPool runs onScan once, mid-walk, to interleave an event with a pool scan.
+type hookPool struct {
+	fakePool
+	onScan func()
+}
+
+func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+	if p.onScan != nil {
+		hook := p.onScan
+		p.onScan = nil
+		hook()
+	}
+	p.fakePool.SelectBy(ctx, txs, cb)
+}
+
+func (p *hookPool) UnorderedTxs(ctx context.Context) []sdk.Tx {
+	if p.onScan != nil {
+		hook := p.onScan
+		p.onScan = nil
+		hook()
+	}
+	return p.fakePool.UnorderedTxs(ctx)
+}
+
+func TestNewManagerWiresPendingCache(t *testing.T) {
+	var scans atomic.Int64
+	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}}}, scans: &scans}
+	app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
+
+	a := NewManager(app, nil, noopEncoder, pool, nil, nil, 0, 0, true, true)
+	defer a.Close()
+
+	a.PendingTxs()
+	a.PendingTxs()
+	if got := scans.Load(); got != 1 {
+		t.Fatalf("NewManager must wire the pending cache; want 1 pool scan, got %d", got)
 	}
 }
 
