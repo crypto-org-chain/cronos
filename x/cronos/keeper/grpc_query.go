@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync/atomic"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,7 +26,20 @@ const (
 	// ReplayBlockGasCap caps per-message EVM gas in a ReplayBlock query.
 	// Since historical blocks may have used different limits, we use a fixed upper bound value.
 	ReplayBlockGasCap = 60_000_000
+
+	// replayBlockConcurrency bounds how many ReplayBlock queries may run their
+	// EVM replay loop at once.
+	replayBlockConcurrency = 4
+
+	// replayBlockMaxQueued bounds how many callers may wait for a free slot.
+	replayBlockMaxQueued = 4 * replayBlockConcurrency
 )
+
+// replayBlockSem limits concurrent ReplayBlock executions across all calls to this process.
+var replayBlockSem = make(chan struct{}, replayBlockConcurrency)
+
+// replayBlockQueued counts callers currently running or waiting for a slot.
+var replayBlockQueued int32
 
 var _ types.QueryServer = Keeper{}
 
@@ -65,6 +79,22 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	if len(req.Msgs) > MaxReplayBlockMsgs {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"too many messages in ReplayBlock request: %d (max %d)", len(req.Msgs), MaxReplayBlockMsgs)
+	}
+
+	// Reject once too many callers are already running or queued.
+	if atomic.AddInt32(&replayBlockQueued, 1) > replayBlockMaxQueued {
+		atomic.AddInt32(&replayBlockQueued, -1)
+		return nil, status.Error(codes.ResourceExhausted, "too many concurrent ReplayBlock queries")
+	}
+	defer atomic.AddInt32(&replayBlockQueued, -1)
+
+	// Wait for a free execution slot; a client disconnect frees the caller
+	// without consuming a slot.
+	select {
+	case replayBlockSem <- struct{}{}:
+		defer func() { <-replayBlockSem }()
+	case <-goCtx.Done():
+		return nil, status.FromContextError(goCtx.Err()).Err()
 	}
 
 	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
@@ -110,6 +140,11 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 	// we assume the message executions are successful, they are filtered in json-rpc api
 	for _, msg := range req.Msgs {
+		// abort if the caller is already gone
+		if err := ctx.Err(); err != nil {
+			return nil, status.FromContextError(err).Err()
+		}
+
 		// deduct fee
 		// populate the `From` field
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {

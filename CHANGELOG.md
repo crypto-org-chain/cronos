@@ -12,6 +12,7 @@
 
 ### Bug fixes
 
+* [#2179](https://github.com/crypto-org-chain/cronos/pull/2179) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
 * [#2176](https://github.com/crypto-org-chain/cronos/pull/2176) fix(app): retry block list decryption instead of caching the blob before it is applied.
 * [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
@@ -22,7 +23,6 @@
 
 * [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
-
 
 *Jul 16, 2026*
 
