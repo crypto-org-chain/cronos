@@ -12,9 +12,10 @@ def _dt(seconds):
 
 
 def _patch_common(monkeypatch, blocks):
-    monkeypatch.setattr(
-        stats_module, "get_block_info_cosmos", lambda h, rpc: blocks[h]
-    )
+    def fake_blockchain_range(lo, hi, rpc):
+        return {h: (blocks[h][1], blocks[h][0].isoformat()) for h in range(lo, hi + 1)}
+
+    monkeypatch.setattr(stats_module, "blockchain_range", fake_blockchain_range)
     monkeypatch.setattr(stats_module, "mempool_status", lambda rpc: (0, 0))
     monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: 0)
 
@@ -101,6 +102,30 @@ def test_dump_block_stats_leaves_failed_tx_gate_unevaluated_when_unmeasurable(mo
     assert summary["total_counted_txs"] == 0
     assert summary["total_failed_txs"] == 0
     assert evaluate_saturation(summary)[1] != []
+
+
+def test_dump_block_stats_eth_mode_sources_timestamps_from_blockchain_range(monkeypatch):
+    # eth=True must not call `block()` per height - timestamps come from the
+    # same chunked /blockchain fetch as eth=False, and only gas/tx data comes
+    # from a per-height eth_getBlockByNumber call.
+    blocks = {2: (_dt(0), 0), 3: (_dt(1), 2), 4: (_dt(2), 0)}
+    gas_and_txs = {2: (0, 0, 0), 3: (2, 100, 1000), 4: (0, 0, 0)}
+    _patch_common(monkeypatch, blocks)
+    monkeypatch.setattr(stats_module, "block", _fail_if_called)
+    monkeypatch.setattr(
+        stats_module, "_get_block_gas_and_txs", lambda h, json_rpc: gas_and_txs[h]
+    )
+
+    summary = dump_block_stats(
+        io.StringIO(), "http://rpc", "http://json-rpc", eth=True, start=2, end=4,
+    )
+
+    assert summary["total_counted_txs"] == 2
+    assert summary["tx_gas_list"] == [50]
+
+
+def _fail_if_called(*args, **kwargs):
+    raise AssertionError("block() should not be called in the eth=True path")
 
 
 def test_dump_block_stats_reports_disk_net_na_when_the_scrape_fails(monkeypatch):

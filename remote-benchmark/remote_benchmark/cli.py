@@ -221,7 +221,7 @@ def send_txs(config_path, sync, path):
     payload = ujson.loads(Path(path).read_text())
     txs = payload["txs"]
     num_accounts = payload["num_accounts"]
-    rpcs = cfg.json_rpcs if cfg.mode == "eth" else cfg.rpcs
+    rpcs = cfg.json_rpc_candidates if cfg.mode == "eth" else cfg.rpc_candidates
     failed = asyncio.run(
         send_round_robin(
             txs,
@@ -521,7 +521,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         failed = asyncio.run(
             send_round_robin(
                 txs,
-                cfg.rpcs,
+                cfg.rpc_candidates,
                 batch_size=batch_size,
                 batch_interval=batch_interval,
                 num_accounts=num_accounts,

@@ -44,9 +44,10 @@ class FakeMonitor:
 
 def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0", "http://node1", "http://node2"],
+        rpc_candidates=["http://node0", "http://node1", "http://node2"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",
@@ -65,8 +66,10 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     )
     heights = iter([171, 173, 174, 175])
     loaded_txs = {174: ["tx-1"], 175: ["tx-2", "tx-3"]}
+    send_calls = []
 
-    async def fake_send(*_args, **_kwargs):
+    async def fake_send(_txs, rpcs, **_kwargs):
+        send_calls.append(rpcs)
         return 0
 
     def fake_dump(fp, *, start, end, **_kwargs):
@@ -83,9 +86,10 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
         runner_module,
-        "block_txs",
-        lambda height, _rpc: loaded_txs.get(height, []),
-        raising=False,
+        "blockchain_range",
+        lambda lo, hi, _rpc: {
+            h: (len(loaded_txs.get(h, [])), "") for h in range(lo, hi + 1)
+        },
     )
     monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
     monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
@@ -102,6 +106,9 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
     assert "block 175 txs=2" in result.output
     assert "committed_cosmos_txs 3/3" in result.output
     assert "no_load_period" not in result.output
+    # Regression: load-sending must round-robin across the whole cluster's
+    # rpc_candidates, not narrow to cfg.primary's own tunnel pool.
+    assert send_calls == [cfg.rpc_candidates]
 
 
 def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
@@ -109,9 +116,10 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
     waiting for it to commit would time out even though nothing else is
     wrong - expected_txs must shrink by the reported failure count instead."""
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0", "http://node1", "http://node2"],
+        rpc_candidates=["http://node0", "http://node1", "http://node2"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",
@@ -146,9 +154,10 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
     monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
         runner_module,
-        "block_txs",
-        lambda height, _rpc: loaded_txs.get(height, []),
-        raising=False,
+        "blockchain_range",
+        lambda lo, hi, _rpc: {
+            h: (len(loaded_txs.get(h, [])), "") for h in range(lo, hi + 1)
+        },
     )
     monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
     monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
@@ -168,9 +177,10 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
 
 def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(json_rpc="http://anvil"),
+        primary=SimpleNamespace(json_rpc="http://anvil", json_rpc_candidates=["http://anvil"]),
         endpoints=_ONE_ENDPOINT,
         json_rpcs=["http://anvil"],
+        json_rpc_candidates=["http://anvil"],
         global_seq=0,
         num_txs=5,
         tx_type="simple-transfer",
@@ -227,9 +237,10 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
 
 def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0"],
+        rpc_candidates=["http://node0"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",
@@ -294,7 +305,7 @@ def test_fund_mode_override_uses_cosmos_for_eth_config(monkeypatch):
 
     fake_eth = FakeEth()
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(json_rpc="http://unused", rpc="http://cosmos-rpc"),
+        primary=SimpleNamespace(json_rpc="http://unused", rpc="http://cosmos-rpc", json_rpc_candidates=["http://unused"], rpc_candidates=["http://cosmos-rpc"]),
         global_seq=0,
         gas_price=1,
         chain_id=777,
@@ -424,9 +435,10 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
     # carries 12 EVM txs, not the configured batch_size=100. Pacing on 100 would
     # send 1 wire tx/s (12 tx/s) for a 100 tx/s target.
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0"],
+        rpc_candidates=["http://node0"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",
@@ -519,9 +531,10 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
     # range, and the soak derives its own from rate x duration: cfg.num_txs=1
     # would validate one account while gen signs from 6000.
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0"],
+        rpc_candidates=["http://node0"],
         global_seq=0,
         num_txs=1,
         sender_strategy="unique-per-tx",
@@ -642,9 +655,10 @@ def test_fund_exits_non_zero_when_the_broadcast_is_rejected(monkeypatch):
 
 def _cosmos_bench_cfg(**overrides):
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0"],
+        rpc_candidates=["http://node0"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",
@@ -679,7 +693,11 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
     monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
     monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
     monkeypatch.setattr(
-        runner_module, "block_txs", lambda height, _rpc: loaded_txs.get(height, []), raising=False
+        runner_module,
+        "blockchain_range",
+        lambda lo, hi, _rpc: {
+            h: (len(loaded_txs.get(h, [])), "") for h in range(lo, hi + 1)
+        },
     )
     monkeypatch.setattr(runner_module, "MempoolMonitor", FakeMonitor)
     monkeypatch.setattr(runner_module, "BlockSTMMonitor", FakeMonitor)
@@ -1153,9 +1171,10 @@ def test_bench_honors_the_configured_commit_timeout(monkeypatch):
     # legitimately outlast the 120s default. Ignoring the per-testcase value
     # would cut the wait short and report a partial commit count as a failure.
     cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None),
+        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
         endpoints=_ONE_ENDPOINT,
         rpcs=["http://node0"],
+        rpc_candidates=["http://node0"],
         global_seq=0,
         num_txs=1,
         sender_strategy="reuse",

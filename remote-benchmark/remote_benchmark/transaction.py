@@ -26,6 +26,12 @@ CHAIN_ID = 777
 # raised from 1024: with send_batch_size=8000, a lower cap queued requests at
 # the connector instead of the node, which just moved the bottleneck client-side.
 CONNECTION_POOL_SIZE = 10000
+# Caps simultaneous new-connection bursts per rpc endpoint. Without this, a
+# large send_batch_size opens hundreds/thousands of connections through a
+# single SSH tunnel at once, which has crashed the local ssh -L process
+# outright (observed with send_batch_size=4000, 3-way tunnel pool, ~1300
+# concurrent opens per tunnel) rather than just queuing slowly.
+CONNECTION_POOL_PER_HOST = 200
 TXS_DIR = "txs"
 PROGRESS_INTERVAL_S = 3
 
@@ -474,7 +480,9 @@ async def send(
     ``asyncio.gather`` uncaught - it crashes the send loop rather than being
     counted here.
     """
-    connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
+    connector = aiohttp.TCPConnector(
+        limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
+    )
     started = time.monotonic()
     last_log = started
     failed = 0
@@ -568,7 +576,9 @@ async def send_round_robin(
             deadline_s=deadline_s,
         )
 
-    connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
+    connector = aiohttp.TCPConnector(
+        limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
+    )
     started = time.monotonic()
     last_log = started
     failed = 0

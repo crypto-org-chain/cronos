@@ -12,7 +12,7 @@ def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold()
     per_block = {201: 2, 202: 3, 203: 1, 204: 1, 205: 1}
     end, committed = runner_module._wait_for_committed(
         get_height=lambda: 205,
-        count_txs=lambda height: per_block.get(height, 0),
+        count_txs_batch=lambda lo, hi: {h: per_block.get(h, 0) for h in range(lo, hi + 1)},
         start=200,
         end=201,
         expected_txs=5,
@@ -20,6 +20,106 @@ def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold()
 
     assert end == 202
     assert committed == 5
+
+
+def test_wait_for_committed_txs_batches_the_scan_via_blockchain_range(monkeypatch):
+    # blockchain_range can return many heights per call (e.g. a /blockchain
+    # page); the loop must stop at the height inside that batch that actually
+    # hits the threshold, not consume the whole batch.
+    metas = {201: (2, "t201"), 202: (3, "t202"), 203: (1, "t203")}
+    calls = []
+
+    def fake_blockchain_range(lo, hi, rpc):
+        calls.append((lo, hi))
+        return {h: metas[h] for h in range(lo, hi + 1) if h in metas}
+
+    monkeypatch.setattr(runner_module, "blockchain_range", fake_blockchain_range)
+
+    end, committed = runner_module.wait_for_committed_txs(
+        "http://rpc", start=200, end=203, expected_txs=5
+    )
+
+    assert end == 202
+    assert committed == 5
+    assert calls == [(201, 203)]
+
+
+def test_wait_for_committed_eth_txs_scans_the_whole_chunk(monkeypatch):
+    # Regression: count_txs_batch(lo, hi) used to fetch only `lo`, silently
+    # dropping the rest of the chunk instead of scanning [lo, hi].
+    per_block = {201: 2, 202: 3, 203: 1}
+    calls = []
+
+    def fake_block_eth(height, json_rpc):
+        calls.append(height)
+        return {"transactions": [None] * per_block.get(height, 0)}
+
+    monkeypatch.setattr(runner_module, "block_eth", fake_block_eth)
+
+    end, committed = runner_module.wait_for_committed_eth_txs(
+        "http://json-rpc", start=200, end=203, expected_txs=5
+    )
+
+    assert end == 202
+    assert committed == 5
+    assert calls == [201, 202, 203]
+
+
+def test_wait_for_committed_eth_txs_caps_waste_past_threshold_to_a_small_chunk(
+    monkeypatch,
+):
+    # eth has no batch endpoint - each height is its own HTTP call, so a large
+    # chunk would eagerly fetch (and pay for) many heights past the point the
+    # threshold is already satisfied. A small eth-specific chunk bounds that
+    # waste, unlike the Cosmos path where one /blockchain call is cheap however
+    # many heights it covers.
+    per_block = {201: 5}
+    calls = []
+
+    def fake_block_eth(height, json_rpc):
+        calls.append(height)
+        return {"transactions": [None] * per_block.get(height, 0)}
+
+    monkeypatch.setattr(runner_module, "block_eth", fake_block_eth)
+
+    end, committed = runner_module.wait_for_committed_eth_txs(
+        "http://json-rpc", start=200, end=1000, expected_txs=5
+    )
+
+    assert end == 201
+    assert committed == 5
+    # The dict comprehension behind count_txs_batch still fetches every height
+    # in the chunk eagerly before the threshold check runs - a small chunk
+    # caps that waste to 20 calls instead of the Cosmos-sized 200.
+    assert calls == list(range(201, 221))
+
+
+def test_wait_for_committed_backs_off_on_an_empty_batch(monkeypatch):
+    # A batch call that reports zero heights must not spin the loop with no
+    # delay - it should sleep before retrying, same as the "caught up to the
+    # chain tip" branch already does.
+    sleeps = []
+    monkeypatch.setattr(runner_module.time, "sleep", lambda s: sleeps.append(s))
+
+    calls = []
+
+    def count_txs_batch(lo, hi):
+        calls.append((lo, hi))
+        if len(calls) >= 3:
+            return {lo: 5}
+        return {}
+
+    end, committed = runner_module._wait_for_committed(
+        get_height=lambda: 205,
+        count_txs_batch=count_txs_batch,
+        start=200,
+        end=205,
+        expected_txs=5,
+    )
+
+    assert committed == 5
+    assert len(calls) == 3
+    assert sleeps == [0.2, 0.2]
 
 
 def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):

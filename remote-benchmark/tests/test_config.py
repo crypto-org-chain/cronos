@@ -71,3 +71,63 @@ def test_weighted_mix_accepts_valid_mix_weights():
         }
     )
     assert cfg.mix_weights == {"erc20-transfer-hot": 0.5, "uniswap-swap": 0.5}
+
+
+def test_endpoint_candidates_default_to_single_url():
+    endpoint = Config.model_validate(BASE_CONFIG).primary
+    assert endpoint.rpc_candidates == ["http://127.0.0.1:26657"]
+    assert endpoint.json_rpc_candidates == ["http://127.0.0.1:26651"]
+
+
+def test_endpoint_candidates_include_pool():
+    cfg = Config.model_validate(
+        {
+            **BASE_CONFIG,
+            "endpoints": [
+                {
+                    **BASE_CONFIG["endpoints"][0],
+                    "rpc_pool": ["http://127.0.0.1:18658", "http://127.0.0.1:18659"],
+                    "json_rpc_pool": ["http://127.0.0.1:18546"],
+                }
+            ],
+        }
+    )
+    endpoint = cfg.primary
+    assert endpoint.rpc_candidates == [
+        "http://127.0.0.1:26657",
+        "http://127.0.0.1:18658",
+        "http://127.0.0.1:18659",
+    ]
+    assert endpoint.json_rpc_candidates == [
+        "http://127.0.0.1:26651",
+        "http://127.0.0.1:18546",
+    ]
+
+
+def test_config_candidates_flatten_across_endpoints_and_pools():
+    # Load-sending must round-robin across every node in the cluster, not
+    # just the primary's own tunnel pool - regression: a prior change
+    # narrowed this to cfg.primary.rpc_candidates, silently funneling all
+    # load to node0 on any multi-endpoint config.
+    cfg = Config.model_validate(
+        {
+            **BASE_CONFIG,
+            "endpoints": [
+                {
+                    "name": "node0",
+                    "rpc": "http://node0",
+                    "json_rpc": "http://node0-evm",
+                    "rpc_pool": ["http://node0-pool1"],
+                },
+                {
+                    "name": "node1",
+                    "rpc": "http://node1",
+                    "json_rpc": "http://node1-evm",
+                },
+            ],
+        }
+    )
+
+    assert cfg.rpc_candidates == ["http://node0", "http://node0-pool1", "http://node1"]
+    assert cfg.json_rpc_candidates == ["http://node0-evm", "http://node1-evm"]
+

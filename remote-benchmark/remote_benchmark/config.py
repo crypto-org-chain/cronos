@@ -13,6 +13,13 @@ class Endpoint(BaseModel):
     name: str
     rpc: str
     json_rpc: str
+    # Extra tunnels (e.g. independent `ssh -L` processes) to the same node's
+    # rpc/json_rpc, so hot polling paths can round-robin across separate
+    # underlying TCP connections instead of funneling all churn through one -
+    # a single SSH-multiplexed connection head-of-line-blocks every channel
+    # riding it on a hiccup, including brand-new ones.
+    rpc_pool: list[str] = Field(default_factory=list)
+    json_rpc_pool: list[str] = Field(default_factory=list)
     # Operator-declared config not observable over RPC (mempool.type,
     # libp2p enabled, Block-STM workers, ...), recorded verbatim into the
     # node fingerprint by results.py.
@@ -20,6 +27,14 @@ class Endpoint(BaseModel):
     # node_exporter base URL for this node's host (disk/network I/O). Host-level,
     # so it's per-endpoint rather than the single global `telemetry` URL.
     node_exporter: str | None = None
+
+    @property
+    def rpc_candidates(self) -> list[str]:
+        return [self.rpc] + self.rpc_pool
+
+    @property
+    def json_rpc_candidates(self) -> list[str]:
+        return [self.json_rpc] + self.json_rpc_pool
 
 
 class Config(BaseModel):
@@ -70,6 +85,17 @@ class Config(BaseModel):
     @property
     def json_rpcs(self) -> list[str]:
         return [e.json_rpc for e in self.endpoints]
+
+    @property
+    def rpc_candidates(self) -> list[str]:
+        """Every rpc URL across every endpoint, tunnel pools included - what
+        load-sending should round-robin across, as opposed to a single
+        endpoint's own `rpc_candidates` used for polling that endpoint."""
+        return [url for e in self.endpoints for url in e.rpc_candidates]
+
+    @property
+    def json_rpc_candidates(self) -> list[str]:
+        return [url for e in self.endpoints for url in e.json_rpc_candidates]
 
     @property
     def primary(self) -> Endpoint:

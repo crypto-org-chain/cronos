@@ -28,10 +28,20 @@ from .stats import (
     scrape_consensus_raw,
 )
 from .transaction import gen, physical_account_range, send_round_robin
-from .utils import Tee, block_eth, block_height, block_txs, eth_block_number, gen_account
+from .utils import Tee, block_eth, block_height, blockchain_range, eth_block_number, gen_account
 
 LOAD_COMMIT_TIMEOUT = Config.model_fields["commit_timeout"].default
 PROGRESS_INTERVAL_S = 3
+# Cap each count_txs_batch call to this many heights so a scan spanning
+# thousands of blocks still checks the progress-print/timeout deadline
+# between chunks, instead of blocking for the whole remaining range in one
+# uninterruptible call.
+WAIT_SCAN_CHUNK = 200
+# eth_getBlockByNumber has no batch endpoint, so each height in the chunk is
+# its own HTTP call - a chunk this small still checks the deadline often but
+# caps how many heights get fetched past the point the commit threshold is
+# already hit.
+WAIT_SCAN_CHUNK_ETH = 20
 
 
 def tx_options(cfg) -> dict:
@@ -43,12 +53,24 @@ def tx_options(cfg) -> dict:
 
 
 def _wait_for_committed(
-    get_height, count_txs, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
+    get_height,
+    count_txs_batch,
+    start,
+    end,
+    expected_txs,
+    timeout=LOAD_COMMIT_TIMEOUT,
+    chunk=WAIT_SCAN_CHUNK,
 ):
     """Extend the sample until `expected_txs` have been counted committed.
 
     ``start`` is the pre-send anchor and can still contain setup traffic,
-    so only count txs committed after it.
+    so only count txs committed after it. ``count_txs_batch(lo, hi)`` returns
+    a ``{height: num_txs}`` map for ``[lo, hi]``. For callers backed by a real
+    batch endpoint (e.g. CometBFT's /blockchain page) a single call can cover
+    many heights cheaply, so ``chunk`` can stay large. Callers with no batch
+    endpoint (e.g. per-height eth_getBlockByNumber) still fetch one height per
+    call internally, so a small ``chunk`` limits how many heights get fetched
+    past the point where the threshold is already satisfied.
     """
     next_height = start + 1
     committed_txs = 0
@@ -57,16 +79,24 @@ def _wait_for_committed(
     last_log = started
 
     while True:
-        while next_height <= end:
-            committed_txs += count_txs(next_height)
-            next_height += 1
-            if committed_txs >= expected_txs:
-                # stop at the height that actually hit the threshold, not the
-                # (possibly further-extended) outer `end` - returning `end`
-                # here overshoots and lets downstream block-stats recount
-                # blocks past the drain point, inflating totals past what was
-                # sent.
-                return next_height - 1, committed_txs
+        if next_height <= end:
+            chunk_end = min(next_height + chunk - 1, end)
+            batch = count_txs_batch(next_height, chunk_end)
+            for height in sorted(batch):
+                committed_txs += batch[height]
+                next_height = height + 1
+                if committed_txs >= expected_txs:
+                    # stop at the height that actually hit the threshold, not
+                    # the (possibly further-extended) outer `end` -
+                    # returning `end` here overshoots and lets downstream
+                    # block-stats recount blocks past the drain point,
+                    # inflating totals past what was sent.
+                    return height, committed_txs
+            if not batch:
+                # A batch call that reports zero heights (e.g. a partial
+                # /blockchain page) leaves next_height unadvanced - sleep so a
+                # persistently empty response backs off instead of busy-looping.
+                time.sleep(0.2)
 
         now = time.monotonic()
         if now - last_log >= PROGRESS_INTERVAL_S:
@@ -80,18 +110,19 @@ def _wait_for_committed(
         if now >= deadline:
             return end, committed_txs
 
-        current = get_height()
-        if current > end:
-            end = current
-        else:
-            time.sleep(0.2)
+        if next_height > end:
+            current = get_height()
+            if current > end:
+                end = current
+            else:
+                time.sleep(0.2)
 
 
 def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
     """Extend the sample until all generated Cosmos txs are committed."""
     return _wait_for_committed(
         lambda: block_height(rpc),
-        lambda height: len(block_txs(height, rpc) or []),
+        lambda lo, hi: {h: n for h, (n, _) in blockchain_range(lo, hi, rpc).items()},
         start,
         end,
         expected_txs,
@@ -105,11 +136,14 @@ def wait_for_committed_eth_txs(
     """Extend the sample until all generated Ethereum txs are committed."""
     return _wait_for_committed(
         lambda: eth_block_number(json_rpc),
-        lambda height: len(block_eth(height, json_rpc)["transactions"]),
+        lambda lo, hi: {
+            h: len(block_eth(h, json_rpc)["transactions"]) for h in range(lo, hi + 1)
+        },
         start,
         end,
         expected_txs,
         timeout,
+        chunk=WAIT_SCAN_CHUNK_ETH,
     )
 
 
@@ -220,20 +254,20 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
     stats_out = Tee(sys.stdout, stats_buffer) if capture_stats else sys.stdout
 
     if cfg.mode == "eth":
-        load_start = eth_block_number(cfg.primary.json_rpc)
+        load_start = eth_block_number(cfg.primary.json_rpc_candidates)
         print("sending txs...", file=sys.stderr)
         failed = _send_and_report_failures(
             txs,
-            cfg.json_rpcs,
+            cfg.json_rpc_candidates,
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
             num_accounts=num_accounts,
             probe_batches=probe_batches,
         )
-        load_end = eth_block_number(cfg.primary.json_rpc)
+        load_end = eth_block_number(cfg.primary.json_rpc_candidates)
         load_end, committed_txs = wait_for_committed_eth_txs(
-            cfg.primary.json_rpc,
+            cfg.primary.json_rpc_candidates,
             load_start,
             load_end,
             len(txs) - failed,
@@ -241,14 +275,14 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
         )
         summary = dump_eth_block_stats(
             stats_out,
-            json_rpc=cfg.primary.json_rpc,
+            json_rpc=cfg.primary.json_rpc_candidates,
             start=load_start,
             end=load_end,
         )
         print(f"committed_eth_txs {committed_txs}/{len(txs)}")
     else:
-        mempool_monitor = MempoolMonitor(cfg.primary.rpc)
-        stm_monitor = BlockSTMMonitor(cfg.primary.rpc, cfg.telemetry)
+        mempool_monitor = MempoolMonitor(cfg.primary.rpc_candidates)
+        stm_monitor = BlockSTMMonitor(cfg.primary.rpc_candidates, cfg.telemetry)
         prom_baseline_text = _fetch_prometheus(cfg.telemetry)
         consensus_baseline = scrape_consensus_raw(prom_baseline_text)
         consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
@@ -266,7 +300,7 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 file=sys.stderr,
             )
 
-        load_start = block_height(cfg.primary.rpc)
+        load_start = block_height(cfg.primary.rpc_candidates)
         mempool_monitor.start()
         stm_monitor.start()
         committed_txs = 0
@@ -275,15 +309,15 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             print("sending txs...", file=sys.stderr)
             failed = _send_and_report_failures(
                 txs,
-                cfg.rpcs,
+                cfg.rpc_candidates,
                 batch_size=cfg.send_batch_size,
                 batch_interval=cfg.send_interval,
                 num_accounts=num_accounts,
                 probe_batches=probe_batches,
             )
-            load_end = block_height(cfg.primary.rpc)
+            load_end = block_height(cfg.primary.rpc_candidates)
             load_end, committed_txs = wait_for_committed_txs(
-                cfg.primary.rpc,
+                cfg.primary.rpc_candidates,
                 load_start,
                 load_end,
                 len(txs) - failed,
@@ -295,8 +329,8 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
 
         summary = dump_block_stats(
             stats_out,
-            rpc=cfg.primary.rpc,
-            json_rpc=cfg.primary.json_rpc,
+            rpc=cfg.primary.rpc_candidates,
+            json_rpc=cfg.primary.json_rpc_candidates,
             telemetry=cfg.telemetry,
             start=load_start,
             end=load_end,

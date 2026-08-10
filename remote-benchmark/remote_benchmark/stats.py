@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from statistics import median
 
@@ -23,12 +24,18 @@ from .utils import (
     block_eth,
     block_height,
     block_results,
+    blockchain_range,
     eth_block_number,
     mempool_status,
 )
 from .window import TPS_WINDOW, _analyze_load_window, _percentile, calculate_tps
 
 log = logging.getLogger(__name__)
+
+# Number of concurrent /block_results fetches for the failed-tx detail pass -
+# same order of magnitude as transaction.py's send concurrency, bounded so a
+# huge load window doesn't flood the SSH tunnel with simultaneous requests.
+FAILED_TX_FETCH_WORKERS = 16
 
 
 def get_block_info_cosmos(height, rpc):
@@ -65,25 +72,21 @@ def _get_failed_tx_count(height, rpc):
         return None
 
 
-def get_block_info_hybrid(height, rpc, json_rpc):
+def _get_block_gas_and_txs(height, json_rpc):
+    """Ethereum JSON-RPC-only fetch of tx count and gas data for one height.
+    Timestamps come from a separate, chunked /blockchain fetch instead of a
+    per-height Cosmos /block call - see _collect_block_range.
     """
-    Use Cosmos RPC for timestamps (sub-second precision) and
-    Ethereum JSON-RPC for tx counts and gas data.
-
-    Returns (timestamp, tx_count, gas_used, gas_limit).
-    """
-    cosmos_blk = block(height, rpc)
-    timestamp = datetime.fromisoformat(cosmos_blk["result"]["block"]["header"]["time"])
     eth_blk = block_eth(height, json_rpc)
     txs = len(eth_blk["transactions"])
     gas_used, gas_limit = _extract_gas(eth_blk)
-    return timestamp, txs, gas_used, gas_limit
+    return txs, gas_used, gas_limit
 
 
 def get_block_info_eth_full(height, json_rpc):
     """
     Use plain Ethereum JSON-RPC only (no Cosmos RPC) for timestamp, tx count,
-    and gas data. This is the eth-mode analog of get_block_info_hybrid, for
+    and gas data. This is the eth-mode analog of _get_block_gas_and_txs, for
     nodes (e.g. Anvil) with no CometBFT/Cosmos RPC.
 
     Returns (timestamp, tx_count, gas_used, gas_limit).
@@ -223,17 +226,35 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
     total_counted_txs = 0
     mempool_snapshots = []
 
-    for i in range(start, end + 1):
-        if eth:
-            timestamp, txs, gas_used, gas_limit = get_block_info_hybrid(
-                i, rpc, json_rpc
+    # /blockchain returns up to BLOCKCHAIN_PAGE_SIZE block_metas per call
+    # (timestamp + tx count), so this replaces one /block call per height
+    # with a handful of calls for the whole range.
+    metas = blockchain_range(start, end, rpc)
+
+    if eth:
+        block_info = {
+            i: (datetime.fromisoformat(metas[i][1]), *_get_block_gas_and_txs(i, json_rpc))
+            for i in range(start, end + 1)
+        }
+    else:
+        block_info = {
+            i: (datetime.fromisoformat(metas[i][1]), metas[i][0], 0, 0)
+            for i in range(start, end + 1)
+        }
+    heights_with_txs = [i for i in range(start, end + 1) if block_info[i][1] > 0]
+    with ThreadPoolExecutor(max_workers=FAILED_TX_FETCH_WORKERS) as pool:
+        failed_counts = dict(
+            zip(
+                heights_with_txs,
+                pool.map(lambda h: _get_failed_tx_count(h, rpc), heights_with_txs),
             )
-        else:
-            timestamp, txs = get_block_info_cosmos(i, rpc)
-            gas_used, gas_limit = 0, 0
+        )
+
+    for i in range(start, end + 1):
+        timestamp, txs, gas_used, gas_limit = block_info[i]
 
         if txs > 0:
-            failed = _get_failed_tx_count(i, rpc)
+            failed = failed_counts[i]
             # A block whose failure count couldn't be read contributes to
             # neither side of the ratio, so total_counted_txs stays 0 when
             # nothing was measurable and the failed-tx gate reports no data.
@@ -496,8 +517,8 @@ def _print_resources(fp, telemetry, node_exporter, prom_text, disk_net_baseline)
 
 def dump_block_stats(
     fp,
-    rpc: str,
-    json_rpc: str,
+    rpc: str | list[str],
+    json_rpc: str | list[str],
     eth: bool = True,
     telemetry: str = None,
     start: int = 2,
@@ -579,7 +600,7 @@ def dump_block_stats(
     return summary
 
 
-def dump_eth_block_stats(fp, json_rpc: str, start: int = 2, end: int = None):
+def dump_eth_block_stats(fp, json_rpc: str | list[str], start: int = 2, end: int = None):
     """
     Dump per-block stats and summary metrics using plain Ethereum JSON-RPC
     only (no Cosmos/CometBFT RPC, no Prometheus telemetry) — for nodes like
