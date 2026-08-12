@@ -250,6 +250,17 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
             )
         )
 
+    # mempool_status has no historical query - it always reports the current
+    # live snapshot, so when mempool_data wasn't captured during the run
+    # (the post-hoc `stats` command), querying it per height in the loop
+    # below would just fetch the same value len(range) times. Fetch once.
+    live_mempool_snapshot = None
+    if mempool_data is None:
+        try:
+            live_mempool_snapshot = mempool_status(rpc)
+        except Exception:
+            live_mempool_snapshot = (-1, -1)
+
     for i in range(start, end + 1):
         timestamp, txs, gas_used, gas_limit = block_info[i]
 
@@ -268,10 +279,7 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
         if mempool_data is not None:
             mp_txs, mp_bytes = mempool_data.get(i, (-1, -1))
         else:
-            try:
-                mp_txs, mp_bytes = mempool_status(rpc)
-            except Exception:
-                mp_txs, mp_bytes = -1, -1
+            mp_txs, mp_bytes = live_mempool_snapshot
         mempool_snapshots.append((mp_txs, mp_bytes))
 
     return {

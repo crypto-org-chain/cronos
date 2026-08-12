@@ -247,7 +247,7 @@ def stats(config_path, count):
         current = eth_block_number(cfg.primary.json_rpc)
         dump_eth_block_stats(
             sys.stdout,
-            json_rpc=cfg.primary.json_rpc,
+            json_rpc=cfg.primary.json_rpc_candidates,
             start=max(2, current - count),
             end=current,
         )
@@ -256,8 +256,8 @@ def stats(config_path, count):
     current = block_height(cfg.primary.rpc)
     dump_block_stats(
         sys.stdout,
-        rpc=cfg.primary.rpc,
-        json_rpc=cfg.primary.json_rpc,
+        rpc=cfg.primary.rpc_candidates,
+        json_rpc=cfg.primary.json_rpc_candidates,
         telemetry=cfg.telemetry,
         start=max(2, current - count),
         end=current,

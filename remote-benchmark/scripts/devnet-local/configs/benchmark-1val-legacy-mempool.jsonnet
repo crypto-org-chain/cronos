@@ -50,7 +50,7 @@
       // PrepareProposal falls back to NoOpMempool, which selects txs in
       // arbitrary gossip-arrival order instead of nonce/priority order.
       mempool: {
-        'max-txs': 50000,
+        'max-txs': -1,
       },
       evm: {
         'block-executor': 'block-stm',

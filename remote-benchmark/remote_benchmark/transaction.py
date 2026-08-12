@@ -386,6 +386,17 @@ def build_cosmos_tx(*txs: EthTx, msg_version="1.4", evm_denom=DEFAULT_DENOM) -> 
 # mean the same thing, and a benchmark run must recognize whichever it gets.
 DUPLICATE_SEND_MARKERS = ("already exists in cache", "tx already seen")
 
+# sdkerrors.ErrWrongSequence's registered description (x/auth/ante's
+# SigVerificationDecorator). A rejection with this text means the tx's own
+# bytes are fine and it will succeed if resent once earlier nonces for the
+# same sender land - so it's worth retrying instead of counting as failed.
+# ethermint EVM txs raise a different, unmatched error (ErrInvalidSequence),
+# so this only ever fires for mode="cosmos".
+WRONG_SEQUENCE_MARKER = "incorrect account sequence"
+RETRY = "retry"
+RETRY_INTERVAL_S = 1.0
+MAX_RETRY_ROUNDS = 30
+
 
 def json_rpc_send_body(raw, method="broadcast_tx_async"):
     return {
@@ -434,9 +445,34 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
             return False
         result = data["result"]
         if result["code"] != 0:
+            if mode == "cosmos" and WRONG_SEQUENCE_MARKER in result["log"]:
+                return RETRY
             print("tx is invalid, won't retry,", result["log"])
             return False
         return True
+
+
+async def _drain_retries(session, pending, mode):
+    """Resend ``pending`` (raw, rpc) txs rejected with ErrWrongSequence.
+
+    Each round waits ``RETRY_INTERVAL_S`` for earlier nonces to land on-chain,
+    then resends via ``broadcast_tx_sync`` (needed to see whether it's still
+    a sequence gap). Returns the count still failing once ``MAX_RETRY_ROUNDS``
+    is exhausted.
+    """
+    for _ in range(MAX_RETRY_ROUNDS):
+        if not pending:
+            break
+        await asyncio.sleep(RETRY_INTERVAL_S)
+        tasks = [
+            asyncio.ensure_future(async_sendtx(session, raw, rpc, True, mode))
+            for raw, rpc in pending
+        ]
+        results = await asyncio.gather(*tasks)
+        pending = [
+            item for item, result in zip(pending, results) if result == RETRY
+        ]
+    return len(pending)
 
 
 async def send(
@@ -479,6 +515,11 @@ async def send(
     raises out of ``async_sendtx``, which propagates through
     ``asyncio.gather`` uncaught - it crashes the send loop rather than being
     counted here.
+
+    A ``sync`` rejection with ``ErrWrongSequence`` isn't counted as failed
+    immediately - it means the tx itself is fine and just arrived before an
+    earlier nonce for the same sender, so it's queued and resent (unchanged)
+    once the run's batches are done, giving the chain time to catch up.
     """
     connector = aiohttp.TCPConnector(
         limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
@@ -486,6 +527,7 @@ async def send(
     started = time.monotonic()
     last_log = started
     failed = 0
+    pending_retry = []
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -500,9 +542,13 @@ async def send(
             ]
             results = await asyncio.gather(*tasks)
             failed += results.count(False)
+            pending_retry.extend(
+                (raw, rpc) for raw, result in zip(chunk, results) if result == RETRY
+            )
             last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)
+        failed += await _drain_retries(session, pending_retry, mode)
     return failed
 
 
@@ -582,6 +628,7 @@ async def send_round_robin(
     started = time.monotonic()
     last_log = started
     failed = 0
+    pending_retry = []
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
@@ -590,21 +637,78 @@ async def send_round_robin(
                 break
             chunk = txs[i : i + batch_size]
             batch_sync = sync or (i // batch_size) < probe_batches
+            chunk_rpcs = [rpcs[((i + j) % num_accounts) % len(rpcs)] for j in range(len(chunk))]
             tasks = [
                 asyncio.ensure_future(
-                    async_sendtx(
-                        session,
-                        raw,
-                        rpcs[((i + j) % num_accounts) % len(rpcs)],
-                        batch_sync,
-                        mode,
-                    )
+                    async_sendtx(session, raw, rpc, batch_sync, mode)
                 )
-                for j, raw in enumerate(chunk)
+                for raw, rpc in zip(chunk, chunk_rpcs)
             ]
             results = await asyncio.gather(*tasks)
             failed += results.count(False)
+            pending_retry.extend(
+                (raw, rpc)
+                for raw, rpc, result in zip(chunk, chunk_rpcs, results)
+                if result == RETRY
+            )
             last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
             if i + batch_size < len(txs) and batch_interval > 0:
                 await asyncio.sleep(batch_interval)
+        failed += await _drain_retries(session, pending_retry, mode)
     return failed
+
+
+def _send_worker(args):
+    txs, rpcs, kwargs = args
+    return asyncio.run(send_round_robin(txs, rpcs, **kwargs))
+
+
+def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
+    """Fan tx sending out across multiple OS processes.
+
+    PROTOTYPE - diagnostic only, not wired into any CLI command yet.
+
+    A single asyncio event loop tops out around ~11k tx/s sending locally:
+    JSON-RPC serialization and event-loop scheduling per tx are CPU-bound on
+    one core, not network-bound (the local devnet's mempool stays empty
+    throughout every run, so the node is never the wait). This splits `txs`
+    into `num_workers` disjoint account ranges, each sent by its own process
+    with its own event loop and connection pool.
+
+    Splits by ACCOUNT range, not flat position: `send_round_robin` requires
+    every account's txs to arrive in nonce order, so a worker must own an
+    account's entire nonce sequence rather than an arbitrary slice of it.
+
+    A batch must never contain two nonces for the same account: the global
+    config sizes `batch_size == num_accounts` so each batch is exactly one
+    nonce round. Splitting accounts across workers shrinks each worker's
+    account count, so `batch_size` is overridden per worker to match -
+    otherwise a worker's batch spans multiple rounds per account and those
+    nonces race each other at CheckTx admission regardless of sync/async.
+
+    Forces ``sync=True``: more OS processes hammering CheckTx concurrently
+    widens the window for cross-batch network/OS scheduling reordering per
+    account (round N+1 landing before round N), which the node rejects as
+    `ErrWrongSequence`. With `recheckDisabled=true` that tx is gone forever
+    unless the client sees the error and resends - async fire-and-forget
+    batches hide it from the existing retry/drain logic entirely.
+    """
+    send_kwargs = {**send_kwargs, "sync": True}
+    num_workers = num_workers or min(multiprocessing.cpu_count(), num_accounts)
+    if num_workers <= 1 or num_accounts <= 1:
+        return asyncio.run(
+            send_round_robin(txs, rpcs, num_accounts=num_accounts, **send_kwargs)
+        )
+
+    boundaries = [round(i * num_accounts / num_workers) for i in range(num_workers + 1)]
+    jobs = []
+    for lo, hi in zip(boundaries, boundaries[1:]):
+        if lo == hi:
+            continue
+        worker_txs = [tx for i, tx in enumerate(txs) if lo <= i % num_accounts < hi]
+        jobs.append(
+            (worker_txs, rpcs, {**send_kwargs, "num_accounts": hi - lo, "batch_size": hi - lo})
+        )
+
+    with multiprocessing.Pool(len(jobs)) as pool:
+        return sum(pool.map(_send_worker, jobs))

@@ -3,6 +3,7 @@ import queue
 import sys
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import bech32
 import requests
@@ -212,6 +213,11 @@ def block_txs(height, rpc):
 # the requested span, so a wide range needs this many round trips chunked.
 BLOCKCHAIN_PAGE_SIZE = 20
 
+# Concurrent /blockchain page fetches - a large height range pages in
+# BLOCKCHAIN_PAGE_SIZE-sized chunks, and fetching those one at a time turns a
+# few-thousand-block scan into hundreds of sequential round trips.
+BLOCKCHAIN_RANGE_FETCH_WORKERS = 16
+
 
 # A page whose request_json call had to retry (wedged tunnel, backoff sleep)
 # takes several seconds instead of tens of milliseconds. A range spanning
@@ -224,11 +230,17 @@ SLOW_PAGE_THRESHOLD_S = 2.0
 def blockchain_range(min_height, max_height, rpc):
     """Fetch {height: (num_txs, time)} for [min_height, max_height] via
     CometBFT's /blockchain endpoint, chunked by BLOCKCHAIN_PAGE_SIZE, instead
-    of one /block call per height."""
-    metas = {}
+    of one /block call per height. Pages are fetched concurrently since a
+    large range can span hundreds of pages."""
+    pages = []
     lo = min_height
     while lo <= max_height:
         hi = min(lo + BLOCKCHAIN_PAGE_SIZE - 1, max_height)
+        pages.append((lo, hi))
+        lo = hi + 1
+
+    def fetch_page(bounds):
+        lo, hi = bounds
         started = time.monotonic()
         rsp = request_json(requests.get, rpc, f"/blockchain?minHeight={lo}&maxHeight={hi}")
         elapsed = time.monotonic() - started
@@ -237,10 +249,14 @@ def blockchain_range(min_height, max_height, rpc):
                 f"blockchain page {lo}-{hi} took {elapsed:.1f}s (likely retried)",
                 file=sys.stderr,
             )
-        for meta in rsp["result"]["block_metas"]:
-            header = meta["header"]
-            metas[int(header["height"])] = (int(meta["num_txs"]), header["time"])
-        lo = hi + 1
+        return rsp["result"]["block_metas"]
+
+    metas = {}
+    with ThreadPoolExecutor(max_workers=BLOCKCHAIN_RANGE_FETCH_WORKERS) as pool:
+        for block_metas in pool.map(fetch_page, pages):
+            for meta in block_metas:
+                header = meta["header"]
+                metas[int(header["height"])] = (int(meta["num_txs"]), header["time"])
     return metas
 
 

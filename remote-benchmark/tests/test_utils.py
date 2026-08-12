@@ -71,7 +71,7 @@ def test_blockchain_range_chunks_by_page_size(monkeypatch):
 
     metas = blockchain_range(1, 45, "http://rpc")
 
-    assert requested == [(1, 20), (21, 40), (41, 45)]
+    assert sorted(requested) == [(1, 20), (21, 40), (41, 45)]
     assert len(metas) == 45
     assert metas[41] == (41 % 3, "t41")
 
