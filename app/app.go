@@ -367,6 +367,16 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
+// resolvePreVerifierChainID returns flagChainID if set (an operator override),
+// otherwise appChainID, which baseapp options resolve from genesis when the
+// chain-id flag is absent (see server.DefaultBaseappOptions).
+func resolvePreVerifierChainID(flagChainID, appChainID string) string {
+	if flagChainID != "" {
+		return flagChainID
+	}
+	return appChainID
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -576,8 +586,7 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			var preVerifiers cronosmempool.PreVerifierRegistry
-			// Register EVM module preverifier
-			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
+			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(resolvePreVerifierChainID(chainId, app.ChainID()), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
