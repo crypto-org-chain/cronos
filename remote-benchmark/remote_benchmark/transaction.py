@@ -475,6 +475,42 @@ async def _drain_retries(session, pending, mode):
     return len(pending)
 
 
+async def _send_batches(
+    session, txs, rpc_for, sync, batch_size, batch_interval, mode, probe_batches, deadline_s
+):
+    """Shared batch-send loop for ``send``/``send_round_robin``.
+
+    ``rpc_for(i, j)`` picks the endpoint for the tx at chunk offset ``i + j``.
+    See ``send``'s docstring for the pacing/probe/deadline/retry semantics.
+    """
+    started = time.monotonic()
+    last_log = started
+    failed = 0
+    pending_retry = []
+    for i in range(0, len(txs), batch_size):
+        if _past_deadline(started, deadline_s, i, len(txs)):
+            break
+        chunk = txs[i : i + batch_size]
+        batch_sync = sync or (i // batch_size) < probe_batches
+        chunk_rpcs = [rpc_for(i, j) for j in range(len(chunk))]
+        tasks = [
+            asyncio.ensure_future(async_sendtx(session, raw, rpc, batch_sync, mode))
+            for raw, rpc in zip(chunk, chunk_rpcs)
+        ]
+        results = await asyncio.gather(*tasks)
+        failed += results.count(False)
+        pending_retry.extend(
+            (raw, rpc)
+            for raw, rpc, result in zip(chunk, chunk_rpcs, results)
+            if result == RETRY
+        )
+        last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
+        if i + batch_size < len(txs) and batch_interval > 0:
+            await asyncio.sleep(batch_interval)
+    failed += await _drain_retries(session, pending_retry, mode)
+    return failed
+
+
 async def send(
     txs,
     rpc,
@@ -524,32 +560,20 @@ async def send(
     connector = aiohttp.TCPConnector(
         limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
     )
-    started = time.monotonic()
-    last_log = started
-    failed = 0
-    pending_retry = []
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
-        for i in range(0, len(txs), batch_size):
-            if _past_deadline(started, deadline_s, i, len(txs)):
-                break
-            chunk = txs[i : i + batch_size]
-            batch_sync = sync or (i // batch_size) < probe_batches
-            tasks = [
-                asyncio.ensure_future(async_sendtx(session, raw, rpc, batch_sync, mode))
-                for raw in chunk
-            ]
-            results = await asyncio.gather(*tasks)
-            failed += results.count(False)
-            pending_retry.extend(
-                (raw, rpc) for raw, result in zip(chunk, results) if result == RETRY
-            )
-            last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
-            if i + batch_size < len(txs) and batch_interval > 0:
-                await asyncio.sleep(batch_interval)
-        failed += await _drain_retries(session, pending_retry, mode)
-    return failed
+        return await _send_batches(
+            session,
+            txs,
+            lambda i, j: rpc,
+            sync,
+            batch_size,
+            batch_interval,
+            mode,
+            probe_batches,
+            deadline_s,
+        )
 
 
 def _past_deadline(started, deadline_s, sent, total):
@@ -625,37 +649,20 @@ async def send_round_robin(
     connector = aiohttp.TCPConnector(
         limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
     )
-    started = time.monotonic()
-    last_log = started
-    failed = 0
-    pending_retry = []
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
-        for i in range(0, len(txs), batch_size):
-            if _past_deadline(started, deadline_s, i, len(txs)):
-                break
-            chunk = txs[i : i + batch_size]
-            batch_sync = sync or (i // batch_size) < probe_batches
-            chunk_rpcs = [rpcs[((i + j) % num_accounts) % len(rpcs)] for j in range(len(chunk))]
-            tasks = [
-                asyncio.ensure_future(
-                    async_sendtx(session, raw, rpc, batch_sync, mode)
-                )
-                for raw, rpc in zip(chunk, chunk_rpcs)
-            ]
-            results = await asyncio.gather(*tasks)
-            failed += results.count(False)
-            pending_retry.extend(
-                (raw, rpc)
-                for raw, rpc, result in zip(chunk, chunk_rpcs, results)
-                if result == RETRY
-            )
-            last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
-            if i + batch_size < len(txs) and batch_interval > 0:
-                await asyncio.sleep(batch_interval)
-        failed += await _drain_retries(session, pending_retry, mode)
-    return failed
+        return await _send_batches(
+            session,
+            txs,
+            lambda i, j: rpcs[((i + j) % num_accounts) % len(rpcs)],
+            sync,
+            batch_size,
+            batch_interval,
+            mode,
+            probe_batches,
+            deadline_s,
+        )
 
 
 def _send_worker(args):
