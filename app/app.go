@@ -367,9 +367,6 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
-// resolvePreVerifierChainID returns flagChainID if set (an operator override),
-// otherwise appChainID, which baseapp options resolve from genesis when the
-// chain-id flag is absent (see server.DefaultBaseappOptions).
 func resolvePreVerifierChainID(flagChainID, appChainID string) string {
 	if flagChainID != "" {
 		return flagChainID
