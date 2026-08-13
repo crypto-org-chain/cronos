@@ -35,6 +35,48 @@ def calculate_tps(blocks, anchor_is_separate=True):
     return txs / time_diff
 
 
+def _best_window_tps(load_blocks, anchor_is_separate, window_blocks=30):
+    """Best average TPS over any window_blocks consecutive blocks within the
+    load period - the steady-state rate once warm-up/JIT/cache effects have
+    settled, as opposed to overall_tps which is dragged down by the warm-up
+    blocks it's averaged together with.
+
+    cum[i] is the tx count counted "up to and including" load_blocks[i]; when
+    anchor_is_separate, load_blocks[0] is a pure time anchor so cum[0] = 0 and
+    its own txs never enter any window's numerator. A window [left, right] is
+    scored as (cum[right] - cum[left]) / (ts[right] - ts[left]) - left's txs
+    are excluded the same way the anchor's are, since left is the window's own
+    time anchor. window_blocks counts blocks, not intervals, so a window
+    spans window_blocks - 1 intervals (left..right inclusive).
+
+    A window straddling a stalled block scores lower and simply loses to a
+    clean window elsewhere - no separate stall-exclusion needed here.
+    """
+    n = len(load_blocks)
+    if n < 2:
+        return 0
+
+    cum = [0] * n
+    start_idx = 1 if anchor_is_separate else 0
+    for i in range(start_idx, n):
+        cum[i] = cum[i - 1] + load_blocks[i][0] if i > 0 else load_blocks[i][0]
+
+    timestamps = [t for _, t in load_blocks]
+    counted_blocks = n - (1 if anchor_is_separate else 0)
+    if counted_blocks < window_blocks:
+        span = (timestamps[-1] - timestamps[0]).total_seconds()
+        return cum[-1] / span if span > 0 else 0
+
+    best = 0
+    for right in range(window_blocks - 1, n):
+        left = right - (window_blocks - 1)
+        span = (timestamps[right] - timestamps[left]).total_seconds()
+        if span > 0:
+            tps = (cum[right] - cum[left]) / span
+            best = max(best, tps)
+    return best
+
+
 def _percentile(values, pct):
     """Linear-interpolated percentile (0-100) of a list of numbers."""
     if not values:
@@ -155,6 +197,7 @@ def _analyze_load_window(
 
     peak_tps = max(steady_tps_values) if steady_tps_values else 0
     median_tps = median(steady_tps_values) if steady_tps_values else 0
+    best_30block_tps = _best_window_tps(load_blocks, anchor_is_separate)
 
     median_bt = median(steady_block_times) if steady_block_times else 0
     fastest_bt = min(steady_block_times) if steady_block_times else 0
@@ -195,6 +238,7 @@ def _analyze_load_window(
         "overall_tps": overall_tps,
         "peak_tps": peak_tps,
         "median_tps": median_tps,
+        "best_30block_tps": best_30block_tps,
         "stall_indices": stall_indices,
         "stall_time": stall_time,
         "adjusted_duration": adjusted_duration,

@@ -390,9 +390,16 @@ DUPLICATE_SEND_MARKERS = ("already exists in cache", "tx already seen")
 # SigVerificationDecorator). A rejection with this text means the tx's own
 # bytes are fine and it will succeed if resent once earlier nonces for the
 # same sender land - so it's worth retrying instead of counting as failed.
-# ethermint EVM txs raise a different, unmatched error (ErrInvalidSequence),
-# so this only ever fires for mode="cosmos".
 WRONG_SEQUENCE_MARKER = "incorrect account sequence"
+# ethermint's own nonce check (ante/eth.go's CheckAndSetEthSenderNonce) raises
+# a differently-worded ErrInvalidSequence ("invalid nonce; got X, expected Y").
+# It bumps the sender's nonce only in baseapp's checkState, which resets to
+# last-committed state on every block commit and is rebuilt by mempool
+# recheck; a new envelope for the same sender that lands in the gap between
+# reset and recheck completing sees the stale committed nonce and is
+# rejected. That gap closes once the predecessor envelope actually commits,
+# so this is worth retrying the same as WRONG_SEQUENCE_MARKER.
+ETH_INVALID_NONCE_MARKER = "invalid nonce;"
 RETRY = "retry"
 RETRY_INTERVAL_S = 1.0
 MAX_RETRY_ROUNDS = 30
@@ -445,7 +452,10 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
             return False
         result = data["result"]
         if result["code"] != 0:
-            if mode == "cosmos" and WRONG_SEQUENCE_MARKER in result["log"]:
+            if mode == "cosmos" and (
+                WRONG_SEQUENCE_MARKER in result["log"]
+                or ETH_INVALID_NONCE_MARKER in result["log"]
+            ):
                 return RETRY
             print("tx is invalid, won't retry,", result["log"])
             return False
@@ -497,6 +507,15 @@ async def _send_after(prev, session, raw, rpc, sync, mode):
     return await async_sendtx(session, raw, rpc, sync, mode)
 
 
+def _sender_key(i, j, num_accounts):
+    """Map tx position (i+j) to its sender bucket.
+
+    Returns (i+j) unchanged when num_accounts is None: no sender reuses a
+    nonce, so any deterministic value works and no two positions collide.
+    """
+    return (i + j) if num_accounts is None else (i + j) % num_accounts
+
+
 async def _send_batches(
     session,
     txs,
@@ -513,13 +532,7 @@ async def _send_batches(
 
     ``rpc_for(i, j)`` picks the endpoint for the tx at chunk offset ``i + j``.
     See ``send``'s docstring for the pacing/probe/deadline/retry semantics.
-
-    ``txs`` is laid out by ``gen()`` as consecutive nonce-rounds interleaved
-    across accounts, so position ``p`` belongs to sender ``p % num_accounts``
-    (see ``send_round_robin``). Each sender's sends are chained via
-    ``_send_after`` so a later nonce is never issued until the same sender's
-    previous nonce has actually landed - see ``_send_after`` for why that
-    requires forcing those sends onto ``broadcast_tx_sync``.
+    Same-sender txs are chained via ``_send_after``; see its docstring for why.
     """
     started = time.monotonic()
     last_log = started
@@ -534,14 +547,16 @@ async def _send_batches(
         chunk_rpcs = [rpc_for(i, j) for j in range(len(chunk))]
         tasks = []
         for j, (raw, rpc) in enumerate(zip(chunk, chunk_rpcs)):
-            # num_accounts=None means no sender reuses a nonce across txs, so
-            # every position gets its own key and nothing chains via _send_after.
-            sender_key = (i + j) if num_accounts is None else (i + j) % num_accounts
-            prev = last_task.get(sender_key)
+            sender_key = _sender_key(i, j, num_accounts)
+            # num_accounts=None means no sender reuses a nonce, so sender_key
+            # never collides across positions - skip storing it entirely
+            # rather than let last_task grow by one entry per tx forever.
+            prev = last_task.get(sender_key) if num_accounts is not None else None
             task = asyncio.ensure_future(
                 _send_after(prev, session, raw, rpc, batch_sync, mode)
             )
-            last_task[sender_key] = task
+            if num_accounts is not None:
+                last_task[sender_key] = task
             tasks.append(task)
         results = await asyncio.gather(*tasks)
         failed += results.count(False)
@@ -604,11 +619,11 @@ async def send(
     earlier nonce for the same sender, so it's queued and resent (unchanged)
     once the run's batches are done, giving the chain time to catch up.
 
-    ``num_accounts`` identifies same-sender txs for the ordering guarantee in
-    ``_send_after`` - see ``send_round_robin``'s docstring for the ``txs``
-    layout this relies on. Defaults to ``None`` (every position is its own
-    sender, so nothing chains), matching callers that never reuse a sender's
-    nonce across the tx list.
+    ``num_accounts`` identifies same-sender txs for ``_send_after`` chaining -
+    see its docstring for why, and ``send_round_robin``'s for the ``txs``
+    layout it relies on. Defaults to ``None`` (every position is its own
+    sender), matching callers that never reuse a sender's nonce across the
+    tx list.
     """
     connector = aiohttp.TCPConnector(
         limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
@@ -665,11 +680,11 @@ def _log_progress(started, last_log, sent, total):
 async def send_round_robin(
     txs,
     rpcs: [str],
+    num_accounts,
     sync=False,
     batch_size=500,
     batch_interval=0.5,
     mode="cosmos",
-    num_accounts=None,
     probe_batches=1,
     deadline_s=None,
 ):
@@ -682,8 +697,10 @@ async def send_round_robin(
     sees a given account's txs in nonce order - splitting one account's
     sequential nonces across nodes round-robin by flat position would let a
     later nonce reach a node before an earlier one propagates, which the
-    node's CheckTx rejects as a nonce gap. Falls back to plain ``send`` when
-    only one endpoint is configured.
+    node's CheckTx rejects as a nonce gap. ``num_accounts`` has no safe
+    default: omitting it would either serialize everything onto one endpoint
+    or break nonce ordering, so callers must always pass it explicitly. Falls
+    back to plain ``send`` when only one endpoint is configured.
 
     See ``send``'s docstring for why ``probe_batches``, ``deadline_s``, and the
     return value exist.
@@ -710,9 +727,7 @@ async def send_round_robin(
         return await _send_batches(
             session,
             txs,
-            lambda i, j: rpcs[(i + j) % len(rpcs)]
-            if num_accounts is None
-            else rpcs[((i + j) % num_accounts) % len(rpcs)],
+            lambda i, j: rpcs[_sender_key(i, j, num_accounts) % len(rpcs)],
             sync,
             batch_size,
             batch_interval,
@@ -744,6 +759,14 @@ def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
     every account's txs to arrive in nonce order, so a worker must own an
     account's entire nonce sequence rather than an arbitrary slice of it.
 
+    Each worker's local account index starts back at 0, so without correcting
+    for that, every worker's account 0 would route to `rpcs[0]` at the same
+    moment - clustering N workers' first sub-batches onto the same low-index
+    endpoints instead of spreading them across the full rpc pool. `rpcs` is
+    rotated per worker by its account-range start (`lo`) so a worker's local
+    index 0 lands on the same endpoint its accounts would get in the
+    single-process round robin.
+
     A batch must never contain two nonces for the same account: the global
     config sizes `batch_size == num_accounts` so each batch is exactly one
     nonce round. Splitting accounts across workers shrinks each worker's
@@ -751,29 +774,39 @@ def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
     otherwise a worker's batch spans multiple rounds per account and those
     nonces race each other at CheckTx admission regardless of sync/async.
 
-    Forces ``sync=True``: more OS processes hammering CheckTx concurrently
-    widens the window for cross-batch network/OS scheduling reordering per
-    account (round N+1 landing before round N), which the node rejects as
-    `ErrWrongSequence`. With `recheckDisabled=true` that tx is gone forever
-    unless the client sees the error and resends - async fire-and-forget
-    batches hide it from the existing retry/drain logic entirely.
+    Forces ``sync=True`` once split across multiple worker processes: more OS
+    processes hammering CheckTx concurrently widens the window for
+    cross-batch network/OS scheduling reordering per account (round N+1
+    landing before round N), which the node rejects as `ErrWrongSequence`.
+    With `recheckDisabled=true` that tx is gone forever unless the client
+    sees the error and resends - async fire-and-forget batches hide it from
+    the existing retry/drain logic entirely. The single-process fallback
+    below hits none of that reordering (one process, one event loop), so it
+    keeps the caller's own ``sync``.
     """
-    send_kwargs = {**send_kwargs, "sync": True}
     num_workers = num_workers or min(multiprocessing.cpu_count(), num_accounts)
     if num_workers <= 1 or num_accounts <= 1:
         return asyncio.run(
             send_round_robin(txs, rpcs, num_accounts=num_accounts, **send_kwargs)
         )
 
+    send_kwargs = {**send_kwargs, "sync": True}
     boundaries = [round(i * num_accounts / num_workers) for i in range(num_workers + 1)]
     jobs = []
     for lo, hi in zip(boundaries, boundaries[1:]):
         if lo == hi:
             continue
         worker_txs = [tx for i, tx in enumerate(txs) if lo <= i % num_accounts < hi]
+        offset = lo % len(rpcs)
+        worker_rpcs = rpcs[offset:] + rpcs[:offset]
         jobs.append(
-            (worker_txs, rpcs, {**send_kwargs, "num_accounts": hi - lo, "batch_size": hi - lo})
+            (
+                worker_txs,
+                worker_rpcs,
+                {**send_kwargs, "num_accounts": hi - lo, "batch_size": hi - lo},
+            )
         )
+
 
     with multiprocessing.Pool(len(jobs)) as pool:
         return sum(pool.map(_send_worker, jobs))

@@ -24,6 +24,17 @@ CRONOS_ROOT="$(cd "${ROOT_DIR}/.." && pwd)"
 SHELL_NIX="${CRONOS_ROOT}/integration_tests/shell.nix"
 JSONNET_CONFIG="${CRONOS_ROOT}/integration_tests/configs/benchmark-3val.jsonnet"
 
+# Cosmos chain-id is "<name>_<eip155-id>-<version>" (e.g. "cronos_777-1"); the
+# EIP-155 id is what every signed tx's chainId must match, or CheckTx rejects
+# it. Derived from the jsonnet config rather than hardcoded, so editing that
+# config's chain_id doesn't silently desync from the txs this script signs.
+COSMOS_CHAIN_ID="$(grep -o "chain_id: '[^']*'" "${JSONNET_CONFIG}" | head -1 | sed -E "s/.*'([^']*)'/\1/")"
+EVM_CHAIN_ID="$(echo "${COSMOS_CHAIN_ID}" | sed -E 's/^.*_([0-9]+)-[0-9]+$/\1/')"
+if [[ -z "${EVM_CHAIN_ID}" ]]; then
+  echo "could not derive EVM chain-id from ${JSONNET_CONFIG}'s chain_id (${COSMOS_CHAIN_ID})" >&2
+  exit 1
+fi
+
 BASE_PORT=26650
 NODE0_RPC="http://127.0.0.1:$((BASE_PORT + 7))"
 NODE0_EVMRPC="http://127.0.0.1:$((BASE_PORT + 1))"
@@ -92,7 +103,7 @@ tx = {
     "nonce": nonce,
     "gas": 21000,
     "gasPrice": 5000000000000,
-    "chainId": 777,
+    "chainId": ${EVM_CHAIN_ID},
 }
 raw = community.sign_transaction(tx).rawTransaction
 w3.eth.send_raw_transaction(raw)
@@ -115,7 +126,7 @@ endpoints:
     rpc: http://127.0.0.1:$((BASE_PORT + 27))
     json_rpc: http://127.0.0.1:$((BASE_PORT + 21))
 mode: eth
-chain_id: 777
+chain_id: ${EVM_CHAIN_ID}
 evm_denom: basetcro
 gas_price: 5000000000000
 global_seq: 0
@@ -139,7 +150,7 @@ endpoints:
     rpc: http://127.0.0.1:$((BASE_PORT + 27))
     json_rpc: http://127.0.0.1:$((BASE_PORT + 21))
 mode: cosmos
-chain_id: 777
+chain_id: ${EVM_CHAIN_ID}
 evm_denom: basetcro
 gas_price: 5000000000000
 global_seq: 0

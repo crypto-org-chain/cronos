@@ -122,6 +122,45 @@ def test_wait_for_committed_backs_off_on_an_empty_batch(monkeypatch):
     assert sleeps == [0.2, 0.2]
 
 
+def test_wait_for_committed_gives_up_after_commits_stall(monkeypatch):
+    # A tx dropped by mempool recheck never arrives - without a stall check
+    # this would otherwise wait out the full timeout doing nothing.
+    monkeypatch.setattr(runner_module.time, "sleep", lambda s: None)
+    per_block = {201: 3}  # commits stop moving after height 201
+
+    end, committed = runner_module._wait_for_committed(
+        get_height=lambda: 400,
+        count_txs_batch=lambda lo, hi: {h: per_block.get(h, 0) for h in range(lo, hi + 1)},
+        start=200,
+        end=400,
+        expected_txs=10,
+        stall_blocks=10,
+    )
+
+    assert committed == 3
+    assert end == 211  # 10 stalled blocks after the last count change at 201
+
+
+def test_wait_for_committed_stall_check_ignores_the_zero_commit_ramp_up(monkeypatch):
+    # No tx has landed yet while sends are still going out - that's normal
+    # ramp-up, not a stall, so it must not trip the stall exit before the
+    # first tx actually commits.
+    monkeypatch.setattr(runner_module.time, "sleep", lambda s: None)
+    per_block = {215: 5}  # first commit lands well past stall_blocks=10
+
+    end, committed = runner_module._wait_for_committed(
+        get_height=lambda: 400,
+        count_txs_batch=lambda lo, hi: {h: per_block.get(h, 0) for h in range(lo, hi + 1)},
+        start=200,
+        end=400,
+        expected_txs=5,
+        stall_blocks=10,
+    )
+
+    assert committed == 5
+    assert end == 215
+
+
 def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
     requested_addresses = []
 

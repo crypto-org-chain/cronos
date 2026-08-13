@@ -32,6 +32,11 @@ from .utils import Tee, block_eth, block_height, blockchain_range, eth_block_num
 
 LOAD_COMMIT_TIMEOUT = Config.model_fields["commit_timeout"].default
 PROGRESS_INTERVAL_S = 3
+# A stuck tx (e.g. an app-mempool recheck silently dropping it, invisible to
+# any client-side retry) never arrives - waiting the full timeout for it
+# just burns minutes doing nothing. Bail once the commit count hasn't moved
+# for this many blocks, rather than waiting out the deadline.
+STALL_BLOCKS = 10
 # Cap each count_txs_batch call to this many heights so a scan spanning
 # thousands of blocks still checks the progress-print/timeout deadline
 # between chunks, instead of blocking for the whole remaining range in one
@@ -60,6 +65,7 @@ def _wait_for_committed(
     expected_txs,
     timeout=LOAD_COMMIT_TIMEOUT,
     chunk=WAIT_SCAN_CHUNK,
+    stall_blocks=STALL_BLOCKS,
 ):
     """Extend the sample until `expected_txs` have been counted committed.
 
@@ -71,12 +77,19 @@ def _wait_for_committed(
     endpoint (e.g. per-height eth_getBlockByNumber) still fetch one height per
     call internally, so a small ``chunk`` limits how many heights get fetched
     past the point where the threshold is already satisfied.
+
+    Also gives up once the commit count hasn't moved for ``stall_blocks``
+    committed blocks - a tx dropped by mempool recheck never arrives, and
+    that's indistinguishable from "still catching up" except by this kind of
+    stall, so without it every stuck run just burns the full ``timeout``.
     """
     next_height = start + 1
     committed_txs = 0
     deadline = time.monotonic() + timeout
     started = time.monotonic()
     last_log = started
+    stall_committed_txs = committed_txs
+    stall_since_height = next_height - 1
 
     while True:
         if next_height <= end:
@@ -91,6 +104,20 @@ def _wait_for_committed(
                     # returning `end` here overshoots and lets downstream
                     # block-stats recount blocks past the drain point,
                     # inflating totals past what was sent.
+                    return height, committed_txs
+                if committed_txs != stall_committed_txs:
+                    stall_committed_txs = committed_txs
+                    stall_since_height = height
+                elif (
+                    committed_txs > 0
+                    and stall_blocks is not None
+                    and height - stall_since_height >= stall_blocks
+                ):
+                    print(
+                        f"commits stalled at {committed_txs}/{expected_txs} for "
+                        f"{stall_blocks} blocks (height={height}) - giving up early",
+                        file=sys.stderr,
+                    )
                     return height, committed_txs
             if not batch:
                 # A batch call that reports zero heights (e.g. a partial
@@ -209,6 +236,18 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 f"but this run covers {num_accounts} accounts x {cfg.num_txs} txs; remove the "
                 "stale cache file or point --txs-cache elsewhere"
             )
+        # The cache only stays valid if the chain's actual current nonce still
+        # matches the nonce it was signed against - a torn-down-and-reinitialized
+        # chain (fresh nonce 0) replaying a cache signed at a later nonce fails
+        # every tx's CheckTx instead of raising here with a clear cause.
+        cached_nonce = cached_payload.get("nonce")
+        actual_nonce = current_sender_nonce(cfg, start, end)
+        if cached_nonce != actual_nonce:
+            raise ValueError(
+                f"--txs-cache {txs_cache} was signed against nonce {cached_nonce}, "
+                f"but the chain's senders are currently at nonce {actual_nonce}; "
+                "remove the stale cache file or point --txs-cache elsewhere"
+            )
 
     if cached_payload is not None:
         txs = cached_payload["txs"]
@@ -245,7 +284,9 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             # this cache key, never leaves a truncated file for a reader to load.
             tmp_path = txs_cache_path.with_suffix(f"{txs_cache_path.suffix}.tmp.{os.getpid()}")
             tmp_path.write_text(
-                ujson.dumps({"num_accounts": num_accounts, "num_txs": cfg.num_txs, "txs": txs})
+                ujson.dumps(
+                    {"num_accounts": num_accounts, "num_txs": cfg.num_txs, "nonce": nonce, "txs": txs}
+                )
             )
             tmp_path.replace(txs_cache_path)
             print(f"wrote tx cache to {txs_cache}", file=sys.stderr)

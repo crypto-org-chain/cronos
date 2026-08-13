@@ -143,7 +143,7 @@ def test_generate_report_lists_all_params_and_embeds_chart_data(tmp_path):
     assert "5-second moving average" in report
     assert "committed_cosmos_txs" not in report
     assert "25/25" in report
-    assert report.count('class="field-help"') == 18
+    assert report.count('class="field-help"') == 19
     assert "First logical sender account index included in the workload." in report
     assert "EVM JSON-RPC URL used to query Ethereum-compatible blocks" in report
     assert "Highest transaction rate calculated over a rolling window" in report

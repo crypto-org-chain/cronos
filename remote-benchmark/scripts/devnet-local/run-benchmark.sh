@@ -66,12 +66,29 @@ if [[ -n "${CRONOS_BIN}" ]]; then
   echo "=== using external cronosd: ${CRONOS_BIN} ==="
   "${CRONOS_BIN}" version --long || true
   CRONOS_BIN_VERSION="$("${CRONOS_BIN}" version 2>/dev/null | tr -d 'v[:space:]')"
-  if [[ -n "${CRONOS_BIN_VERSION}" ]] \
-    && [[ "${CRONOS_BIN_VERSION}" != "1.8.0" ]] \
-    && [[ "$(printf '%s\n1.8.0\n' "${CRONOS_BIN_VERSION}" | sort -V | head -1)" == "${CRONOS_BIN_VERSION}" ]]; then
+  # git describe dev builds off a "v1.8.0-alpha" tag report as
+  # "1.8.0-alpha-<N>-g<hash>" - strip that suffix before comparing, or every
+  # local build off this tag is wrongly sorted below the release and falls
+  # back to the legacy-mempool config (no app-mempool -> ~4x slower CheckTx).
+  CRONOS_BIN_VERSION_BASE="$(echo "${CRONOS_BIN_VERSION}" | sed -E 's/-[0-9]+-g[0-9a-f]+$//')"
+  if [[ -n "${CRONOS_BIN_VERSION_BASE}" ]] \
+    && [[ "${CRONOS_BIN_VERSION_BASE}" != "1.8.0" ]] \
+    && [[ "$(printf '%s\n1.8.0\n' "${CRONOS_BIN_VERSION_BASE}" | sort -V | head -1)" == "${CRONOS_BIN_VERSION_BASE}" ]]; then
     JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val-legacy-mempool.jsonnet"
     echo "=== ${CRONOS_BIN} (v${CRONOS_BIN_VERSION}) predates app-mempool support, using legacy-mempool config ==="
   fi
+fi
+
+# Cosmos chain-id is "<name>_<eip155-id>-<version>" (e.g. "cronos_777-1"); the
+# EIP-155 id is what every signed tx's chainId must match, or CheckTx rejects
+# it. Derived from the selected jsonnet config rather than hardcoded, so
+# editing that config's chain_id doesn't silently desync from the txs
+# remote_benchmark signs.
+COSMOS_CHAIN_ID="$(grep -o "chain_id: '[^']*'" "${JSONNET_CONFIG}" | head -1 | sed -E "s/.*'([^']*)'/\1/")"
+EVM_CHAIN_ID="$(echo "${COSMOS_CHAIN_ID}" | sed -E 's/^.*_([0-9]+)-[0-9]+$/\1/')"
+if [[ -z "${EVM_CHAIN_ID}" ]]; then
+  echo "could not derive EVM chain-id from ${JSONNET_CONFIG}'s chain_id (${COSMOS_CHAIN_ID})" >&2
+  exit 1
 fi
 
 # read straight from the config so it always matches num_accounts in
@@ -82,10 +99,34 @@ END_ACCOUNT="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['num_accounts'])")"
 PHYSICAL_END_ACCOUNT="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; c=yaml.safe_load(open('${BENCH_CONFIG}')); print(c['num_accounts'] * c['num_txs'] if c.get('sender_strategy') == 'unique-per-tx' else c['num_accounts'])")"
+BENCH_CONFIG_CHAIN_ID="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
+  "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['chain_id'])")"
+if [[ "${BENCH_CONFIG_CHAIN_ID}" != "${EVM_CHAIN_ID}" ]]; then
+  echo "${BENCH_CONFIG}'s chain_id (${BENCH_CONFIG_CHAIN_ID}) doesn't match" \
+       "${JSONNET_CONFIG}'s chain_id (${COSMOS_CHAIN_ID}); update the yaml config" >&2
+  exit 1
+fi
 
 BASE_PORT=26650
 NODE0_RPC="http://127.0.0.1:$((BASE_PORT + 7))"
 NODE0_EVMRPC="http://127.0.0.1:$((BASE_PORT + 1))"
+
+# A leftover cronosd from a killed prior run (its cleanup trap can't reach it -
+# pystarport execs it with a relative --home, so no absolute path to pkill -f
+# on) would otherwise squat on these fixed ports and answer every check below
+# with its own stale, already-loaded chain state instead of a fresh one. Each
+# validator i gets its own base_port (BASE_PORT + i*10, pystarport's own
+# convention - see pystarport/cluster.py's process_config), so a 3/5-validator
+# run must check every validator's rpc port, not just node0's.
+for ((i = 0; i < VALIDATORS; i++)); do
+  NODE_RPC_PORT=$((BASE_PORT + i * 10 + 7))
+  if lsof -nP -iTCP:"${NODE_RPC_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "port ${NODE_RPC_PORT} is already in use - a leftover devnet from a" \
+         "prior run is still listening; find and kill it before retrying" >&2
+    lsof -nP -iTCP:"${NODE_RPC_PORT}" -sTCP:LISTEN >&2
+    exit 1
+  fi
+done
 
 # Genesis init + the ERC20/native-balance patch produce identical output for a
 # given config + patch script + mnemonics, so cache and reuse them across runs
@@ -113,7 +154,7 @@ fi
 CACHE_KEY="$(printf '%s' "${CACHE_KEY}$(shasum -a 256 "${HASHED_CRONOS_BIN}" | cut -d' ' -f1)" \
   | shasum -a 256 | cut -c1-16)"
 CACHE_DIR="${LOCAL_ARTIFACTS_DIR}/.cache/genesis/${VALIDATORS}val-${TESTCASE}-${CACHE_KEY}"
-CHAIN_ID="cronos_777-1"
+CHAIN_ID="${COSMOS_CHAIN_ID}"
 
 DATA_DIR="$(mktemp -d)"
 PYSTARPORT_PID=""
@@ -121,16 +162,26 @@ CACHE_TMP=""
 CACHE_LOCK_DIR="${CACHE_DIR}.lock"
 CACHE_LOCK_HELD=""
 
+kill_descendants() {
+  local pid="$1"
+  local child
+  for child in $(pgrep -P "${pid}" 2>/dev/null || true); do
+    kill_descendants "${child}"
+  done
+  kill -9 "${pid}" 2>/dev/null || true
+}
+
 cleanup() {
-  if [[ -n "${PYSTARPORT_PID}" ]] && kill -0 "${PYSTARPORT_PID}" 2>/dev/null; then
-    kill "${PYSTARPORT_PID}" 2>/dev/null || true
-    wait "${PYSTARPORT_PID}" 2>/dev/null || true
+  # pystarport execs cronosd with a relative --home (cwd-based), so its argv
+  # never contains DATA_DIR - a path-based pkill can't find it. Walk the
+  # process tree by pid instead, which works regardless of how a child sets
+  # its own --home/-c flags. Must walk the tree BEFORE killing pystarport
+  # itself: killing it first lets its children (supervisord, cronosd) get
+  # reparented/orphaned, so pgrep -P no longer finds them under it and they
+  # survive to race the rm -rf below.
+  if [[ -n "${PYSTARPORT_PID}" ]]; then
+    kill_descendants "${PYSTARPORT_PID}"
   fi
-  # supervisord/cronosd children reference the data dir in their args (e.g.
-  # --home/-c flags), so this catches anything the parent kill missed.
-  pkill -f "${DATA_DIR}" 2>/dev/null || true
-  sleep 1
-  pkill -9 -f "${DATA_DIR}" 2>/dev/null || true
   if [[ -n "${KEEP_DATA:-}" ]]; then
     echo "=== KEEP_DATA set, leaving devnet data at ${DATA_DIR} ==="
   else
@@ -142,7 +193,14 @@ cleanup() {
   # down another process's live critical section instead of just our own.
   [[ -n "${CACHE_LOCK_HELD}" ]] && rm -rf "${CACHE_LOCK_DIR}" 2>/dev/null || true
 }
+# EXIT alone isn't enough: bash blocked on a foreground pipeline (the `poetry
+# run ... bench | tee` below) can be torn down by an untrapped SIGTERM/SIGINT
+# without ever running the EXIT trap, leaving pystarport/cronosd orphaned.
+# Trapping the signals directly and exiting from the handler guarantees
+# cleanup still runs (once, since it's idempotent) via the EXIT trap it chains
+# into.
 trap cleanup EXIT
+trap 'exit 143' INT TERM
 
 # macOS has no flock(1), so use mkdir as the mutex: it's atomic (fails if the
 # dir already exists), which is exactly what a lock needs. Holding it across

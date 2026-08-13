@@ -111,6 +111,7 @@ def _print_load_summary_sections(fp, start, summary):
         # the two is exactly how much the stall exclusion is buying you.
         print(f"raw_avg_tps {summary['raw_avg_tps']:.2f}", file=fp)
         print(f"median_tps {summary['median_tps']:.2f}", file=fp)
+        print(f"best_30block_tps {summary['best_30block_tps']:.2f}", file=fp)
         if summary["stall_indices"]:
             stall_heights = [start + off for off in summary["stall_height_offsets"]]
             print(

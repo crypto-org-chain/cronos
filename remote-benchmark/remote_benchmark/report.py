@@ -42,6 +42,7 @@ PARAMETER_TOOLTIPS = {
 RESULT_TOOLTIPS = {
     "Peak TPS": "Highest transaction rate calculated over a rolling window of up to 10 blocks, excluding detected stalls.",
     "Overall TPS": "Committed transactions divided by measured elapsed time after detected stall blocks and their time are excluded.",
+    "Best 30-block avg TPS": "Highest average TPS over any 30 consecutive blocks in the load period - the steady-state rate once warm-up has settled.",
     "Total transactions": "Total number of inner EVM transactions committed during the measured benchmark window.",
     "Committed Cosmos txs": "Number of generated Cosmos transaction envelopes that committed, shown against the number sent.",
     "Peak 1s TPS": "Largest number of transactions committed in any one wall-clock second.",
@@ -132,6 +133,7 @@ def _build_view_model(
     featured = [
         ("Peak TPS", metrics.get("peak_tps", "N/A")),
         ("Overall TPS", metrics.get("overall_tps", "N/A")),
+        ("Best 30-block avg TPS", metrics.get("best_30block_tps", "N/A")),
         ("Total transactions", metrics.get("total_txs", "N/A")),
         ("Committed Cosmos txs", metrics.get("committed_cosmos_txs", "N/A")),
     ]

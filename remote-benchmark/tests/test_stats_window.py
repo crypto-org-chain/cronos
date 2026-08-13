@@ -3,6 +3,7 @@ from statistics import median
 
 from remote_benchmark.results import evaluate_saturation
 from remote_benchmark.stats import _analyze_load_window, _percentile
+from remote_benchmark.window import _best_window_tps
 
 
 def _dt(seconds):
@@ -78,3 +79,49 @@ def test_analyze_load_window_drops_unmeasured_gas_from_utilization():
     summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values=[])
 
     assert summary["gas_utilizations"] == [0.9, 0.9]
+
+
+def test_best_window_tps_picks_the_fastest_30block_window():
+    # anchor (0 txs) then 30 counted blocks: a burst of 1000 txs at the end
+    # (blocks 26-30) beats the flatter 100-tx-per-block start.
+    load_blocks = [(0, _dt(0))]
+    for i in range(1, 26):
+        load_blocks.append((100, _dt(i * 10)))
+    for i in range(26, 31):
+        load_blocks.append((1000, _dt(i * 10)))
+
+    best = _best_window_tps(load_blocks, anchor_is_separate=True, window_blocks=30)
+
+    # Best 30-block window is blocks[1..30] (block 1 is that window's own
+    # time anchor, so its txs are excluded): 24*100 + 5*1000 = 7400 txs over
+    # (300-10)=290s.
+    assert best == 7400 / 290
+
+
+def test_best_window_tps_falls_back_to_overall_average_when_too_few_blocks():
+    load_blocks = [(0, _dt(0)), (100, _dt(10)), (200, _dt(30))]
+
+    best = _best_window_tps(load_blocks, anchor_is_separate=True, window_blocks=30)
+
+    assert best == 300 / 30
+
+
+def test_best_window_tps_without_separate_anchor_counts_first_block():
+    # No anchor_is_separate: block 0 is itself the window's left edge, so
+    # (like every other window boundary) its own txs are excluded from the
+    # numerator - only the second block's txs count over the span.
+    load_blocks = [(100, _dt(0)), (100, _dt(70))]
+
+    best = _best_window_tps(load_blocks, anchor_is_separate=False, window_blocks=2)
+
+    assert best == 100 / 70
+
+
+def test_analyze_load_window_includes_best_30block_tps():
+    blocks = [(0, _dt(0))] + [(10, _dt(i)) for i in range(1, 71)]
+    gas_data = [(gu, 100) for gu in range(len(blocks))]
+
+    summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values=[])
+
+    # Uniform 10 txs/block, 1s/block -> 10 tps in every window.
+    assert summary["best_30block_tps"] == 10.0

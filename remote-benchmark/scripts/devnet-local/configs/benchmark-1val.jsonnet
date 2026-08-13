@@ -24,7 +24,7 @@
         'max_open_connections': 10000,
       },
       mempool: {
-        size: 50000,
+        size: 100000,
         recheck: false,
         // app-side mempool (v1.8) from testground/benchmark-options.json -
         // CheckTx admits into cronos's own mempool instead of CometBFT's,
@@ -68,7 +68,7 @@
       mempool: {
         // app-side mempool's own cap (v1.8) - matches config_patch's
         // mempool.size above so the app mempool isn't the tighter limit.
-        'max-txs': 50000,
+        'max-txs': 100000,
       },
       evm: {
         'block-executor': 'block-stm',
@@ -95,7 +95,7 @@
         // = 17285 txs/block, so the cap matches what a full block can hold.
         'mempool-txs-per-block': 17285,
         // matches config_patch's mempool.size above.
-        'tx-cache-size': 50000,
+        'tx-cache-size': 100000,
       },
     },
     validators: [

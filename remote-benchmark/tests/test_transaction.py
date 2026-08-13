@@ -41,7 +41,7 @@ class ImmediateResult:
 
 
 class ImmediatePool:
-    def __init__(self, initializer=None, initargs=()):
+    def __init__(self, processes=None, initializer=None, initargs=()):
         if initializer is not None:
             initializer(*initargs)
 
@@ -394,3 +394,163 @@ def test_async_sendtx_treats_a_duplicate_send_as_success(marker):
 
     assert asyncio.run(tx_module.async_sendtx(session, "rawtx", "http://node0"))
     assert session.calls == 1
+
+
+def test_async_sendtx_returns_retry_on_wrong_sequence():
+    # A wrong-sequence rejection means the tx itself is fine and just arrived
+    # before an earlier nonce for the same sender - the caller resends it
+    # rather than counting it as failed, so this must be distinguishable from
+    # a plain rejection (which returns False) via the sentinel RETRY value.
+    session = _FakeSession(
+        {"result": {"code": 5, "log": "incorrect account sequence; expected 2, got 3"}}
+    )
+
+    assert (
+        asyncio.run(tx_module.async_sendtx(session, "rawtx", "http://node0", True))
+        == tx_module.RETRY
+    )
+
+
+def test_async_sendtx_returns_retry_on_ethermint_invalid_nonce():
+    # ethermint's own nonce check (ante/eth.go) raises a differently-worded
+    # ErrInvalidSequence than the plain cosmos-sdk sequence error - a batch
+    # envelope tx wrapping EVM messages hits this text, and it must retry the
+    # same as WRONG_SEQUENCE_MARKER rather than being dropped for good.
+    session = _FakeSession(
+        {"result": {"code": 5, "log": "invalid nonce; got 100, expected 0: invalid sequence"}}
+    )
+
+    assert (
+        asyncio.run(tx_module.async_sendtx(session, "rawtx", "http://node0", True))
+        == tx_module.RETRY
+    )
+
+
+def test_async_sendtx_does_not_retry_wrong_sequence_in_eth_mode():
+    # ethermint EVM txs raise a different, unmatched error for a bad nonce, so
+    # eth mode must never match on the cosmos-specific WRONG_SEQUENCE_MARKER
+    # text and retry something that will never succeed as-is.
+    session = _FakeSession({"error": {"message": "incorrect account sequence"}})
+
+    assert (
+        asyncio.run(
+            tx_module.async_sendtx(session, "rawtx", "http://node0", mode="eth")
+        )
+        is False
+    )
+
+
+async def _fake_sleep(_seconds):
+    pass
+
+
+def test_drain_retries_resends_until_it_succeeds(monkeypatch):
+    monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
+    attempts = {"tx-0": 0}
+
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode):
+        attempts[raw] += 1
+        return tx_module.RETRY if attempts[raw] < 2 else True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    failed = asyncio.run(
+        tx_module._drain_retries(None, [("tx-0", "http://node0")], "cosmos")
+    )
+
+    assert failed == 0
+    assert attempts["tx-0"] == 2
+
+
+def test_drain_retries_gives_up_after_max_rounds(monkeypatch):
+    monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
+
+    async def always_retry(_session, _raw, _rpc, _sync, _mode):
+        return tx_module.RETRY
+
+    monkeypatch.setattr(tx_module, "async_sendtx", always_retry)
+
+    failed = asyncio.run(
+        tx_module._drain_retries(
+            None,
+            [("tx-0", "http://node0"), ("tx-1", "http://node0")],
+            "cosmos",
+        )
+    )
+
+    assert failed == 2
+
+
+def test_send_multiprocess_falls_back_to_single_process_for_one_worker(monkeypatch):
+    # The forced sync=True below is only needed to guard against cross-process
+    # CheckTx reordering - with a single worker there's no second process to
+    # race against, so this fallback must keep the caller's own sync setting
+    # instead of overriding it.
+    calls = []
+
+    async def fake_send_round_robin(txs, rpcs, num_accounts, **kwargs):
+        calls.append((txs, rpcs, num_accounts, kwargs))
+        return 0
+
+    monkeypatch.setattr(tx_module, "send_round_robin", fake_send_round_robin)
+
+    failed = tx_module.send_multiprocess(
+        ["tx-0", "tx-1"], ["http://node0"], num_accounts=1, num_workers=1
+    )
+
+    assert failed == 0
+    assert calls == [(["tx-0", "tx-1"], ["http://node0"], 1, {})]
+
+
+def test_send_multiprocess_splits_by_account_range_and_overrides_batch_size(
+    monkeypatch,
+):
+    # send_round_robin requires each account's txs to arrive in nonce order,
+    # so a worker must own an account's whole nonce sequence, not an
+    # arbitrary slice - splitting by ACCOUNT range (not flat position)
+    # guarantees that.
+    jobs_seen = []
+
+    def fake_send_worker(args):
+        txs, rpcs, kwargs = args
+        jobs_seen.append((txs, rpcs, kwargs))
+        return 0
+
+    monkeypatch.setattr(tx_module.multiprocessing, "Pool", ImmediatePool)
+    monkeypatch.setattr(tx_module, "_send_worker", fake_send_worker)
+
+    # 4 accounts x 2 nonce-rounds, laid out as gen() would: interleaved by
+    # account within each round.
+    txs = [f"acct{a}-nonce{n}" for n in range(2) for a in range(4)]
+
+    failed = tx_module.send_multiprocess(
+        txs,
+        ["http://node0", "http://node1", "http://node2"],
+        num_accounts=4,
+        num_workers=2,
+    )
+
+    assert failed == 0
+    assert len(jobs_seen) == 2
+
+    worker0_txs, worker0_rpcs, worker0_kwargs = jobs_seen[0]
+    worker1_txs, worker1_rpcs, worker1_kwargs = jobs_seen[1]
+
+    # accounts 0-1 go to worker 0, accounts 2-3 to worker 1 - each worker's
+    # txs stay within its own account range across both nonce rounds.
+    assert worker0_txs == ["acct0-nonce0", "acct1-nonce0", "acct0-nonce1", "acct1-nonce1"]
+    assert worker1_txs == ["acct2-nonce0", "acct3-nonce0", "acct2-nonce1", "acct3-nonce1"]
+
+    # batch_size is overridden to each worker's own (shrunk) account count,
+    # not the global num_accounts, so a worker's batch never spans multiple
+    # nonce rounds.
+    assert worker0_kwargs["num_accounts"] == worker0_kwargs["batch_size"] == 2
+    assert worker1_kwargs["num_accounts"] == worker1_kwargs["batch_size"] == 2
+    assert worker0_kwargs["sync"] is True
+
+    # worker 1's account range starts at global index 2, so its rpcs are
+    # rotated by 2 - its local account 0 lands on rpcs[2], the same endpoint
+    # global account 2 would get in a single-process round robin, instead of
+    # every worker's local account 0 clustering onto rpcs[0].
+    assert worker0_rpcs == ["http://node0", "http://node1", "http://node2"]
+    assert worker1_rpcs == ["http://node2", "http://node0", "http://node1"]

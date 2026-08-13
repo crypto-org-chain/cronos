@@ -689,6 +689,7 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
         return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(runner_module, "current_sender_nonce", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(runner_module, "gen", lambda *_args, **_kwargs: ["tx-1", "tx-2", "tx-3"])
     monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
     monkeypatch.setattr(runner_module, "block_height", lambda _rpc: next(heights))
@@ -711,7 +712,7 @@ def _mock_cosmos_bench_flow(monkeypatch, cfg):
 def test_bench_loads_txs_from_cache_instead_of_generating(monkeypatch, tmp_path):
     cache_path = tmp_path / "txs.json"
     cache_path.write_text(
-        json.dumps({"num_accounts": 3, "num_txs": 1, "txs": ["tx-1", "tx-2", "tx-3"]})
+        json.dumps({"num_accounts": 3, "num_txs": 1, "nonce": 0, "txs": ["tx-1", "tx-2", "tx-3"]})
     )
     cfg = _cosmos_bench_cfg()
     _mock_cosmos_bench_flow(monkeypatch, cfg)
@@ -741,7 +742,7 @@ def test_bench_writes_generated_txs_to_an_empty_cache_path(monkeypatch, tmp_path
 
     assert result.exit_code == 0, result.exception
     written = json.loads(cache_path.read_text())
-    assert written == {"num_accounts": 3, "num_txs": 1, "txs": ["tx-1", "tx-2", "tx-3"]}
+    assert written == {"num_accounts": 3, "num_txs": 1, "nonce": 0, "txs": ["tx-1", "tx-2", "tx-3"]}
     # write-then-rename must not leave a stray tmp file behind
     assert list(tmp_path.iterdir()) == [cache_path]
 
@@ -774,6 +775,24 @@ def test_bench_rejects_a_txs_cache_generated_for_a_different_num_txs(monkeypatch
 
     assert result.exit_code != 0
     assert "was generated for 3 accounts x 5 txs, but this run covers 3 accounts x 1 txs" in result.output
+
+
+def test_bench_rejects_a_txs_cache_signed_against_a_stale_nonce(monkeypatch, tmp_path):
+    cache_path = tmp_path / "txs.json"
+    cache_path.write_text(
+        json.dumps({"num_accounts": 3, "num_txs": 1, "nonce": 100, "txs": ["tx-1", "tx-2", "tx-3"]})
+    )
+    cfg = _cosmos_bench_cfg()
+    _mock_cosmos_bench_flow(monkeypatch, cfg)
+    monkeypatch.setattr(runner_module, "current_sender_nonce", lambda *_args, **_kwargs: 0)
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["bench", "--config", "unused.yaml", "--txs-cache", str(cache_path), "1", "3"],
+    )
+
+    assert result.exit_code != 0
+    assert "was signed against nonce 100, but the chain's senders are currently at nonce 0" in result.output
 
 
 def test_bench_exits_non_zero_on_app_hash_divergence(monkeypatch):
