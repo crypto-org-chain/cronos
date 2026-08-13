@@ -475,28 +475,74 @@ async def _drain_retries(session, pending, mode):
     return len(pending)
 
 
+async def _send_after(prev, session, raw, rpc, sync, mode):
+    """Send ``raw``, chained after the same sender's previous send (``prev``).
+
+    ``broadcast_tx_async`` returns as soon as the tx is queued, before CheckTx
+    even runs, so awaiting that response says nothing about whether CheckTx
+    for the previous nonce has actually finished - two nonces from the same
+    sender sent back-to-back can then race each other for the mempool's
+    admission lock and land out of order. A reordered nonce is rejected
+    forever (recheck is disabled, so it's never retried on its own) with the
+    rejection invisible to an async caller. Once there's a same-sender
+    predecessor to wait on, the send is forced onto ``broadcast_tx_sync``
+    regardless of the caller's requested mode - that's the only response that
+    actually reflects CheckTx having completed, so it's the only thing that
+    can safely gate the next nonce. Sends with no predecessor (``prev is
+    None``) have no ordering to protect and keep the requested mode.
+    """
+    if prev is not None:
+        await prev
+        sync = True
+    return await async_sendtx(session, raw, rpc, sync, mode)
+
+
 async def _send_batches(
-    session, txs, rpc_for, sync, batch_size, batch_interval, mode, probe_batches, deadline_s
+    session,
+    txs,
+    rpc_for,
+    sync,
+    batch_size,
+    batch_interval,
+    mode,
+    probe_batches,
+    deadline_s,
+    num_accounts,
 ):
     """Shared batch-send loop for ``send``/``send_round_robin``.
 
     ``rpc_for(i, j)`` picks the endpoint for the tx at chunk offset ``i + j``.
     See ``send``'s docstring for the pacing/probe/deadline/retry semantics.
+
+    ``txs`` is laid out by ``gen()`` as consecutive nonce-rounds interleaved
+    across accounts, so position ``p`` belongs to sender ``p % num_accounts``
+    (see ``send_round_robin``). Each sender's sends are chained via
+    ``_send_after`` so a later nonce is never issued until the same sender's
+    previous nonce has actually landed - see ``_send_after`` for why that
+    requires forcing those sends onto ``broadcast_tx_sync``.
     """
     started = time.monotonic()
     last_log = started
     failed = 0
     pending_retry = []
+    last_task = {}
     for i in range(0, len(txs), batch_size):
         if _past_deadline(started, deadline_s, i, len(txs)):
             break
         chunk = txs[i : i + batch_size]
         batch_sync = sync or (i // batch_size) < probe_batches
         chunk_rpcs = [rpc_for(i, j) for j in range(len(chunk))]
-        tasks = [
-            asyncio.ensure_future(async_sendtx(session, raw, rpc, batch_sync, mode))
-            for raw, rpc in zip(chunk, chunk_rpcs)
-        ]
+        tasks = []
+        for j, (raw, rpc) in enumerate(zip(chunk, chunk_rpcs)):
+            # num_accounts=None means no sender reuses a nonce across txs, so
+            # every position gets its own key and nothing chains via _send_after.
+            sender_key = (i + j) if num_accounts is None else (i + j) % num_accounts
+            prev = last_task.get(sender_key)
+            task = asyncio.ensure_future(
+                _send_after(prev, session, raw, rpc, batch_sync, mode)
+            )
+            last_task[sender_key] = task
+            tasks.append(task)
         results = await asyncio.gather(*tasks)
         failed += results.count(False)
         pending_retry.extend(
@@ -520,6 +566,7 @@ async def send(
     mode="cosmos",
     probe_batches=1,
     deadline_s=None,
+    num_accounts=None,
 ):
     """Send transactions to a single rpc endpoint in rate-limited batches.
 
@@ -556,6 +603,12 @@ async def send(
     immediately - it means the tx itself is fine and just arrived before an
     earlier nonce for the same sender, so it's queued and resent (unchanged)
     once the run's batches are done, giving the chain time to catch up.
+
+    ``num_accounts`` identifies same-sender txs for the ordering guarantee in
+    ``_send_after`` - see ``send_round_robin``'s docstring for the ``txs``
+    layout this relies on. Defaults to ``None`` (every position is its own
+    sender, so nothing chains), matching callers that never reuse a sender's
+    nonce across the tx list.
     """
     connector = aiohttp.TCPConnector(
         limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
@@ -573,6 +626,7 @@ async def send(
             mode,
             probe_batches,
             deadline_s,
+            num_accounts,
         )
 
 
@@ -615,7 +669,7 @@ async def send_round_robin(
     batch_size=500,
     batch_interval=0.5,
     mode="cosmos",
-    num_accounts=1,
+    num_accounts=None,
     probe_batches=1,
     deadline_s=None,
 ):
@@ -644,6 +698,7 @@ async def send_round_robin(
             mode=mode,
             probe_batches=probe_batches,
             deadline_s=deadline_s,
+            num_accounts=num_accounts,
         )
 
     connector = aiohttp.TCPConnector(
@@ -655,13 +710,16 @@ async def send_round_robin(
         return await _send_batches(
             session,
             txs,
-            lambda i, j: rpcs[((i + j) % num_accounts) % len(rpcs)],
+            lambda i, j: rpcs[(i + j) % len(rpcs)]
+            if num_accounts is None
+            else rpcs[((i + j) % num_accounts) % len(rpcs)],
             sync,
             batch_size,
             batch_interval,
             mode,
             probe_batches,
             deadline_s,
+            num_accounts,
         )
 
 

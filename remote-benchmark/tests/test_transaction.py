@@ -231,6 +231,41 @@ def test_send_without_a_deadline_sends_everything(monkeypatch):
     assert [raw for raw, _ in sent] == ["tx-0", "tx-1", "tx-2", "tx-3"]
 
 
+def test_send_serializes_same_sender_sends_and_forces_sync(monkeypatch):
+    # Same-sender nonces race for the mempool's admission lock if a later one
+    # is issued before the earlier one's CheckTx has actually completed, and
+    # broadcast_tx_async's response can't prove that - so a sender's second
+    # send must wait for the first to actually finish, and must go out via
+    # broadcast_tx_sync (the only response that reflects real completion)
+    # even though the run overall requested async.
+    events = []
+
+    async def fake_sendtx(_session, raw, _rpc, sync, _mode):
+        events.append((raw, sync, "start"))
+        await asyncio.sleep(0)
+        events.append((raw, sync, "end"))
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    asyncio.run(
+        tx_module.send(
+            [f"tx-{i}" for i in range(4)],
+            "http://node0",
+            sync=False,
+            batch_size=4,
+            batch_interval=0,
+            probe_batches=0,
+            num_accounts=2,
+        )
+    )
+
+    # tx-0/tx-2 are sender 0's two nonces (position % num_accounts).
+    assert ("tx-0", False, "start") in events
+    assert ("tx-2", True, "start") in events
+    assert events.index(("tx-2", True, "start")) > events.index(("tx-0", False, "end"))
+
+
 def test_send_round_robin_routes_each_account_to_one_endpoint(monkeypatch):
     # gen() interleaves accounts, so position p belongs to account
     # p % num_accounts; every tx of one account must land on the same node or a
