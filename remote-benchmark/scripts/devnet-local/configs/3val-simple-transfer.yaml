@@ -1,7 +1,8 @@
 # 3-validator local devnet - simple-transfer (single MsgEthereumTx per tx).
 # Reference: https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 # ("3 Validators" table) - target ~10236 TPS on an M4 MacBook Pro.
-# num_accounts/num_txs match the wiki's options for this case exactly.
+# num_accounts matches the wiki's options for this case; num_txs raised from
+# the wiki's 5 to 10 for a longer steady-state sampling window.
 endpoints:
   - name: node0
     rpc: http://127.0.0.1:26657
@@ -20,7 +21,7 @@ global_seq: 0
 tx_type: simple-transfer
 msg_version: "1.4"
 num_accounts: 10000
-num_txs: 5
+num_txs: 10
 batch_size: 1
 send_batch_size: 10000
 send_interval: 0.2

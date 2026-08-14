@@ -35,6 +35,13 @@
         libp2p: {
           enabled: false,
         },
+        // Default (0s) means unbounded exponential backoff between persistent-
+        // peer redials. All 5 validators start concurrently, so node A's very
+        // first dial to node B often loses the race against B's listener
+        // coming up and gets "connection refused" - with no cap, the backoff
+        // after that then balloons to minutes, and the p2p mesh gets stuck
+        // below the 4-peer quorum needed to ever produce block 1.
+        persistent_peers_max_dial_period: '3s',
       },
     },
     'app-config': {

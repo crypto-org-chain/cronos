@@ -35,6 +35,8 @@
         libp2p: {
           enabled: false,
         },
+        // See benchmark-5val-legacy-mempool.jsonnet for why this is capped.
+        persistent_peers_max_dial_period: '3s',
       },
     },
     'app-config': {
