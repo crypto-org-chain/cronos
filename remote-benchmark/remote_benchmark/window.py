@@ -4,7 +4,6 @@ load-window summary shared by dump_block_stats and dump_eth_block_stats.
 
 from statistics import median, quantiles
 
-# sliding window size for per-block TPS calculation
 TPS_WINDOW = 10
 
 

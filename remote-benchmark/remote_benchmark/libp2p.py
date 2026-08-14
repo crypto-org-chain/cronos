@@ -10,7 +10,6 @@ import base64
 import json
 from pathlib import Path
 
-# base58btc alphabet
 _B58 = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 

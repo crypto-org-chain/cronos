@@ -54,7 +54,6 @@ from .transaction import (
 )
 from .utils import block_height, eth_block_number, gen_account, split_batch
 
-# reserved for the funding account, index 0 is the funder itself.
 FUND_ACCOUNT_INDEX = 0
 
 
@@ -123,7 +122,6 @@ def fund(config_path, batch_size, fund_mode, start, end):
                     f"{result.get('log')}"
                 )
 
-        # wait for nonce to change
         while w3.eth.get_transaction_count(fund_account.address) < nonce:
             time.sleep(1)
 
