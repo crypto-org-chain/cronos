@@ -64,7 +64,7 @@ JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
 if [[ -n "${CRONOS_BIN}" ]]; then
   [[ -x "${CRONOS_BIN}" ]] || { echo "CRONOS_BIN=${CRONOS_BIN} is not executable" >&2; exit 1; }
   echo "=== using external cronosd: ${CRONOS_BIN} ==="
-  "${CRONOS_BIN}" version --long || true
+  "${CRONOS_BIN}" version --long 2>&1 | awk '/^build_deps:/{skip=1;next} /^[a-z_]+:/{skip=0} !skip' || true
   CRONOS_BIN_VERSION="$("${CRONOS_BIN}" version 2>/dev/null | tr -d 'v[:space:]')"
   # git describe dev builds off a "v1.8.0-alpha" tag report as
   # "1.8.0-alpha-<N>-g<hash>" - strip that suffix before comparing, or every
@@ -248,12 +248,26 @@ else
   nix-shell "${SHELL_NIX}" --run \
     "pystarport init --config '${JSONNET_CONFIG}' --data '${DATA_DIR}' --base_port ${BASE_PORT} --no_remove ${CMD_FLAG}"
 
+  # pystarport's pinned tomlkit==0.7.2 mis-scopes [p2p]'s trailing keys under
+  # the newly-merged [p2p.libp2p] table (including allow_duplicate_ip), which
+  # silently defaults AllowDuplicateIP to false and caps same-host validators
+  # at ~1 peer connection each.
+  echo "=== fixing up mis-scoped p2p.allow_duplicate_ip in generated configs ==="
+  cd "${REMOTE_BENCHMARK_DIR}"
+  poetry run python -m remote_benchmark.fix_p2p_config "${DATA_DIR}/${CHAIN_ID}"
+
   # pystarport only wires the classic reactor's persistent_peers - it has no
   # idea libp2p exists, so a >1-validator libp2p mesh needs bootstrap_peers
-  # derived from each node's node_key.json and patched in by hand.
-  echo "=== wiring libp2p bootstrap_peers across ${VALIDATORS} validator(s) ==="
-  cd "${REMOTE_BENCHMARK_DIR}"
-  poetry run python -m remote_benchmark.libp2p "${DATA_DIR}/${CHAIN_ID}" "${VALIDATORS}" "${BASE_PORT}"
+  # derived from each node's node_key.json and patched in by hand. The
+  # legacy-mempool jsonnet configs (used for binaries that predate libp2p,
+  # e.g. v1.7.8) statically template [p2p.libp2p] with enabled=false, so
+  # skip this step for them rather than logging a misleading "wired" message.
+  if awk '/^\[p2p\.libp2p\]/{f=1;next} /^\[/{f=0} f && /^enabled[[:space:]]*=[[:space:]]*true/{found=1} END{exit !found}' \
+      "${DATA_DIR}/${CHAIN_ID}/node0/config/config.toml"; then
+    echo "=== wiring libp2p bootstrap_peers across ${VALIDATORS} validator(s) ==="
+    cd "${REMOTE_BENCHMARK_DIR}"
+    poetry run python -m remote_benchmark.libp2p "${DATA_DIR}/${CHAIN_ID}" "${VALIDATORS}" "${BASE_PORT}"
+  fi
 
   echo "=== injecting ERC20 contract + native balances into genesis ==="
   cd "${REMOTE_BENCHMARK_DIR}"
@@ -288,6 +302,54 @@ for _ in $(seq 1 600); do
   fi
   sleep 0.2
 done
+
+# With N same-host validators all dialing each other at once, cometbft's
+# classic-reactor persistent-peer dial state can get stuck: a node whose first
+# dial attempt to a peer fails because that peer's listener isn't up yet can be
+# left with a dangling "already dialing" marker for that peer that's never
+# cleared, so every later connection attempt to/from that peer address (either
+# direction) gets aborted mid-handshake ("connection reset by peer") for the
+# rest of the process's life. Observed on a 5-validator run: one node stuck
+# at zero peers indefinitely. The stuck state lives in the process's memory,
+# not on disk, so restarting cronosd (now that every listener is already up,
+# removing the connection-refused trigger) gives it a fresh chance to connect.
+if [[ "${VALIDATORS}" -gt 1 ]]; then
+  echo "=== waiting for p2p mesh to fully form ==="
+  MESH_HEALTHY=""
+  for attempt in $(seq 1 5); do
+    for _ in $(seq 1 100); do
+      ALL_HEALTHY=1
+      for ((i = 0; i < VALIDATORS; i++)); do
+        NODE_RPC_PORT=$((BASE_PORT + i * 10 + 7))
+        N_PEERS="$(curl -s "http://127.0.0.1:${NODE_RPC_PORT}/net_info" 2>/dev/null \
+          | grep -o '"n_peers":"[0-9]*"' | grep -o '[0-9]*' || echo 0)"
+        [[ -z "${N_PEERS}" ]] && N_PEERS=0
+        if [[ "${N_PEERS}" -lt $((VALIDATORS - 1)) ]]; then
+          ALL_HEALTHY=0
+          break
+        fi
+      done
+      if [[ "${ALL_HEALTHY}" -eq 1 ]]; then
+        MESH_HEALTHY=1
+        break
+      fi
+      sleep 0.3
+    done
+    [[ -n "${MESH_HEALTHY}" ]] && break
+    echo "=== p2p mesh did not converge (attempt ${attempt}/5) - restarting devnet ===" >&2
+    kill_descendants "${PYSTARPORT_PID}"
+    nix-shell "${SHELL_NIX}" --run "pystarport start --data '${DATA_DIR}' --quiet" \
+      >>"${DATA_DIR}/pystarport.log" 2>&1 &
+    PYSTARPORT_PID=$!
+    for _ in $(seq 1 600); do
+      curl -s -o /dev/null "${NODE0_RPC}/status" && break
+      sleep 0.2
+    done
+  done
+  if [[ -z "${MESH_HEALTHY}" ]]; then
+    echo "=== warning: p2p mesh never fully converged after 5 restart attempts, proceeding anyway ===" >&2
+  fi
+fi
 
 echo "=== check ==="
 if [[ "${PHYSICAL_END_ACCOUNT}" -eq "${END_ACCOUNT}" ]]; then
