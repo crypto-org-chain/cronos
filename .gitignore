@@ -37,3 +37,7 @@ chain-main-*
 
 # Corporate CA certs (environment-specific, not for public repo)
 testground/corp-ca.crt
+
+# MEMPOOL_SIZE-patched jsonnet copies (run-benchmark.sh scratch output)
+remote-benchmark/scripts/devnet-local/configs/.mempool-size-*.jsonnet
+

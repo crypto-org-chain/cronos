@@ -32,7 +32,7 @@ _ONE_ENDPOINT = [
 
 
 class FakeMonitor:
-    def __init__(self, *_args):
+    def __init__(self, *_args, **_kwargs):
         self.data = {}
 
     def start(self):
@@ -455,7 +455,7 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
     captured = {}
 
     class FakeSampler:
-        def __init__(self, *_args):
+        def __init__(self, *_args, **_kwargs):
             self.checkpoints = [
                 {
                     "elapsed_s": t,
@@ -552,7 +552,7 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
     gen_calls = []
 
     class FakeSampler:
-        def __init__(self, *_args):
+        def __init__(self, *_args, **_kwargs):
             self.checkpoints = [
                 {
                     "elapsed_s": t,
@@ -1037,7 +1037,7 @@ class _HealthySampler:
     """Checkpoints that pass every soak gate, so only the gate under test can
     fail the command."""
 
-    def __init__(self, *_args):
+    def __init__(self, *_args, **_kwargs):
         self.checkpoints = [
             {"elapsed_s": t, "height": 100 + t, "tps": 100.0, "avg_block_time_ms": 500.0, "rss_bytes": 1_000}
             for t in (0, 30, 60)

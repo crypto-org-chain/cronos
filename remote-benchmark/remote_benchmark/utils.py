@@ -199,10 +199,32 @@ def net_info(rpc):
 
 
 def mempool_status(rpc):
-    """Return (n_txs, total_bytes) from CometBFT's unconfirmed txs endpoint."""
+    """Return (n_txs, total_bytes) from CometBFT's unconfirmed txs endpoint.
+
+    Always reads (0, 0) under `mempool.type=app` - CometBFT's own mempool is
+    empty since app-mempool bypasses it. Use txpool_status for that mode.
+    """
     rsp = request_json(requests.get, rpc, "/num_unconfirmed_txs")
     r = rsp.get("result", {})
     return int(r.get("n_txs", 0)), int(r.get("total_bytes", 0))
+
+
+def txpool_status(json_rpc):
+    """Return pending tx count from the eth `txpool_status` RPC.
+
+    Backed by app-mempool's own mempoolClient.CountTx(), unlike
+    `mempool_status`'s CometBFT endpoint - the only live pending-count signal
+    under `mempool.type=app`. No byte-size equivalent is exposed, so the
+    second element is always 0.
+    """
+    rsp = request_json(
+        requests.post,
+        json_rpc,
+        "",
+        json={"jsonrpc": "2.0", "method": "txpool_status", "params": [], "id": 1},
+    )
+    pending = rsp.get("result", {}).get("pending", "0x0")
+    return int(pending, 16), 0
 
 
 def block_txs(height, rpc):

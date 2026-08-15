@@ -28,6 +28,7 @@ tx_type: simple-transfer
 msg_version: "1.4"
 num_accounts: 20000
 num_txs: 15
+warmup_txs: 10
 batch_size: 1
 send_batch_size: 20000
 send_interval: 0.2

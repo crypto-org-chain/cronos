@@ -1,5 +1,6 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 from datetime import datetime, timezone
 from statistics import median
 
@@ -60,16 +61,26 @@ def _extract_gas(eth_blk):
 
 
 def _get_failed_tx_count(height, rpc):
-    """Number of failed txs from CometBFT block_results, or None when the
-    query fails — a zero there would read as "no failures" and let the
-    saturation gate pass on data that was never measured."""
+    """(count, {(codespace, code): count}) of failed txs from CometBFT
+    block_results, or (None, {}) when the query fails - a zero there would
+    read as "no failures" and let the saturation gate pass on data that was
+    never measured. The reason breakdown identifies *why* txs failed (e.g.
+    insufficient fee vs wrong sequence) instead of just how many.
+    """
     try:
         res = block_results(height, rpc)
         tx_results = res.get("result", {}).get("txs_results") or []
-        return sum(1 for r in tx_results if int(r.get("code", 0)) != 0)
+        reasons = Counter()
+        count = 0
+        for r in tx_results:
+            code = int(r.get("code", 0))
+            if code != 0:
+                count += 1
+                reasons[(r.get("codespace", ""), code)] += 1
+        return count, reasons
     except Exception:
         log.debug("block_results unavailable for height %d", height, exc_info=True)
-        return None
+        return None, Counter()
 
 
 def _get_block_gas_and_txs(height, json_rpc):
@@ -98,7 +109,7 @@ def get_block_info_eth_full(height, json_rpc):
     return timestamp, txs, gas_used, gas_limit
 
 
-def _print_load_summary_sections(fp, start, summary):
+def _print_load_summary_sections(fp, start, summary, failed_tx_reasons=None):
     """Print the TPS / Gas Throughput / Per-Tx Gas / Block Time / Load
     Summary sections shared by dump_block_stats and dump_eth_block_stats."""
     print("=== TPS ===", file=fp)
@@ -184,6 +195,10 @@ def _print_load_summary_sections(fp, start, summary):
             f" ({summary['total_failed_txs'] / summary['total_counted_txs'] * 100:.1f}%)",
             file=fp,
         )
+        if failed_tx_reasons:
+            for (codespace, code), n in failed_tx_reasons.most_common():
+                label = f"{codespace}:{code}" if codespace else str(code)
+                print(f"  failed_tx_reason {label} {n}", file=fp)
 
 
 def _print_block_line(fp, i, txs, gas_used, timestamp, prev_timestamp, mp_str=""):
@@ -226,6 +241,7 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
     total_failed_txs = 0
     total_counted_txs = 0
     mempool_snapshots = []
+    failed_tx_reasons = Counter()
 
     # /blockchain returns up to BLOCKCHAIN_PAGE_SIZE block_metas per call
     # (timestamp + tx count), so this replaces one /block call per height
@@ -244,12 +260,15 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
         }
     heights_with_txs = [i for i in range(start, end + 1) if block_info[i][1] > 0]
     with ThreadPoolExecutor(max_workers=FAILED_TX_FETCH_WORKERS) as pool:
-        failed_counts = dict(
+        failed_results = dict(
             zip(
                 heights_with_txs,
                 pool.map(lambda h: _get_failed_tx_count(h, rpc), heights_with_txs),
             )
         )
+    failed_counts = {h: count for h, (count, _) in failed_results.items()}
+    for _, reasons in failed_results.values():
+        failed_tx_reasons.update(reasons)
 
     # mempool_status has no historical query - it always reports the current
     # live snapshot, so when mempool_data wasn't captured during the run
@@ -290,6 +309,7 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
         "total_failed_txs": total_failed_txs,
         "total_counted_txs": total_counted_txs,
         "mempool_snapshots": mempool_snapshots,
+        "failed_tx_reasons": failed_tx_reasons,
     }
 
 
@@ -587,7 +607,7 @@ def dump_block_stats(
         print("no_load_period", file=fp)
         return None
 
-    _print_load_summary_sections(fp, start, summary)
+    _print_load_summary_sections(fp, start, summary, collected["failed_tx_reasons"])
     _print_mempool(fp, summary, mempool_snapshots)
 
     # --- Prometheus-based metrics (block-stm + consensus) ---

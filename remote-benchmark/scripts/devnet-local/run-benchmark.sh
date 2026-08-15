@@ -96,6 +96,21 @@ case "${MEMPOOL_MODE}" in
   *) echo "MEMPOOL_MODE must be auto|legacy|app, got '${MEMPOOL_MODE}'" >&2; exit 1 ;;
 esac
 
+# MEMPOOL_SIZE overrides the legacy-mempool jsonnet's CometBFT mempool.size
+# cap (default 2000, see benchmark-*val-legacy-mempool.jsonnet). Only
+# meaningful there - app-mempool bypasses CometBFT's mempool entirely and has
+# no equivalent knob.
+if [[ -n "${MEMPOOL_SIZE:-}" ]]; then
+  if [[ "${JSONNET_CONFIG}" != *-legacy-mempool.jsonnet ]]; then
+    echo "MEMPOOL_SIZE is only meaningful with the legacy-mempool config (got ${JSONNET_CONFIG})" >&2
+    exit 1
+  fi
+  PATCHED_JSONNET="${SCRIPT_DIR}/configs/.mempool-size-${MEMPOOL_SIZE}.$(basename "${JSONNET_CONFIG}")"
+  sed -E "s/size: [0-9]+,/size: ${MEMPOOL_SIZE},/" "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
+  JSONNET_CONFIG="${PATCHED_JSONNET}"
+  echo "=== MEMPOOL_SIZE=${MEMPOOL_SIZE}: using patched ${JSONNET_CONFIG} ==="
+fi
+
 # Cosmos chain-id is "<name>_<eip155-id>-<version>" (e.g. "cronos_777-1"); the
 # EIP-155 id is what every signed tx's chainId must match, or CheckTx rejects
 # it. Derived from the selected jsonnet config rather than hardcoded, so
@@ -199,6 +214,7 @@ cleanup() {
   if [[ -n "${PYSTARPORT_PID}" ]]; then
     kill_descendants "${PYSTARPORT_PID}"
   fi
+  [[ -n "${PATCHED_JSONNET:-}" ]] && rm -f "${PATCHED_JSONNET}"
   if [[ -n "${KEEP_DATA:-}" ]]; then
     echo "=== KEEP_DATA set, leaving devnet data at ${DATA_DIR} ==="
   else

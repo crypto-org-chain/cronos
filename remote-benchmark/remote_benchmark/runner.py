@@ -233,6 +233,69 @@ def _send_and_report_failures(txs, rpcs, **send_kwargs):
     return failed
 
 
+def _run_warmup(cfg, start, end, nonce, num_accounts):
+    """Send `cfg.warmup_txs` throwaway txs per account and wait for them to
+    commit, so the measured run isn't paying for cold mempool/connection-pool
+    state. No-op when warmup_txs is 0. Returns the nonce the real load
+    generation should resume from.
+    """
+    if not getattr(cfg, "warmup_txs", 0):
+        return nonce
+
+    print(f"warming up with {cfg.warmup_txs} tx/account...", file=sys.stderr)
+    txs = gen(
+        cfg.global_seq,
+        num_accounts,
+        cfg.warmup_txs,
+        cfg.tx_type,
+        cfg.batch_size,
+        start_account=start,
+        nonce=nonce,
+        msg_version=cfg.msg_version,
+        tx_options=tx_options(cfg),
+        evm_denom=cfg.evm_denom,
+        wire_format=cfg.mode,
+        sender_strategy=cfg.sender_strategy,
+    )
+    if cfg.mode == "eth":
+        load_start = eth_block_number(cfg.primary.json_rpc_candidates)
+        failed = _send_and_report_failures(
+            txs,
+            cfg.json_rpc_candidates,
+            batch_size=cfg.send_batch_size,
+            batch_interval=cfg.send_interval,
+            mode=cfg.mode,
+            num_accounts=num_accounts,
+        )
+        load_end = eth_block_number(cfg.primary.json_rpc_candidates)
+        wait_for_committed_eth_txs(
+            cfg.primary.json_rpc_candidates,
+            load_start,
+            load_end,
+            len(txs) - failed,
+            timeout=cfg.commit_timeout,
+        )
+    else:
+        load_start = block_height(cfg.primary.rpc_candidates)
+        failed = _send_and_report_failures(
+            txs,
+            cfg.rpc_candidates,
+            batch_size=cfg.send_batch_size,
+            batch_interval=cfg.send_interval,
+            num_accounts=num_accounts,
+        )
+        load_end = block_height(cfg.primary.rpc_candidates)
+        wait_for_committed_txs(
+            cfg.primary.rpc_candidates,
+            load_start,
+            load_end,
+            len(txs) - failed,
+            timeout=cfg.commit_timeout,
+        )
+    print("warm-up committed", file=sys.stderr)
+    return nonce + cfg.warmup_txs
+
+
 def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cache=None):
     """Generate load for accounts [start, end] and report stats for one run.
 
@@ -254,27 +317,32 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 f"but this run covers {num_accounts} accounts x {cfg.num_txs} txs; remove the "
                 "stale cache file or point --txs-cache elsewhere"
             )
+
+    if nonce is None:
+        nonce = current_sender_nonce(cfg, start, end)
+        print(f"using current sender nonce {nonce}", file=sys.stderr)
+
+    # Warm-up must run before the cache-hit check below, even when a payload is
+    # cached: the cache was signed assuming warm-up already advanced the nonce,
+    # but each run starts from a fresh chain (nonce back at 0), so skipping
+    # warm-up on a cache hit would compare against a stale, pre-warm-up nonce.
+    nonce = _run_warmup(cfg, start, end, nonce, num_accounts)
+
+    if cached_payload is not None:
         # The cache only stays valid if the chain's actual current nonce still
         # matches the nonce it was signed against - a torn-down-and-reinitialized
         # chain (fresh nonce 0) replaying a cache signed at a later nonce fails
         # every tx's CheckTx instead of raising here with a clear cause.
         cached_nonce = cached_payload.get("nonce")
-        actual_nonce = current_sender_nonce(cfg, start, end)
-        if cached_nonce != actual_nonce:
+        if cached_nonce != nonce:
             raise ValueError(
                 f"--txs-cache {txs_cache} was signed against nonce {cached_nonce}, "
-                f"but the chain's senders are currently at nonce {actual_nonce}; "
+                f"but the chain's senders are currently at nonce {nonce}; "
                 "remove the stale cache file or point --txs-cache elsewhere"
             )
-
-    if cached_payload is not None:
         txs = cached_payload["txs"]
         print(f"loaded {len(txs)} cached {cfg.mode} txs from {txs_cache}", file=sys.stderr)
     else:
-        if nonce is None:
-            nonce = current_sender_nonce(cfg, start, end)
-            print(f"using current sender nonce {nonce}", file=sys.stderr)
-
         print("generating txs...", file=sys.stderr)
         txs = gen(
             cfg.global_seq,
@@ -340,7 +408,11 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
         )
         print(f"committed_eth_txs {committed_txs}/{len(txs)}")
     else:
-        mempool_monitor = MempoolMonitor(cfg.primary.rpc_candidates)
+        is_app_mempool = (getattr(cfg.primary, "node_config", None) or {}).get("mempool.type") == "app"
+        mempool_monitor = MempoolMonitor(
+            cfg.primary.rpc_candidates,
+            json_rpc=cfg.primary.json_rpc_candidates[0] if is_app_mempool else None,
+        )
         stm_monitor = BlockSTMMonitor(cfg.primary.rpc_candidates, cfg.telemetry)
         prom_baseline_text = _fetch_prometheus(cfg.telemetry)
         consensus_baseline = scrape_consensus_raw(prom_baseline_text)

@@ -1,4 +1,5 @@
 import io
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 from remote_benchmark import resources as resources_module
@@ -17,7 +18,7 @@ def _patch_common(monkeypatch, blocks):
 
     monkeypatch.setattr(stats_module, "blockchain_range", fake_blockchain_range)
     monkeypatch.setattr(stats_module, "mempool_status", lambda rpc: (0, 0))
-    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: 0)
+    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: (0, Counter()))
 
 
 def test_dump_block_stats_puts_reexecution_and_validation_ratio_in_summary(monkeypatch):
@@ -85,7 +86,7 @@ def test_get_failed_tx_count_returns_none_when_block_results_is_unavailable(monk
 
     monkeypatch.setattr(stats_module, "block_results", boom)
 
-    assert stats_module._get_failed_tx_count(3, "http://rpc") is None
+    assert stats_module._get_failed_tx_count(3, "http://rpc") == (None, Counter())
 
 
 def test_dump_block_stats_leaves_failed_tx_gate_unevaluated_when_unmeasurable(monkeypatch):
@@ -93,7 +94,7 @@ def test_dump_block_stats_leaves_failed_tx_gate_unevaluated_when_unmeasurable(mo
     # data that was never measured; total_counted_txs must stay 0 instead.
     blocks = {2: (_dt(0), 0), 3: (_dt(1), 5), 4: (_dt(2), 5)}
     _patch_common(monkeypatch, blocks)
-    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: None)
+    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: (None, Counter()))
 
     summary = dump_block_stats(
         io.StringIO(), "http://rpc", "http://json-rpc", eth=False, start=2, end=4,

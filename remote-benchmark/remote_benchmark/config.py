@@ -60,6 +60,10 @@ class Config(BaseModel):
     # fill far more blocks than the same tx count sent unbatched, and each of
     # those blocks is gas-saturated rather than near-empty.
     commit_timeout: float = 120
+    # Throwaway txs sent per account before the measured load, to prime the
+    # mempool/JIT/connection-pool warm state instead of paying that cost
+    # inside the measured window. 0 disables warm-up.
+    warmup_txs: int = 0
     telemetry: str | None = None
 
     @model_validator(mode="after")

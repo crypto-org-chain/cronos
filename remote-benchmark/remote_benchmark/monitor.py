@@ -1,19 +1,30 @@
 import threading
 
 from .stats import _fetch_prometheus, scrape_blockstm_metrics
-from .utils import block_height, mempool_status
+from .utils import block_height, mempool_status, txpool_status
 
 
 class MempoolMonitor:
-    """Background thread that polls CometBFT mempool during the load period.
+    """Background thread that polls mempool pressure during the load period.
 
     Records the peak (n_txs, n_bytes) observed at each block height so that
     dump_block_stats can report accurate mempool pressure instead of always
     seeing 0 when queried post-hoc.
+
+    `mempool.type=app` bypasses CometBFT's own mempool, so its
+    `/num_unconfirmed_txs` always reads 0 in that mode - poll the eth
+    `txpool_status` RPC (backed by the app-mempool client) instead by passing
+    `json_rpc`. `n_bytes` is always 0 in that mode; app-mempool exposes no
+    byte-size equivalent.
+
+    `txpool_status` is expensive (it walks the app-mempool client), so it's
+    only fetched once per new block height rather than on every `interval`
+    tick - each block's peak is a single sample.
     """
 
-    def __init__(self, rpc, interval=0.2):
+    def __init__(self, rpc, json_rpc=None, interval=0.2):
         self._rpc = rpc
+        self._json_rpc = json_rpc
         self._interval = interval
         self._data = {}
         self._stop = threading.Event()
@@ -34,10 +45,17 @@ class MempoolMonitor:
         return dict(self._data)
 
     def _poll(self):
+        last_txpool_height = None
+        n_txs, n_bytes = 0, 0
         while not self._stop.is_set():
             try:
                 h = block_height(self._rpc)
-                n_txs, n_bytes = mempool_status(self._rpc)
+                if self._json_rpc:
+                    if h != last_txpool_height:
+                        n_txs, n_bytes = txpool_status(self._json_rpc)
+                        last_txpool_height = h
+                else:
+                    n_txs, n_bytes = mempool_status(self._rpc)
                 prev = self._data.get(h, (0, 0))
                 self._data[h] = (max(prev[0], n_txs), max(prev[1], n_bytes))
             except Exception:
