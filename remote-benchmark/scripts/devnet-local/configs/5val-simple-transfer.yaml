@@ -26,8 +26,8 @@ gas_price: 5000000000000
 global_seq: 0
 tx_type: simple-transfer
 msg_version: "1.4"
-num_accounts: 10000
-num_txs: 5
+num_accounts: 20000
+num_txs: 15
 batch_size: 1
-send_batch_size: 10000
+send_batch_size: 20000
 send_interval: 0.2

@@ -20,19 +20,25 @@
         recheck: false,
         type: 'app',
         broadcast: true,
-        reap_max_gas: 363000000,
+        reap_max_gas: 210000000,
         reap_interval: '500ms',
       },
       consensus: {
-        timeout_commit: '20ms',
-        // A full 363000000-gas block takes longer to propagate and validate
-        // across every validator than the 3s default allows, so round 0's
-        // proposal always arrived late: every load height prevoted nil, burned
-        // ~8.5s in propose/prevote/precommit timeouts, and re-ran
-        // ProcessProposal to commit the same block at round 1. This is an
-        // upper bound, not a fixed delay - a prompt proposal still commits
-        // immediately, so empty blocks stay fast.
-        timeout_propose: '15s',
+        // Phase 1 baseline: mainnet-realistic timeouts (tuning-doc Phase 1 /
+        // validator-config.toml). Phase 2 Layer 2 tried the aggressive values
+        // (timeout_prevote/precommit 1s->500ms, deltas 500ms->200ms, commit
+        // 200ms->100ms) and it regressed median_tps -2.7% - reverted here.
+        timeout_propose: '3s',
+        timeout_propose_delta: '500ms',
+        timeout_prevote: '1s',
+        timeout_prevote_delta: '500ms',
+        timeout_precommit: '1s',
+        timeout_precommit_delta: '500ms',
+        timeout_commit: '200ms',
+        create_empty_blocks_interval: '5s',
+        peer_gossip_sleep_duration: '100ms',
+        peer_query_maj23_sleep_duration: '2s',
+        skip_timeout_commit: false,
       },
       tx_index: {
         indexer: 'null',
@@ -75,7 +81,7 @@
         recheck: false,
         type: 'app',
         broadcast: true,
-        reap_max_gas: 363000000,
+        reap_max_gas: 210000000,
         reap_interval: '500ms',
       },
       evm: {
@@ -87,14 +93,14 @@
         enable: true,
         'zero-copy': true,
         'snapshot-interval': 5,
-        'cache-size': 0,
+        'cache-size': 1000,
         'async-commit-buffer': 16,
       },
       grpc: {
         'skip-check-header': true,
       },
       cronos: {
-        'mempool-txs-per-block': 17285,
+        'mempool-txs-per-block': 0,
         'tx-cache-size': 100000,
       },
     },
@@ -162,7 +168,7 @@
       consensus: {
         params: {
           block: {
-            max_gas: '363000000',
+            max_gas: '210000000',
           },
         },
       },

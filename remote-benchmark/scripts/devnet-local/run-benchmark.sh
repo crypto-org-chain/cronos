@@ -60,6 +60,11 @@ BENCH_CONFIG="${SCRIPT_DIR}/configs/${VALIDATORS}val-${TESTCASE}.yaml"
 # for this - it's a generic cometbft/ethermint server flag that already
 # exists in v1.7.8's dependency pins, well before cronos wired up app-mempool.
 CRONOS_BIN="${CRONOS_BIN:-}"
+# MEMPOOL_MODE overrides the version-based auto-detect below: "legacy" or
+# "app" force the corresponding jsonnet regardless of what the binary's
+# version string implies (e.g. a v1.8-alpha dev build that should be
+# benchmarked against the legacy mempool as a control). Default: "auto".
+MEMPOOL_MODE="${MEMPOOL_MODE:-auto}"
 JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
 if [[ -n "${CRONOS_BIN}" ]]; then
   [[ -x "${CRONOS_BIN}" ]] || { echo "CRONOS_BIN=${CRONOS_BIN} is not executable" >&2; exit 1; }
@@ -78,6 +83,18 @@ if [[ -n "${CRONOS_BIN}" ]]; then
     echo "=== ${CRONOS_BIN} (v${CRONOS_BIN_VERSION}) predates app-mempool support, using legacy-mempool config ==="
   fi
 fi
+case "${MEMPOOL_MODE}" in
+  auto) ;;
+  legacy)
+    JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val-legacy-mempool.jsonnet"
+    echo "=== MEMPOOL_MODE=legacy: forcing ${JSONNET_CONFIG} ==="
+    ;;
+  app)
+    JSONNET_CONFIG="${SCRIPT_DIR}/configs/benchmark-${VALIDATORS}val.jsonnet"
+    echo "=== MEMPOOL_MODE=app: forcing ${JSONNET_CONFIG} ==="
+    ;;
+  *) echo "MEMPOOL_MODE must be auto|legacy|app, got '${MEMPOOL_MODE}'" >&2; exit 1 ;;
+esac
 
 # Cosmos chain-id is "<name>_<eip155-id>-<version>" (e.g. "cronos_777-1"); the
 # EIP-155 id is what every signed tx's chainId must match, or CheckTx rejects
@@ -403,24 +420,43 @@ with open('${EFFECTIVE_BENCH_CONFIG}', 'w') as f:
   echo "=== legacy-mempool pacing: send_interval raised to $(poetry run python -c "import yaml; print(yaml.safe_load(open('${EFFECTIVE_BENCH_CONFIG}'))['send_interval'])") ==="
 fi
 BENCH_STATS="${DATA_DIR}/bench-stats.log"
-poetry run remote-benchmark bench \
-  --config "${EFFECTIVE_BENCH_CONFIG}" \
-  --txs-cache "${CACHE_DIR}/txs-${START_ACCOUNT}-${END_ACCOUNT}.json" \
-  "${START_ACCOUNT}" "${END_ACCOUNT}" \
-  | tee "${BENCH_STATS}"
+if [[ "${SOAK_MODE:-0}" == "1" ]]; then
+  # soak has its own pacing (--rate/--duration) and no --txs-cache option;
+  # BENCH_EXTRA_ARGS carries --rate/--duration/--results for this mode.
+  poetry run remote-benchmark soak \
+    --config "${EFFECTIVE_BENCH_CONFIG}" \
+    ${BENCH_EXTRA_ARGS:-} \
+    "${START_ACCOUNT}" "${END_ACCOUNT}" \
+    | tee "${BENCH_STATS}"
+else
+  # BENCH_EXTRA_ARGS lets callers pass extra `remote-benchmark bench` flags
+  # (--results, --require-saturation, --repeat) without editing this script.
+  poetry run remote-benchmark bench \
+    --config "${EFFECTIVE_BENCH_CONFIG}" \
+    --txs-cache "${CACHE_DIR}/txs-${START_ACCOUNT}-${END_ACCOUNT}.json" \
+    ${BENCH_EXTRA_ARGS:-} \
+    "${START_ACCOUNT}" "${END_ACCOUNT}" \
+    | tee "${BENCH_STATS}"
+fi
 
-REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
-REPORT_GENERATED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
-REPORT_PATH="${LOCAL_ARTIFACTS_DIR}/report/${REPORT_TIMESTAMP}.html"
-poetry run python -m remote_benchmark.report \
-  --config "${BENCH_CONFIG}" \
-  --stats "${BENCH_STATS}" \
-  --output "${REPORT_PATH}" \
-  --timestamp "${REPORT_GENERATED_AT}" \
-  --validators "${VALIDATORS}" \
-  --testcase "${TESTCASE}" \
-  --start-account "${START_ACCOUNT}" \
-  --end-account "${END_ACCOUNT}"
+if [[ "${SOAK_MODE:-0}" == "1" ]]; then
+  # report.py expects bench's stats format, not soak's checkpoint/trend
+  # output - the soak's own --results JSON is the artifact that matters here.
+  echo "${VALIDATORS}-validator ${TESTCASE} local soak passed"
+else
+  REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
+  REPORT_GENERATED_AT="$(date '+%Y-%m-%dT%H:%M:%S%z')"
+  REPORT_PATH="${LOCAL_ARTIFACTS_DIR}/report/${REPORT_TIMESTAMP}.html"
+  poetry run python -m remote_benchmark.report \
+    --config "${BENCH_CONFIG}" \
+    --stats "${BENCH_STATS}" \
+    --output "${REPORT_PATH}" \
+    --timestamp "${REPORT_GENERATED_AT}" \
+    --validators "${VALIDATORS}" \
+    --testcase "${TESTCASE}" \
+    --start-account "${START_ACCOUNT}" \
+    --end-account "${END_ACCOUNT}"
 
-echo "benchmark report: ${REPORT_PATH}"
-echo "${VALIDATORS}-validator ${TESTCASE} local benchmark passed"
+  echo "benchmark report: ${REPORT_PATH}"
+  echo "${VALIDATORS}-validator ${TESTCASE} local benchmark passed"
+fi

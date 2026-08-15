@@ -8,25 +8,29 @@
     cmd: 'cronosd',
     'start-flags': '--trace',
     config: {
-      db_backend: 'rocksdb',
+      db_backend: 'goleveldb',
       event_bus_buffer_capacity: 128,
       rpc: {
         'max_open_connections': 10000,
       },
       mempool: {
-        size: 100000,
-        recheck: false,
+        size: 2000,
+        recheck: true,
       },
       consensus: {
-        timeout_commit: '20ms',
-        // A full 363000000-gas block takes longer to propagate and validate
-        // across every validator than the 3s default allows, so round 0's
-        // proposal always arrived late: every load height prevoted nil, burned
-        // ~8.5s in propose/prevote/precommit timeouts, and re-ran
-        // ProcessProposal to commit the same block at round 1. This is an
-        // upper bound, not a fixed delay - a prompt proposal still commits
-        // immediately, so empty blocks stay fast.
-        timeout_propose: '15s',
+        // Phase 1 baseline: mainnet-realistic timeouts (tuning-doc Phase 1 /
+        // validator-config.toml), not the aggressive Phase-2 tuning values.
+        timeout_propose: '3s',
+        timeout_propose_delta: '500ms',
+        timeout_prevote: '1s',
+        timeout_prevote_delta: '500ms',
+        timeout_precommit: '1s',
+        timeout_precommit_delta: '500ms',
+        timeout_commit: '200ms',
+        create_empty_blocks_interval: '5s',
+        peer_gossip_sleep_duration: '100ms',
+        peer_query_maj23_sleep_duration: '2s',
+        skip_timeout_commit: false,
       },
       tx_index: {
         indexer: 'null',
@@ -46,7 +50,7 @@
     },
     'app-config': {
       chain_id: 'cronos_777-1',
-      'app-db-backend': 'rocksdb',
+      'app-db-backend': 'goleveldb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'async-check-tx': true,
@@ -61,7 +65,7 @@
         'enable-indexer': false,
       },
       mempool: {
-        'max-txs': 100000,
+        'max-txs': -1,
       },
       evm: {
         'block-executor': 'block-stm',
@@ -69,11 +73,7 @@
         'block-stm-pre-estimate': false,
       },
       memiavl: {
-        enable: true,
-        'zero-copy': true,
-        'snapshot-interval': 5,
-        'cache-size': 0,
-        'async-commit-buffer': 16,
+        enable: false,
       },
       grpc: {
         'skip-check-header': true,
@@ -145,7 +145,7 @@
       consensus: {
         params: {
           block: {
-            max_gas: '363000000',
+            max_gas: '105000000',
           },
         },
       },

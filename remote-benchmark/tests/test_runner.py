@@ -185,6 +185,7 @@ def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
         "gen_account",
         lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
     )
+    monkeypatch.setattr(runner_module.time, "sleep", lambda _seconds: None)
 
     try:
         runner_module.current_sender_nonce(cfg, 3, 3)
@@ -193,7 +194,42 @@ def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
     else:
         raise AssertionError("mixed sender nonces were accepted")
 
-    assert requested_addresses == ["account-3", "account-4"]
+    # A persistent divergence never settles, so the scan retries
+    # NONCE_SETTLE_RETRIES times before giving up.
+    assert requested_addresses == ["account-3", "account-4"] * runner_module.NONCE_SETTLE_RETRIES
+
+
+def test_current_sender_nonce_settles_after_transient_divergence(monkeypatch):
+    calls = {"count": 0}
+
+    class FakeEth:
+        def get_transaction_count(self, address):
+            calls["count"] += 1
+            # First pass still sees account-4 lagging behind; it catches up
+            # on the second pass.
+            if calls["count"] <= 2:
+                return {"account-3": 2, "account-4": 1}[address]
+            return 2
+
+    cfg = SimpleNamespace(
+        primary=SimpleNamespace(json_rpc="http://node0-evm"),
+        global_seq=0,
+        num_txs=2,
+        sender_strategy="unique-per-tx",
+    )
+    monkeypatch.setattr(
+        runner_module.web3,
+        "Web3",
+        lambda _provider: SimpleNamespace(eth=FakeEth()),
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "gen_account",
+        lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
+    )
+    monkeypatch.setattr(runner_module.time, "sleep", lambda _seconds: None)
+
+    assert runner_module.current_sender_nonce(cfg, 3, 3) == 2
 
 
 def test_current_sender_nonce_num_txs_override_widens_the_sender_range(monkeypatch):

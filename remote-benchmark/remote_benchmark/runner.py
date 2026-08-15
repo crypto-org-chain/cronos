@@ -47,6 +47,12 @@ WAIT_SCAN_CHUNK = 200
 # caps how many heights get fetched past the point the commit threshold is
 # already hit.
 WAIT_SCAN_CHUNK_ETH = 20
+# Retries for current_sender_nonce's post-run nonce scan: a repeat run's
+# nonce check fires right after the prior run reports committed, while a
+# few accounts' last txs may still be in-flight (async broadcast/retry
+# lag) - short-lived divergence, not a real inconsistency.
+NONCE_SETTLE_RETRIES = 5
+NONCE_SETTLE_RETRY_DELAY = 2
 
 
 def tx_options(cfg) -> dict:
@@ -187,10 +193,22 @@ def current_sender_nonce(cfg, start, end, num_txs=None):
         start, end, cfg.num_txs if num_txs is None else num_txs, cfg.sender_strategy
     )
     w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
-    nonces = {
-        w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address)
-        for i in range(physical_start, physical_end + 1)
-    }
+
+    # Right after a run's load is reported as committed, a few accounts' last
+    # txs can still be catching up (async broadcast/retry lag), so an
+    # immediate scan can see a stale nonce on a handful of accounts even
+    # though the run truly settled. Retry briefly before treating it as a
+    # real divergence.
+    nonces = None
+    for attempt in range(NONCE_SETTLE_RETRIES):
+        nonces = {
+            w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address)
+            for i in range(physical_start, physical_end + 1)
+        }
+        if len(nonces) == 1:
+            break
+        if attempt < NONCE_SETTLE_RETRIES - 1:
+            time.sleep(NONCE_SETTLE_RETRY_DELAY)
     if len(nonces) != 1:
         values = ", ".join(str(value) for value in sorted(nonces))
         raise ValueError(
