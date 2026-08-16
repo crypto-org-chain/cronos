@@ -28,6 +28,10 @@
         // validator-config.toml). Phase 2 Layer 2 tried the aggressive values
         // (timeout_prevote/precommit 1s->500ms, deltas 500ms->200ms, commit
         // 200ms->100ms) and it regressed median_tps -2.7% - reverted here.
+        // Phase 7 then tried skip_timeout_commit=true, timeout_commit=50ms and
+        // peer_gossip_sleep_duration=25ms chasing a 500ms blocktime: they halve
+        // the empty-block cadence (~450ms->~250ms) but change nothing under
+        // load, and roughly double the sdk:3 failure rate - also reverted.
         timeout_propose: '3s',
         timeout_propose_delta: '500ms',
         timeout_prevote: '1s',
@@ -77,7 +81,12 @@
         'enable-indexer': false,
       },
       mempool: {
-        'max-txs': 100000,
+        // unique-per-tx puts every one of the 300000 physical senders in
+        // flight at once with no per-sender pacing to throttle them; a cap
+        // below that drops the overflow via broadcast_tx_async, which never
+        // waits for CheckTx and so never surfaces the ErrMempoolIsFull as an
+        // error the client can see or retry.
+        'max-txs': 320000,
         recheck: false,
         type: 'app',
         broadcast: true,

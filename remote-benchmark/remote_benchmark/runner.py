@@ -27,7 +27,13 @@ from .stats import (
     scrape_consensus_health_raw,
     scrape_consensus_raw,
 )
-from .transaction import gen, physical_account_range, send_round_robin
+from .transaction import (
+    gen,
+    physical_account_range,
+    send_multiprocess,
+    send_round_robin,
+    sender_affinity_accounts,
+)
 from .utils import Tee, block_eth, block_height, blockchain_range, eth_block_number, gen_account
 
 LOAD_COMMIT_TIMEOUT = Config.model_fields["commit_timeout"].default
@@ -218,12 +224,31 @@ def current_sender_nonce(cfg, start, end, num_txs=None):
     return nonces.pop()
 
 
-def _send_and_report_failures(txs, rpcs, **send_kwargs):
+def _send_and_report_failures(
+    txs, rpcs, logical_num_accounts=None, send_workers=1, **send_kwargs
+):
     """Round-robin send `txs`, warning (not raising) on any that never reached
     the mempool: the sender already retried them, and the caller still needs
     to wait out whatever did land rather than abort on a partial send.
+
+    `logical_num_accounts` is the raw account count from `gen()`'s layout,
+    used only to split `txs` across `send_workers` processes when >1 - it is
+    independent of `send_kwargs["num_accounts"]`, which carries the separate
+    sender-affinity/ordering signal `send_round_robin` needs (None under
+    unique-per-tx).
     """
-    failed = asyncio.run(send_round_robin(txs, rpcs, **send_kwargs))
+    if send_workers > 1:
+        affinity_num_accounts = send_kwargs.pop("num_accounts", None)
+        failed = send_multiprocess(
+            txs,
+            rpcs,
+            logical_num_accounts,
+            num_workers=send_workers,
+            nonce_ordered=affinity_num_accounts is not None,
+            **send_kwargs,
+        )
+    else:
+        failed = asyncio.run(send_round_robin(txs, rpcs, **send_kwargs))
     if failed:
         print(
             f"warning: {failed}/{len(txs)} txs never reached the mempool "
@@ -238,8 +263,14 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
     commit, so the measured run isn't paying for cold mempool/connection-pool
     state. No-op when warmup_txs is 0. Returns the nonce the real load
     generation should resume from.
+
+    Skipped under unique-per-tx: genesis only funds num_accounts * num_txs
+    physical senders, and the main load already signs every one of them at
+    every offset - there is no disjoint sub-range left for warm-up to use
+    without colliding with a sender the main load expects to still be at
+    nonce 0.
     """
-    if not getattr(cfg, "warmup_txs", 0):
+    if not getattr(cfg, "warmup_txs", 0) or cfg.sender_strategy == "unique-per-tx":
         return nonce
 
     print(f"warming up with {cfg.warmup_txs} tx/account...", file=sys.stderr)
@@ -265,7 +296,8 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
-            num_accounts=num_accounts,
+            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
+            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
         )
         load_end = eth_block_number(cfg.primary.json_rpc_candidates)
         wait_for_committed_eth_txs(
@@ -282,7 +314,8 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
             cfg.rpc_candidates,
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
-            num_accounts=num_accounts,
+            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
+            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
         )
         load_end = block_height(cfg.primary.rpc_candidates)
         wait_for_committed_txs(
@@ -389,8 +422,11 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
-            num_accounts=num_accounts,
+            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
             probe_batches=probe_batches,
+            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+            logical_num_accounts=num_accounts,
+            send_workers=getattr(cfg, "send_workers", 1),
         )
         load_end = eth_block_number(cfg.primary.json_rpc_candidates)
         load_end, committed_txs = wait_for_committed_eth_txs(
@@ -443,8 +479,11 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 cfg.rpc_candidates,
                 batch_size=cfg.send_batch_size,
                 batch_interval=cfg.send_interval,
-                num_accounts=num_accounts,
+                num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
                 probe_batches=probe_batches,
+                conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+                logical_num_accounts=num_accounts,
+                send_workers=getattr(cfg, "send_workers", 1),
             )
             load_end = block_height(cfg.primary.rpc_candidates)
             load_end, committed_txs = wait_for_committed_txs(

@@ -26,14 +26,23 @@ CHAIN_ID = 777
 # raised from 1024: with send_batch_size=8000, a lower cap queued requests at
 # the connector instead of the node, which just moved the bottleneck client-side.
 CONNECTION_POOL_SIZE = 10000
-# Caps simultaneous new-connection bursts per rpc endpoint. Without this, a
-# large send_batch_size opens hundreds/thousands of connections through a
-# single SSH tunnel at once, which has crashed the local ssh -L process
-# outright (observed with send_batch_size=4000, 3-way tunnel pool, ~1300
-# concurrent opens per tunnel) rather than just queuing slowly.
+# Default per-host cap for tunneled runs, where a large send_batch_size can
+# open hundreds/thousands of connections through a single SSH tunnel at once
+# and crash the ssh -L process outright (observed with send_batch_size=4000,
+# 3-way tunnel pool, ~1300 concurrent opens per tunnel). Callers on direct
+# loopback endpoints, with no tunnel to protect, can override via
+# Config.send_conn_per_host.
 CONNECTION_POOL_PER_HOST = 200
 TXS_DIR = "txs"
 PROGRESS_INTERVAL_S = 3
+
+
+def _pool_limit(conn_per_host, n_hosts):
+    """Total connector limit that never binds below the per-host aggregate -
+    otherwise CONNECTION_POOL_SIZE could cap concurrency below what
+    conn_per_host * n_hosts is meant to allow."""
+    return max(CONNECTION_POOL_SIZE, conn_per_host * n_hosts)
+
 
 Job = namedtuple(
     "Job",
@@ -337,6 +346,18 @@ def physical_account_range(start: int, end: int, num_txs: int, sender_strategy: 
     return start, end
 
 
+def sender_affinity_accounts(sender_strategy: str, num_accounts: int) -> int | None:
+    """The `num_accounts` to hand the send path, or None to disable its
+    per-sender endpoint pinning and send serialization.
+
+    Both exist only to keep one sender's nonces from racing each other. Under
+    `unique-per-tx` every tx has its own sender at the same nonce, so keying on
+    the logical slot would serialize unrelated accounts - and force each one
+    through broadcast_tx_sync - for nothing.
+    """
+    return None if sender_strategy == "unique-per-tx" else num_accounts
+
+
 def save(txs: [str], datadir: Path, global_seq: int):
     d = datadir / TXS_DIR
     d.mkdir(parents=True, exist_ok=True)
@@ -582,6 +603,7 @@ async def send(
     probe_batches=1,
     deadline_s=None,
     num_accounts=None,
+    conn_per_host=CONNECTION_POOL_PER_HOST,
 ):
     """Send transactions to a single rpc endpoint in rate-limited batches.
 
@@ -626,7 +648,7 @@ async def send(
     tx list.
     """
     connector = aiohttp.TCPConnector(
-        limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
+        limit=_pool_limit(conn_per_host, 1), limit_per_host=conn_per_host
     )
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
@@ -687,6 +709,7 @@ async def send_round_robin(
     mode="cosmos",
     probe_batches=1,
     deadline_s=None,
+    conn_per_host=CONNECTION_POOL_PER_HOST,
 ):
     """Send transactions across multiple rpc endpoints in rate-limited batches.
 
@@ -716,10 +739,11 @@ async def send_round_robin(
             probe_batches=probe_batches,
             deadline_s=deadline_s,
             num_accounts=num_accounts,
+            conn_per_host=conn_per_host,
         )
 
     connector = aiohttp.TCPConnector(
-        limit=CONNECTION_POOL_SIZE, limit_per_host=CONNECTION_POOL_PER_HOST
+        limit=_pool_limit(conn_per_host, len(rpcs)), limit_per_host=conn_per_host
     )
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
@@ -743,10 +767,10 @@ def _send_worker(args):
     return asyncio.run(send_round_robin(txs, rpcs, **kwargs))
 
 
-def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
+def send_multiprocess(
+    txs, rpcs, num_accounts, num_workers=None, nonce_ordered=True, **send_kwargs
+):
     """Fan tx sending out across multiple OS processes.
-
-    PROTOTYPE - diagnostic only, not wired into any CLI command yet.
 
     A single asyncio event loop tops out around ~11k tx/s sending locally:
     JSON-RPC serialization and event-loop scheduling per tx are CPU-bound on
@@ -758,6 +782,9 @@ def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
     Splits by ACCOUNT range, not flat position: `send_round_robin` requires
     every account's txs to arrive in nonce order, so a worker must own an
     account's entire nonce sequence rather than an arbitrary slice of it.
+    `num_accounts` is the raw layout modulus from `gen()` (always a real
+    count, even under `unique-per-tx`) - it is only used to compute that
+    split, independent of ``nonce_ordered``.
 
     Each worker's local account index starts back at 0, so without correcting
     for that, every worker's account 0 would route to `rpcs[0]` at the same
@@ -767,30 +794,36 @@ def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
     index 0 lands on the same endpoint its accounts would get in the
     single-process round robin.
 
-    A batch must never contain two nonces for the same account: the global
-    config sizes `batch_size == num_accounts` so each batch is exactly one
-    nonce round. Splitting accounts across workers shrinks each worker's
-    account count, so `batch_size` is overridden per worker to match -
-    otherwise a worker's batch spans multiple rounds per account and those
-    nonces race each other at CheckTx admission regardless of sync/async.
+    ``nonce_ordered`` distinguishes the two sender strategies: under `reuse`
+    (default, ``True``) a batch must never contain two nonces for the same
+    account, so `batch_size` is overridden per worker to match its (smaller)
+    account count, and `sync=True` is forced - more OS processes hammering
+    CheckTx concurrently widens the window for cross-batch reordering per
+    account (round N+1 landing before round N), which the node rejects as
+    `ErrWrongSequence`, and with `recheckDisabled=true` that tx is gone for
+    good unless resent. Under `unique-per-tx` (``False``) every tx already has
+    its own sender at its own nonce, so there is nothing to reorder or
+    serialize: workers keep the caller's `batch_size`/`sync` and each worker's
+    `send_round_robin` call gets `num_accounts=None`, same as the
+    single-process path.
 
-    Forces ``sync=True`` once split across multiple worker processes: more OS
-    processes hammering CheckTx concurrently widens the window for
-    cross-batch network/OS scheduling reordering per account (round N+1
-    landing before round N), which the node rejects as `ErrWrongSequence`.
-    With `recheckDisabled=true` that tx is gone forever unless the client
-    sees the error and resends - async fire-and-forget batches hide it from
-    the existing retry/drain logic entirely. The single-process fallback
-    below hits none of that reordering (one process, one event loop), so it
-    keeps the caller's own ``sync``.
+    The single-process fallback below hits none of the reordering risk (one
+    process, one event loop), so it keeps the caller's own ``sync`` regardless
+    of ``nonce_ordered``.
     """
     num_workers = num_workers or min(multiprocessing.cpu_count(), num_accounts)
     if num_workers <= 1 or num_accounts <= 1:
         return asyncio.run(
-            send_round_robin(txs, rpcs, num_accounts=num_accounts, **send_kwargs)
+            send_round_robin(
+                txs,
+                rpcs,
+                num_accounts=num_accounts if nonce_ordered else None,
+                **send_kwargs,
+            )
         )
 
-    send_kwargs = {**send_kwargs, "sync": True}
+    if nonce_ordered:
+        send_kwargs = {**send_kwargs, "sync": True}
     boundaries = [round(i * num_accounts / num_workers) for i in range(num_workers + 1)]
     jobs = []
     for lo, hi in zip(boundaries, boundaries[1:]):
@@ -799,14 +832,13 @@ def send_multiprocess(txs, rpcs, num_accounts, num_workers=None, **send_kwargs):
         worker_txs = [tx for i, tx in enumerate(txs) if lo <= i % num_accounts < hi]
         offset = lo % len(rpcs)
         worker_rpcs = rpcs[offset:] + rpcs[:offset]
-        jobs.append(
-            (
-                worker_txs,
-                worker_rpcs,
-                {**send_kwargs, "num_accounts": hi - lo, "batch_size": hi - lo},
-            )
-        )
-
+        worker_kwargs = {
+            **send_kwargs,
+            "num_accounts": (hi - lo) if nonce_ordered else None,
+        }
+        if nonce_ordered:
+            worker_kwargs["batch_size"] = hi - lo
+        jobs.append((worker_txs, worker_rpcs, worker_kwargs))
 
     with multiprocessing.Pool(len(jobs)) as pool:
         return sum(pool.map(_send_worker, jobs))

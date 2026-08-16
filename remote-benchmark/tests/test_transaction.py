@@ -294,6 +294,158 @@ def test_send_round_robin_routes_each_account_to_one_endpoint(monkeypatch):
     }
 
 
+def _capture_connectors(monkeypatch):
+    calls = []
+    real_connector = tx_module.aiohttp.TCPConnector
+
+    class FakeConnector(real_connector):
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+            super().__init__(**kwargs)
+
+    monkeypatch.setattr(tx_module.aiohttp, "TCPConnector", FakeConnector)
+    return calls
+
+
+def test_send_round_robin_passes_conn_per_host_to_the_connector(monkeypatch):
+    _capture_sends(monkeypatch)
+    connectors = _capture_connectors(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(4)],
+            ["http://node0", "http://node1"],
+            batch_size=4,
+            batch_interval=0,
+            num_accounts=2,
+            conn_per_host=500,
+        )
+    )
+
+    assert connectors[0]["limit_per_host"] == 500
+
+
+def test_send_round_robin_defaults_conn_per_host_to_200(monkeypatch):
+    _capture_sends(monkeypatch)
+    connectors = _capture_connectors(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(4)],
+            ["http://node0", "http://node1"],
+            batch_size=4,
+            batch_interval=0,
+            num_accounts=2,
+        )
+    )
+
+    assert connectors[0]["limit_per_host"] == 200
+
+
+def test_send_round_robin_connector_limit_never_binds_below_the_per_host_aggregate(
+    monkeypatch,
+):
+    _capture_sends(monkeypatch)
+    connectors = _capture_connectors(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(4)],
+            ["http://node0", "http://node1", "http://node2", "http://node3", "http://node4"],
+            batch_size=4,
+            batch_interval=0,
+            num_accounts=2,
+            conn_per_host=2000,
+        )
+    )
+
+    # 5 rpcs * 2000 conn_per_host = 10000, exactly CONNECTION_POOL_SIZE - the
+    # total limit must not sit on that boundary or it silently re-caps the
+    # per-host aggregate it was raised to allow.
+    assert connectors[0]["limit"] >= 10000
+
+
+def test_send_round_robin_connector_limit_stays_at_the_pool_size_floor_for_small_caps(
+    monkeypatch,
+):
+    _capture_sends(monkeypatch)
+    connectors = _capture_connectors(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(4)],
+            ["http://node0", "http://node1"],
+            batch_size=4,
+            batch_interval=0,
+            num_accounts=2,
+            conn_per_host=10,
+        )
+    )
+
+    assert connectors[0]["limit"] == tx_module.CONNECTION_POOL_SIZE
+
+
+def test_sender_affinity_accounts_drops_the_sender_key_when_senders_never_repeat():
+    # Endpoint pinning and per-sender send serialization only exist to order one
+    # sender's nonces; unique-per-tx has none to order.
+    assert tx_module.sender_affinity_accounts("reuse", 20000) == 20000
+    assert tx_module.sender_affinity_accounts("unique-per-tx", 20000) is None
+
+
+def test_send_round_robin_spreads_every_tx_when_no_sender_repeats(monkeypatch):
+    # num_accounts=None is how `unique-per-tx` says "each tx has its own
+    # sender": there is no nonce sequence to protect, so txs spread flat across
+    # endpoints instead of being pinned per logical slot.
+    sent = _capture_sends(monkeypatch)
+
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(12)],
+            ["http://node0", "http://node1"],
+            batch_size=5,
+            batch_interval=0,
+            num_accounts=None,
+        )
+    )
+
+    assert len(sent) == 12
+    routing = {raw: rpc for raw, rpc in sent}
+    assert routing["tx-0"] == "http://node0"
+    assert routing["tx-1"] == "http://node1"
+    assert routing["tx-2"] == "http://node0"
+
+
+def test_send_issues_every_tx_concurrently_and_async_when_no_sender_repeats(monkeypatch):
+    # The serialize-and-force-sync behaviour exists only to order one sender's
+    # nonces. With a sender per tx it would serialize unrelated accounts and pay
+    # broadcast_tx_sync for nothing.
+    events = []
+
+    async def fake_sendtx(_session, raw, _rpc, sync, _mode):
+        events.append((raw, sync, "start"))
+        await asyncio.sleep(0)
+        events.append((raw, sync, "end"))
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    asyncio.run(
+        tx_module.send(
+            [f"tx-{i}" for i in range(4)],
+            "http://node0",
+            sync=False,
+            batch_size=4,
+            batch_interval=0,
+            probe_batches=0,
+            num_accounts=None,
+        )
+    )
+
+    assert all(sync is False for _, sync, _ in events)
+    # every send starts before any of them finishes
+    assert [phase for _, _, phase in events[:4]] == ["start"] * 4
+
+
 def test_send_round_robin_stops_at_the_deadline(monkeypatch):
     sent = _capture_sends(monkeypatch)
 
@@ -554,3 +706,63 @@ def test_send_multiprocess_splits_by_account_range_and_overrides_batch_size(
     # every worker's local account 0 clustering onto rpcs[0].
     assert worker0_rpcs == ["http://node0", "http://node1", "http://node2"]
     assert worker1_rpcs == ["http://node2", "http://node0", "http://node1"]
+
+
+def test_send_multiprocess_disables_affinity_and_sync_when_not_nonce_ordered(
+    monkeypatch,
+):
+    # unique-per-tx: every tx already has its own sender at its own nonce, so
+    # there is nothing for multiple worker processes to reorder - workers keep
+    # the caller's batch_size/sync and get num_accounts=None, same as the
+    # single-process path.
+    jobs_seen = []
+
+    def fake_send_worker(args):
+        txs, rpcs, kwargs = args
+        jobs_seen.append((txs, rpcs, kwargs))
+        return 0
+
+    monkeypatch.setattr(tx_module.multiprocessing, "Pool", ImmediatePool)
+    monkeypatch.setattr(tx_module, "_send_worker", fake_send_worker)
+
+    txs = [f"acct{a}-nonce{n}" for n in range(2) for a in range(4)]
+
+    failed = tx_module.send_multiprocess(
+        txs,
+        ["http://node0", "http://node1"],
+        num_accounts=4,
+        num_workers=2,
+        nonce_ordered=False,
+        batch_size=99,
+        sync=False,
+    )
+
+    assert failed == 0
+    assert len(jobs_seen) == 2
+    for _txs, _rpcs, kwargs in jobs_seen:
+        assert kwargs["num_accounts"] is None
+        assert kwargs["batch_size"] == 99
+        assert kwargs["sync"] is False
+
+
+def test_send_multiprocess_falls_back_with_num_accounts_none_when_not_nonce_ordered(
+    monkeypatch,
+):
+    calls = []
+
+    async def fake_send_round_robin(txs, rpcs, **kwargs):
+        calls.append((txs, rpcs, kwargs))
+        return 0
+
+    monkeypatch.setattr(tx_module, "send_round_robin", fake_send_round_robin)
+
+    failed = tx_module.send_multiprocess(
+        ["tx-0", "tx-1"],
+        ["http://node0"],
+        num_accounts=1,
+        num_workers=1,
+        nonce_ordered=False,
+    )
+
+    assert failed == 0
+    assert calls == [(["tx-0", "tx-1"], ["http://node0"], {"num_accounts": None})]

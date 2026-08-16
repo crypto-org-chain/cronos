@@ -3,6 +3,73 @@ from types import SimpleNamespace
 from remote_benchmark import runner as runner_module
 
 
+def test_send_and_report_failures_routes_through_send_round_robin_for_one_worker(
+    monkeypatch,
+):
+    calls = []
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("send_multiprocess must not run for send_workers=1")
+
+    async def fake_send_round_robin(txs, rpcs, **kwargs):
+        calls.append((txs, rpcs, kwargs))
+        return 0
+
+    monkeypatch.setattr(runner_module, "send_multiprocess", fail_if_called)
+    monkeypatch.setattr(runner_module, "send_round_robin", fake_send_round_robin)
+
+    failed = runner_module._send_and_report_failures(
+        ["tx-0"], ["http://node0"], logical_num_accounts=5, send_workers=1, num_accounts=5
+    )
+
+    assert failed == 0
+    assert calls == [(["tx-0"], ["http://node0"], {"num_accounts": 5})]
+
+
+def test_send_and_report_failures_dispatches_to_send_multiprocess_for_multiple_workers(
+    monkeypatch,
+):
+    calls = []
+
+    def fake_send_multiprocess(txs, rpcs, num_accounts, **kwargs):
+        calls.append((txs, rpcs, num_accounts, kwargs))
+        return 0
+
+    monkeypatch.setattr(runner_module, "send_multiprocess", fake_send_multiprocess)
+
+    failed = runner_module._send_and_report_failures(
+        ["tx-0"],
+        ["http://node0"],
+        logical_num_accounts=20000,
+        send_workers=4,
+        num_accounts=None,
+    )
+
+    assert failed == 0
+    # num_accounts=None (unique-per-tx affinity) means nothing to reorder,
+    # so nonce_ordered must come through False, and the affinity value itself
+    # is not double-passed as a duplicate `num_accounts` keyword.
+    assert calls == [
+        (["tx-0"], ["http://node0"], 20000, {"num_workers": 4, "nonce_ordered": False})
+    ]
+
+
+
+    # Genesis only funds num_accounts * num_txs physical senders, and the main
+    # load signs every one of them at every offset - warm-up has no disjoint
+    # sub-range to use without bumping a sender's nonce past what the main
+    # load expects, so it must no-op and hand the nonce back untouched.
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("gen() must not run when warm-up is skipped")
+
+    monkeypatch.setattr(runner_module, "gen", fail_if_called)
+    cfg = SimpleNamespace(warmup_txs=10, sender_strategy="unique-per-tx")
+
+    result = runner_module._run_warmup(cfg, start=1, end=100, nonce=0, num_accounts=100)
+
+    assert result == 0
+
+
 def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold():
     # The chain runs ahead to height 205 (get_height) before the block that
     # actually hits expected_txs (202) gets counted. Returning that stale,

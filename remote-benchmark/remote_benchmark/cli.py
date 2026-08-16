@@ -51,6 +51,7 @@ from .transaction import (
     json_rpc_send_body,
     physical_account_range,
     send_round_robin,
+    sender_affinity_accounts,
 )
 from .utils import block_height, eth_block_number, gen_account, split_batch
 
@@ -228,7 +229,8 @@ def send_txs(config_path, sync, path):
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
-            num_accounts=num_accounts,
+            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
+            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
         )
     )
     if failed:
@@ -522,8 +524,9 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 cfg.rpc_candidates,
                 batch_size=batch_size,
                 batch_interval=batch_interval,
-                num_accounts=num_accounts,
+                num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
                 deadline_s=duration,
+                conn_per_host=getattr(cfg, "send_conn_per_host", 200),
             )
         )
         if failed:

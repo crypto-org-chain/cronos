@@ -54,6 +54,14 @@ class Config(BaseModel):
     batch_size: int = 1
     send_batch_size: int = 500
     send_interval: float = 0.5
+    # Per-host aiohttp connector cap; see CONNECTION_POOL_PER_HOST in
+    # transaction.py. 200 protects a tunneled ssh -L endpoint from a connection
+    # burst; raise it for direct-loopback endpoints with no tunnel to protect.
+    send_conn_per_host: int = 200
+    # >1 fans sending out across OS processes via send_multiprocess: a single
+    # event loop is CPU-bound on JSON-RPC serialization, not network I/O, so
+    # raising conn_per_host alone can't buy more throughput past that wall.
+    send_workers: int = 1
     # Seconds to keep waiting for the generated txs to commit after the last
     # send. Per-testcase because the floor is set by how many blocks the
     # workload needs: batched txs pack ~100x more gas per Cosmos tx, so they

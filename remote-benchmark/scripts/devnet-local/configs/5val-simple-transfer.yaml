@@ -28,6 +28,13 @@ tx_type: simple-transfer
 msg_version: "1.4"
 num_accounts: 20000
 num_txs: 15
+# One fresh sender per tx. Reusing a sender for 15 sequential nonces made
+# ~13-29% of txs die at DeliverTx with sdk:3 (invalid sequence): gossip gives
+# no cross-envelope ordering, so a proposer can see nonce N+1 before N, and
+# PrepareProposal does no ante re-check to catch it. Distinct senders remove
+# the nonce ordering the chain fails to preserve. Costs 300000 genesis-funded
+# physical senders (num_accounts * num_txs).
+sender_strategy: unique-per-tx
 warmup_txs: 10
 batch_size: 1
 send_batch_size: 20000
