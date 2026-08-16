@@ -61,11 +61,17 @@ def _extract_gas(eth_blk):
 
 
 def _get_failed_tx_count(height, rpc):
-    """(count, {(codespace, code): count}) of failed txs from CometBFT
-    block_results, or (None, {}) when the query fails - a zero there would
-    read as "no failures" and let the saturation gate pass on data that was
-    never measured. The reason breakdown identifies *why* txs failed (e.g.
-    insufficient fee vs wrong sequence) instead of just how many.
+    """(failed, included, {(codespace, code): count}) for one height from
+    CometBFT block_results, or (None, 0, {}) when the query fails - a zero
+    failure count there would read as "no failures" and let the saturation gate
+    pass on data that was never measured. The reason breakdown identifies *why*
+    txs failed (e.g. insufficient fee vs wrong sequence) instead of just how
+    many.
+
+    `included` is the block's Cosmos tx count, which is the only denominator in
+    the same units as the failure count: the block series feeding tps comes
+    from the eth block view, and that omits failed txs entirely and counts EVM
+    txs rather than Cosmos envelopes.
     """
     try:
         res = block_results(height, rpc)
@@ -77,10 +83,10 @@ def _get_failed_tx_count(height, rpc):
             if code != 0:
                 count += 1
                 reasons[(r.get("codespace", ""), code)] += 1
-        return count, reasons
+        return count, len(tx_results), reasons
     except Exception:
         log.debug("block_results unavailable for height %d", height, exc_info=True)
-        return None, Counter()
+        return None, 0, Counter()
 
 
 def _get_block_gas_and_txs(height, json_rpc):
@@ -266,8 +272,10 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
                 pool.map(lambda h: _get_failed_tx_count(h, rpc), heights_with_txs),
             )
         )
-    failed_counts = {h: count for h, (count, _) in failed_results.items()}
-    for _, reasons in failed_results.values():
+    failed_counts = {
+        h: (count, included) for h, (count, included, _) in failed_results.items()
+    }
+    for _, _, reasons in failed_results.values():
         failed_tx_reasons.update(reasons)
 
     # mempool_status has no historical query - it always reports the current
@@ -285,13 +293,13 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
         timestamp, txs, gas_used, gas_limit = block_info[i]
 
         if txs > 0:
-            failed = failed_counts[i]
+            failed, included = failed_counts[i]
             # A block whose failure count couldn't be read contributes to
             # neither side of the ratio, so total_counted_txs stays 0 when
             # nothing was measurable and the failed-tx gate reports no data.
             if failed is not None:
                 total_failed_txs += failed
-                total_counted_txs += txs
+                total_counted_txs += included
             per_tx_gas_values.append((gas_used // txs, gas_limit))
         gas_data.append((gas_used, gas_limit))
         blocks.append((txs, timestamp))

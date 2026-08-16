@@ -18,7 +18,9 @@ def _patch_common(monkeypatch, blocks):
 
     monkeypatch.setattr(stats_module, "blockchain_range", fake_blockchain_range)
     monkeypatch.setattr(stats_module, "mempool_status", lambda rpc: (0, 0))
-    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: (0, Counter()))
+    monkeypatch.setattr(
+        stats_module, "_get_failed_tx_count", lambda h, rpc: (0, blocks[h][1], Counter())
+    )
 
 
 def test_dump_block_stats_puts_reexecution_and_validation_ratio_in_summary(monkeypatch):
@@ -86,7 +88,49 @@ def test_get_failed_tx_count_returns_none_when_block_results_is_unavailable(monk
 
     monkeypatch.setattr(stats_module, "block_results", boom)
 
-    assert stats_module._get_failed_tx_count(3, "http://rpc") == (None, Counter())
+    assert stats_module._get_failed_tx_count(3, "http://rpc") == (None, 0, Counter())
+
+
+def test_get_failed_tx_count_counts_every_included_tx_not_just_the_failures(monkeypatch):
+    txs_results = [
+        {"code": 0},
+        {"code": 3, "codespace": "sdk"},
+        {"code": 3, "codespace": "sdk"},
+        {"code": 0},
+    ]
+    monkeypatch.setattr(
+        stats_module, "block_results", lambda h, rpc: {"result": {"txs_results": txs_results}}
+    )
+
+    failed, included, reasons = stats_module._get_failed_tx_count(3, "http://rpc")
+
+    assert (failed, included) == (2, 4)
+    assert reasons == Counter({("sdk", 3): 2})
+
+
+def test_dump_block_stats_rates_failures_against_included_txs_not_successful_ones(monkeypatch):
+    # The eth block view omits failed txs, so using its count as the denominator
+    # reports failed/succeeded. Only block_results sees both sides, in the same
+    # Cosmos-tx units as the failure count.
+    blocks = {2: (_dt(0), 0), 3: (_dt(1), 8), 4: (_dt(2), 0)}
+    _patch_common(monkeypatch, blocks)
+    monkeypatch.setattr(
+        stats_module,
+        "_get_block_gas_and_txs",
+        lambda h, json_rpc: (8, 100, 1000) if h == 3 else (0, 0, 0),
+    )
+    monkeypatch.setattr(
+        stats_module, "_get_failed_tx_count", lambda h, rpc: (2, 10, Counter({("sdk", 3): 2}))
+    )
+
+    out = io.StringIO()
+    summary = dump_block_stats(
+        out, "http://rpc", "http://json-rpc", eth=True, start=2, end=4,
+    )
+
+    assert (summary["total_failed_txs"], summary["total_counted_txs"]) == (2, 10)
+    assert "failed_txs 2 (20.0%)" in out.getvalue()
+    assert "failed_tx_reason sdk:3 2" in out.getvalue()
 
 
 def test_dump_block_stats_leaves_failed_tx_gate_unevaluated_when_unmeasurable(monkeypatch):
@@ -94,7 +138,7 @@ def test_dump_block_stats_leaves_failed_tx_gate_unevaluated_when_unmeasurable(mo
     # data that was never measured; total_counted_txs must stay 0 instead.
     blocks = {2: (_dt(0), 0), 3: (_dt(1), 5), 4: (_dt(2), 5)}
     _patch_common(monkeypatch, blocks)
-    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: (None, Counter()))
+    monkeypatch.setattr(stats_module, "_get_failed_tx_count", lambda h, rpc: (None, 0, Counter()))
 
     summary = dump_block_stats(
         io.StringIO(), "http://rpc", "http://json-rpc", eth=False, start=2, end=4,
