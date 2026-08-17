@@ -54,7 +54,7 @@ def test_send_and_report_failures_dispatches_to_send_multiprocess_for_multiple_w
     ]
 
 
-def test_run_warmup_no_ops_under_unique_per_tx_without_calling_gen(monkeypatch):
+def test_run_warmup_no_ops_under_unique_per_tx_without_calling_gen(monkeypatch, capsys):
     # Genesis only funds num_accounts * num_txs physical senders, and the main
     # load signs every one of them at every offset - warm-up has no disjoint
     # sub-range to use without bumping a sender's nonce past what the main
@@ -68,6 +68,16 @@ def test_run_warmup_no_ops_under_unique_per_tx_without_calling_gen(monkeypatch):
     result = runner_module._run_warmup(cfg, start=1, end=100, nonce=0, num_accounts=100)
 
     assert result == 0
+    # a configured-but-inert warmup_txs must not be silent
+    assert "skipping warm-up" in capsys.readouterr().err
+
+
+def test_run_warmup_says_nothing_when_warmup_is_not_configured(monkeypatch, capsys):
+    monkeypatch.setattr(runner_module, "gen", lambda *a, **k: [])
+    cfg = SimpleNamespace(warmup_txs=0, sender_strategy="unique-per-tx")
+
+    assert runner_module._run_warmup(cfg, 1, 100, 7, 100) == 7
+    assert capsys.readouterr().err == ""
 
 
 def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold():

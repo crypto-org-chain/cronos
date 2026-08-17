@@ -270,7 +270,14 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
     without colliding with a sender the main load expects to still be at
     nonce 0.
     """
-    if not getattr(cfg, "warmup_txs", 0) or cfg.sender_strategy == "unique-per-tx":
+    if not getattr(cfg, "warmup_txs", 0):
+        return nonce
+    if cfg.sender_strategy == "unique-per-tx":
+        print(
+            f"skipping warm-up ({cfg.warmup_txs} tx/account configured): "
+            "not supported under unique-per-tx",
+            file=sys.stderr,
+        )
         return nonce
 
     print(f"warming up with {cfg.warmup_txs} tx/account...", file=sys.stderr)

@@ -64,6 +64,8 @@ class Config(BaseModel):
     # >1 fans sending out across OS processes via send_multiprocess: a single
     # event loop is CPU-bound on JSON-RPC serialization, not network I/O, so
     # raising conn_per_host alone can't buy more throughput past that wall.
+    # Only the benchmark run path honors this; send-txs and soak always send
+    # from one process.
     send_workers: int = 1
     # Seconds to keep waiting for the generated txs to commit after the last
     # send. Per-testcase because the floor is set by how many blocks the

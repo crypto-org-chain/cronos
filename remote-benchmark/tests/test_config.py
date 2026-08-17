@@ -27,7 +27,6 @@ def test_send_workers_defaults_to_1():
     assert Config.model_validate(BASE_CONFIG).send_workers == 1
 
 
-
 def test_sender_strategy_rejects_unknown_value():
     with pytest.raises(ValidationError):
         Config.model_validate({**BASE_CONFIG, "sender_strategy": "random"})
