@@ -230,7 +230,7 @@ def send_txs(config_path, sync, path):
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
             num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
-            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+            conn_per_host=cfg.send_conn_per_host,
         )
     )
     if failed:
@@ -526,7 +526,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 batch_interval=batch_interval,
                 num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
                 deadline_s=duration,
-                conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+                conn_per_host=cfg.send_conn_per_host,
             )
         )
         if failed:

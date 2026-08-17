@@ -796,16 +796,14 @@ def send_multiprocess(
 
     ``nonce_ordered`` distinguishes the two sender strategies: under `reuse`
     (default, ``True``) a batch must never contain two nonces for the same
-    account, so `batch_size` is overridden per worker to match its (smaller)
-    account count, and `sync=True` is forced - more OS processes hammering
-    CheckTx concurrently widens the window for cross-batch reordering per
-    account (round N+1 landing before round N), which the node rejects as
-    `ErrWrongSequence`, and with `recheckDisabled=true` that tx is gone for
-    good unless resent. Under `unique-per-tx` (``False``) every tx already has
-    its own sender at its own nonce, so there is nothing to reorder or
-    serialize: workers keep the caller's `batch_size`/`sync` and each worker's
-    `send_round_robin` call gets `num_accounts=None`, same as the
-    single-process path.
+    account, so `batch_size` is capped at the worker's own account count and
+    `sync=True` is forced - more OS processes hammering CheckTx concurrently
+    widens the window for cross-batch reordering per account (round N+1
+    landing before round N), which the node rejects as `ErrWrongSequence`, and
+    with `recheckDisabled=true` that tx is gone for good unless resent. Under
+    `unique-per-tx` (``False``) every tx already has its own sender at its own
+    nonce, so there is nothing to reorder or serialize and neither clamp is
+    needed.
 
     The single-process fallback below hits none of the reordering risk (one
     process, one event loop), so it keeps the caller's own ``sync`` regardless

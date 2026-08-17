@@ -297,7 +297,7 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
             batch_interval=cfg.send_interval,
             mode=cfg.mode,
             num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
-            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+            conn_per_host=cfg.send_conn_per_host,
         )
         load_end = eth_block_number(cfg.primary.json_rpc_candidates)
         wait_for_committed_eth_txs(
@@ -315,7 +315,7 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
             batch_size=cfg.send_batch_size,
             batch_interval=cfg.send_interval,
             num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
-            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+            conn_per_host=cfg.send_conn_per_host,
         )
         load_end = block_height(cfg.primary.rpc_candidates)
         wait_for_committed_txs(
@@ -424,9 +424,9 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             mode=cfg.mode,
             num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
             probe_batches=probe_batches,
-            conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+            conn_per_host=cfg.send_conn_per_host,
             logical_num_accounts=num_accounts,
-            send_workers=getattr(cfg, "send_workers", 1),
+            send_workers=cfg.send_workers,
         )
         load_end = eth_block_number(cfg.primary.json_rpc_candidates)
         load_end, committed_txs = wait_for_committed_eth_txs(
@@ -481,9 +481,9 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 batch_interval=cfg.send_interval,
                 num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
                 probe_batches=probe_batches,
-                conn_per_host=getattr(cfg, "send_conn_per_host", 200),
+                conn_per_host=cfg.send_conn_per_host,
                 logical_num_accounts=num_accounts,
-                send_workers=getattr(cfg, "send_workers", 1),
+                send_workers=cfg.send_workers,
             )
             load_end = block_height(cfg.primary.rpc_candidates)
             load_end, committed_txs = wait_for_committed_txs(

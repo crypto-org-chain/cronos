@@ -61,6 +61,8 @@ def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=120,
         telemetry=None,
     )
@@ -133,6 +135,8 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=120,
         telemetry=None,
     )
@@ -194,6 +198,8 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
         sender_strategy="reuse",
         send_batch_size=50,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=120,
     )
     heights = iter([1037, 1037, 1038])
@@ -254,6 +260,8 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
         mode="cosmos",
         send_batch_size=2,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=120,
         telemetry=None,
     )
@@ -451,6 +459,8 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
         evm_denom="basetcro",
         mode="cosmos",
         telemetry=None,
+        send_conn_per_host=200,
+        send_workers=1,
     )
     captured = {}
 
@@ -547,6 +557,8 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
         evm_denom="basetcro",
         mode="cosmos",
         telemetry=None,
+        send_conn_per_host=200,
+        send_workers=1,
     )
     nonce_calls = []
     gen_calls = []
@@ -672,6 +684,8 @@ def _cosmos_bench_cfg(**overrides):
         mode="cosmos",
         send_batch_size=3,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=120,
         telemetry=None,
     )
@@ -1207,6 +1221,8 @@ def test_bench_honors_the_configured_commit_timeout(monkeypatch):
         mode="cosmos",
         send_batch_size=1,
         send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
         commit_timeout=600,
         telemetry=None,
     )
