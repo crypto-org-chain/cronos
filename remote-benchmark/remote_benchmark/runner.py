@@ -303,42 +303,34 @@ def _run_warmup(cfg, start, nonce, num_accounts):
     print(f"warming up with {cfg.warmup_txs} tx/account...", file=sys.stderr)
     txs = gen_from_config(cfg, num_accounts, cfg.warmup_txs, start, nonce)
     if cfg.mode == "eth":
-        load_start = eth_block_number(cfg.primary.json_rpc_candidates)
-        failed = _send_and_report_failures(
-            txs,
-            cfg.json_rpc_candidates,
-            batch_size=cfg.send_batch_size,
-            batch_interval=cfg.send_interval,
-            mode=cfg.mode,
-            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
-            conn_per_host=cfg.send_conn_per_host,
-        )
-        load_end = eth_block_number(cfg.primary.json_rpc_candidates)
-        wait_for_committed_eth_txs(
-            cfg.primary.json_rpc_candidates,
-            load_start,
-            load_end,
-            len(txs) - failed,
-            timeout=cfg.commit_timeout,
-        )
+        send_rpcs = cfg.json_rpc_candidates
+        poll_rpcs = cfg.primary.json_rpc_candidates
+        get_height = eth_block_number
+        wait_for_commits = wait_for_committed_eth_txs
     else:
-        load_start = block_height(cfg.primary.rpc_candidates)
-        failed = _send_and_report_failures(
-            txs,
-            cfg.rpc_candidates,
-            batch_size=cfg.send_batch_size,
-            batch_interval=cfg.send_interval,
-            num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
-            conn_per_host=cfg.send_conn_per_host,
-        )
-        load_end = block_height(cfg.primary.rpc_candidates)
-        wait_for_committed_txs(
-            cfg.primary.rpc_candidates,
-            load_start,
-            load_end,
-            len(txs) - failed,
-            timeout=cfg.commit_timeout,
-        )
+        send_rpcs = cfg.rpc_candidates
+        poll_rpcs = cfg.primary.rpc_candidates
+        get_height = block_height
+        wait_for_commits = wait_for_committed_txs
+
+    load_start = get_height(poll_rpcs)
+    failed = _send_and_report_failures(
+        txs,
+        send_rpcs,
+        batch_size=cfg.send_batch_size,
+        batch_interval=cfg.send_interval,
+        mode=cfg.mode,
+        num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
+        conn_per_host=cfg.send_conn_per_host,
+    )
+    load_end = get_height(poll_rpcs)
+    wait_for_commits(
+        poll_rpcs,
+        load_start,
+        load_end,
+        len(txs) - failed,
+        timeout=cfg.commit_timeout,
+    )
     print("warm-up committed", file=sys.stderr)
     return nonce + cfg.warmup_txs
 

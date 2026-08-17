@@ -35,11 +35,15 @@ CONNECTION_POOL_PER_HOST = 200
 PROGRESS_INTERVAL_S = 3
 
 
-def _pool_limit(conn_per_host, n_hosts):
-    """Total connector limit that never binds below the per-host aggregate -
+def _send_session(conn_per_host, n_hosts):
+    """Session whose total limit never binds below the per-host aggregate -
     otherwise CONNECTION_POOL_SIZE could cap concurrency below what
     conn_per_host * n_hosts is meant to allow."""
-    return max(CONNECTION_POOL_SIZE, conn_per_host * n_hosts)
+    connector = aiohttp.TCPConnector(
+        limit=max(CONNECTION_POOL_SIZE, conn_per_host * n_hosts),
+        limit_per_host=conn_per_host,
+    )
+    return aiohttp.ClientSession(connector=connector, json_serialize=ujson.dumps)
 
 
 Job = namedtuple(
@@ -626,12 +630,7 @@ async def send(
     sender), matching callers that never reuse a sender's nonce across the
     tx list.
     """
-    connector = aiohttp.TCPConnector(
-        limit=_pool_limit(conn_per_host, 1), limit_per_host=conn_per_host
-    )
-    async with aiohttp.ClientSession(
-        connector=connector, json_serialize=ujson.dumps
-    ) as session:
+    async with _send_session(conn_per_host, 1) as session:
         return await _send_batches(
             session,
             txs,
@@ -721,12 +720,7 @@ async def send_round_robin(
             conn_per_host=conn_per_host,
         )
 
-    connector = aiohttp.TCPConnector(
-        limit=_pool_limit(conn_per_host, len(rpcs)), limit_per_host=conn_per_host
-    )
-    async with aiohttp.ClientSession(
-        connector=connector, json_serialize=ujson.dumps
-    ) as session:
+    async with _send_session(conn_per_host, len(rpcs)) as session:
         return await _send_batches(
             session,
             txs,

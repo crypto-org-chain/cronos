@@ -80,6 +80,75 @@ def test_run_warmup_says_nothing_when_warmup_is_not_configured(monkeypatch, caps
     assert capsys.readouterr().err == ""
 
 
+def _warmup_cfg(mode):
+    return SimpleNamespace(
+        mode=mode,
+        warmup_txs=2,
+        sender_strategy="reuse",
+        rpc_candidates=["http://node0", "http://node1"],
+        json_rpc_candidates=["http://node0-evm", "http://node1-evm"],
+        primary=SimpleNamespace(
+            rpc_candidates=["http://node0"],
+            json_rpc_candidates=["http://node0-evm"],
+        ),
+        send_batch_size=3,
+        send_interval=0,
+        send_conn_per_host=200,
+        send_workers=1,
+        commit_timeout=120,
+    )
+
+
+def _capture_warmup(monkeypatch):
+    """Record which rpc list warm-up sends to and which one it polls for
+    heights - the eth and cosmos paths share one send/wait sequence, so a
+    mis-selected pair would otherwise go unnoticed."""
+    seen = {}
+
+    def fake_send(txs, rpcs, **kwargs):
+        seen["send"] = (rpcs, kwargs)
+        return 0
+
+    def height(key):
+        def get(rpcs):
+            seen[key] = rpcs
+            return 5
+
+        return get
+
+    monkeypatch.setattr(
+        runner_module, "gen_from_config", lambda *a, **k: ["tx-0", "tx-1"]
+    )
+    monkeypatch.setattr(runner_module, "_send_and_report_failures", fake_send)
+    monkeypatch.setattr(runner_module, "eth_block_number", height("eth_poll"))
+    monkeypatch.setattr(runner_module, "block_height", height("cosmos_poll"))
+    for name in ("wait_for_committed_eth_txs", "wait_for_committed_txs"):
+        monkeypatch.setattr(runner_module, name, lambda *a, **k: None)
+    return seen
+
+
+def test_run_warmup_sends_over_every_cosmos_rpc_but_polls_only_the_primary(monkeypatch):
+    seen = _capture_warmup(monkeypatch)
+    cfg = _warmup_cfg("cosmos")
+
+    # nonce advances by warmup_txs so the measured load resumes past it
+    assert runner_module._run_warmup(cfg, start=1, nonce=4, num_accounts=2) == 6
+    assert seen["send"][0] == cfg.rpc_candidates
+    assert seen["cosmos_poll"] == cfg.primary.rpc_candidates
+    assert "eth_poll" not in seen
+
+
+def test_run_warmup_uses_the_eth_rpcs_and_eth_height_source_under_eth_mode(monkeypatch):
+    seen = _capture_warmup(monkeypatch)
+    cfg = _warmup_cfg("eth")
+
+    assert runner_module._run_warmup(cfg, start=1, nonce=0, num_accounts=2) == 2
+    assert seen["send"][0] == cfg.json_rpc_candidates
+    assert seen["send"][1]["mode"] == "eth"
+    assert seen["eth_poll"] == cfg.primary.json_rpc_candidates
+    assert "cosmos_poll" not in seen
+
+
 def test_wait_for_committed_returns_the_height_that_actually_hit_the_threshold():
     # The chain runs ahead to height 205 (get_height) before the block that
     # actually hits expected_txs (202) gets counted. Returning that stale,
