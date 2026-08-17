@@ -69,6 +69,26 @@ def tx_options(cfg) -> dict:
     }
 
 
+def gen_from_config(cfg, num_accounts, num_txs, start_account, nonce):
+    """Generate signed txs with every layout/signing parameter taken from
+    `cfg`, so warm-up, the measured load, `gen-txs` and `soak` cannot drift
+    apart on how they build a tx."""
+    return gen(
+        cfg.global_seq,
+        num_accounts,
+        num_txs,
+        cfg.tx_type,
+        cfg.batch_size,
+        start_account=start_account,
+        nonce=nonce,
+        msg_version=cfg.msg_version,
+        tx_options=tx_options(cfg),
+        evm_denom=cfg.evm_denom,
+        wire_format=cfg.mode,
+        sender_strategy=cfg.sender_strategy,
+    )
+
+
 def _wait_for_committed(
     get_height,
     count_txs_batch,
@@ -281,20 +301,7 @@ def _run_warmup(cfg, start, end, nonce, num_accounts):
         return nonce
 
     print(f"warming up with {cfg.warmup_txs} tx/account...", file=sys.stderr)
-    txs = gen(
-        cfg.global_seq,
-        num_accounts,
-        cfg.warmup_txs,
-        cfg.tx_type,
-        cfg.batch_size,
-        start_account=start,
-        nonce=nonce,
-        msg_version=cfg.msg_version,
-        tx_options=tx_options(cfg),
-        evm_denom=cfg.evm_denom,
-        wire_format=cfg.mode,
-        sender_strategy=cfg.sender_strategy,
-    )
+    txs = gen_from_config(cfg, num_accounts, cfg.warmup_txs, start, nonce)
     if cfg.mode == "eth":
         load_start = eth_block_number(cfg.primary.json_rpc_candidates)
         failed = _send_and_report_failures(
@@ -384,20 +391,7 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
         print(f"loaded {len(txs)} cached {cfg.mode} txs from {txs_cache}", file=sys.stderr)
     else:
         print("generating txs...", file=sys.stderr)
-        txs = gen(
-            cfg.global_seq,
-            num_accounts,
-            cfg.num_txs,
-            cfg.tx_type,
-            cfg.batch_size,
-            start_account=start,
-            nonce=nonce,
-            msg_version=cfg.msg_version,
-            tx_options=tx_options(cfg),
-            evm_denom=cfg.evm_denom,
-            wire_format=cfg.mode,
-            sender_strategy=cfg.sender_strategy,
-        )
+        txs = gen_from_config(cfg, num_accounts, cfg.num_txs, start, nonce)
         print(
             f"generated {num_accounts * cfg.num_txs} EVM txs "
             f"in {len(txs)} {cfg.mode} txs",

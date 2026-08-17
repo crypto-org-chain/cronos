@@ -34,7 +34,7 @@ from .results import (
     gate_run,
     write_run_record,
 )
-from .runner import current_sender_nonce, run_bench_once, tx_options
+from .runner import current_sender_nonce, gen_from_config, run_bench_once
 from .soak import (
     CheckpointSampler,
     fit_trends,
@@ -47,7 +47,6 @@ from .stats import dump_block_stats, dump_eth_block_stats
 from .transaction import (
     EthTx,
     build_cosmos_tx,
-    gen,
     json_rpc_send_body,
     physical_account_range,
     send_round_robin,
@@ -184,19 +183,8 @@ def gen_txs(config_path, nonce, start_account, output_path, start, end):
     """Generate a signed tx batch for accounts [start, end]."""
     cfg = load_config(config_path)
     num_accounts = end - start + 1
-    txs = gen(
-        cfg.global_seq,
-        num_accounts,
-        cfg.num_txs,
-        cfg.tx_type,
-        cfg.batch_size,
-        start_account=start + start_account,
-        nonce=nonce,
-        msg_version=cfg.msg_version,
-        tx_options=tx_options(cfg),
-        evm_denom=cfg.evm_denom,
-        wire_format=cfg.mode,
-        sender_strategy=cfg.sender_strategy,
+    txs = gen_from_config(
+        cfg, num_accounts, cfg.num_txs, start + start_account, nonce
     )
     print(
         f"generated {num_accounts * cfg.num_txs} EVM txs "
@@ -486,7 +474,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         raise click.ClickException(str(e)) from e
     # Nonces are checked after num_txs is known: it selects the physical sender
     # range under unique-per-tx, so the check has to cover exactly the accounts
-    # gen() below signs from.
+    # gen_from_config() below signs from.
     if nonce is None:
         try:
             nonce = current_sender_nonce(cfg, start, end, num_txs=num_txs)
@@ -498,20 +486,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
         f"generating ~{num_txs} txs/account for a {duration:.0f}s soak at {rate:.1f} tx/s...",
         file=sys.stderr,
     )
-    txs = gen(
-        cfg.global_seq,
-        num_accounts,
-        num_txs,
-        cfg.tx_type,
-        cfg.batch_size,
-        start_account=start,
-        nonce=nonce,
-        msg_version=cfg.msg_version,
-        tx_options=tx_options(cfg),
-        evm_denom=cfg.evm_denom,
-        wire_format=cfg.mode,
-        sender_strategy=cfg.sender_strategy,
-    )
+    txs = gen_from_config(cfg, num_accounts, num_txs, start, nonce)
 
     sampler = CheckpointSampler(cfg.primary.rpc, cfg.telemetry, checkpoint_interval)
     started = time.monotonic()

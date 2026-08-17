@@ -29,6 +29,7 @@ def _stub_soak_wait(monkeypatch):
 _ONE_ENDPOINT = [
     SimpleNamespace(name="node0", rpc="http://node0", json_rpc="http://node0-evm")
 ]
+_THREE_RPCS = ["http://node0", "http://node1", "http://node2"]
 
 
 class FakeMonitor:
@@ -43,29 +44,7 @@ class FakeMonitor:
 
 
 def test_bench_waits_for_all_generated_txs_to_commit(monkeypatch):
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0", "http://node1", "http://node2"],
-        rpc_candidates=["http://node0", "http://node1", "http://node2"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="reuse",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=100,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        send_batch_size=3,
-        send_interval=0,
-        send_conn_per_host=200,
-        send_workers=1,
-        commit_timeout=120,
-        telemetry=None,
-    )
+    cfg = _cosmos_bench_cfg(rpcs=_THREE_RPCS, rpc_candidates=_THREE_RPCS)
     heights = iter([171, 173, 174, 175])
     loaded_txs = {174: ["tx-1"], 175: ["tx-2", "tx-3"]}
     send_calls = []
@@ -117,29 +96,7 @@ def test_bench_does_not_wait_for_txs_that_send_gave_up_on(monkeypatch):
     """A tx whose async_sendtx retries exhaust never reaches the mempool, so
     waiting for it to commit would time out even though nothing else is
     wrong - expected_txs must shrink by the reported failure count instead."""
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0", "http://node1", "http://node2"],
-        rpc_candidates=["http://node0", "http://node1", "http://node2"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="reuse",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=100,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        send_batch_size=3,
-        send_interval=0,
-        send_conn_per_host=200,
-        send_workers=1,
-        commit_timeout=120,
-        telemetry=None,
-    )
+    cfg = _cosmos_bench_cfg(rpcs=_THREE_RPCS, rpc_candidates=_THREE_RPCS)
     heights = iter([171, 173, 174])
     loaded_txs = {174: ["tx-1", "tx-2"]}
 
@@ -242,29 +199,7 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
 
 
 def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0"],
-        rpc_candidates=["http://node0"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="reuse",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=1,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        send_batch_size=2,
-        send_interval=0,
-        send_conn_per_host=200,
-        send_workers=1,
-        commit_timeout=120,
-        telemetry=None,
-    )
+    cfg = _cosmos_bench_cfg(batch_size=1, send_batch_size=2)
 
     async def fake_send(*_args, **_kwargs):
         return 0
@@ -442,26 +377,7 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
     # gen batches only within one account, so with 12 txs/account a wire tx
     # carries 12 EVM txs, not the configured batch_size=100. Pacing on 100 would
     # send 1 wire tx/s (12 tx/s) for a 100 tx/s target.
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0"],
-        rpc_candidates=["http://node0"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="reuse",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=100,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        telemetry=None,
-        send_conn_per_host=200,
-        send_workers=1,
-    )
+    cfg = _cosmos_bench_cfg()
     captured = {}
 
     class FakeSampler:
@@ -488,7 +404,9 @@ def test_soak_paces_on_the_effective_batch_size_not_the_configured_one(monkeypat
         return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx"] * 200)
+    monkeypatch.setattr(
+        cli_module, "gen_from_config", lambda *_args, **_kwargs: ["tx"] * 200
+    )
     monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
     monkeypatch.setattr(cli_module, "CheckpointSampler", FakeSampler)
     waits = _stub_soak_wait(monkeypatch)
@@ -540,26 +458,7 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
     # Under unique-per-tx the per-account tx count sets the physical sender
     # range, and the soak derives its own from rate x duration: cfg.num_txs=1
     # would validate one account while gen signs from 6000.
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0"],
-        rpc_candidates=["http://node0"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="unique-per-tx",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=100,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        telemetry=None,
-        send_conn_per_host=200,
-        send_workers=1,
-    )
+    cfg = _cosmos_bench_cfg(sender_strategy="unique-per-tx")
     nonce_calls = []
     gen_calls = []
 
@@ -593,8 +492,9 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
     )
     monkeypatch.setattr(
         cli_module,
-        "gen",
-        lambda _seq, _accounts, num_txs, *_args, **_kwargs: gen_calls.append(num_txs) or ["tx"],
+        "gen_from_config",
+        lambda _cfg, _accounts, num_txs, *_args, **_kwargs: gen_calls.append(num_txs)
+        or ["tx"],
     )
     monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
     monkeypatch.setattr(cli_module, "CheckpointSampler", FakeSampler)
@@ -1071,7 +971,9 @@ def test_soak_exits_non_zero_on_app_hash_divergence(monkeypatch, tmp_path):
         return 0
 
     monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
-    monkeypatch.setattr(cli_module, "gen", lambda *_args, **_kwargs: ["tx"] * 200)
+    monkeypatch.setattr(
+        cli_module, "gen_from_config", lambda *_args, **_kwargs: ["tx"] * 200
+    )
     monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
     monkeypatch.setattr(cli_module, "CheckpointSampler", _HealthySampler)
     _stub_soak_wait(monkeypatch)
@@ -1203,29 +1105,7 @@ def test_bench_honors_the_configured_commit_timeout(monkeypatch):
     # Batch workloads saturate every block and need tens of them, so they
     # legitimately outlast the 120s default. Ignoring the per-testcase value
     # would cut the wait short and report a partial commit count as a failure.
-    cfg = SimpleNamespace(
-        primary=SimpleNamespace(rpc="http://node0", json_rpc="http://node0-evm", node_exporter=None, rpc_candidates=["http://node0"], json_rpc_candidates=["http://node0-evm"]),
-        endpoints=_ONE_ENDPOINT,
-        rpcs=["http://node0"],
-        rpc_candidates=["http://node0"],
-        global_seq=0,
-        num_txs=1,
-        sender_strategy="reuse",
-        tx_type="simple-transfer",
-        mix_weights=None,
-        batch_size=1,
-        msg_version="1.4",
-        gas_price=1,
-        chain_id=777,
-        evm_denom="basetcro",
-        mode="cosmos",
-        send_batch_size=1,
-        send_interval=0,
-        send_conn_per_host=200,
-        send_workers=1,
-        commit_timeout=600,
-        telemetry=None,
-    )
+    cfg = _cosmos_bench_cfg(batch_size=1, send_batch_size=1, commit_timeout=600)
     forwarded = {}
 
     async def fake_send(*_args, **_kwargs):
