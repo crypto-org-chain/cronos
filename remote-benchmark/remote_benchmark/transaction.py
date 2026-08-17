@@ -407,6 +407,12 @@ ETH_INVALID_NONCE_MARKER = "invalid nonce;"
 RETRY = "retry"
 RETRY_INTERVAL_S = 1.0
 MAX_RETRY_ROUNDS = 30
+# CometBFT's app-mempool guard holds a rejected tx hash "seen" for
+# CheckTxRetryDelay (5s default) before forgetting it. Rounds inside that
+# window can still be colliding with our own held-open rejection, so
+# own_retry stays True; past it, a duplicate response is CometBFT's cache
+# reporting a genuinely accepted tx, and must be trusted as success again.
+OWN_RETRY_ROUNDS = 6
 
 
 def json_rpc_send_body(raw, method="broadcast_tx_async"):
@@ -429,7 +435,7 @@ def eth_send_raw_body(raw):
 
 @backoff.on_predicate(backoff.expo, max_time=60, max_value=5)
 @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_time=60, max_value=5)
-async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
+async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos", own_retry=False):
     if mode == "eth":
         async with session.post(rpc, json=eth_send_raw_body(raw)) as rsp:
             data = await rsp.json()
@@ -447,11 +453,15 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos"):
             # neither mempool distinguishes the two). Retrying it can never
             # succeed differently, so treat it as success rather than burning
             # up to 60s of backoff per tx chasing an already-done send.
+            #
+            # Exception: own_retry=True (see OWN_RETRY_ROUNDS) - still inside
+            # CometBFT's guard window, so this duplicate may be our own
+            # held-open rejection rather than genuine acceptance.
             if any(
                 marker in str(data["error"].get("data", ""))
                 for marker in DUPLICATE_SEND_MARKERS
             ):
-                return True
+                return RETRY if own_retry else True
             print("send tx error, will retry,", data["error"])
             return False
         result = data["result"]
@@ -474,18 +484,19 @@ async def _drain_retries(session, pending, mode):
     a sequence gap). Returns the count still failing once ``MAX_RETRY_ROUNDS``
     is exhausted.
     """
-    for _ in range(MAX_RETRY_ROUNDS):
+    for round_i in range(MAX_RETRY_ROUNDS):
         if not pending:
             break
         await asyncio.sleep(RETRY_INTERVAL_S)
+        own_retry = round_i < OWN_RETRY_ROUNDS
         tasks = [
-            asyncio.ensure_future(async_sendtx(session, raw, rpc, True, mode))
+            asyncio.ensure_future(
+                async_sendtx(session, raw, rpc, True, mode, own_retry=own_retry)
+            )
             for raw, rpc in pending
         ]
         results = await asyncio.gather(*tasks)
-        pending = [
-            item for item, result in zip(pending, results) if result == RETRY
-        ]
+        pending = [item for item, result in zip(pending, results) if result == RETRY]
     return len(pending)
 
 

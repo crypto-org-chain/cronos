@@ -351,7 +351,13 @@ def test_send_round_robin_connector_limit_never_binds_below_the_per_host_aggrega
     asyncio.run(
         tx_module.send_round_robin(
             [f"tx-{i}" for i in range(4)],
-            ["http://node0", "http://node1", "http://node2", "http://node3", "http://node4"],
+            [
+                "http://node0",
+                "http://node1",
+                "http://node2",
+                "http://node3",
+                "http://node4",
+            ],
             batch_size=4,
             batch_interval=0,
             num_accounts=2,
@@ -415,7 +421,9 @@ def test_send_round_robin_spreads_every_tx_when_no_sender_repeats(monkeypatch):
     assert routing["tx-2"] == "http://node0"
 
 
-def test_send_issues_every_tx_concurrently_and_async_when_no_sender_repeats(monkeypatch):
+def test_send_issues_every_tx_concurrently_and_async_when_no_sender_repeats(
+    monkeypatch,
+):
     # The serialize-and-force-sync behaviour exists only to order one sender's
     # nonces. With a sender per tx it would serialize unrelated accounts and pay
     # broadcast_tx_sync for nothing.
@@ -548,6 +556,20 @@ def test_async_sendtx_treats_a_duplicate_send_as_success(marker):
     assert session.calls == 1
 
 
+@pytest.mark.parametrize("marker", ["already exists in cache", "tx already seen"])
+def test_async_sendtx_own_retry_keeps_retrying_on_duplicate_send(marker):
+    # own_retry=True: still inside CometBFT's guard window, so this duplicate
+    # may be our own held-open rejection rather than genuine acceptance.
+    session = _FakeSession({"error": {"code": -32603, "data": marker}})
+
+    assert (
+        asyncio.run(
+            tx_module.async_sendtx(session, "rawtx", "http://node0", own_retry=True)
+        )
+        == tx_module.RETRY
+    )
+
+
 def test_async_sendtx_returns_retry_on_wrong_sequence():
     # A wrong-sequence rejection means the tx itself is fine and just arrived
     # before an earlier nonce for the same sender - the caller resends it
@@ -569,7 +591,12 @@ def test_async_sendtx_returns_retry_on_ethermint_invalid_nonce():
     # envelope tx wrapping EVM messages hits this text, and it must retry the
     # same as WRONG_SEQUENCE_MARKER rather than being dropped for good.
     session = _FakeSession(
-        {"result": {"code": 5, "log": "invalid nonce; got 100, expected 0: invalid sequence"}}
+        {
+            "result": {
+                "code": 5,
+                "log": "invalid nonce; got 100, expected 0: invalid sequence",
+            }
+        }
     )
 
     assert (
@@ -600,7 +627,7 @@ def test_drain_retries_resends_until_it_succeeds(monkeypatch):
     monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
     attempts = {"tx-0": 0}
 
-    async def fake_sendtx(_session, raw, _rpc, _sync, _mode):
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode, own_retry=False):
         attempts[raw] += 1
         return tx_module.RETRY if attempts[raw] < 2 else True
 
@@ -617,7 +644,7 @@ def test_drain_retries_resends_until_it_succeeds(monkeypatch):
 def test_drain_retries_gives_up_after_max_rounds(monkeypatch):
     monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
 
-    async def always_retry(_session, _raw, _rpc, _sync, _mode):
+    async def always_retry(_session, _raw, _rpc, _sync, _mode, own_retry=False):
         return tx_module.RETRY
 
     monkeypatch.setattr(tx_module, "async_sendtx", always_retry)
@@ -631,6 +658,45 @@ def test_drain_retries_gives_up_after_max_rounds(monkeypatch):
     )
 
     assert failed == 2
+
+
+def test_drain_retries_stops_marking_own_retry_past_the_guard_window(monkeypatch):
+    # own_retry stays True only within CometBFT's guard window
+    # (OWN_RETRY_ROUNDS rounds); past it, a duplicate response means genuine
+    # acceptance, not our own held-open rejection.
+    monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
+    seen_own_retry = []
+
+    async def fake_sendtx(_session, _raw, _rpc, _sync, _mode, own_retry=False):
+        seen_own_retry.append(own_retry)
+        return tx_module.RETRY
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    asyncio.run(tx_module._drain_retries(None, [("tx-0", "http://node0")], "cosmos"))
+
+    assert seen_own_retry == [True] * tx_module.OWN_RETRY_ROUNDS + [False] * (
+        tx_module.MAX_RETRY_ROUNDS - tx_module.OWN_RETRY_ROUNDS
+    )
+
+
+def test_drain_retries_recovers_a_duplicate_after_the_guard_window_expires(
+    monkeypatch,
+):
+    # Regression: past the guard window, a duplicate response means genuine
+    # acceptance and must not be miscounted as failed forever.
+    monkeypatch.setattr(tx_module.asyncio, "sleep", _fake_sleep)
+
+    async def fake_sendtx(_session, _raw, _rpc, _sync, _mode, own_retry=False):
+        return tx_module.RETRY if own_retry else True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    failed = asyncio.run(
+        tx_module._drain_retries(None, [("tx-0", "http://node0")], "cosmos")
+    )
+
+    assert failed == 0
 
 
 def test_send_multiprocess_falls_back_to_single_process_for_one_worker(monkeypatch):
@@ -690,8 +756,18 @@ def test_send_multiprocess_splits_by_account_range_and_overrides_batch_size(
 
     # accounts 0-1 go to worker 0, accounts 2-3 to worker 1 - each worker's
     # txs stay within its own account range across both nonce rounds.
-    assert worker0_txs == ["acct0-nonce0", "acct1-nonce0", "acct0-nonce1", "acct1-nonce1"]
-    assert worker1_txs == ["acct2-nonce0", "acct3-nonce0", "acct2-nonce1", "acct3-nonce1"]
+    assert worker0_txs == [
+        "acct0-nonce0",
+        "acct1-nonce0",
+        "acct0-nonce1",
+        "acct1-nonce1",
+    ]
+    assert worker1_txs == [
+        "acct2-nonce0",
+        "acct3-nonce0",
+        "acct2-nonce1",
+        "acct3-nonce1",
+    ]
 
     # batch_size is overridden to each worker's own (shrunk) account count,
     # not the global num_accounts, so a worker's batch never spans multiple
