@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import bech32
 import requests
-import web3
 from eth_account import Account
 from hexbytes import HexBytes
 
@@ -124,15 +123,6 @@ def request_json(method, rpc, path, retries=HTTP_RETRIES, **kwargs):
     raise last_exc
 
 
-def decode_bech32(addr):
-    _, bz = bech32.bech32_decode(addr)
-    return HexBytes(bytes(bech32.convertbits(bz, 5, 8)))
-
-
-def bech32_to_eth(addr):
-    return decode_bech32(addr).hex()
-
-
 def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
     bz = bech32.convertbits(HexBytes(addr), 8, 5)
     return bech32.bech32_encode(prefix, bz)
@@ -227,10 +217,6 @@ def txpool_status(json_rpc):
     return int(pending, 16), 0
 
 
-def block_txs(height, rpc):
-    return block(height, rpc=rpc)["result"]["block"]["data"]["txs"]
-
-
 # CometBFT caps /blockchain at this many block_metas per call regardless of
 # the requested span, so a wide range needs this many round trips chunked.
 BLOCKCHAIN_PAGE_SIZE = 20
@@ -280,17 +266,6 @@ def blockchain_range(min_height, max_height, rpc):
                 header = meta["header"]
                 metas[int(header["height"])] = (int(meta["num_txs"]), header["time"])
     return metas
-
-
-def wait_for_w3(json_rpc, timeout=40):
-    w3 = web3.Web3(web3.providers.HTTPProvider(json_rpc))
-    for _ in range(timeout):
-        try:
-            w3.eth.get_balance("0x0000000000000000000000000000000000000001")
-            return w3
-        except Exception:  # noqa
-            time.sleep(1)
-    raise TimeoutError(f"Waited too long for web3 json-rpc {json_rpc} to be ready.")
 
 
 def split(a: int, n: int):

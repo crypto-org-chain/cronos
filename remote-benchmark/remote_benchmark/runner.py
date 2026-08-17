@@ -278,7 +278,7 @@ def _send_and_report_failures(
     return failed
 
 
-def _run_warmup(cfg, start, end, nonce, num_accounts):
+def _run_warmup(cfg, start, nonce, num_accounts):
     """Send `cfg.warmup_txs` throwaway txs per account and wait for them to
     commit, so the measured run isn't paying for cold mempool/connection-pool
     state. No-op when warmup_txs is 0. Returns the nonce the real load
@@ -373,7 +373,7 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
     # cached: the cache was signed assuming warm-up already advanced the nonce,
     # but each run starts from a fresh chain (nonce back at 0), so skipping
     # warm-up on a cache hit would compare against a stale, pre-warm-up nonce.
-    nonce = _run_warmup(cfg, start, end, nonce, num_accounts)
+    nonce = _run_warmup(cfg, start, nonce, num_accounts)
 
     if cached_payload is not None:
         # The cache only stays valid if the chain's actual current nonce still

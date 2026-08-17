@@ -15,9 +15,7 @@ from .cometbft_metrics import (
 )
 from .promtext import (
     fetch_prometheus_text as _fetch_prometheus,
-    labeled_metric_by as _labeled_metric_by,
     parse_histogram_sum_count as _parse_histogram_sum_count,
-    parse_label_block as _parse_label_block,
     parse_labeled_metric as _parse_labeled_metric,
 )
 from .utils import (
@@ -29,7 +27,7 @@ from .utils import (
     eth_block_number,
     mempool_status,
 )
-from .window import TPS_WINDOW, _analyze_load_window, _percentile, calculate_tps
+from .window import _analyze_load_window, _percentile, calculate_tps
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +41,6 @@ def get_block_info_cosmos(height, rpc):
     blk = block(height, rpc)
     timestamp = datetime.fromisoformat(blk["result"]["block"]["header"]["time"])
     txs = len(blk["result"]["block"]["data"]["txs"])
-    return timestamp, txs
-
-
-def get_block_info_eth(height, json_rpc):
-    blk = block_eth(height, json_rpc)
-    timestamp = datetime.fromtimestamp(int(blk["timestamp"], 0), tz=timezone.utc)
-    txs = len(blk["transactions"])
     return timestamp, txs
 
 

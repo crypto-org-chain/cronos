@@ -65,7 +65,7 @@ def test_run_warmup_no_ops_under_unique_per_tx_without_calling_gen(monkeypatch, 
     monkeypatch.setattr(runner_module, "gen", fail_if_called)
     cfg = SimpleNamespace(warmup_txs=10, sender_strategy="unique-per-tx")
 
-    result = runner_module._run_warmup(cfg, start=1, end=100, nonce=0, num_accounts=100)
+    result = runner_module._run_warmup(cfg, start=1, nonce=0, num_accounts=100)
 
     assert result == 0
     # a configured-but-inert warmup_txs must not be silent
@@ -76,7 +76,7 @@ def test_run_warmup_says_nothing_when_warmup_is_not_configured(monkeypatch, caps
     monkeypatch.setattr(runner_module, "gen", lambda *a, **k: [])
     cfg = SimpleNamespace(warmup_txs=0, sender_strategy="unique-per-tx")
 
-    assert runner_module._run_warmup(cfg, 1, 100, 7, 100) == 7
+    assert runner_module._run_warmup(cfg, 1, 7, 100) == 7
     assert capsys.readouterr().err == ""
 
 

@@ -96,10 +96,6 @@ class Config(BaseModel):
         return self
 
     @property
-    def rpcs(self) -> list[str]:
-        return [e.rpc for e in self.endpoints]
-
-    @property
     def json_rpcs(self) -> list[str]:
         return [e.json_rpc for e in self.endpoints]
 

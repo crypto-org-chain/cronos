@@ -7,7 +7,6 @@ import os
 import sys
 import time
 from collections import namedtuple
-from pathlib import Path
 
 import aiohttp
 import backoff
@@ -33,7 +32,6 @@ CONNECTION_POOL_SIZE = 10000
 # loopback endpoints, with no tunnel to protect, can override via
 # Config.send_conn_per_host.
 CONNECTION_POOL_PER_HOST = 200
-TXS_DIR = "txs"
 PROGRESS_INTERVAL_S = 3
 
 
@@ -50,7 +48,6 @@ Job = namedtuple(
         "chunk",
         "global_seq",
         "num_txs",
-        "tx_type",
         "create_tx",
         "batch",
         "nonce",
@@ -302,7 +299,6 @@ def gen(
             (start + start_account, end + start_account),
             global_seq,
             num_txs,
-            tx_type,
             create_tx,
             batch,
             nonce,
@@ -356,23 +352,6 @@ def sender_affinity_accounts(sender_strategy: str, num_accounts: int) -> int | N
     through broadcast_tx_sync - for nothing.
     """
     return None if sender_strategy == "unique-per-tx" else num_accounts
-
-
-def save(txs: [str], datadir: Path, global_seq: int):
-    d = datadir / TXS_DIR
-    d.mkdir(parents=True, exist_ok=True)
-    path = d / f"{global_seq}.json"
-    with path.open("w") as f:
-        ujson.dump(txs, f)
-
-
-def load(datadir: Path, global_seq: int) -> [str]:
-    path = datadir / TXS_DIR / f"{global_seq}.json"
-    if not path.exists():
-        return
-
-    with path.open("r") as f:
-        return ujson.load(f)
 
 
 def build_cosmos_tx(*txs: EthTx, msg_version="1.4", evm_denom=DEFAULT_DENOM) -> str:

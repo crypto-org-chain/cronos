@@ -123,7 +123,7 @@ def _analyze_load_window(
     if first_tx_idx is None:
         return None
 
-    multi_block = last_tx_idx is not None and first_tx_idx < last_tx_idx
+    multi_block = first_tx_idx < last_tx_idx
     anchor_is_separate = first_tx_idx > 0
     anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
     load_blocks = blocks[anchor_idx : last_tx_idx + 1]

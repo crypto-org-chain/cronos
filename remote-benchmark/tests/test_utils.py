@@ -1,6 +1,5 @@
 from remote_benchmark import utils as utils_module
 from remote_benchmark.utils import (
-    bech32_to_eth,
     blockchain_range,
     eth_to_bech32,
     request_json,
@@ -9,10 +8,11 @@ from remote_benchmark.utils import (
 )
 
 
-def test_bech32_roundtrip():
-    addr = "0x1234567890123456789012345678901234567890"
-    bech = eth_to_bech32(addr)
-    assert bech32_to_eth(bech) == addr.lower()
+def test_eth_to_bech32_encodes_with_the_cronos_prefix():
+    assert (
+        eth_to_bech32("0x1234567890123456789012345678901234567890")
+        == "crc1zg69v7yszg69v7yszg69v7yszg69v7ysz9muj2"
+    )
 
 
 def test_split():
