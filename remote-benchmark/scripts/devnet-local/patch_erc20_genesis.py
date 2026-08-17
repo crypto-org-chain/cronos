@@ -145,11 +145,12 @@ def main():
         type=int,
         default=50 * 10**18,
         help=(
-            "native balance per account. 50 CRO: headroom over the "
-            "worst-case batch configs' 200 txs x 21000 gas x 5e12 gas_price "
-            "= 21 CRO in ante-handler fees per account - too little here "
-            "means every batched MsgEthereumTx past the point funds run out "
-            "silently fails CheckTx (insufficient funds)"
+            "native balance per account. Fees are charged per inner "
+            "MsgEthereumTx, so an account needs num_txs x gas x gas_price "
+            "(batch_size does not change it). 50 CRO is ~2x the worst case "
+            "any shipped config asks for (batch-erc20-transfer: 100 x 51630 "
+            "x 5e12 = 25.8 CRO). Too little means every tx past the point "
+            "funds run out silently fails CheckTx with insufficient funds"
         ),
     )
     args = parser.parse_args()

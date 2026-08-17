@@ -1,8 +1,9 @@
 # 5-validator local devnet - simple-transfer (single MsgEthereumTx per tx).
 # Reference: https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 # ("5 Validators" table) - target ~7965 TPS on an M4 MacBook Pro.
-# The wiki lists no separate options for 5 validators, so num_accounts/num_txs
-# match the 3-validator case.
+# The wiki lists no separate options for 5 validators. num_accounts/num_txs are
+# widened past the 3-validator case (10000 x 10) to 20000 x 15, so the load
+# still saturates blocks once it is spread across five proposers.
 endpoints:
   - name: node0
     rpc: http://127.0.0.1:26657
@@ -35,7 +36,8 @@ num_txs: 15
 # the nonce ordering the chain fails to preserve. Costs 300000 genesis-funded
 # physical senders (num_accounts * num_txs).
 sender_strategy: unique-per-tx
-warmup_txs: 10
+# No warmup_txs here: warm-up needs a sender range disjoint from the measured
+# load, which unique-per-tx has none of, so the runner skips it.
 batch_size: 1
 send_batch_size: 20000
 send_interval: 0.2

@@ -73,7 +73,19 @@ below v1.8.0 automatically fall back to
 `configs/benchmark-{1,3,5}val-legacy-mempool.jsonnet`, which drops the v1.8-only
 CometBFT fields but keeps the app-level `PriorityNonceMempool`
 (`app-config.mempool.max-txs`) so proposers still order by nonce/priority
-instead of dropping to `NoOpMempool`.
+instead of dropping to `NoOpMempool`. That knob is off by one value: `max-txs:
+-1` disables the app mempool entirely (`app/app.go:463`), so it must stay
+non-negative.
+
+**The 5-validator legacy config is not a controlled mempool comparison.** It
+runs goleveldb instead of rocksdb, memiavl disabled, and half the block gas
+(105M vs 210M), because the v1.7.8 release binary it targets can't be driven at
+the modern config's settings. A 5val legacy-vs-modern TPS delta measures all
+four differences at once. Use the 1- or 3-validator pair — those keep
+rocksdb/memiavl/363M on both sides — to isolate the mempool.
+
+Its `mempool.size: 2000` is deliberate: it's mainnet's default and the recorded
+v1.7.8 baseline. Sweep it with `MEMPOOL_SIZE`, don't edit the file.
 
 These configs also get their `send_interval` raised at bench time. The classic
 CometBFT mempool checks a tx's sequence against committed state only — it has
@@ -140,19 +152,33 @@ isolate the effect of removing same-sender BlockSTM dependencies.
 **Devnet configs** — `configs/benchmark-{1,3,5}val.jsonnet` (plus
 `-legacy-mempool` variants) carry the wiki's `config_patch`/`app_patch`/
 `genesis_patch` tuning: `db_backend: rocksdb`, `async-check-tx`, Block-STM
-executor with 32 workers, `memiavl` async commit. Mempool size follows the
-wiki, and differs by validator count.
+executor with auto-detected workers, `memiavl` async commit. Mempool size and
+block gas differ by validator count — 5val runs 210M gas against 1/3val's 363M,
+since a 363M block can't propagate across five validators inside the round
+timeouts.
+
+Two gas values must move together or the block cap and the reap cap disagree:
+`genesis.consensus.params.block.max_gas` and `config.mempool.reap_max_gas`.
+A third copy under `app-config.mempool` looks load-bearing but isn't — app.toml's
+`[mempool]` has exactly one field, `max-txs` (cosmos-sdk `MempoolConfig`), so
+`type`/`broadcast`/`reap_max_gas`/`reap_interval` there are silently ignored.
 
 **Load configs** — `configs/{1,3,5}val-<testcase>.yaml`, one per validator-count
-× test-case combination. `run-benchmark.sh` reads `num_accounts` straight from
-the config to size the account range and the funder's balance, so changing it
-there is enough — nothing else needs to stay in sync.
+× test-case combination. `run-benchmark.sh` reads `num_accounts`, `num_txs`,
+`sender_strategy`, `global_seq` and `chain_id` straight from the config to size
+the account range and derive the genesis patch, so changing them there is
+enough. The genesis funding *amount* is not derived — it's a flat 50 CRO per
+account, ~2x what the most expensive shipped config needs (`batch-erc20-transfer`
+at 25.8 CRO). Raising a batch config's `num_txs` far past today's values means
+passing `--fund-amount` too, or every tx past the point funds run out fails
+`CheckTx` silently.
 
 | Config | accounts × txs | Notes |
 | --- | --- | --- |
 | `1val-simple-transfer` | 8000 × 40 | matches the wiki exactly |
+| `1val-batch-simple-transfer{,-unique}` | 8000 × 120, batch 100 | counts match on both sides — that's what makes the pair a control |
 | `3val-simple-transfer` | 10000 × 10 | |
-| `5val-simple-transfer` | 20000 × 15 | wiki lists no 5val options; `unique-per-tx` with `warmup_txs: 10` |
+| `5val-simple-transfer` | 20000 × 15 | wiki lists no 5val options; `unique-per-tx` (gossip gives no cross-envelope nonce ordering, so a reused sender loses 13-29% of txs to `sdk:3`) |
 | `5val-batch-simple-transfer` | 8000 × 100, batch 100 | `commit_timeout: 600` — batched gas fills far more blocks |
 
 **Contention configs** — `configs/1val-{erc20-transfer-hot,uniswap-swap,nft-mint,weighted-mix}.yaml`

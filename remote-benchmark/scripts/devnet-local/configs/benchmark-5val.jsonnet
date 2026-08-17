@@ -1,9 +1,14 @@
 // 5-validator devnet config matching the "5 Validators" setup described in
 // https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 //
-// Extends benchmark-3val.jsonnet with 2 more validators; the wiki does not
-// list separate mempool/gas options for 5 validators, so all non-validator
-// fields are kept identical to the 3-validator config.
+// Derived from benchmark-3val.jsonnet with 2 more validators. The wiki lists no
+// separate 5-validator options, so the tuning here was found by measurement and
+// has since diverged from the 3-validator config on purpose: max block gas is
+// 210000000 rather than 363000000 (a 363M block does not propagate across five
+// validators inside the round timeouts), the consensus timeouts are the
+// mainnet-realistic set rather than 3val's 20ms commit, mempool.max-txs is
+// sized for unique-per-tx, and libp2p carries explicit resource limits.
+// Do not "resync" those with 3val - each is load-bearing and commented below.
 {
   dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
@@ -81,17 +86,16 @@
         'enable-indexer': false,
       },
       mempool: {
+        // Only key app.toml's [mempool] has (cosmos-sdk MempoolConfig); the
+        // type/broadcast/reap_* knobs belong to config_patch's CometBFT
+        // mempool above, and a copy here is silently ignored.
+        //
         // unique-per-tx puts every one of the 300000 physical senders in
         // flight at once with no per-sender pacing to throttle them; a cap
         // below that drops the overflow via broadcast_tx_async, which never
         // waits for CheckTx and so never surfaces the ErrMempoolIsFull as an
         // error the client can see or retry.
         'max-txs': 320000,
-        recheck: false,
-        type: 'app',
-        broadcast: true,
-        reap_max_gas: 210000000,
-        reap_interval: '500ms',
       },
       evm: {
         'block-executor': 'block-stm',
@@ -109,7 +113,12 @@
         'skip-check-header': true,
       },
       cronos: {
-        'mempool-txs-per-block': 0,
+        // Shared budget for the gossip-reap cap (txs per 500ms tick) and the
+        // recheck-batch cap (candidates per Commit). 210000000 max block gas /
+        // 21000 gas per simple-transfer = 10000 txs a full block can hold.
+        // Leaving this 0 falls back to cronos's 2900 mainnet default, which
+        // starves both paths at ~3.4x below one block's worth.
+        'mempool-txs-per-block': 10000,
         'tx-cache-size': 100000,
       },
     },

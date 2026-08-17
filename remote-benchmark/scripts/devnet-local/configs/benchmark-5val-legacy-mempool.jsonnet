@@ -2,6 +2,14 @@
 // predate v1.8.0-alpha's app-mempool feature. Keep in sync with
 // benchmark-5val.jsonnet's non-mempool fields by hand - there is no shared
 // base to inherit from.
+//
+// This one is NOT in sync, and deliberately so: it runs goleveldb instead of
+// rocksdb, memiavl disabled, and half the block gas (105000000 vs 210000000),
+// because the v1.7.8 release binary this config targets cannot be driven at the
+// modern config's settings. A 5-validator legacy-vs-modern TPS delta therefore
+// measures all four differences at once, not the mempool alone - it is not a
+// controlled mempool comparison. The 1- and 3-validator legacy configs keep
+// rocksdb/memiavl/363000000, so use those for that comparison instead.
 {
   dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
@@ -64,8 +72,13 @@
         'logs-cap': 10000,
         'enable-indexer': false,
       },
+      // app-level PriorityNonceMempool. app/app.go:463 wires it only when
+      // max-txs is non-negative; -1 silently falls back to NoOpMempool, which
+      // selects txs in arbitrary gossip-arrival order instead of
+      // nonce/priority order. Kept well above config_patch's mempool.size so
+      // CometBFT's cap stays the binding one (MEMPOOL_SIZE tunes that).
       mempool: {
-        'max-txs': -1,
+        'max-txs': 100000,
       },
       evm: {
         'block-executor': 'block-stm',

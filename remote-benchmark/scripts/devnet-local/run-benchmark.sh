@@ -133,6 +133,11 @@ PHYSICAL_END_ACCOUNT="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; c=yaml.safe_load(open('${BENCH_CONFIG}')); print(c['num_accounts'] * c['num_txs'] if c.get('sender_strategy') == 'unique-per-tx' else c['num_accounts'])")"
 BENCH_CONFIG_CHAIN_ID="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
   "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}'))['chain_id'])")"
+# gen_account folds global_seq into the derived private key, so a genesis patch
+# run at a different seq than the benchmark funds an entirely different address
+# set - and nothing detects it until every tx fails for insufficient funds.
+GLOBAL_SEQ="$(cd "${REMOTE_BENCHMARK_DIR}" && poetry run python -c \
+  "import yaml; print(yaml.safe_load(open('${BENCH_CONFIG}')).get('global_seq', 0))")"
 if [[ "${BENCH_CONFIG_CHAIN_ID}" != "${EVM_CHAIN_ID}" ]]; then
   echo "${BENCH_CONFIG}'s chain_id (${BENCH_CONFIG_CHAIN_ID}) doesn't match" \
        "${JSONNET_CONFIG}'s chain_id (${COSMOS_CHAIN_ID}); update the yaml config" >&2
@@ -169,6 +174,7 @@ CACHE_KEY="$(cat \
   "${JSONNET_CONFIG}" "${BENCH_CONFIG}" "${CRONOS_ROOT}/scripts/.env" \
   "${SCRIPT_DIR}/patch_erc20_genesis.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/contracts.py" \
+  "${REMOTE_BENCHMARK_DIR}/remote_benchmark/fix_p2p_config.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/erc20.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/utils.py" \
   "${REMOTE_BENCHMARK_DIR}/remote_benchmark/libp2p.py" \
@@ -305,7 +311,8 @@ else
   echo "=== injecting ERC20 contract + native balances into genesis ==="
   cd "${REMOTE_BENCHMARK_DIR}"
   poetry run python "${SCRIPT_DIR}/patch_erc20_genesis.py" \
-    --data-dir "${DATA_DIR}" --num-accounts "${END_ACCOUNT}" \
+    --data-dir "${DATA_DIR}" --chain-id "${CHAIN_ID}" \
+    --global-seq "${GLOBAL_SEQ}" --num-accounts "${END_ACCOUNT}" \
     --fund-accounts "${PHYSICAL_END_ACCOUNT}"
 
   echo "=== populating genesis cache at ${CACHE_DIR} ==="

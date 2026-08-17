@@ -46,11 +46,13 @@
         'enable-indexer': false,
       },
       // app-level PriorityNonceMempool (predates v1.8's app-mempool bridge -
-      // app/app.go wires this whenever mempool.max-txs is set) - without it
-      // PrepareProposal falls back to NoOpMempool, which selects txs in
+      // app/app.go:463 wires this only when max-txs is non-negative) - without
+      // it PrepareProposal falls back to NoOpMempool, which selects txs in
       // arbitrary gossip-arrival order instead of nonce/priority order.
+      // Matches config_patch's mempool.size so the app mempool is not the
+      // tighter of the two caps.
       mempool: {
-        'max-txs': -1,
+        'max-txs': 50000,
       },
       evm: {
         'block-executor': 'block-stm',

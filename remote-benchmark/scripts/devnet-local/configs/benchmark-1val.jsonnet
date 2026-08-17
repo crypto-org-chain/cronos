@@ -2,8 +2,7 @@
 // described in https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 //
 // Same app_patch/genesis_patch tuning as benchmark-3val.jsonnet in this
-// folder, single validator, and the wiki's 1-validator mempool size (50000
-// vs. 100000 for 3 validators).
+// folder, with a single validator.
 {
   dotenv: '../../../../scripts/.env',
   'cronos_777-1': {
@@ -66,9 +65,14 @@
         'enable-indexer': false,
       },
       mempool: {
-        // app-side mempool's own cap (v1.8) - matches config_patch's
-        // mempool.size above so the app mempool isn't the tighter limit.
-        'max-txs': 100000,
+        // The app mempool is the only real cap under mempool.type=app -
+        // config_patch's mempool.size governs CometBFT's mempool, which that
+        // mode bypasses. Sized for the largest 1-validator workload
+        // (1val-simple-transfer-unique: 8000 x 40 = 320000 envelopes in flight
+        // at once); a lower cap drops the overflow via broadcast_tx_async,
+        // which never waits for CheckTx and so never surfaces
+        // ErrMempoolIsFull as an error the client can see or retry.
+        'max-txs': 320000,
       },
       evm: {
         'block-executor': 'block-stm',

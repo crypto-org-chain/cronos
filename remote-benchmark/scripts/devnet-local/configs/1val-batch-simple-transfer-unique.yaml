@@ -1,6 +1,8 @@
-# 1-validator simple-transfer workload with one nonce-0 sender per transaction.
-# It generates the same 320000 transfers as 1val-simple-transfer.yaml while
-# removing same-account dependency chains from BlockSTM execution.
+# 1-validator batch-simple-transfer workload with one nonce-0 sender per
+# transaction. Generates the same 960000 transfers as
+# 1val-batch-simple-transfer.yaml - matching counts are what make the pair a
+# valid control - while removing same-account dependency chains from BlockSTM.
+# Costs 960000 genesis-funded physical senders (num_accounts * num_txs).
 endpoints:
   - name: node0
     rpc: http://127.0.0.1:26657
@@ -13,7 +15,7 @@ global_seq: 0
 tx_type: simple-transfer
 msg_version: "1.4"
 num_accounts: 8000
-num_txs: 100
+num_txs: 120
 sender_strategy: unique-per-tx
 batch_size: 100
 send_batch_size: 8000

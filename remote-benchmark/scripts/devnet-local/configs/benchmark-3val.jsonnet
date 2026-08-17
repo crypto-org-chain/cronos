@@ -76,19 +76,12 @@
         'enable-indexer': false,
       },
       mempool: {
-        // app-side mempool's own cap (v1.8) - matches config_patch's
-        // mempool.size above so the app mempool isn't the tighter limit.
+        // Only key app.toml's [mempool] has (cosmos-sdk MempoolConfig) - the
+        // type/broadcast/reap_* knobs belong to config_patch's CometBFT
+        // mempool above, and a copy here is silently ignored. This is the only
+        // real cap under mempool.type=app, which bypasses CometBFT's mempool,
+        // so it must cover the largest 3-validator workload in flight.
         'max-txs': 100000,
-        recheck: false,
-        // app-side mempool (v1.8) from testground/benchmark-options.json -
-        // CheckTx admits into cronos's own mempool instead of CometBFT's,
-        // broadcast still gossips accepted txs to peers.
-        type: 'app',
-        broadcast: true,
-        // matches this config's genesis block.max_gas below, so a single
-        // reap can fill a block instead of under-reaping on a smaller cap.
-        reap_max_gas: 363000000,
-        reap_interval: '500ms',
       },
       evm: {
         'block-executor': 'block-stm',
