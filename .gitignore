@@ -41,3 +41,6 @@ testground/corp-ca.crt
 # MEMPOOL_SIZE-patched jsonnet copies (run-benchmark.sh scratch output)
 remote-benchmark/scripts/devnet-local/configs/.mempool-size-*.jsonnet
 
+# local-only benchmark tuning notes, not for github
+/tuning-doc/
+
