@@ -708,6 +708,29 @@ def test_send_multiprocess_splits_by_account_range_and_overrides_batch_size(
     assert worker1_rpcs == ["http://node2", "http://node0", "http://node1"]
 
 
+def test_send_multiprocess_never_widens_a_caller_supplied_batch_size(monkeypatch):
+    # The per-worker override is a cap, not a set: a caller asking for smaller
+    # batches to throttle CheckTx must not have them widened to the worker's
+    # whole account range.
+    jobs_seen = []
+
+    monkeypatch.setattr(tx_module.multiprocessing, "Pool", ImmediatePool)
+    monkeypatch.setattr(
+        tx_module, "_send_worker", lambda args: jobs_seen.append(args[2]) or 0
+    )
+
+    tx_module.send_multiprocess(
+        [f"acct{a}-nonce{n}" for n in range(2) for a in range(8)],
+        ["http://node0"],
+        num_accounts=8,
+        num_workers=2,
+        batch_size=3,
+    )
+
+    # each worker owns 4 accounts, so the uncapped override would raise 3 to 4
+    assert [kwargs["batch_size"] for kwargs in jobs_seen] == [3, 3]
+
+
 def test_send_multiprocess_disables_affinity_and_sync_when_not_nonce_ordered(
     monkeypatch,
 ):

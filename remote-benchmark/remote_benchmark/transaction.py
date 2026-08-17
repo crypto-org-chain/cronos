@@ -835,7 +835,12 @@ def send_multiprocess(
             "num_accounts": (hi - lo) if nonce_ordered else None,
         }
         if nonce_ordered:
-            worker_kwargs["batch_size"] = hi - lo
+            # Only a cap: a batch must not span two nonce rounds for one
+            # account, but a caller that asked for smaller batches to throttle
+            # CheckTx must not have them widened.
+            worker_kwargs["batch_size"] = min(
+                send_kwargs.get("batch_size", hi - lo), hi - lo
+            )
         jobs.append((worker_txs, worker_rpcs, worker_kwargs))
 
     with multiprocessing.Pool(len(jobs)) as pool:

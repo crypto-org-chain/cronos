@@ -192,6 +192,14 @@ omits failures); the new one is all Cosmos txs in the block. Same numerator, so 
 Restating the baseline on the new basis gives **4.9-10.2%** against B2's 12.1-19.4% — the increase is
 real, roughly 1.5-2x, and if anything the raw figures understate it. No re-measurement needed.
 
+The exact conversion holds only for one-EVM-tx-per-envelope workloads. On the `batch-*` configs one
+Cosmos envelope carries up to `batch_size` EVM txs, so the corrected denominator is up to ~100x
+smaller and the reported percentage rises by the same factor. Nothing in this report is affected (all
+runs here are `simple-transfer`), but it does make `FAILED_TX_MAX_PCT = 1.0` materially stricter for
+batch runs — previously those were measured against a denominator ~100x too large, so the gate was
+effectively unreachable. Any batch-mode threshold needs re-validating against a real run before it is
+trusted in CI.
+
 **B3 — bisect `max_gas` under full load**, all three sites (`genesis.consensus.params.block.max_gas`,
 `config.mempool.reap_max_gas`, `app-config.mempool.reap_max_gas`) moved together, combined-floor
 knobs held constant, 1 run each:

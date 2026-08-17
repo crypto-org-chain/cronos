@@ -57,6 +57,9 @@ class Config(BaseModel):
     # Per-host aiohttp connector cap; see CONNECTION_POOL_PER_HOST in
     # transaction.py. 200 protects a tunneled ssh -L endpoint from a connection
     # burst; raise it for direct-loopback endpoints with no tunnel to protect.
+    # Applies per sender process, so the burst one host actually sees is
+    # send_workers * send_conn_per_host - divide it before raising send_workers
+    # on a tunneled endpoint.
     send_conn_per_host: int = 200
     # >1 fans sending out across OS processes via send_multiprocess: a single
     # event loop is CPU-bound on JSON-RPC serialization, not network I/O, so
