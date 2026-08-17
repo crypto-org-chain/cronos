@@ -4,7 +4,40 @@ from .stats import _fetch_prometheus, scrape_blockstm_metrics
 from .utils import block_height, mempool_status, txpool_status
 
 
-class MempoolMonitor:
+class _HeightSampler:
+    """Daemon thread that samples a metric per block height until stopped.
+
+    Subclasses implement `_poll`, which must loop on `self._stop.is_set()`,
+    swallow transport errors, and pace itself with `self._stop.wait(...)` so
+    `stop()` interrupts the sleep instead of waiting it out.
+    """
+
+    def __init__(self, rpc, interval):
+        self._rpc = rpc
+        self._interval = interval
+        self._data = {}
+        self._stop = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self._thread = threading.Thread(target=self._poll, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def data(self):
+        """Snapshot keyed by block height; the value shape is per subclass."""
+        return dict(self._data)
+
+    def _poll(self):
+        raise NotImplementedError
+
+
+class MempoolMonitor(_HeightSampler):
     """Background thread that polls mempool pressure during the load period.
 
     Records the peak (n_txs, n_bytes) observed at each block height so that
@@ -23,26 +56,8 @@ class MempoolMonitor:
     """
 
     def __init__(self, rpc, json_rpc=None, interval=0.2):
-        self._rpc = rpc
+        super().__init__(rpc, interval)
         self._json_rpc = json_rpc
-        self._interval = interval
-        self._data = {}
-        self._stop = threading.Event()
-        self._thread = None
-
-    def start(self):
-        self._thread = threading.Thread(target=self._poll, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=2)
-
-    @property
-    def data(self):
-        """Dict mapping block height to (peak_n_txs, peak_n_bytes)."""
-        return dict(self._data)
 
     def _poll(self):
         last_txpool_height = None
@@ -63,7 +78,7 @@ class MempoolMonitor:
             self._stop.wait(self._interval)
 
 
-class BlockSTMMonitor:
+class BlockSTMMonitor(_HeightSampler):
     """Background thread that records Block-STM gauges at each new block height.
 
     The Cosmos SDK Block-STM executor sets Prometheus gauges (not counters)
@@ -74,27 +89,9 @@ class BlockSTMMonitor:
     """
 
     def __init__(self, rpc, telemetry, interval=0.3):
-        self._rpc = rpc
+        super().__init__(rpc, interval)
         self._telemetry = telemetry
-        self._interval = interval
-        self._data = {}  # height -> (executed, validated)
-        self._stop = threading.Event()
-        self._thread = None
         self._last_height = 0
-
-    def start(self):
-        self._thread = threading.Thread(target=self._poll, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=2)
-
-    @property
-    def data(self):
-        """Dict mapping block height to (executed_txs, validated_txs)."""
-        return dict(self._data)
 
     def _poll(self):
         while not self._stop.is_set():
