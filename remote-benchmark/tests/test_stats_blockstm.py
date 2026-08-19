@@ -173,6 +173,41 @@ def _fail_if_called(*args, **kwargs):
     raise AssertionError("block() should not be called in the eth=True path")
 
 
+def test_dump_block_stats_warns_when_eth_view_is_empty_but_cometbft_committed_txs(monkeypatch):
+    # CometBFT genuinely committed txs at height 3 (blockchain_range says so),
+    # but the eth view (_get_block_gas_and_txs) reports 0 - the eth JSON-RPC
+    # indexer/block-reconstruction path stalled. That must surface as a
+    # warning distinct from "no_load_period" instead of silently reading as
+    # an idle chain.
+    blocks = {2: (_dt(0), 0), 3: (_dt(1), 500), 4: (_dt(2), 0)}
+    _patch_common(monkeypatch, blocks)
+    monkeypatch.setattr(stats_module, "_get_block_gas_and_txs", lambda h, json_rpc: (0, 0, 0))
+
+    out = io.StringIO()
+    summary = dump_block_stats(
+        out, "http://rpc", "http://json-rpc", eth=True, start=2, end=4,
+    )
+
+    assert summary is None
+    assert "warning: eth JSON-RPC reports 0 txs for blocks CometBFT committed 500 txs on" in (
+        out.getvalue()
+    )
+    assert "no_load_period" in out.getvalue()
+
+
+def test_dump_block_stats_no_gap_warning_when_eth_view_matches_cometbft(monkeypatch):
+    blocks = {2: (_dt(0), 0), 3: (_dt(1), 5), 4: (_dt(2), 0)}
+    _patch_common(monkeypatch, blocks)
+    monkeypatch.setattr(
+        stats_module, "_get_block_gas_and_txs", lambda h, json_rpc: (5, 100, 1000) if h == 3 else (0, 0, 0)
+    )
+
+    out = io.StringIO()
+    dump_block_stats(out, "http://rpc", "http://json-rpc", eth=True, start=2, end=4)
+
+    assert "warning: eth JSON-RPC reports 0 txs" not in out.getvalue()
+
+
 def test_dump_block_stats_reports_disk_net_na_when_the_scrape_fails(monkeypatch):
     blocks = {2: (_dt(0), 0), 3: (_dt(1), 5), 4: (_dt(2), 5)}
     _patch_common(monkeypatch, blocks)

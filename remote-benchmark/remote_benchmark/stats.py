@@ -6,15 +6,19 @@ from statistics import median
 
 from . import resources
 from .cometbft_metrics import (
+    scrape_block_gauges,
     scrape_blockstm_metrics,
     scrape_consensus_health,
     scrape_consensus_health_raw,
     scrape_consensus_metrics,
     scrape_consensus_raw,
+    scrape_mempool_health,
     scrape_per_validator_metrics,
+    scrape_sdk_tx_metrics,
 )
 from .promtext import (
     fetch_prometheus_text as _fetch_prometheus,
+    fetch_sdk_prometheus_text as _fetch_sdk_prometheus,
     parse_histogram_sum_count as _parse_histogram_sum_count,
     parse_labeled_metric as _parse_labeled_metric,
 )
@@ -256,6 +260,17 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
             for i in range(start, end + 1)
         }
     heights_with_txs = [i for i in range(start, end + 1) if block_info[i][1] > 0]
+
+    # metas[i][0] is CometBFT's own tx count for the height, independent of
+    # the eth view. When eth reports zero txs for a height CometBFT says is
+    # non-empty, the eth JSON-RPC block-reconstruction path (indexer/receipt
+    # cache) has fallen behind or stalled - the height did commit real load,
+    # it's just invisible to gas/TPS accounting sourced from block_info.
+    eth_indexer_gap_txs = (
+        sum(metas[i][0] for i in range(start, end + 1) if block_info[i][1] == 0 and metas[i][0] > 0)
+        if eth
+        else 0
+    )
     with ThreadPoolExecutor(max_workers=FAILED_TX_FETCH_WORKERS) as pool:
         failed_results = dict(
             zip(
@@ -309,6 +324,7 @@ def _collect_block_range(rpc, json_rpc, eth, start, end, mempool_data=None):
         "total_counted_txs": total_counted_txs,
         "mempool_snapshots": mempool_snapshots,
         "failed_tx_reasons": failed_tx_reasons,
+        "eth_indexer_gap_txs": eth_indexer_gap_txs,
     }
 
 
@@ -484,6 +500,47 @@ def _print_consensus_health(fp, prom_text, consensus_health_baseline, summary, s
         print(f"byzantine_validators {health['byzantine_validators']:.0f}", file=fp)
 
 
+def _print_mempool_health(fp, prom_text, mempool_health_baseline, scope):
+    """Print the Mempool Health section (CometBFT-side CheckTx rejects/
+    rechecks - absent entirely under mempool.type=app, see
+    scrape_mempool_health)."""
+    health = scrape_mempool_health(prom_text, baseline=mempool_health_baseline)
+    print(file=fp)
+    print(f"=== Mempool Health ({scope}) ===", file=fp)
+    print(f"failed_txs {health['failed_txs']:.0f}", file=fp)
+    print(f"recheck_times {health['recheck_times']:.0f}", file=fp)
+
+
+def _print_block_gossip(fp, prom_text):
+    """Print the Block Gossip section (point-in-time gauges from the most
+    recent block - block_parts needs at least one peer to ever fire)."""
+    gauges = scrape_block_gauges(prom_text)
+    if not gauges:
+        return
+
+    print(file=fp)
+    print("=== Block Gossip ===", file=fp)
+    if "block_parts" in gauges:
+        print(f"block_parts {gauges['block_parts']:.0f}", file=fp)
+    if "block_size_bytes" in gauges:
+        print(f"block_size_bytes {gauges['block_size_bytes']:.0f}", file=fp)
+
+
+def _print_sdk_tx_metrics(fp, sdk_metrics, sdk_metrics_baseline, scope):
+    """Print the Cosmos SDK Tx Metrics section, from the API server's own
+    /metrics?format=prometheus - a separate endpoint from CometBFT's :9090."""
+    sdk_prom_text = _fetch_sdk_prometheus(sdk_metrics)
+    sdk = scrape_sdk_tx_metrics(sdk_prom_text, baseline=sdk_metrics_baseline)
+    if sdk is None:
+        return
+
+    print(file=fp)
+    print(f"=== Cosmos SDK Tx Metrics ({scope}) ===", file=fp)
+    print(f"tx_count {sdk['tx_count']:.0f}", file=fp)
+    print(f"tx_successful {sdk['tx_successful']:.0f}", file=fp)
+    print(f"tx_failed {sdk['tx_failed']:.0f}", file=fp)
+
+
 def _print_per_validator(fp, prom_text):
     """Print the Per-Validator section."""
     per_validator = scrape_per_validator_metrics(prom_text)
@@ -555,6 +612,9 @@ def dump_block_stats(
     stm_data: dict = None,
     consensus_baseline: dict = None,
     consensus_health_baseline: dict = None,
+    mempool_health_baseline: dict = None,
+    sdk_metrics: str = None,
+    sdk_metrics_baseline: dict = None,
     node_exporter: str = None,
     disk_net_baseline: dict = None,
 ):
@@ -602,6 +662,16 @@ def dump_block_stats(
         total_failed_txs=collected["total_failed_txs"],
         total_counted_txs=collected["total_counted_txs"],
     )
+
+    if collected["eth_indexer_gap_txs"]:
+        print(
+            f"warning: eth JSON-RPC reports 0 txs for blocks CometBFT committed "
+            f"{collected['eth_indexer_gap_txs']} txs on - the eth indexer/block-"
+            f"reconstruction path is stalled or lagging; TPS/gas numbers below "
+            f"undercount real load",
+            file=fp,
+        )
+
     if summary is None:
         print("no_load_period", file=fp)
         return None
@@ -621,7 +691,12 @@ def dump_block_stats(
     summary["byzantine_validators"] = None
     if telemetry:
         _print_consensus_health(fp, prom_text, consensus_health_baseline, summary, scope)
+        _print_mempool_health(fp, prom_text, mempool_health_baseline, scope)
+        _print_block_gossip(fp, prom_text)
         _print_per_validator(fp, prom_text)
+
+    if sdk_metrics:
+        _print_sdk_tx_metrics(fp, sdk_metrics, sdk_metrics_baseline, scope)
 
     _print_resources(fp, telemetry, node_exporter, prom_text, disk_net_baseline)
 
