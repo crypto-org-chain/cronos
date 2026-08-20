@@ -3,11 +3,17 @@
 # via nix-shell) and drive one of the wiki's benchmark test cases against it:
 # https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark
 #
-# Usage: run-benchmark.sh <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>
+# Usage: run-benchmark.sh <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer> [--keep-node-logs]
 # Set CRONOS_BIN to an executable path to run against a specific cronosd
 # binary (e.g. a downloaded release) instead of the nix-built HEAD binary.
 # Set KEEP_DATA=1 to leave the devnet data dir (node logs included) behind for
 # post-mortem inspection instead of deleting it on exit.
+# Pass --keep-node-logs to additionally copy each validator's log next to the
+# generated report, without keeping the rest of DATA_DIR around.
+# Set MEMPOOL_SIZE/GAS_LIMIT/MEMPOOL_RECHECK/SNAPSHOT_INTERVAL/ASYNC_COMMIT_BUFFER
+# to override the config's CometBFT mempool.size cap, reap_max_gas+block.max_gas
+# caps, mempool.recheck flag, or memiavl snapshot-interval/async-commit-buffer
+# for a one-off jsonnet-patched run.
 set -euo pipefail
 
 # rpc.max_open_connections in the jsonnet configs is raised past cometbft's
@@ -24,12 +30,25 @@ if [[ "$(ulimit -n)" -lt 8192 ]]; then
 fi
 
 usage() {
-  echo "usage: $(basename "$0") <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer>" >&2
+  echo "usage: $(basename "$0") <1|3|5> <simple-transfer|simple-transfer-unique|erc20-transfer|batch-simple-transfer|batch-simple-transfer-unique|batch-erc20-transfer> [--keep-node-logs]" >&2
   exit 1
 }
 
-VALIDATORS="${1:-}"
-TESTCASE="${2:-}"
+# --keep-node-logs copies each validator's cometbft/cronosd log (pystarport's
+# <chain_id>/node<i>.log) next to the generated report, so consensus
+# round-escalation - visible only in those logs, not in any scraped metric -
+# can be inspected after the devnet's ephemeral DATA_DIR is torn down.
+KEEP_NODE_LOGS=""
+ARGS=()
+for arg in "$@"; do
+  case "${arg}" in
+    --keep-node-logs) KEEP_NODE_LOGS=1 ;;
+    *) ARGS+=("${arg}") ;;
+  esac
+done
+
+VALIDATORS="${ARGS[0]:-}"
+TESTCASE="${ARGS[1]:-}"
 case "${VALIDATORS}" in
   1|3|5) ;;
   *) usage ;;
@@ -100,6 +119,7 @@ esac
 # cap (default 2000, see benchmark-*val-legacy-mempool.jsonnet). Only
 # meaningful there - app-mempool bypasses CometBFT's mempool entirely and has
 # no equivalent knob.
+PATCHED_JSONNETS=()
 if [[ -n "${MEMPOOL_SIZE:-}" ]]; then
   if [[ "${JSONNET_CONFIG}" != *-legacy-mempool.jsonnet ]]; then
     echo "MEMPOOL_SIZE is only meaningful with the legacy-mempool config (got ${JSONNET_CONFIG})" >&2
@@ -108,7 +128,59 @@ if [[ -n "${MEMPOOL_SIZE:-}" ]]; then
   PATCHED_JSONNET="${SCRIPT_DIR}/configs/.mempool-size-${MEMPOOL_SIZE}.$(basename "${JSONNET_CONFIG}")"
   sed -E "s/size: [0-9]+,/size: ${MEMPOOL_SIZE},/" "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
   JSONNET_CONFIG="${PATCHED_JSONNET}"
+  PATCHED_JSONNETS+=("${PATCHED_JSONNET}")
   echo "=== MEMPOOL_SIZE=${MEMPOOL_SIZE}: using patched ${JSONNET_CONFIG} ==="
+fi
+
+# GAS_LIMIT overrides both the mempool's reap_max_gas and the genesis
+# block.max_gas caps together (they must move in lockstep - a reap cap above
+# the block's own gas limit just wastes proposal-selection work on txs no
+# block could ever fit). Used for the plan doc's "b4" 320M gas arm.
+if [[ -n "${GAS_LIMIT:-}" ]]; then
+  PATCHED_JSONNET="${SCRIPT_DIR}/configs/.gas-limit-${GAS_LIMIT}.$(basename "${JSONNET_CONFIG}")"
+  sed -E \
+    -e "s/reap_max_gas: [0-9]+,/reap_max_gas: ${GAS_LIMIT},/" \
+    -e "s/max_gas: '[0-9]+',/max_gas: '${GAS_LIMIT}',/" \
+    "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
+  JSONNET_CONFIG="${PATCHED_JSONNET}"
+  PATCHED_JSONNETS+=("${PATCHED_JSONNET}")
+  echo "=== GAS_LIMIT=${GAS_LIMIT}: using patched ${JSONNET_CONFIG} ==="
+fi
+
+# MEMPOOL_RECHECK flips mempool.recheck (default false in the 5val configs,
+# which disables post-commit TTL/ante eviction) - stall-pattern-fix-plan.md's
+# C0 arm, testing whether re-enabling it drains zombie txs that fail ante in
+# FinalizeBlock but are never removed from the mempool.
+if [[ -n "${MEMPOOL_RECHECK:-}" ]]; then
+  PATCHED_JSONNET="${SCRIPT_DIR}/configs/.mempool-recheck-${MEMPOOL_RECHECK}.$(basename "${JSONNET_CONFIG}")"
+  sed -E "s/recheck: (true|false),/recheck: ${MEMPOOL_RECHECK},/" "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
+  JSONNET_CONFIG="${PATCHED_JSONNET}"
+  PATCHED_JSONNETS+=("${PATCHED_JSONNET}")
+  echo "=== MEMPOOL_RECHECK=${MEMPOOL_RECHECK}: using patched ${JSONNET_CONFIG} ==="
+fi
+
+# SNAPSHOT_INTERVAL overrides memiavl's snapshot-interval (default 5 blocks in
+# the 5val configs) - stall-pattern-fix-plan.md's C1 arm, screening whether
+# frequent memiavl snapshotting is the commit-pipeline backpressure cliff
+# behind the H1 wedge/slow-block stalls.
+if [[ -n "${SNAPSHOT_INTERVAL:-}" ]]; then
+  PATCHED_JSONNET="${SCRIPT_DIR}/configs/.snapshot-interval-${SNAPSHOT_INTERVAL}.$(basename "${JSONNET_CONFIG}")"
+  sed -E "s/'snapshot-interval': [0-9]+,/'snapshot-interval': ${SNAPSHOT_INTERVAL},/" "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
+  JSONNET_CONFIG="${PATCHED_JSONNET}"
+  PATCHED_JSONNETS+=("${PATCHED_JSONNET}")
+  echo "=== SNAPSHOT_INTERVAL=${SNAPSHOT_INTERVAL}: using patched ${JSONNET_CONFIG} ==="
+fi
+
+# ASYNC_COMMIT_BUFFER overrides memiavl's async-commit-buffer (default 16 in
+# the 5val configs) - stall-pattern-fix-plan.md's C1 arm, screening whether
+# the async commit queue depth is the H1 backpressure cliff (0 forces
+# synchronous commit, a larger value gives the queue more headroom).
+if [[ -n "${ASYNC_COMMIT_BUFFER:-}" ]]; then
+  PATCHED_JSONNET="${SCRIPT_DIR}/configs/.async-commit-buffer-${ASYNC_COMMIT_BUFFER}.$(basename "${JSONNET_CONFIG}")"
+  sed -E "s/'async-commit-buffer': [0-9]+,/'async-commit-buffer': ${ASYNC_COMMIT_BUFFER},/" "${JSONNET_CONFIG}" > "${PATCHED_JSONNET}"
+  JSONNET_CONFIG="${PATCHED_JSONNET}"
+  PATCHED_JSONNETS+=("${PATCHED_JSONNET}")
+  echo "=== ASYNC_COMMIT_BUFFER=${ASYNC_COMMIT_BUFFER}: using patched ${JSONNET_CONFIG} ==="
 fi
 
 # Cosmos chain-id is "<name>_<eip155-id>-<version>" (e.g. "cronos_777-1"); the
@@ -147,6 +219,20 @@ fi
 BASE_PORT=26650
 NODE0_RPC="http://127.0.0.1:$((BASE_PORT + 7))"
 NODE0_EVMRPC="http://127.0.0.1:$((BASE_PORT + 1))"
+
+# Copies each validator's pystarport-managed log (${DATA_DIR}/${CHAIN_ID}/node<i>.log)
+# into remote-benchmark/local/report/<timestamp>-node-logs/ before DATA_DIR is
+# torn down by the cleanup trap. Called only when --keep-node-logs is set.
+copy_node_logs() {
+  local timestamp="$1"
+  local dest="${LOCAL_ARTIFACTS_DIR}/report/${timestamp}-node-logs"
+  mkdir -p "${dest}"
+  for ((i = 0; i < VALIDATORS; i++)); do
+    local src="${DATA_DIR}/${CHAIN_ID}/node${i}.log"
+    [[ -f "${src}" ]] && cp "${src}" "${dest}/node${i}.log"
+  done
+  echo "node logs kept at ${dest}"
+}
 
 # A leftover cronosd from a killed prior run (its cleanup trap can't reach it -
 # pystarport execs it with a relative --home, so no absolute path to pkill -f
@@ -220,7 +306,7 @@ cleanup() {
   if [[ -n "${PYSTARPORT_PID}" ]]; then
     kill_descendants "${PYSTARPORT_PID}"
   fi
-  [[ -n "${PATCHED_JSONNET:-}" ]] && rm -f "${PATCHED_JSONNET}"
+  ((${#PATCHED_JSONNETS[@]})) && rm -f "${PATCHED_JSONNETS[@]}"
   if [[ -n "${KEEP_DATA:-}" ]]; then
     echo "=== KEEP_DATA set, leaving devnet data at ${DATA_DIR} ==="
   else
@@ -465,6 +551,9 @@ fi
 if [[ "${SOAK_MODE:-0}" == "1" ]]; then
   # report.py expects bench's stats format, not soak's checkpoint/trend
   # output - the soak's own --results JSON is the artifact that matters here.
+  if [[ -n "${KEEP_NODE_LOGS}" ]]; then
+    copy_node_logs "$(date '+%Y%m%d-%H%M%S')"
+  fi
   echo "${VALIDATORS}-validator ${TESTCASE} local soak passed"
 else
   REPORT_TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
@@ -481,5 +570,9 @@ else
     --end-account "${END_ACCOUNT}"
 
   echo "benchmark report: ${REPORT_PATH}"
+  if [[ -n "${KEEP_NODE_LOGS}" ]]; then
+    copy_node_logs "${REPORT_TIMESTAMP}"
+  fi
   echo "${VALIDATORS}-validator ${TESTCASE} local benchmark passed"
 fi
+

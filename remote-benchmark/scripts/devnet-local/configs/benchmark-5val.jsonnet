@@ -22,7 +22,10 @@
       },
       mempool: {
         size: 100000,
-        recheck: false,
+        // recheck: false drops post-commit TTL/ante eviction, letting txs that
+        // fail ante during FinalizeBlock get re-proposed forever (H4 in
+        // docs/benchmark/stall-pattern-fix-plan.md).
+        recheck: true,
         type: 'app',
         broadcast: true,
         reap_max_gas: 210000000,
@@ -51,6 +54,14 @@
       },
       tx_index: {
         indexer: 'null',
+      },
+      instrumentation: {
+        prometheus: true,
+        // Off the 26650-26699 per-node port range this devnet uses for
+        // p2p/rpc/json-rpc, since prometheus_listen_addr is the same fixed
+        // value on every node - node1's p2p port (26660) would otherwise
+        // collide with the default prometheus port on node1's host.
+        prometheus_listen_addr: ':9090',
       },
       p2p: {
         libp2p: {
@@ -97,6 +108,14 @@
         // error the client can see or retry.
         'max-txs': 320000,
       },
+      telemetry: {
+        // Separate from CometBFT's [instrumentation] above - this exposes
+        // cosmos-sdk's own tx_count/tx_successful/tx_failed/tx_gas_* counters
+        // on the API server's /metrics?format=prometheus (api.laddr's port),
+        // not the CometBFT :9090 endpoint.
+        enabled: true,
+        'prometheus-retention-time': 60,
+      },
       evm: {
         'block-executor': 'block-stm',
         'block-stm-workers': 0,
@@ -107,7 +126,11 @@
         'zero-copy': true,
         'snapshot-interval': 5,
         'cache-size': 1000,
-        'async-commit-buffer': 16,
+        // async-commit-buffer: 16 lets the commit queue build backpressure
+        // under full-gas load and wedge the chain (H1 in
+        // docs/benchmark/stall-pattern-fix-plan.md); 0 forces synchronous
+        // commit, which the C1 screen showed removes the wedge at no TPS cost.
+        'async-commit-buffer': 0,
       },
       grpc: {
         'skip-check-header': true,
@@ -122,7 +145,15 @@
         'tx-cache-size': 100000,
       },
     },
-    // 5 uniform validators, all rocksdb-backed
+    // 5 uniform validators, all rocksdb-backed. Each carries a per-node
+    // `config` override for prometheus_listen_addr: the shared config above
+    // sets ':9090' identically for every node, but pystarport puts all 5
+    // nodes on 127.0.0.1 with only the port varying, and CometBFT's
+    // Prometheus server binds wildcard - so node1-4 fail to bind and only
+    // node0's metrics are ever actually reachable. base_port+9 is unused by
+    // pystarport's own port scheme (ports.py allocates +0..+8), so it's free
+    // to claim per node: node0 26659, node1 26669, node2 26679, node3 26689,
+    // node4 26699.
     validators: [
       {
         coins: '1000000000000000000stake,10000000000000000000000basetcro',
@@ -130,6 +161,9 @@
         mnemonic: '${VALIDATOR1_MNEMONIC}',
         client_config: {
           'broadcast-mode': 'sync',
+        },
+        config: {
+          instrumentation: { prometheus_listen_addr: ':26659' },
         },
       },
       {
@@ -139,6 +173,9 @@
         client_config: {
           'broadcast-mode': 'sync',
         },
+        config: {
+          instrumentation: { prometheus_listen_addr: ':26669' },
+        },
       },
       {
         coins: '1000000000000000000stake,10000000000000000000000basetcro',
@@ -146,6 +183,9 @@
         mnemonic: '${VALIDATOR3_MNEMONIC}',
         client_config: {
           'broadcast-mode': 'sync',
+        },
+        config: {
+          instrumentation: { prometheus_listen_addr: ':26679' },
         },
       },
       {
@@ -155,6 +195,9 @@
         client_config: {
           'broadcast-mode': 'sync',
         },
+        config: {
+          instrumentation: { prometheus_listen_addr: ':26689' },
+        },
       },
       {
         coins: '1000000000000000000stake,10000000000000000000000basetcro',
@@ -162,6 +205,9 @@
         mnemonic: '${VALIDATOR5_MNEMONIC}',
         client_config: {
           'broadcast-mode': 'sync',
+        },
+        config: {
+          instrumentation: { prometheus_listen_addr: ':26699' },
         },
       },
     ],
