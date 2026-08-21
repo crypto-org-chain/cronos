@@ -592,8 +592,7 @@ func New(
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
-			// Register EVM module preverifier
-			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
+			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())

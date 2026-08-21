@@ -12,6 +12,7 @@
 
 ### Bug fixes
 
+* [#2186](https://github.com/crypto-org-chain/cronos/pull/2186) fix(mempool): fall back to app.ChainID() for EVM sig preverifier when chain-id flag is unset.
 * [#2177](https://github.com/crypto-org-chain/cronos/pull/2177) fix(mempool): clear the ante nonce cache on eviction and bound it independently.
 * [#2147](https://github.com/crypto-org-chain/cronos/pull/2147) fix(cronos): bound ReplayBlock message count during decode.
 * [#2176](https://github.com/crypto-org-chain/cronos/pull/2176) fix(app): retry block list decryption instead of caching the blob before it is applied.
