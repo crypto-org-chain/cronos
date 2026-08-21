@@ -22,7 +22,7 @@
         'max_open_connections': 10000,
       },
       mempool: {
-        size: 2000,
+        size: 10000,
         recheck: true,
       },
       consensus: {
@@ -42,6 +42,14 @@
       },
       tx_index: {
         indexer: 'null',
+      },
+      instrumentation: {
+        prometheus: true,
+        // Off the 26650-26699 per-node port range this devnet uses for
+        // p2p/rpc/json-rpc, since prometheus_listen_addr is the same fixed
+        // value on every node - node1's p2p port (26660) would otherwise
+        // collide with the default prometheus port on node1's host.
+        prometheus_listen_addr: ':9090',
       },
       p2p: {
         libp2p: {
@@ -79,6 +87,14 @@
       // CometBFT's cap stays the binding one (MEMPOOL_SIZE tunes that).
       mempool: {
         'max-txs': 100000,
+      },
+      telemetry: {
+        // Separate from CometBFT's [instrumentation] above - this exposes
+        // cosmos-sdk's own tx_count/tx_successful/tx_failed/tx_gas_* counters
+        // on the API server's /metrics?format=prometheus (api.laddr's port),
+        // not the CometBFT :9090 endpoint.
+        enabled: true,
+        'prometheus-retention-time': 60,
       },
       evm: {
         'block-executor': 'block-stm',

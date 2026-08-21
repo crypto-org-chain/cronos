@@ -78,6 +78,9 @@ class Config(BaseModel):
     # inside the measured window. 0 disables warm-up.
     warmup_txs: int = 0
     telemetry: str | None = None
+    # cosmos-sdk's own [telemetry] output, served on the API server (not the
+    # CometBFT :9090 port `telemetry` points at) at /metrics?format=prometheus.
+    sdk_metrics: str | None = None
 
     @model_validator(mode="after")
     def _check_mix_weights(self) -> "Config":

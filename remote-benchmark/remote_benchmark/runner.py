@@ -17,8 +17,14 @@ from pathlib import Path
 import ujson
 import web3
 
+from .cometbft_metrics import (
+    scrape_cronos_mempool_raw,
+    scrape_mempool_health_raw,
+    scrape_sdk_tx_metrics,
+)
 from .config import Config
 from .monitor import BlockSTMMonitor, MempoolMonitor
+from .promtext import fetch_sdk_prometheus_text
 from .resources import fetch_node_exporter, scrape_disk_net_raw
 from .stats import (
     _fetch_prometheus,
@@ -446,6 +452,13 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
         prom_baseline_text = _fetch_prometheus(cfg.telemetry)
         consensus_baseline = scrape_consensus_raw(prom_baseline_text)
         consensus_health_baseline = scrape_consensus_health_raw(prom_baseline_text)
+        mempool_health_baseline = scrape_mempool_health_raw(prom_baseline_text)
+        sdk_metrics_baseline = scrape_sdk_tx_metrics(
+            fetch_sdk_prometheus_text(cfg.sdk_metrics)
+        )
+        cronos_mempool_baseline = scrape_cronos_mempool_raw(
+            fetch_sdk_prometheus_text(cfg.sdk_metrics)
+        )
         disk_net_baseline = scrape_disk_net_raw(fetch_node_exporter(cfg.primary.node_exporter))
         if cfg.telemetry and consensus_health_baseline is None:
             print(
@@ -501,6 +514,10 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             stm_data=stm_monitor.data,
             consensus_baseline=consensus_baseline,
             consensus_health_baseline=consensus_health_baseline,
+            mempool_health_baseline=mempool_health_baseline,
+            sdk_metrics=cfg.sdk_metrics,
+            sdk_metrics_baseline=sdk_metrics_baseline,
+            cronos_mempool_baseline=cronos_mempool_baseline,
             node_exporter=cfg.primary.node_exporter,
             disk_net_baseline=disk_net_baseline,
         )

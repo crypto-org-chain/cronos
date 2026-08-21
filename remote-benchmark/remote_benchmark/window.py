@@ -98,6 +98,7 @@ def _analyze_load_window(
     total_failed_txs=0,
     total_counted_txs=0,
     stall_mult=5,
+    stall_min_seconds=1.0,
 ):
     """Compute the summary statistics shared by dump_block_stats and
     dump_eth_block_stats from a queried block range.
@@ -106,6 +107,12 @@ def _analyze_load_window(
     gas_data: list of (gas_used, gas_limit), parallel to blocks.
     per_tx_gas_values: (per-tx gas, block gas limit) for blocks with
         tx_count > 0.
+
+    stall_min_seconds: absolute floor alongside the 5xQ1 relative rule - a
+        block time under this is never a stall, even if it is 5x the
+        (possibly tiny) 25th-percentile baseline. Without it, a network
+        with sub-second, low-variance block times flags routine jitter as a
+        "stall" the moment it is 5x Q1, which for e.g. a 40ms Q1 is 200ms.
 
     Returns None if no block in the range had any transactions (the
     "no_load_period" case), else a dict consumed by
@@ -158,13 +165,35 @@ def _analyze_load_window(
     # Use the 25th-percentile block time as the "normal" baseline.
     # Blocks slower than stall_mult × baseline are stalls (e.g. tx-flood
     # overwhelming the proposer) and are excluded from timing summaries.
+    # stall_min_seconds guards against flagging routine jitter on a
+    # low-variance, sub-second network as a stall.
     stall_indices = set()
     if len(block_times) >= 4:
         q1 = quantiles(block_times, n=4)[0]
         stall_threshold = q1 * stall_mult
         for j, bt in enumerate(block_times):
-            if bt > stall_threshold:
+            if bt > stall_threshold and bt > stall_min_seconds:
                 stall_indices.add(j)
+
+    # --- Classify each stall ---
+    # ramp-artifact: among the first few intervals of the window, where
+    # warm-up effects (JIT, cold caches) commonly produce one slow block
+    # that has nothing to do with steady-state load.
+    # wedge: the last interval in the window - the query range ended right
+    # after this block because no further height was ever reached, not
+    # because the caller happened to stop looking there.
+    # slow-block: everything else - a full, slow block that the chain
+    # nonetheless recovered from and kept committing past.
+    _RAMP_ARTIFACT_WINDOW = 3
+    last_interval_idx = len(block_times) - 1
+    stall_kinds = {}
+    for j in stall_indices:
+        if j == last_interval_idx:
+            stall_kinds[j] = "wedge"
+        elif j < _RAMP_ARTIFACT_WINDOW:
+            stall_kinds[j] = "ramp-artifact"
+        else:
+            stall_kinds[j] = "slow-block"
 
     steady_block_times = [
         bt for j, bt in enumerate(block_times) if j not in stall_indices
@@ -243,6 +272,9 @@ def _analyze_load_window(
         "adjusted_duration": adjusted_duration,
         # heights of stalled blocks, as offsets from the queried `start`.
         "stall_height_offsets": sorted(anchor_idx + 1 + j for j in stall_indices),
+        # {height_offset: "wedge"|"ramp-artifact"|"slow-block"} - see the
+        # classification block above for what each kind means.
+        "stall_kinds": {anchor_idx + 1 + j: kind for j, kind in stall_kinds.items()},
         "total_gas_used": total_gas_used,
         "gas_utilizations": gas_utilizations,
         "overall_gps": overall_gps,

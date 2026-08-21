@@ -588,6 +588,7 @@ def _cosmos_bench_cfg(**overrides):
         send_workers=1,
         commit_timeout=120,
         telemetry=None,
+        sdk_metrics=None,
     )
     for key, value in overrides.items():
         setattr(cfg, key, value)

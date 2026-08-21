@@ -1,8 +1,10 @@
+from remote_benchmark.cometbft_metrics import scrape_cronos_mempool_raw
 from remote_benchmark.stats import (
     _parse_histogram_sum_count,
     _parse_labeled_metric,
     scrape_consensus_health,
     scrape_consensus_health_raw,
+    scrape_cronos_mempool_metrics,
     scrape_per_validator_metrics,
 )
 
@@ -171,3 +173,82 @@ def test_parse_histogram_sum_count_respects_label_filter():
 
 def test_parse_histogram_sum_count_reports_none_when_metric_absent():
     assert _parse_histogram_sum_count(["other_sum 1"], "m_seconds") == (None, 0)
+
+
+CRONOS_MEMPOOL_PROM_TEXT = """\
+# HELP cronos_mempool_pool_size Mempool pool size.
+# TYPE cronos_mempool_pool_size gauge
+cronos_mempool_pool_size 42
+# HELP cronos_mempool_recheck_enabled Recheck enabled.
+# TYPE cronos_mempool_recheck_enabled gauge
+cronos_mempool_recheck_enabled 0
+# HELP cronos_mempool_reap_gossip_sent Gossip sent.
+# TYPE cronos_mempool_reap_gossip_sent counter
+cronos_mempool_reap_gossip_sent 100
+# HELP cronos_mempool_reap_gossip_deduped Gossip deduped.
+# TYPE cronos_mempool_reap_gossip_deduped counter
+cronos_mempool_reap_gossip_deduped 30
+# HELP cronos_mempool_reap_encode_cache_hit Encode cache hits.
+# TYPE cronos_mempool_reap_encode_cache_hit counter
+cronos_mempool_reap_encode_cache_hit 200
+# HELP cronos_mempool_reap_encode_cache_miss Encode cache misses.
+# TYPE cronos_mempool_reap_encode_cache_miss counter
+cronos_mempool_reap_encode_cache_miss 5
+# HELP cronos_mempool_recheck_evicted Recheck evictions.
+# TYPE cronos_mempool_recheck_evicted counter
+cronos_mempool_recheck_evicted 3
+"""
+
+
+def test_scrape_cronos_mempool_raw_sums_counters():
+    raw = scrape_cronos_mempool_raw(CRONOS_MEMPOOL_PROM_TEXT)
+
+    assert raw["reap_gossip_sent"] == 100
+    assert raw["reap_gossip_deduped"] == 30
+    assert raw["reap_encode_cache_hit"] == 200
+    assert raw["reap_encode_cache_miss"] == 5
+    assert raw["recheck_evicted"] == 3
+    # counters absent from the text default to 0, not missing
+    assert raw["recheck_expired"] == 0
+    assert raw["proposal_gate_skipped"] == 0
+
+
+def test_scrape_cronos_mempool_raw_none_when_nothing_was_scraped():
+    assert scrape_cronos_mempool_raw("") is None
+    assert scrape_cronos_mempool_raw(None) is None
+    assert scrape_cronos_mempool_raw("# HELP something_else Nothing we read.\n") is None
+
+
+def test_scrape_cronos_mempool_metrics_reports_gauges_and_zero_counters_when_empty():
+    mp = scrape_cronos_mempool_metrics("")
+
+    assert mp["reap_gossip_sent"] == 0
+    assert mp["recheck_evicted"] == 0
+    assert "pool_size" not in mp
+
+
+def test_scrape_cronos_mempool_metrics_without_baseline_reports_lifetime_totals():
+    mp = scrape_cronos_mempool_metrics(CRONOS_MEMPOOL_PROM_TEXT)
+
+    assert mp["pool_size"] == 42
+    assert mp["recheck_enabled"] == 0
+    assert mp["reap_gossip_sent"] == 100
+    assert mp["reap_encode_cache_miss"] == 5
+
+
+def test_scrape_cronos_mempool_metrics_with_baseline_reports_deltas():
+    baseline = {
+        "reap_gossip_sent": 60,
+        "reap_gossip_deduped": 10,
+        "reap_encode_cache_hit": 150,
+        "reap_encode_cache_miss": 1,
+        "recheck_evicted": 1,
+    }
+
+    mp = scrape_cronos_mempool_metrics(CRONOS_MEMPOOL_PROM_TEXT, baseline=baseline)
+
+    assert mp["reap_gossip_sent"] == 40  # 100 - 60
+    assert mp["reap_encode_cache_miss"] == 4  # 5 - 1
+    assert mp["recheck_evicted"] == 2  # 3 - 1
+    # point-in-time gauges are unaffected by baseline
+    assert mp["pool_size"] == 42

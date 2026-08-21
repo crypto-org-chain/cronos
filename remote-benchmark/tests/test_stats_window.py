@@ -47,6 +47,47 @@ def test_analyze_load_window_excludes_stalled_block_from_gas_rates():
     assert summary["stall_indices"] == {4}
     assert summary["peak_gps"] == 40.0
     assert summary["median_gps"] == 30.0
+    # index 4 is the last interval in the window -> wedge, not slow-block.
+    assert summary["stall_kinds"] == {summary["anchor_idx"] + 1 + 4: "wedge"}
+
+
+def test_analyze_load_window_classifies_early_stall_as_ramp_artifact():
+    # A single slow block among the first few intervals, followed by many
+    # steady blocks - warm-up jitter, not a mid-run stall.
+    timestamps = [0, 10, 11, 12, 13, 14, 15, 16]
+    blocks = [(10, _dt(t)) for t in timestamps]
+    gas_data = [(10, 100) for _ in timestamps]
+
+    summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values=[])
+
+    assert summary["stall_indices"] == {0}
+    assert summary["stall_kinds"] == {summary["anchor_idx"] + 1 + 0: "ramp-artifact"}
+
+
+def test_analyze_load_window_classifies_mid_run_stall_as_slow_block():
+    # A slow block well past the ramp-artifact window, with steady blocks
+    # both before and after - a real mid-run stall the chain recovered from.
+    timestamps = [0, 1, 2, 3, 4, 5, 25, 26, 27, 28]
+    blocks = [(10, _dt(t)) for t in timestamps]
+    gas_data = [(10, 100) for _ in timestamps]
+
+    summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values=[])
+
+    assert summary["stall_indices"] == {5}
+    assert summary["stall_kinds"] == {summary["anchor_idx"] + 1 + 5: "slow-block"}
+
+
+def test_analyze_load_window_stall_min_seconds_floor_suppresses_jitter():
+    # Q1 of these sub-second intervals is tiny, so 5xQ1 alone would flag
+    # routine jitter; the absolute floor keeps it from being called a stall.
+    timestamps = [0.0, 0.01, 0.02, 0.03, 0.04, 0.08, 0.09, 0.10]
+    blocks = [(10, _dt(t)) for t in timestamps]
+    gas_data = [(10, 100) for _ in timestamps]
+
+    summary = _analyze_load_window(blocks, gas_data, per_tx_gas_values=[])
+
+    assert summary["stall_indices"] == set()
+    assert summary["stall_kinds"] == {}
 
 
 def test_analyze_load_window_keeps_empty_blocks_in_gas_utilization():

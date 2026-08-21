@@ -10,6 +10,30 @@ from .promtext import (
     parse_labeled_metric,
 )
 
+# cronos's own app-mempool telemetry (app/mempool/*.go, app/proposal.go),
+# same endpoint as scrape_sdk_tx_metrics (cosmos-sdk telemetry has no
+# service-name prefix configured, so keys flatten to exactly "cronos_..."
+# - see hashicorp/go-metrics/prometheus.flattenKey). Point-in-time gauges
+# vs. cumulative counters are split into two tables below.
+_CRONOS_MEMPOOL_GAUGES = [
+    ("pool_size", "cronos_mempool_pool_size"),
+    ("recheck_enabled", "cronos_mempool_recheck_enabled"),
+]
+
+_CRONOS_MEMPOOL_COUNTERS = [
+    ("reap_gossip_sent", "cronos_mempool_reap_gossip_sent"),
+    ("reap_gossip_deduped", "cronos_mempool_reap_gossip_deduped"),
+    ("reap_encode_cache_hit", "cronos_mempool_reap_encode_cache_hit"),
+    ("reap_encode_cache_miss", "cronos_mempool_reap_encode_cache_miss"),
+    ("prepare_encode_cache_hit", "cronos_mempool_prepare_encode_cache_hit"),
+    ("prepare_encode_cache_miss", "cronos_mempool_prepare_encode_cache_miss"),
+    ("recheck_expired", "cronos_mempool_recheck_expired"),
+    ("recheck_ttl_expired", "cronos_mempool_recheck_ttl_expired"),
+    ("recheck_evicted", "cronos_mempool_recheck_evicted"),
+    ("recheck_proposal_timeout", "cronos_mempool_recheck_proposal_timeout"),
+    ("proposal_gate_skipped", "cronos_mempool_proposal_gate_skipped"),
+]
+
 
 def scrape_blockstm_metrics(prom_text):
     """Parse block-stm gauges from Prometheus text."""
@@ -59,6 +83,7 @@ _CONSENSUS_HISTOGRAMS = [
         'method="commit"',
     ),
     ("block_interval", "cometbft_consensus_block_interval_seconds", None),
+    ("round_duration", "cometbft_consensus_round_duration_seconds", None),
 ]
 
 
@@ -218,5 +243,132 @@ def scrape_consensus_metrics(prom_text, baseline=None):
             result["quorum_prevote_delay"] = (float(line.split()[-1]), 1)
         elif "cometbft_consensus_quorum_precommit_delay" in line:
             result["quorum_precommit_delay"] = (float(line.split()[-1]), 1)
+        elif "cometbft_consensus_full_prevote_delay" in line:
+            result["full_prevote_delay"] = (float(line.split()[-1]), 1)
 
     return result
+
+
+# Cumulative mempool counters, not part of consensus health but scraped the
+# same baseline-delta way: snapshot at load start, subtract at the end so the
+# numbers reflect the load period rather than the node's whole lifetime.
+_MEMPOOL_HEALTH_COUNTERS = [
+    ("failed_txs", "cometbft_mempool_failed_txs"),
+    ("recheck_times", "cometbft_mempool_recheck_times"),
+]
+
+
+def scrape_mempool_health_raw(prom_text):
+    """Snapshot raw cumulative mempool-health counters (see
+    scrape_mempool_health for the baseline-relative view). Returns None when
+    the text carries neither counter (telemetry unreachable / not this
+    version), same rationale as scrape_consensus_health_raw."""
+    lines = (prom_text or "").splitlines()
+    raw = {}
+    found = False
+    for key, metric in _MEMPOOL_HEALTH_COUNTERS:
+        samples = parse_labeled_metric(lines, metric)
+        found = found or bool(samples)
+        raw[key] = sum(value for _, value in samples)
+    return raw if found else None
+
+
+def scrape_mempool_health(prom_text, baseline=None):
+    """CheckTx-rejected-tx and recheck counts over the load period.
+
+    `failed_txs` is CometBFT's own mempool-side CheckTx rejection count -
+    distinct from the load generator's own failed-tx tally, since it also
+    catches txs rejected before ever reaching the client's broadcast response
+    (e.g. lost races during recheck after a block commit).
+    """
+    raw = scrape_mempool_health_raw(prom_text)
+    if raw is None:
+        return dict.fromkeys([key for key, _ in _MEMPOOL_HEALTH_COUNTERS], 0)
+    if baseline:
+        raw = {key: raw[key] - baseline.get(key, 0) for key in raw}
+    return raw
+
+
+def scrape_block_gauges(prom_text):
+    """Point-in-time block-size/gossip gauges from the most recent block."""
+    lines = (prom_text or "").splitlines()
+    result = {}
+    block_parts = parse_labeled_metric(lines, "cometbft_consensus_block_parts")
+    if block_parts:
+        result["block_parts"] = sum(value for _, value in block_parts)
+    block_size = parse_labeled_metric(lines, "cometbft_consensus_block_size_bytes")
+    if block_size:
+        result["block_size_bytes"] = block_size[0][1]
+    return result
+
+
+def scrape_sdk_tx_metrics(prom_text, baseline=None):
+    """cosmos-sdk's own tx_count/tx_successful/tx_failed counters from the
+    API server's /metrics?format=prometheus (separate endpoint from
+    CometBFT's :9090 - see promtext.fetch_sdk_prometheus_text).
+
+    These come from baseapp's deliverTx telemetry calls, so they cross-check
+    the load generator's own committed/failed tallies from an independent
+    source (the app's tx execution path, not the client's broadcast
+    responses or block-query polling).
+    """
+    lines = (prom_text or "").splitlines()
+    raw = {}
+    found = False
+    for key, metric in (
+        ("tx_count", "tx_count"),
+        ("tx_successful", "tx_successful"),
+        ("tx_failed", "tx_failed"),
+    ):
+        samples = parse_labeled_metric(lines, metric)
+        found = found or bool(samples)
+        raw[key] = sum(value for _, value in samples)
+    if not found:
+        return None
+    if baseline:
+        raw = {key: raw[key] - baseline.get(key, 0) for key in raw}
+    return raw
+
+
+def scrape_cronos_mempool_raw(prom_text):
+    """Snapshot raw cumulative cronos_mempool_* counters (see
+    scrape_cronos_mempool_metrics for the baseline-relative view). Returns
+    None when the text carries none of the counters, same rationale as
+    scrape_sdk_tx_metrics."""
+    lines = (prom_text or "").splitlines()
+    raw = {}
+    found = False
+    for key, metric in _CRONOS_MEMPOOL_COUNTERS:
+        samples = parse_labeled_metric(lines, metric)
+        found = found or bool(samples)
+        raw[key] = sum(value for _, value in samples)
+    if not found:
+        return None
+    return raw
+
+
+def scrape_cronos_mempool_metrics(prom_text, baseline=None):
+    """cronos's app-mempool telemetry: pool depth, gossip-reap volume,
+    encode-cache hit rate, and recheck-eviction counts.
+
+    Gauges (pool_size, recheck_enabled) are point-in-time and never
+    baseline-adjusted. Counters are deltas over the load period when
+    `baseline` (a scrape_cronos_mempool_raw snapshot from load start) is
+    given, else lifetime totals.
+    """
+    lines = (prom_text or "").splitlines()
+    result = {}
+    for key, metric in _CRONOS_MEMPOOL_GAUGES:
+        samples = parse_labeled_metric(lines, metric)
+        if samples:
+            result[key] = samples[0][1]
+
+    raw = scrape_cronos_mempool_raw(prom_text)
+    if raw is None:
+        counters = dict.fromkeys([key for key, _ in _CRONOS_MEMPOOL_COUNTERS], 0)
+    elif baseline:
+        counters = {key: raw[key] - baseline.get(key, 0) for key in raw}
+    else:
+        counters = raw
+    result.update(counters)
+    return result if (result or raw is not None) else None

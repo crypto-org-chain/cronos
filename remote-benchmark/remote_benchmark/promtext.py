@@ -23,6 +23,28 @@ def fetch_prometheus_text(telemetry_url):
         return ""
 
 
+def fetch_sdk_prometheus_text(sdk_metrics_url):
+    """Fetch cosmos-sdk's own telemetry from the API server's /metrics.
+
+    Unlike CometBFT's :9090 endpoint (always Prometheus text), the SDK's
+    handler defaults to a JSON dump and only emits Prometheus text with
+    `?format=prometheus` - see cosmos-sdk telemetry.Metrics.Gather.
+    """
+    if not sdk_metrics_url:
+        return ""
+
+    import requests as _requests
+
+    try:
+        resp = _requests.get(
+            f"{sdk_metrics_url}/metrics", params={"format": "prometheus"}, timeout=5
+        )
+        resp.raise_for_status()
+        return resp.text
+    except Exception:
+        return ""
+
+
 def parse_histogram_sum_count(lines, metric_name, label_filter=None):
     """Return (sum, count) from a Prometheus histogram's _sum/_count lines.
 

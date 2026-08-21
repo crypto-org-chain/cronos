@@ -8,18 +8,32 @@ endpoints:
   - name: node0
     rpc: http://127.0.0.1:26657
     json_rpc: http://127.0.0.1:26651
+    node_config: {mempool.type: app}
   - name: node1
     rpc: http://127.0.0.1:26667
     json_rpc: http://127.0.0.1:26661
+    node_config: {mempool.type: app}
   - name: node2
     rpc: http://127.0.0.1:26677
     json_rpc: http://127.0.0.1:26671
+    node_config: {mempool.type: app}
   - name: node3
     rpc: http://127.0.0.1:26687
     json_rpc: http://127.0.0.1:26681
+    node_config: {mempool.type: app}
   - name: node4
     rpc: http://127.0.0.1:26697
     json_rpc: http://127.0.0.1:26691
+    node_config: {mempool.type: app}
+# node0's dedicated Prometheus port (see benchmark-5val.jsonnet's per-validator
+# instrumentation.prometheus_listen_addr override) - the shared ':9090' in the
+# base config collides across all 5 nodes on 127.0.0.1, so only node0's port
+# is reliably scrapable.
+telemetry: http://127.0.0.1:26659
+# node0's API server (pystarport's api_port = base_port+4) - serves cosmos-sdk's
+# own tx_count/tx_successful/tx_failed and cronos's mempool telemetry at
+# /metrics?format=prometheus, separate from CometBFT's :26659 above.
+sdk_metrics: http://127.0.0.1:26654
 mode: cosmos
 chain_id: 777
 evm_denom: basetcro
