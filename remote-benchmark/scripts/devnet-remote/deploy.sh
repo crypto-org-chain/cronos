@@ -188,7 +188,7 @@ cmd_logs() {
     local ip="${NODE_PUBLIC_IPS[$i]}"
     echo "=== node${i} (${ip}) ==="
     ssh_to "${ip}" "journalctl --user -u cronosd-${TAG} --no-pager -n 50 2>/dev/null || \
-      tmux capture-pane -pt cronodsd-${TAG} 2>/dev/null || echo '(no logs found)'"
+      tmux capture-pane -pt cronosd-${TAG} 2>/dev/null || echo '(no logs found)'"
   done
 }
 
@@ -197,7 +197,7 @@ cmd_stop() {
     echo "=== stopping cronosd-${TAG} on ${ip} ==="
     ssh_to "${ip}" "systemctl --user stop cronosd-${TAG} 2>/dev/null; \
       tmux kill-session -t cronosd-${TAG} 2>/dev/null; \
-      pkill -f 'cronosd start.*${REMOTE_ROOT}/${TAG}' 2>/dev/null || true"
+      pkill -f '${REMOTE_ROOT}/bin/${TAG}/cronosd' 2>/dev/null || true"
   done
 }
 

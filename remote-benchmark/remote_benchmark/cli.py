@@ -35,7 +35,7 @@ from .results import (
     write_run_record,
 )
 from .ramp import ramp_test
-from .runner import current_sender_nonce, gen_from_config, run_bench_once
+from .runner import _reconcile_nonce_gaps, current_sender_nonce, gen_from_config, run_bench_once
 from .soak import (
     CheckpointSampler,
     fit_trends,
@@ -107,7 +107,12 @@ def fund(config_path, batch_size, fund_mode, start, end):
 
         if fund_mode == "eth":
             for tx in txs:
-                w3.eth.send_raw_transaction(tx.raw)
+                try:
+                    w3.eth.send_raw_transaction(tx.raw)
+                except Exception as e:
+                    raise click.ClickException(
+                        f"funding broadcast failed for accounts [{begin}, {chunk_end}): {e}"
+                    ) from e
         else:
             raw = build_cosmos_tx(
                 *txs, msg_version=cfg.msg_version, evm_denom=cfg.evm_denom
@@ -494,6 +499,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     sampler.start()
     try:
         print("sending txs...", file=sys.stderr)
+        sent_out = []
         failed = asyncio.run(
             send_round_robin(
                 txs,
@@ -503,6 +509,7 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 num_accounts=sender_affinity_accounts(cfg.sender_strategy, num_accounts),
                 deadline_s=duration,
                 conn_per_host=cfg.send_conn_per_host,
+                sent_out=sent_out,
             )
         )
         if failed:
@@ -511,6 +518,18 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
                 "(send retries exhausted)",
                 file=sys.stderr,
             )
+        # `num_txs` is deliberately over-provisioned (soak_tx_supply) so pacing
+        # never runs dry - the deadline above almost always leaves a chunk of
+        # that surplus unsent. Reconciling against the full `num_txs` would
+        # treat that by-design surplus as a nonce gap and blast it out unpaced;
+        # cap the reconcile ceiling at what was actually attempted per account.
+        attempted = sent_out[0] if sent_out else len(txs)
+        attempted_per_account = attempted // num_accounts
+        still_missing, healed = _reconcile_nonce_gaps(
+            cfg, txs, start, end, num_accounts, nonce,
+            min(num_txs, attempted_per_account), batch_size,
+        )
+        failed += still_missing
         wait_out_soak_duration(started, duration)
     finally:
         sampler.stop()

@@ -177,6 +177,9 @@ def test_eth_bench_waits_for_generated_txs_to_commit(monkeypatch):
         runner_module, "gen", lambda *_args, **_kwargs: list(loaded_txs[1038])
     )
     monkeypatch.setattr(runner_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(
+        runner_module, "query_sender_nonces", lambda _cfg, start, end: {i: 15 for i in range(start, end + 1)}
+    )
     monkeypatch.setattr(runner_module, "eth_block_number", lambda _rpc: next(heights))
     monkeypatch.setattr(
         runner_module,
@@ -514,6 +517,48 @@ def test_soak_checks_nonces_for_the_soak_computed_tx_count(monkeypatch):
 
     assert result.exit_code == 0, result.exception
     assert nonce_calls == gen_calls == [600]
+
+
+def test_soak_caps_reconciliation_at_the_actually_attempted_tx_count(monkeypatch):
+    # num_txs is deliberately over-provisioned (soak_tx_supply) so pacing never
+    # runs dry; the deadline almost always leaves part of that surplus unsent.
+    # Reconciling against the full num_txs would treat the by-design surplus
+    # as a nonce gap and blast it out unpaced right after the send loop ends.
+    cfg = _cosmos_bench_cfg()
+
+    monkeypatch.setattr(cli_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(cli_module, "soak_tx_supply", lambda *_a, **_kw: (10, 1))
+    monkeypatch.setattr(cli_module, "gen_from_config", lambda *_a, **_kw: ["tx"] * 10)
+    monkeypatch.setattr(cli_module, "CheckpointSampler", _HealthySampler)
+    _stub_soak_wait(monkeypatch)
+
+    async def fake_send(*_args, sent_out=None, **_kwargs):
+        # Only 4 of the 10 provisioned txs were dispatched before the
+        # deadline hit - the rest is untouched surplus, not a gap.
+        if sent_out is not None:
+            sent_out.append(4)
+        return 0
+
+    monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
+
+    reconcile_calls = []
+    monkeypatch.setattr(
+        cli_module,
+        "_reconcile_nonce_gaps",
+        lambda _cfg, _txs, _start, _end, _num_accounts, _base_nonce, num_txs, _batch_size: (
+            reconcile_calls.append(num_txs) or (0, 0)
+        ),
+    )
+
+    result = CliRunner().invoke(
+        cli_module.cli,
+        ["soak", "--config", "unused.yaml", "--nonce", "0", "--rate", "100",
+         "--duration", "60", "1", "10"],
+    )
+
+    assert result.exit_code == 0, result.exception
+    # 10 accounts, 4 txs attempted -> 0 guaranteed per account.
+    assert reconcile_calls == [0]
 
 
 def test_fund_exits_non_zero_when_the_broadcast_is_rejected(monkeypatch):
@@ -983,6 +1028,9 @@ def test_soak_exits_non_zero_on_app_hash_divergence(monkeypatch, tmp_path):
         cli_module, "gen_from_config", lambda *_args, **_kwargs: ["tx"] * 200
     )
     monkeypatch.setattr(cli_module, "send_round_robin", fake_send)
+    monkeypatch.setattr(
+        runner_module, "query_sender_nonces", lambda _cfg, start, end: {i: 10**6 for i in range(start, end + 1)}
+    )
     monkeypatch.setattr(cli_module, "CheckpointSampler", _HealthySampler)
     _stub_soak_wait(monkeypatch)
     monkeypatch.setattr(

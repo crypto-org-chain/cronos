@@ -121,7 +121,7 @@ def test_blockstm_monitor_scrapes_only_when_the_height_advances(monkeypatch):
     assert monitor.data == {7: (1, 10), 8: (2, 20)}
 
 
-def test_blockstm_monitor_skips_a_height_with_no_executed_txs(monkeypatch):
+def test_blockstm_monitor_records_a_height_with_no_executed_txs(monkeypatch):
     remaining = _drive(monkeypatch, [7])
     monkeypatch.setattr(monitor_module, "_fetch_prometheus", lambda t: t)
     monkeypatch.setattr(
@@ -134,6 +134,6 @@ def test_blockstm_monitor_skips_a_height_with_no_executed_txs(monkeypatch):
     monkeypatch.setattr(monitor._stop, "is_set", lambda: not remaining)
     monitor._poll()
 
-    # A zero gauge means the executor never ran for that block, not that it ran
-    # with nothing to do - recording it would drag the per-block average down.
-    assert monitor.data == {}
+    # A zero gauge is a legitimately idle block, not a missing sample - it must
+    # be recorded so per-block averages aren't skewed by dropping idle blocks.
+    assert monitor.data == {7: (0, 0)}

@@ -197,6 +197,8 @@ def assert_topology(node_dirs: list[Path]) -> None:
             entries = [e for e in peers_match.group(1).split(",") if e]
             if len(entries) != expected_n:
                 raise SystemExit(f"{node_dir.name}: persistent_peers has {len(entries)} entries, expected {expected_n}")
+            if any("@127.0.0.1:" in e for e in entries):
+                raise SystemExit(f"{node_dir.name}: stale loopback entry left in persistent_peers")
 
         bootstrap_hosts = re.findall(r'^\[\[p2p\.libp2p\.bootstrap_peers\]\]\nhost = "([^"]+)"', text, re.MULTILINE)
         if bootstrap_hosts:

@@ -564,6 +564,42 @@ def test_send_round_robin_stops_at_the_deadline(monkeypatch):
     assert sent == []
 
 
+def test_send_round_robin_reports_the_actual_attempted_count_when_deadline_truncates(
+    monkeypatch,
+):
+    # A caller sizing txs with deliberate oversupply needs to know how many
+    # were actually dispatched, not len(txs), to avoid treating the untouched
+    # surplus as a nonce gap to heal.
+    calls = {"n": 0}
+
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode):
+        calls["n"] += 1
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+    monkeypatch.setattr(
+        tx_module,
+        "_past_deadline",
+        lambda _started, _deadline_s, sent, _total: sent >= 4,
+    )
+
+    sent_out = []
+    asyncio.run(
+        tx_module.send_round_robin(
+            [f"tx-{i}" for i in range(10)],
+            ["http://node0", "http://node1"],
+            batch_size=2,
+            batch_interval=0,
+            num_accounts=2,
+            deadline_s=1,
+            sent_out=sent_out,
+        )
+    )
+
+    assert sent_out == [4]
+    assert calls["n"] == 4
+
+
 def test_send_returns_the_count_of_txs_whose_retries_never_succeeded(monkeypatch):
     # A tx that keeps failing until async_sendtx's own backoff gives up must be
     # counted, not silently dropped - the caller uses this to size how many

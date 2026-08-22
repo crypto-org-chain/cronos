@@ -451,7 +451,8 @@ def test_reconcile_nonce_gaps_skips_when_batch_size_is_not_one(monkeypatch):
     )
 
     still_missing, healed = runner_module._reconcile_nonce_gaps(
-        _reconcile_cfg(batch_size=2), txs=[], start=0, end=1, num_accounts=2, base_nonce=0
+        _reconcile_cfg(), txs=[], start=0, end=1, num_accounts=2, base_nonce=0,
+        num_txs=3, batch_size=2,
     )
 
     assert (still_missing, healed) == (0, 0)
@@ -471,6 +472,8 @@ def test_reconcile_nonce_gaps_skips_when_sender_strategy_is_not_reuse(monkeypatc
         end=1,
         num_accounts=2,
         base_nonce=0,
+        num_txs=3,
+        batch_size=1,
     )
 
     assert (still_missing, healed) == (0, 0)
@@ -487,7 +490,8 @@ def test_reconcile_nonce_gaps_is_a_noop_when_every_account_is_confirmed(monkeypa
     )
 
     still_missing, healed = runner_module._reconcile_nonce_gaps(
-        _reconcile_cfg(), txs=[], start=0, end=1, num_accounts=2, base_nonce=0
+        _reconcile_cfg(), txs=[], start=0, end=1, num_accounts=2, base_nonce=0,
+        num_txs=3, batch_size=1,
     )
 
     assert (still_missing, healed) == (0, 0)
@@ -510,7 +514,8 @@ def test_reconcile_nonce_gaps_resends_the_correct_tail_and_reports_counts(monkey
     monkeypatch.setattr(runner_module, "resend_missing_nonces", fake_resend)
 
     still_missing, healed = runner_module._reconcile_nonce_gaps(
-        _reconcile_cfg(), txs=["tx"], start=5, end=6, num_accounts=2, base_nonce=0
+        _reconcile_cfg(), txs=["tx"], start=5, end=6, num_accounts=2, base_nonce=0,
+        num_txs=3, batch_size=1,
     )
 
     assert (still_missing, healed) == (2, 3)

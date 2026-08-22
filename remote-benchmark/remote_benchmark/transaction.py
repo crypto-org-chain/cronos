@@ -296,7 +296,7 @@ def gen(
     sender_strategy: str = "reuse",
 ) -> [str]:
     tx_options = tx_options or {}
-    chunks = split(num_accounts, os.cpu_count())
+    chunks = split(num_accounts, os.cpu_count() or 1)
     create_tx = TX_TYPES[tx_type]
     jobs = [
         Job(
@@ -405,6 +405,11 @@ WRONG_SEQUENCE_MARKER = "incorrect account sequence"
 # so this is worth retrying the same as WRONG_SEQUENCE_MARKER.
 ETH_INVALID_NONCE_MARKER = "invalid nonce;"
 RETRY = "retry"
+# Truthy sentinel for a permanent rejection (won't retry) - must be truthy so
+# @backoff.on_predicate's default falsy-retries predicate doesn't keep
+# resending a tx that will never succeed, and distinct from RETRY so callers
+# can still tell "give up" apart from "transient, keep retrying".
+INVALID = "invalid"
 RETRY_INTERVAL_S = 1.0
 MAX_RETRY_ROUNDS = 30
 # CometBFT's app-mempool guard holds a rejected tx hash "seen" for
@@ -472,7 +477,7 @@ async def async_sendtx(session, raw, rpc, sync=False, mode="cosmos", own_retry=F
             ):
                 return RETRY
             print("tx is invalid, won't retry,", result["log"])
-            return False
+            return INVALID
         return True
 
 
@@ -591,6 +596,7 @@ async def _send_batches(
     mode,
     probe_batches,
     deadline_s,
+    sent_out=None,
 ):
     """Shared batch-send loop for ``send``/``send_round_robin``.
 
@@ -604,10 +610,17 @@ async def _send_batches(
     resend pass in ``resend_missing_nonces`` to heal any such gaps after the
     fact, trading a bounded amount of post-hoc repair for not blocking every
     send on its predecessor's CheckTx round-trip.
+
+    ``sent_out``, if given, is a list that gets the count of txs actually
+    dispatched appended to it - distinct from ``len(txs)`` when ``deadline_s``
+    truncates the loop early. Callers that size ``txs`` with deliberate
+    oversupply (so pacing never runs dry) need this to avoid treating the
+    untouched surplus as a nonce gap to heal.
     """
     started = time.monotonic()
     last_log = started
     failed = 0
+    sent = 0
     pending_retry = []
     for i in range(0, len(txs), batch_size):
         if _past_deadline(started, deadline_s, i, len(txs)):
@@ -620,15 +633,18 @@ async def _send_batches(
             for raw, rpc in zip(chunk, chunk_rpcs)
         ]
         results = await asyncio.gather(*tasks)
-        failed += results.count(False)
+        failed += sum(1 for r in results if r not in (True, RETRY))
         pending_retry.extend(
             (raw, rpc)
             for raw, rpc, result in zip(chunk, chunk_rpcs, results)
             if result == RETRY
         )
-        last_log = _log_progress(started, last_log, i + len(chunk), len(txs))
+        sent = i + len(chunk)
+        last_log = _log_progress(started, last_log, sent, len(txs))
         if i + batch_size < len(txs) and batch_interval > 0:
             await asyncio.sleep(batch_interval)
+    if sent_out is not None:
+        sent_out.append(sent)
     failed += await _drain_retries(session, pending_retry, mode)
     return failed
 
@@ -644,6 +660,7 @@ async def send(
     deadline_s=None,
     num_accounts=None,
     conn_per_host=CONNECTION_POOL_PER_HOST,
+    sent_out=None,
 ):
     """Send transactions to a single rpc endpoint in rate-limited batches.
 
@@ -697,6 +714,7 @@ async def send(
             mode,
             probe_batches,
             deadline_s,
+            sent_out=sent_out,
         )
 
 
@@ -743,6 +761,7 @@ async def send_round_robin(
     probe_batches=1,
     deadline_s=None,
     conn_per_host=CONNECTION_POOL_PER_HOST,
+    sent_out=None,
 ):
     """Send transactions across multiple rpc endpoints in rate-limited batches.
 
@@ -773,6 +792,7 @@ async def send_round_robin(
             deadline_s=deadline_s,
             num_accounts=num_accounts,
             conn_per_host=conn_per_host,
+            sent_out=sent_out,
         )
 
     async with _send_session(conn_per_host, len(rpcs)) as session:
@@ -786,6 +806,7 @@ async def send_round_robin(
             mode,
             probe_batches,
             deadline_s,
+            sent_out=sent_out,
         )
 
 

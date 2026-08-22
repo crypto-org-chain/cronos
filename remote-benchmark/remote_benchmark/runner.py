@@ -212,7 +212,7 @@ def wait_for_committed_txs(
 
 
 def wait_for_committed_eth_txs(
-    json_rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT
+    json_rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT, stall_blocks=STALL_BLOCKS
 ):
     """Extend the sample until all generated Ethereum txs are committed."""
     return _wait_for_committed(
@@ -225,6 +225,7 @@ def wait_for_committed_eth_txs(
         expected_txs,
         timeout,
         chunk=WAIT_SCAN_CHUNK_ETH,
+        stall_blocks=stall_blocks,
     )
 
 
@@ -315,22 +316,24 @@ def _send_and_report_failures(
     return failed
 
 
-def _reconcile_nonce_gaps(cfg, txs, start, end, num_accounts, base_nonce):
+def _reconcile_nonce_gaps(cfg, txs, start, end, num_accounts, base_nonce, num_txs, batch_size):
     """Heal per-account nonce gaps left by fully-async sending under `reuse`.
 
     Async sends race CometBFT's nonce-admission check, so a handful of
     accounts can end up with an unconfirmed tail even though nothing failed
     at send time. Query each account's on-chain nonce and resend, in order,
-    every account behind `base_nonce + cfg.num_txs`.
+    every account behind `base_nonce + num_txs`.
 
-    Only applies when `cfg.sender_strategy == "reuse"`, `cfg.mode ==
-    "cosmos"`, and `cfg.batch_size == 1` - the exact conditions under which a
-    send can race another send from the same account. Returns `(still_missing,
-    healed)`.
+    `num_txs`/`batch_size` are passed explicitly rather than read off `cfg`
+    because callers like `soak` compute their own per-account tx count and
+    send batch size at runtime (rate x duration), separate from `cfg.num_txs`/
+    `cfg.batch_size`.
+
+    Only applies when `cfg.sender_strategy == "reuse"` and `batch_size == 1` -
+    the exact conditions under which a send can race another send from the
+    same account. Returns `(still_missing, healed)`.
     """
-    if not (
-        cfg.sender_strategy == "reuse" and cfg.mode == "cosmos" and cfg.batch_size == 1
-    ):
+    if not (cfg.sender_strategy == "reuse" and batch_size == 1):
         return 0, 0
 
     nonces = query_sender_nonces(cfg, start, end)
@@ -340,23 +343,23 @@ def _reconcile_nonce_gaps(cfg, txs, start, end, num_accounts, base_nonce):
     missing = {
         i - start: max(0, nonces[i] - base_nonce)
         for i in range(start, end + 1)
-        if nonces[i] - base_nonce < cfg.num_txs
+        if nonces[i] - base_nonce < num_txs
     }
     if not missing:
         return 0, 0
 
-    total_gap = sum(cfg.num_txs - confirmed for confirmed in missing.values())
+    total_gap = sum(num_txs - confirmed for confirmed in missing.values())
     print(
         f"reconciling {total_gap} gapped nonces across {len(missing)} accounts...",
         file=sys.stderr,
     )
-    rpcs = cfg.rpc_candidates
+    rpcs = cfg.json_rpc_candidates if cfg.mode == "eth" else cfg.rpc_candidates
     still_missing = asyncio.run(
         resend_missing_nonces(
             txs,
             lambda account_index: rpcs[account_index % len(rpcs)],
             num_accounts,
-            cfg.num_txs,
+            num_txs,
             missing,
             mode=cfg.mode,
             conn_per_host=cfg.send_conn_per_host,
@@ -522,6 +525,23 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             len(txs) - failed,
             timeout=cfg.commit_timeout,
         )
+        still_missing, healed = _reconcile_nonce_gaps(
+            cfg, txs, start, end, num_accounts, nonce, cfg.num_txs, cfg.batch_size
+        )
+        failed += still_missing
+        if healed:
+            # Same rationale as the cosmos branch below: rescan from the
+            # original load_start, and disable the stall giveup, since
+            # reconciliation resends are still in flight over the network.
+            load_end = eth_block_number(cfg.primary.json_rpc_candidates)
+            load_end, committed_txs = wait_for_committed_eth_txs(
+                cfg.primary.json_rpc_candidates,
+                load_start,
+                load_end,
+                len(txs) - failed,
+                timeout=cfg.commit_timeout,
+                stall_blocks=None,
+            )
         summary = dump_eth_block_stats(
             stats_out,
             json_rpc=cfg.primary.json_rpc_candidates,
@@ -550,6 +570,24 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
         if cfg.telemetry and consensus_health_baseline is None:
             print(
                 "warning: telemetry baseline scrape returned no consensus-health "
+                "counters; those numbers will be node-lifetime totals",
+                file=sys.stderr,
+            )
+        if cfg.telemetry and mempool_health_baseline is None:
+            print(
+                "warning: telemetry baseline scrape returned no mempool-health "
+                "counters; those numbers will be node-lifetime totals",
+                file=sys.stderr,
+            )
+        if cfg.sdk_metrics and sdk_metrics_baseline is None:
+            print(
+                "warning: sdk_metrics baseline scrape returned no tx counters; "
+                "those numbers will be node-lifetime totals",
+                file=sys.stderr,
+            )
+        if cfg.sdk_metrics and cronos_mempool_baseline is None:
+            print(
+                "warning: sdk_metrics baseline scrape returned no cronos-mempool "
                 "counters; those numbers will be node-lifetime totals",
                 file=sys.stderr,
             )
@@ -590,7 +628,7 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
             # its own (threshold hit or stalled) - checking right after send
             # would see nothing committed yet and resend every account.
             still_missing, healed = _reconcile_nonce_gaps(
-                cfg, txs, start, end, num_accounts, nonce
+                cfg, txs, start, end, num_accounts, nonce, cfg.num_txs, cfg.batch_size
             )
             failed += still_missing
             if healed:

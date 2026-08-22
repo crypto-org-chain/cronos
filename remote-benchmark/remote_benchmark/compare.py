@@ -6,6 +6,7 @@ configurations.
 """
 
 import html
+import math
 from pathlib import Path
 
 import ujson
@@ -61,7 +62,14 @@ def compare_metrics(metrics_a, metrics_b):
     for name in sorted(set(metrics_a) & set(metrics_b)):
         a, b = metrics_a[name], metrics_b[name]
         delta = b["value"] - a["value"]
-        pct_change = (delta / a["value"] * 100) if a["value"] else None
+        if a["value"]:
+            pct_change = delta / a["value"] * 100
+        elif b["value"]:
+            # Zero baseline with a nonzero comparison value is a real change
+            # (e.g. failed_txs 0 -> 100) - report it, not "n/a".
+            pct_change = math.inf if delta > 0 else -math.inf
+        else:
+            pct_change = 0.0
 
         if a["stdev"] is not None and b["stdev"] is not None and a["n"] > 1 and b["n"] > 1:
             significant = not _overlaps(a, b)

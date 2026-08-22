@@ -489,7 +489,7 @@ from remote_benchmark.utils import gen_account
 
 w3 = web3.Web3(web3.HTTPProvider("${NODE0_EVMRPC}"))
 for index in (${START_ACCOUNT}, ${PHYSICAL_END_ACCOUNT}):
-    account = gen_account(0, index)
+    account = gen_account(${GLOBAL_SEQ}, index)
     print(
         index,
         account.address,

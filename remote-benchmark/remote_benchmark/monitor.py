@@ -1,3 +1,4 @@
+import sys
 import threading
 
 from .stats import _fetch_prometheus, scrape_blockstm_metrics
@@ -16,6 +17,7 @@ class _HeightSampler:
         self._rpc = rpc
         self._interval = interval
         self._data = {}
+        self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
 
@@ -27,11 +29,18 @@ class _HeightSampler:
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=2)
+            if self._thread.is_alive():
+                print(
+                    f"warning: {type(self).__name__} poll thread did not stop within timeout; "
+                    "collected data may still be mutating",
+                    file=sys.stderr,
+                )
 
     @property
     def data(self):
         """Snapshot keyed by block height; the value shape is per subclass."""
-        return dict(self._data)
+        with self._lock:
+            return dict(self._data)
 
     def _poll(self):
         raise NotImplementedError
@@ -72,7 +81,8 @@ class MempoolMonitor(_HeightSampler):
                 else:
                     n_txs, n_bytes = mempool_status(self._rpc)
                 prev = self._data.get(h, (0, 0))
-                self._data[h] = (max(prev[0], n_txs), max(prev[1], n_bytes))
+                with self._lock:
+                    self._data[h] = (max(prev[0], n_txs), max(prev[1], n_bytes))
             except Exception:
                 pass
             self._stop.wait(self._interval)
@@ -104,7 +114,7 @@ class BlockSTMMonitor(_HeightSampler):
                     if stm:
                         executed = stm.get("executed_txs", 0)
                         validated = stm.get("validated_txs", 0)
-                        if executed > 0:
+                        with self._lock:
                             self._data[h] = (executed, validated)
             except Exception:
                 pass
