@@ -500,26 +500,76 @@ async def _drain_retries(session, pending, mode):
     return len(pending)
 
 
-async def _send_after(prev, session, raw, rpc, sync, mode):
-    """Send ``raw``, chained after the same sender's previous send (``prev``).
+async def _resend_account_tail(session, txs, rpc_for, num_accounts, num_txs, account_index, confirmed, mode):
+    """Resend one account's missing nonce tail in order. Returns still-missing count."""
+    rpc = rpc_for(account_index)
+    for nonce_round in range(confirmed, num_txs):
+        raw = txs[nonce_round * num_accounts + account_index]
+        result = await async_sendtx(session, raw, rpc, True, mode)
+        for round_i in range(MAX_RETRY_ROUNDS):
+            if result != RETRY:
+                break
+            await asyncio.sleep(RETRY_INTERVAL_S)
+            result = await async_sendtx(
+                session,
+                raw,
+                rpc,
+                True,
+                mode,
+                own_retry=round_i < OWN_RETRY_ROUNDS,
+            )
+        if result is not True:
+            return num_txs - nonce_round
+    return 0
 
-    ``broadcast_tx_async`` returns as soon as the tx is queued, before CheckTx
-    even runs, so awaiting that response says nothing about whether CheckTx
-    for the previous nonce has actually finished - two nonces from the same
-    sender sent back-to-back can then race each other for the mempool's
-    admission lock and land out of order. A reordered nonce is rejected
-    forever (recheck is disabled, so it's never retried on its own) with the
-    rejection invisible to an async caller. Once there's a same-sender
-    predecessor to wait on, the send is forced onto ``broadcast_tx_sync``
-    regardless of the caller's requested mode - that's the only response that
-    actually reflects CheckTx having completed, so it's the only thing that
-    can safely gate the next nonce. Sends with no predecessor (``prev is
-    None``) have no ordering to protect and keep the requested mode.
+
+async def resend_missing_nonces(
+    txs,
+    rpc_for,
+    num_accounts,
+    num_txs,
+    missing,
+    mode="cosmos",
+    conn_per_host=CONNECTION_POOL_PER_HOST,
+    n_hosts=1,
+):
+    """Heal per-account nonce gaps left by fully-async sending.
+
+    ``missing`` maps ``account_index -> confirmed`` for accounts whose
+    on-chain nonce (from a post-hoc query) is behind ``num_txs`` - i.e.
+    ``confirmed`` of that account's nonces landed, and ``[confirmed,
+    num_txs)`` didn't. Each gap is resent in nonce order via
+    ``broadcast_tx_sync``, so - unlike the original async send - this pass
+    actually waits out CheckTx before moving to the account's next nonce.
+    Different accounts are independent, so their tails resend concurrently -
+    only the nonce order within a single account must stay sequential.
+
+    Raw bytes are read directly out of ``txs`` at ``nonce_round *
+    num_accounts + account_index`` (``gen()``'s layout - see its docstring),
+    so nothing is re-signed. This only holds when every account's txs are
+    each their own cosmos tx (``batch_size == 1``); callers must not use this
+    otherwise.
+
+    A ``RETRY`` result (transient ``ErrWrongSequence``/invalid-nonce) is
+    retried in place up to ``MAX_RETRY_ROUNDS`` times. A ``False`` result is
+    a genuine rejection - the account's later nonces can never land without
+    it, so its remaining txs are counted as missing and left unsent rather
+    than burning rounds on a doomed resend.
+
+    Returns the number of txs from ``missing`` that still didn't land.
     """
-    if prev is not None:
-        await prev
-        sync = True
-    return await async_sendtx(session, raw, rpc, sync, mode)
+    if not missing:
+        return 0
+    async with _send_session(conn_per_host, n_hosts) as session:
+        results = await asyncio.gather(
+            *(
+                _resend_account_tail(
+                    session, txs, rpc_for, num_accounts, num_txs, account_index, confirmed, mode
+                )
+                for account_index, confirmed in missing.items()
+            )
+        )
+        return sum(results)
 
 
 def _sender_key(i, j, num_accounts):
@@ -541,38 +591,34 @@ async def _send_batches(
     mode,
     probe_batches,
     deadline_s,
-    num_accounts,
 ):
     """Shared batch-send loop for ``send``/``send_round_robin``.
 
     ``rpc_for(i, j)`` picks the endpoint for the tx at chunk offset ``i + j``.
     See ``send``'s docstring for the pacing/probe/deadline/retry semantics.
-    Same-sender txs are chained via ``_send_after``; see its docstring for why.
+
+    Same-sender txs are sent fully concurrently, with no wait for a prior
+    nonce from the same account to land - two nonces racing CometBFT's
+    admission lock can land out of order and get one of them rejected
+    forever (recheck disabled). Callers that care about zero-failure use the
+    resend pass in ``resend_missing_nonces`` to heal any such gaps after the
+    fact, trading a bounded amount of post-hoc repair for not blocking every
+    send on its predecessor's CheckTx round-trip.
     """
     started = time.monotonic()
     last_log = started
     failed = 0
     pending_retry = []
-    last_task = {}
     for i in range(0, len(txs), batch_size):
         if _past_deadline(started, deadline_s, i, len(txs)):
             break
         chunk = txs[i : i + batch_size]
         batch_sync = sync or (i // batch_size) < probe_batches
         chunk_rpcs = [rpc_for(i, j) for j in range(len(chunk))]
-        tasks = []
-        for j, (raw, rpc) in enumerate(zip(chunk, chunk_rpcs)):
-            sender_key = _sender_key(i, j, num_accounts)
-            # num_accounts=None means no sender reuses a nonce, so sender_key
-            # never collides across positions - skip storing it entirely
-            # rather than let last_task grow by one entry per tx forever.
-            prev = last_task.get(sender_key) if num_accounts is not None else None
-            task = asyncio.ensure_future(
-                _send_after(prev, session, raw, rpc, batch_sync, mode)
-            )
-            if num_accounts is not None:
-                last_task[sender_key] = task
-            tasks.append(task)
+        tasks = [
+            asyncio.ensure_future(async_sendtx(session, raw, rpc, batch_sync, mode))
+            for raw, rpc in zip(chunk, chunk_rpcs)
+        ]
         results = await asyncio.gather(*tasks)
         failed += results.count(False)
         pending_retry.extend(
@@ -635,11 +681,10 @@ async def send(
     earlier nonce for the same sender, so it's queued and resent (unchanged)
     once the run's batches are done, giving the chain time to catch up.
 
-    ``num_accounts`` identifies same-sender txs for ``_send_after`` chaining -
-    see its docstring for why, and ``send_round_robin``'s for the ``txs``
-    layout it relies on. Defaults to ``None`` (every position is its own
-    sender), matching callers that never reuse a sender's nonce across the
-    tx list.
+    ``num_accounts`` is accepted only so ``send_round_robin``'s single-rpc
+    fallback can call this with the same kwargs it would use for multiple
+    endpoints - unused here, since a single endpoint needs no per-sender
+    routing.
     """
     async with _send_session(conn_per_host, 1) as session:
         return await _send_batches(
@@ -652,7 +697,6 @@ async def send(
             mode,
             probe_batches,
             deadline_s,
-            num_accounts,
         )
 
 
@@ -742,7 +786,6 @@ async def send_round_robin(
             mode,
             probe_batches,
             deadline_s,
-            num_accounts,
         )
 
 

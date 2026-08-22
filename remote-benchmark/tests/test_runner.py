@@ -341,8 +341,11 @@ def test_current_sender_nonce_rejects_mixed_physical_sender_nonces(monkeypatch):
         raise AssertionError("mixed sender nonces were accepted")
 
     # A persistent divergence never settles, so the scan retries
-    # NONCE_SETTLE_RETRIES times before giving up.
-    assert requested_addresses == ["account-3", "account-4"] * runner_module.NONCE_SETTLE_RETRIES
+    # NONCE_SETTLE_RETRIES times before giving up. Queries within a retry run
+    # concurrently, so only the per-retry set (not the order) is deterministic.
+    assert len(requested_addresses) == 2 * runner_module.NONCE_SETTLE_RETRIES
+    for i in range(0, len(requested_addresses), 2):
+        assert sorted(requested_addresses[i : i + 2]) == ["account-3", "account-4"]
 
 
 def test_current_sender_nonce_settles_after_transient_divergence(monkeypatch):
@@ -403,6 +406,118 @@ def test_current_sender_nonce_num_txs_override_widens_the_sender_range(monkeypat
     )
 
     # cfg.num_txs=1 would only check account-0; the soak's own num_txs=4 is what
-    # gen() actually signs from.
+    # gen() actually signs from. Queries run concurrently, so only the set of
+    # addresses queried is deterministic, not the order.
     assert runner_module.current_sender_nonce(cfg, 0, 0, num_txs=4) == 0
-    assert requested_addresses == ["account-0", "account-1", "account-2", "account-3"]
+    assert sorted(requested_addresses) == ["account-0", "account-1", "account-2", "account-3"]
+
+
+def test_query_sender_nonces_returns_a_map_keyed_by_absolute_account_index(monkeypatch):
+    cfg = SimpleNamespace(primary=SimpleNamespace(json_rpc="http://node0-evm"), global_seq=0)
+    monkeypatch.setattr(
+        runner_module.web3,
+        "Web3",
+        lambda _provider: SimpleNamespace(
+            eth=SimpleNamespace(get_transaction_count=lambda address: {"account-3": 2, "account-4": 5}[address])
+        ),
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "gen_account",
+        lambda _seq, index: SimpleNamespace(address=f"account-{index}"),
+    )
+
+    assert runner_module.query_sender_nonces(cfg, 3, 4) == {3: 2, 4: 5}
+
+
+def _reconcile_cfg(**overrides):
+    defaults = dict(
+        sender_strategy="reuse",
+        mode="cosmos",
+        batch_size=1,
+        num_txs=3,
+        rpc_candidates=["http://node0"],
+        send_conn_per_host=200,
+    )
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+def test_reconcile_nonce_gaps_skips_when_batch_size_is_not_one(monkeypatch):
+    monkeypatch.setattr(
+        runner_module,
+        "query_sender_nonces",
+        lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("must not query nonces")),
+    )
+
+    still_missing, healed = runner_module._reconcile_nonce_gaps(
+        _reconcile_cfg(batch_size=2), txs=[], start=0, end=1, num_accounts=2, base_nonce=0
+    )
+
+    assert (still_missing, healed) == (0, 0)
+
+
+def test_reconcile_nonce_gaps_skips_when_sender_strategy_is_not_reuse(monkeypatch):
+    monkeypatch.setattr(
+        runner_module,
+        "query_sender_nonces",
+        lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("must not query nonces")),
+    )
+
+    still_missing, healed = runner_module._reconcile_nonce_gaps(
+        _reconcile_cfg(sender_strategy="unique-per-tx"),
+        txs=[],
+        start=0,
+        end=1,
+        num_accounts=2,
+        base_nonce=0,
+    )
+
+    assert (still_missing, healed) == (0, 0)
+
+
+def test_reconcile_nonce_gaps_is_a_noop_when_every_account_is_confirmed(monkeypatch):
+    monkeypatch.setattr(
+        runner_module, "query_sender_nonces", lambda _cfg, start, end: {0: 3, 1: 3}
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "resend_missing_nonces",
+        lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("must not resend")),
+    )
+
+    still_missing, healed = runner_module._reconcile_nonce_gaps(
+        _reconcile_cfg(), txs=[], start=0, end=1, num_accounts=2, base_nonce=0
+    )
+
+    assert (still_missing, healed) == (0, 0)
+
+
+def test_reconcile_nonce_gaps_resends_the_correct_tail_and_reports_counts(monkeypatch):
+    # accounts 5 and 6 (absolute) are behind base_nonce + num_txs=3: account 5
+    # confirmed 1 of 3, account 6 confirmed 0 of 3 - local indices (relative to
+    # start=5) are 0 and 1.
+    monkeypatch.setattr(
+        runner_module, "query_sender_nonces", lambda _cfg, start, end: {5: 1, 6: 0}
+    )
+    resend_calls = []
+
+    async def fake_resend(txs, rpc_for, num_accounts, num_txs, missing, **kwargs):
+        resend_calls.append((txs, num_accounts, num_txs, missing, kwargs))
+        assert rpc_for(0) == "http://node0"
+        return 2  # 2 of the 5 gapped txs never landed
+
+    monkeypatch.setattr(runner_module, "resend_missing_nonces", fake_resend)
+
+    still_missing, healed = runner_module._reconcile_nonce_gaps(
+        _reconcile_cfg(), txs=["tx"], start=5, end=6, num_accounts=2, base_nonce=0
+    )
+
+    assert (still_missing, healed) == (2, 3)
+    [(txs, num_accounts, num_txs, missing, kwargs)] = resend_calls
+    assert txs == ["tx"]
+    assert num_accounts == 2
+    assert num_txs == 3
+    assert missing == {0: 1, 1: 0}
+    assert kwargs == {"mode": "cosmos", "conn_per_host": 200, "n_hosts": 1}
+

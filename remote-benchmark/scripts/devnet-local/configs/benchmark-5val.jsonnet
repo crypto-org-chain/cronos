@@ -69,9 +69,9 @@
           // 256 matches go-libp2p's hardcoded QUIC concurrent-stream ceiling,
           // which is what actually binds - the resource manager's per-peer
           // stream limit is never reached, so a higher value here buys nothing.
-          // The stall this config originally tried to work around came from
-          // lp2p.Peer.Send opening a stream per envelope; that is fixed in the
-          // transport by multiplexing envelopes over one stream per channel.
+          // lp2p.Peer.Send still opens one stream per envelope (verified at
+          // the vendored commit, lp2p/peer.go) - not multiplexed onto a
+          // shared per-channel stream. Headroom here, not a fixed cost.
           limits: {
             mode: 'custom',
             max_peers: 16,

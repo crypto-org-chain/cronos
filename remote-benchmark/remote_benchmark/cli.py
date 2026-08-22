@@ -34,6 +34,7 @@ from .results import (
     gate_run,
     write_run_record,
 )
+from .ramp import ramp_test
 from .runner import current_sender_nonce, gen_from_config, run_bench_once
 from .soak import (
     CheckpointSampler,
@@ -565,6 +566,104 @@ def soak(config_path, nonce, rate, duration, checkpoint_interval, results_path, 
     _raise_on_divergence(gate["reasons"])
     if not verdict["ok"]:
         raise click.ClickException("soak flagged: " + "; ".join(verdict["reasons"]))
+
+
+@cli.command()
+@click.option("--config", "config_path", required=True)
+@click.option("--nonce", type=click.IntRange(min=0), default=None)
+@click.option("--start-rate", type=float, default=2000.0, help="first stage's target tx/s")
+@click.option("--rate-step", type=float, default=1000.0, help="tx/s added each successful stage")
+@click.option("--max-rate", type=float, default=None, help="stop even if still sustained")
+@click.option("--stage-duration", type=float, default=60.0, help="seconds held per rate stage")
+@click.option("--checkpoint-interval", type=float, default=15.0)
+@click.option(
+    "--accept-frac",
+    type=float,
+    default=0.85,
+    help="stage passes if achieved tps >= accept_frac * target rate",
+)
+@click.option(
+    "--results",
+    "results_path",
+    default=None,
+    help="write ramp stages/sustained-rate as JSON to this path",
+)
+@click.option(
+    "--send-workers",
+    type=click.IntRange(min=1),
+    default=None,
+    help="OS processes to send from; escapes the single event loop's CPU ceiling (default: cfg.send_workers)",
+)
+@click.argument("start", type=int)
+@click.argument("end", type=int)
+def ramp(
+    config_path,
+    nonce,
+    start_rate,
+    rate_step,
+    max_rate,
+    stage_duration,
+    checkpoint_interval,
+    accept_frac,
+    results_path,
+    send_workers,
+    start,
+    end,
+):
+    """Discover the sustained tx/s ceiling: hold each rate stage for
+    --stage-duration seconds, stepping --rate-step up while the network keeps
+    up, stopping at the first stage whose achieved tps falls below
+    --accept-frac of its target."""
+    cfg = load_config(config_path)
+    if cfg.mode == "eth":
+        raise click.ClickException("ramp currently only supports cosmos mode")
+    _check_soak_duration(stage_duration, checkpoint_interval)
+
+    num_accounts = end - start + 1
+    if nonce is None:
+        # Only the first stage's num_txs matters here: nonce is tracked
+        # in-memory and carried stage to stage from there, never re-queried.
+        try:
+            probe_num_txs, _ = soak_tx_supply(start_rate, stage_duration, num_accounts, 1.0, cfg.batch_size)
+            nonce = current_sender_nonce(cfg, start, end, num_txs=probe_num_txs)
+        except ValueError as e:
+            raise click.ClickException(str(e)) from e
+        print(f"using current sender nonce {nonce}", file=sys.stderr)
+
+    result = ramp_test(
+        cfg,
+        start,
+        end,
+        start_rate,
+        rate_step,
+        stage_duration,
+        checkpoint_interval,
+        nonce,
+        max_rate=max_rate,
+        accept_frac=accept_frac,
+        send_workers=send_workers if send_workers is not None else cfg.send_workers,
+    )
+
+    print()
+    print("=== Ramp Stages ===")
+    for s in result["stages"]:
+        print(
+            f"rate={s['rate']:.1f} achieved_tps={s['achieved_tps']:.1f} "
+            f"mempool_peak={s['mempool_peak']} failed_sends={s['failed_sends']} ok={s['ok']}"
+        )
+
+    print()
+    if result["sustained_rate"] is not None:
+        print(f"sustained ceiling: {result['sustained_rate']:.1f} tx/s")
+    else:
+        print("sustained ceiling: none - first stage already failed to keep up")
+
+    if results_path:
+        Path(results_path).write_text(ujson.dumps(result, indent=2, default=str))
+        print(f"wrote ramp record to {results_path}", file=sys.stderr)
+
+    if result["sustained_rate"] is None:
+        raise click.ClickException("ramp failed: first stage never sustained its target rate")
 
 
 @cli.command("sweep")

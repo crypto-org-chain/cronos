@@ -231,13 +231,13 @@ def test_send_without_a_deadline_sends_everything(monkeypatch):
     assert [raw for raw, _ in sent] == ["tx-0", "tx-1", "tx-2", "tx-3"]
 
 
-def test_send_serializes_same_sender_sends_and_forces_sync(monkeypatch):
-    # Same-sender nonces race for the mempool's admission lock if a later one
-    # is issued before the earlier one's CheckTx has actually completed, and
-    # broadcast_tx_async's response can't prove that - so a sender's second
-    # send must wait for the first to actually finish, and must go out via
-    # broadcast_tx_sync (the only response that reflects real completion)
-    # even though the run overall requested async.
+def test_send_issues_same_sender_sends_concurrently_and_async(monkeypatch):
+    # Same-sender nonces used to be forced onto blocking broadcast_tx_sync to
+    # avoid racing the mempool's admission check - now every send goes out
+    # concurrently and async regardless of sender repetition, accepting the
+    # nonce-race risk in exchange for not blocking a whole batch on one
+    # sender's CheckTx round-trip. resend_missing_nonces heals any resulting
+    # gaps after the fact.
     events = []
 
     async def fake_sendtx(_session, raw, _rpc, sync, _mode):
@@ -260,10 +260,103 @@ def test_send_serializes_same_sender_sends_and_forces_sync(monkeypatch):
         )
     )
 
-    # tx-0/tx-2 are sender 0's two nonces (position % num_accounts).
-    assert ("tx-0", False, "start") in events
-    assert ("tx-2", True, "start") in events
-    assert events.index(("tx-2", True, "start")) > events.index(("tx-0", False, "end"))
+    assert all(sync is False for _, sync, _ in events)
+    # every send starts before any of them finishes - tx-0/tx-2 (sender 0's
+    # two nonces) are not serialized against each other.
+    assert [phase for _, _, phase in events[:4]] == ["start"] * 4
+
+
+def test_resend_missing_nonces_is_a_noop_when_nothing_is_missing(monkeypatch):
+    calls = []
+
+    async def fake_sendtx(*_args, **_kwargs):
+        calls.append(1)
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    still_missing = asyncio.run(
+        tx_module.resend_missing_nonces(
+            ["tx-0", "tx-1"], lambda _account: "http://node0", 1, 2, {}
+        )
+    )
+
+    assert still_missing == 0
+    assert calls == []
+
+
+def test_resend_missing_nonces_heals_a_single_gap_in_nonce_order(monkeypatch):
+    # gen()'s layout: nonce_round * num_accounts + account_index. 2 accounts,
+    # 3 nonces each - account 1 is missing its last 2 nonces (confirmed=1).
+    txs = [
+        "acct0-n0", "acct1-n0",
+        "acct0-n1", "acct1-n1",
+        "acct0-n2", "acct1-n2",
+    ]
+    sent = []
+
+    async def fake_sendtx(_session, raw, rpc, sync, _mode):
+        sent.append((raw, rpc, sync))
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    still_missing = asyncio.run(
+        tx_module.resend_missing_nonces(
+            txs, lambda account: f"http://node{account}", 2, 3, {1: 1}
+        )
+    )
+
+    assert still_missing == 0
+    assert sent == [
+        ("acct1-n1", "http://node1", True),
+        ("acct1-n2", "http://node1", True),
+    ]
+
+
+def test_resend_missing_nonces_stops_an_account_on_genuine_rejection(monkeypatch):
+    # account 0 is missing 3 nonces; the first resend comes back rejected
+    # (False) rather than RETRY, so the remaining 2 are left unsent rather
+    # than burning retry rounds on a doomed account.
+    txs = ["acct0-n0", "acct0-n1", "acct0-n2"]
+
+    async def fake_sendtx(_session, raw, _rpc, _sync, _mode, own_retry=False):
+        return raw != "acct0-n0"
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    still_missing = asyncio.run(
+        tx_module.resend_missing_nonces(
+            txs, lambda _account: "http://node0", 1, 3, {0: 0}
+        )
+    )
+
+    assert still_missing == 3
+
+
+def test_resend_missing_nonces_heals_multiple_accounts_independently(monkeypatch):
+    # 3 accounts, 2 nonces each - account 0 is missing its last nonce,
+    # account 2 is missing both, account 1 has nothing missing.
+    txs = [
+        "acct0-n0", "acct1-n0", "acct2-n0",
+        "acct0-n1", "acct1-n1", "acct2-n1",
+    ]
+    sent = []
+
+    async def fake_sendtx(_session, raw, rpc, _sync, _mode):
+        sent.append(raw)
+        return True
+
+    monkeypatch.setattr(tx_module, "async_sendtx", fake_sendtx)
+
+    still_missing = asyncio.run(
+        tx_module.resend_missing_nonces(
+            txs, lambda account: f"http://node{account}", 3, 2, {0: 1, 2: 0}
+        )
+    )
+
+    assert still_missing == 0
+    assert sent == ["acct0-n1", "acct2-n0", "acct2-n1"]
 
 
 def test_send_round_robin_routes_each_account_to_one_endpoint(monkeypatch):

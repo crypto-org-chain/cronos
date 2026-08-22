@@ -218,6 +218,13 @@ def test_bench_fails_when_not_all_generated_txs_commit(monkeypatch):
     monkeypatch.setattr(runner_module, "_fetch_prometheus", lambda _url: "")
     monkeypatch.setattr(runner_module, "scrape_consensus_raw", lambda _text: {})
     monkeypatch.setattr(runner_module, "dump_block_stats", lambda *_args, **_kwargs: None)
+    # No nonce gaps to reconcile - this test is about wait_for_committed_txs's
+    # own partial-commit result, not the reconciliation pass.
+    monkeypatch.setattr(
+        runner_module,
+        "query_sender_nonces",
+        lambda cfg, start, end: {i: cfg.num_txs for i in range(start, end + 1)},
+    )
 
     result = CliRunner().invoke(
         cli_module.cli,
@@ -1129,6 +1136,11 @@ def test_bench_honors_the_configured_commit_timeout(monkeypatch):
         runner_module,
         "dump_block_stats",
         lambda fp, *, start, end, **_kwargs: print(f"block {end} txs=1", file=fp),
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "query_sender_nonces",
+        lambda cfg, start, end: {i: cfg.num_txs for i in range(start, end + 1)},
     )
 
     result = CliRunner().invoke(

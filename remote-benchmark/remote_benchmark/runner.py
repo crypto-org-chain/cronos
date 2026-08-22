@@ -12,6 +12,7 @@ import io
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import ujson
@@ -36,6 +37,7 @@ from .stats import (
 from .transaction import (
     gen,
     physical_account_range,
+    resend_missing_nonces,
     send_multiprocess,
     send_round_robin,
     sender_affinity_accounts,
@@ -65,6 +67,9 @@ WAIT_SCAN_CHUNK_ETH = 20
 # lag) - short-lived divergence, not a real inconsistency.
 NONCE_SETTLE_RETRIES = 5
 NONCE_SETTLE_RETRY_DELAY = 2
+# Nonce queries are one HTTP round trip per account with no batch endpoint -
+# fan them out to bound wall time on large ranges over a high-latency link.
+NONCE_QUERY_WORKERS = 64
 
 
 def tx_options(cfg) -> dict:
@@ -104,6 +109,7 @@ def _wait_for_committed(
     timeout=LOAD_COMMIT_TIMEOUT,
     chunk=WAIT_SCAN_CHUNK,
     stall_blocks=STALL_BLOCKS,
+    initial_committed=0,
 ):
     """Extend the sample until `expected_txs` have been counted committed.
 
@@ -122,7 +128,7 @@ def _wait_for_committed(
     stall, so without it every stuck run just burns the full ``timeout``.
     """
     next_height = start + 1
-    committed_txs = 0
+    committed_txs = initial_committed
     deadline = time.monotonic() + timeout
     started = time.monotonic()
     last_log = started
@@ -183,7 +189,15 @@ def _wait_for_committed(
                 time.sleep(0.2)
 
 
-def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TIMEOUT):
+def wait_for_committed_txs(
+    rpc,
+    start,
+    end,
+    expected_txs,
+    timeout=LOAD_COMMIT_TIMEOUT,
+    initial_committed=0,
+    stall_blocks=STALL_BLOCKS,
+):
     """Extend the sample until all generated Cosmos txs are committed."""
     return _wait_for_committed(
         lambda: block_height(rpc),
@@ -192,6 +206,8 @@ def wait_for_committed_txs(rpc, start, end, expected_txs, timeout=LOAD_COMMIT_TI
         end,
         expected_txs,
         timeout,
+        stall_blocks=stall_blocks,
+        initial_committed=initial_committed,
     )
 
 
@@ -224,7 +240,6 @@ def current_sender_nonce(cfg, start, end, num_txs=None):
     physical_start, physical_end = physical_account_range(
         start, end, cfg.num_txs if num_txs is None else num_txs, cfg.sender_strategy
     )
-    w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
 
     # Right after a run's load is reported as committed, a few accounts' last
     # txs can still be catching up (async broadcast/retry lag), so an
@@ -233,10 +248,7 @@ def current_sender_nonce(cfg, start, end, num_txs=None):
     # real divergence.
     nonces = None
     for attempt in range(NONCE_SETTLE_RETRIES):
-        nonces = {
-            w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address)
-            for i in range(physical_start, physical_end + 1)
-        }
+        nonces = set(query_sender_nonces(cfg, physical_start, physical_end).values())
         if len(nonces) == 1:
             break
         if attempt < NONCE_SETTLE_RETRIES - 1:
@@ -248,6 +260,25 @@ def current_sender_nonce(cfg, start, end, num_txs=None):
             "pass --nonce explicitly or use a fresh account range"
         )
     return nonces.pop()
+
+
+def query_sender_nonces(cfg, physical_start, physical_end):
+    """Return {account_index: on-chain nonce} for every physical sender in
+    [physical_start, physical_end].
+
+    One HTTP round trip per account, so a large range is fanned out across a
+    thread pool rather than queried serially - at 20k+ accounts, a tunneled
+    RPC's per-request latency alone would otherwise stretch this into tens of
+    minutes.
+    """
+    w3 = web3.Web3(web3.HTTPProvider(cfg.primary.json_rpc))
+    indices = range(physical_start, physical_end + 1)
+    with ThreadPoolExecutor(max_workers=NONCE_QUERY_WORKERS) as pool:
+        nonces = pool.map(
+            lambda i: w3.eth.get_transaction_count(gen_account(cfg.global_seq, i).address),
+            indices,
+        )
+        return dict(zip(indices, nonces))
 
 
 def _send_and_report_failures(
@@ -282,6 +313,62 @@ def _send_and_report_failures(
             file=sys.stderr,
         )
     return failed
+
+
+def _reconcile_nonce_gaps(cfg, txs, start, end, num_accounts, base_nonce):
+    """Heal per-account nonce gaps left by fully-async sending under `reuse`.
+
+    Async sends race CometBFT's nonce-admission check, so a handful of
+    accounts can end up with an unconfirmed tail even though nothing failed
+    at send time. Query each account's on-chain nonce and resend, in order,
+    every account behind `base_nonce + cfg.num_txs`.
+
+    Only applies when `cfg.sender_strategy == "reuse"`, `cfg.mode ==
+    "cosmos"`, and `cfg.batch_size == 1` - the exact conditions under which a
+    send can race another send from the same account. Returns `(still_missing,
+    healed)`.
+    """
+    if not (
+        cfg.sender_strategy == "reuse" and cfg.mode == "cosmos" and cfg.batch_size == 1
+    ):
+        return 0, 0
+
+    nonces = query_sender_nonces(cfg, start, end)
+    # An account already behind base_nonce (e.g. a straggler left over from a
+    # prior run) has confirmed none of *this* run's txs - clamp to 0 rather
+    # than letting a negative offset wrap the flat txs[] index below.
+    missing = {
+        i - start: max(0, nonces[i] - base_nonce)
+        for i in range(start, end + 1)
+        if nonces[i] - base_nonce < cfg.num_txs
+    }
+    if not missing:
+        return 0, 0
+
+    total_gap = sum(cfg.num_txs - confirmed for confirmed in missing.values())
+    print(
+        f"reconciling {total_gap} gapped nonces across {len(missing)} accounts...",
+        file=sys.stderr,
+    )
+    rpcs = cfg.rpc_candidates
+    still_missing = asyncio.run(
+        resend_missing_nonces(
+            txs,
+            lambda account_index: rpcs[account_index % len(rpcs)],
+            num_accounts,
+            cfg.num_txs,
+            missing,
+            mode=cfg.mode,
+            conn_per_host=cfg.send_conn_per_host,
+            n_hosts=len(rpcs),
+        )
+    )
+    if still_missing:
+        print(
+            f"warning: {still_missing} txs still missing a nonce after reconciliation",
+            file=sys.stderr,
+        )
+    return still_missing, total_gap - still_missing
 
 
 def _run_warmup(cfg, start, nonce, num_accounts):
@@ -499,6 +586,32 @@ def run_bench_once(cfg, nonce, probe_batches, start, end, capture_stats, txs_cac
                 len(txs) - failed,
                 timeout=cfg.commit_timeout,
             )
+            # Query nonces only after the chain has stopped making progress on
+            # its own (threshold hit or stalled) - checking right after send
+            # would see nothing committed yet and resend every account.
+            still_missing, healed = _reconcile_nonce_gaps(
+                cfg, txs, start, end, num_accounts, nonce
+            )
+            failed += still_missing
+            if healed:
+                # Rescan from the original load_start rather than resuming from
+                # "now" - most of the backlog the first wait gave up on keeps
+                # committing in bursts (not steadily), often more than
+                # STALL_BLOCKS apart, while reconciliation's resends are still
+                # in flight over the network. Resuming from "now" skips exactly
+                # that window, silently losing whatever committed during it.
+                # Disable the stall giveup too, for the same reason - a real
+                # commit burst can trail a long quiet gap; only the timeout
+                # should end this wait.
+                load_end = block_height(cfg.primary.rpc_candidates)
+                load_end, committed_txs = wait_for_committed_txs(
+                    cfg.primary.rpc_candidates,
+                    load_start,
+                    load_end,
+                    len(txs) - failed,
+                    timeout=cfg.commit_timeout,
+                    stall_blocks=None,
+                )
         finally:
             mempool_monitor.stop()
             stm_monitor.stop()
