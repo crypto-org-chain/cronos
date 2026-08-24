@@ -18,14 +18,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	// MaxReplayBlockMsgs caps the eth messages one ReplayBlock query may execute.
-	MaxReplayBlockMsgs = 10000
-
-	// ReplayBlockGasCap caps per-message EVM gas in a ReplayBlock query.
-	// Since historical blocks may have used different limits, we use a fixed upper bound value.
-	ReplayBlockGasCap = 60_000_000
-)
+// ReplayBlockGasCap caps per-message EVM gas in a ReplayBlock query.
+// Since historical blocks may have used different limits, we use a fixed upper bound value.
+const ReplayBlockGasCap = 60_000_000
 
 var _ types.QueryServer = Keeper{}
 
@@ -62,9 +57,9 @@ func (k Keeper) DenomByContract(goCtx context.Context, req *types.DenomByContrac
 // ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
 func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest) (*types.ReplayBlockResponse, error) {
 	// bound the batch size on this public gRPC endpoint
-	if len(req.Msgs) > MaxReplayBlockMsgs {
+	if len(req.Msgs) > types.MaxReplayBlockMsgs {
 		return nil, status.Errorf(codes.InvalidArgument,
-			"too many messages in ReplayBlock request: %d (max %d)", len(req.Msgs), MaxReplayBlockMsgs)
+			"too many messages in ReplayBlock request: %d (max %d)", len(req.Msgs), types.MaxReplayBlockMsgs)
 	}
 
 	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
