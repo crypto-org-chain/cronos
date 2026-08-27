@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -24,15 +23,9 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
-	ica "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts"
-	icacontroller "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller"
-	icacontrollerkeeper "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller/keeper"
 	icacontrollertypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller/types"
-	icahost "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host"
-	icahostkeeper "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/types"
-	ibccallbacks "github.com/cosmos/ibc-go/v11/modules/apps/callbacks"
 	"github.com/cosmos/ibc-go/v11/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v11/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
@@ -50,6 +43,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -224,7 +218,7 @@ var (
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:            {authtypes.Burner},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		icatypes.ModuleName:            nil,
+		icatypes.ModuleName:            nil,                                  // ICA is disabled, kept so the legacy interchain account module address stays a known module account
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		cronostypes.ModuleName:         {authtypes.Minter, authtypes.Burner},
 	}
@@ -256,7 +250,8 @@ func StoreKeys() (
 		feegrant.StoreKey, crisistypes.StoreKey,
 		// ibc keys
 		ibcexported.StoreKey, ibctransfertypes.StoreKey,
-		// ica keys
+		// ica keys: ICA is disabled but the stores stay mounted so that no store
+		// upgrade is required and any legacy ICA state remains readable.
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
 		// ethermint keys
@@ -314,8 +309,6 @@ type App struct {
 	UpgradeKeeper         upgradekeeper.Keeper
 	ParamsKeeper          paramskeeper.Keeper //nolint:staticcheck
 	IBCKeeper             *ibckeeper.Keeper   // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
-	ICAControllerKeeper   *icacontrollerkeeper.Keeper
-	ICAHostKeeper         *icahostkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	TransferKeeper        *ibctransferkeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
@@ -780,25 +773,6 @@ func New(
 		authAddr,
 	)
 
-	// ICA Controller keeper
-	app.ICAControllerKeeper = icacontrollerkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[icacontrollertypes.StoreKey]),
-		app.IBCKeeper.ChannelKeeper,
-		app.MsgServiceRouter(),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	app.ICAHostKeeper = icahostkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[icahosttypes.StoreKey]),
-		app.IBCKeeper.ChannelKeeper,
-		app.AccountKeeper,
-		app.MsgServiceRouter(),
-		app.GRPCQueryRouter(),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	icaModule := ica.NewAppModule(app.ICAControllerKeeper, app.ICAHostKeeper)
-
 	// Create Transfer Keepers
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, app.AccountKeeper.AddressCodec(),
@@ -895,25 +869,9 @@ func New(
 		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
-	// Hoist EVM signature verification (ecrecover) out of the app-mempool
-	var icaControllerStack porttypes.IBCModule
-	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
-	icaCallbacks := ibccallbacks.NewIBCMiddleware(app.CronosKeeper, math.MaxUint64)
-	icaCallbacks.SetUnderlyingApplication(icaControllerStack)
-	icaCallbacks.SetICS4Wrapper(app.IBCKeeper.ChannelKeeper)
-	icaControllerStack = icaCallbacks
-	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
-	app.ICAControllerKeeper.WithICS4Wrapper(icaCallbacks)
-
-	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
-
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
-	// Add controller & ica auth modules to IBC router
-	ibcRouter.
-		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
-		AddRoute(icahosttypes.SubModuleName, icaHostStack).
-		AddRoute(ibctransfertypes.ModuleName, transferStack)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
@@ -979,7 +937,7 @@ func New(
 		// IBC light clients
 		ibctm.NewAppModule(tmLightClientModule),
 		transferModule,
-		icaModule,
+		// icaModule intentionally omitted, see the "interchain accounts (ICA)" note above.
 
 		// Ethermint app modules
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),
@@ -1003,6 +961,15 @@ func New(
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
 	app.BasicModuleManager.RegisterInterfaces(interfaceRegistry)
 
+	// ICA is no longer part of the module manager (see the "interchain accounts
+	// (ICA)" note above), so the basic manager above no longer registers its types.
+	// Register them explicitly so that historical ICA transactions stay decodable,
+	// e.g. by the tx service. There is no ICA module to handle them, so these
+	// messages remain unroutable.
+	icatypes.RegisterInterfaces(interfaceRegistry)
+	icacontrollertypes.RegisterInterfaces(interfaceRegistry)
+	icahosttypes.RegisterInterfaces(interfaceRegistry)
+
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
@@ -1018,7 +985,6 @@ func New(
 		stakingtypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		govtypes.ModuleName,
@@ -1038,7 +1004,6 @@ func New(
 		feemarkettypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		distrtypes.ModuleName,
@@ -1076,7 +1041,6 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,

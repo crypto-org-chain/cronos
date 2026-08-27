@@ -25,6 +25,11 @@ pytestmark = [
     pytest.mark.skip("interchain-accounts wiring is being removed from the app"),
 ]
 
+# ICA is no longer wired into the app (see the "interchain accounts (ICA)" note in
+# app/app.go), so there is no controller/host port to open a channel on. Kept, and
+# skipped, so re-enabling ICA gets its test coverage back for free.
+pytest.skip("ica is not enabled", allow_module_level=True)
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):

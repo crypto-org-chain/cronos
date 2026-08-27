@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	icagenesistypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/genesis/types"
-	icatypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -348,10 +346,9 @@ type ExportFeemarketParams struct {
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltypes.AppMap, error) {
-	// Add interchainaccounts with default genesis.
-	if appState[icatypes.ModuleName] == nil {
-		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
-	}
+	// NOTE: this used to inject a default (enabled) interchainaccounts genesis.
+	// ICA is no longer wired into the app, so nothing is injected anymore. See the
+	// "interchain accounts (ICA)" note in app/app.go.
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)
 	if err != nil {
