@@ -19,8 +19,8 @@ func RegisterLegacyCodec(cdc *codec.LegacyAmino) {
 func RegisterLegacyInterfaces(registry cdctypes.InterfaceRegistry) {
 	icaauthtypes.RegisterInterfaces(registry)
 	authz.RegisterInterfaces(registry)
-	// ICA has been removed from the app (see the "interchain accounts (ICA)" note in
-	// app.go); keep its types registered so the client can still decode historical
+	// ICA has been removed from the app
+	// Keep its types registered so the client can still decode historical
 	// ICA transactions.
 	icatypes.RegisterInterfaces(registry)
 	icacontrollertypes.RegisterInterfaces(registry)

@@ -66,17 +66,6 @@ func OnPacketResultCallback(args ...interface{}) ([]byte, error) {
 	return icaCallbackABI.Pack("onPacketResultCallback", args...)
 }
 
-// IcaContract is DEAD CODE -- retained on purpose.
-//
-// The ICA precompile is not registered with the EVM: app/app.go passes an empty
-// []evmkeeper.CustomContractFn{}, and ICA itself is no longer wired into the app
-// (see the "interchain accounts (ICA)" note in app/app.go). Nothing in a running
-// node can reach it.
-//
-// It is kept, rather than deleted, so that re-enabling ICA only requires
-// restoring the app wiring. Note that submitMsgs below attaches a src_callback
-// memo pointing at the EVM caller, i.e. it opts every submitted packet into the
-// callbacks middleware.
 type IcaContract struct {
 	BaseContract
 

@@ -937,7 +937,6 @@ func New(
 		// IBC light clients
 		ibctm.NewAppModule(tmLightClientModule),
 		transferModule,
-		// icaModule intentionally omitted, see the "interchain accounts (ICA)" note above.
 
 		// Ethermint app modules
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),

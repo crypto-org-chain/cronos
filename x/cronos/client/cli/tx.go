@@ -346,9 +346,6 @@ type ExportFeemarketParams struct {
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltypes.AppMap, error) {
-	// NOTE: this used to inject a default (enabled) interchainaccounts genesis.
-	// ICA is no longer wired into the app, so nothing is injected anymore. See the
-	// "interchain accounts (ICA)" note in app/app.go.
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)
 	if err != nil {

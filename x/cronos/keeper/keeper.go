@@ -403,20 +403,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
-// DEAD CODE -- retained on purpose.
-//
-// The methods below implement the ibc-go `ContractKeeper` interface used by the
-// ibccallbacks middleware. That middleware was only ever wired for the ICA
-// controller stack, which has been removed from the app (see the "interchain
-// accounts (ICA)" note in app/app.go), so none of these are reachable today: no
-// IBC stack in the app routes through the callbacks middleware.
-//
-// They are kept, rather than deleted, so that re-enabling ICA (or wiring
-// callbacks onto another stack) only requires restoring the app wiring. Be aware
-// of what they do before doing so: onPacketResult executes EVM code at the
-// packet sender's own address from inside the packet lifecycle, with the cronos
-// module account as msg.sender.
-
 func (k Keeper) onPacketResult(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
