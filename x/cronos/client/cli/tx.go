@@ -123,7 +123,6 @@ const (
 
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
 // a token mapping change proposal governance transaction.
-// Deprecated: please use submit-proposal instead.
 func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token-mapping-change [denom] [contract]",
