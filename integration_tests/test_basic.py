@@ -43,13 +43,17 @@ from .utils import (
 )
 
 
-def test_expedited_gov_params(cronos, tmp_path):
+def test_expedited_gov_params(cronos):
     cli = cronos.cosmos_cli()
     param0 = cli.query_params("gov")
     param1 = get_expedited_params(param0)
     # governance module account as signer
     authority = module_address("gov")
     msg = "/cosmos.gov.v1.MsgUpdateParams"
+    params = {
+        **param0,
+        **param1,
+    }
     submit_gov_proposal(
         cronos,
         msg,
@@ -57,12 +61,26 @@ def test_expedited_gov_params(cronos, tmp_path):
             {
                 "@type": msg,
                 "authority": authority,
-                "params": {
-                    **param0,
-                    **param1,
-                },
+                "params": params,
             }
         ],
+    )
+    assert_gov_params(cli, param0)
+
+    # re-submit the same params as an expedited proposal to keep covering the
+    # expedited path, previously covered by disabling the ica controller.
+    submit_gov_proposal(
+        cronos,
+        msg,
+        messages=[
+            {
+                "@type": msg,
+                "authority": authority,
+                "params": params,
+            }
+        ],
+        deposit="5basetcro",
+        expedited=True,
     )
     assert_gov_params(cli, param0)
 

@@ -16,6 +16,9 @@ pytestmark = [
     pytest.mark.skip("interchain-accounts wiring is being removed from the app"),
 ]
 
+# ICA is no longer wired into the app.
+pytest.skip("ica is not enabled", allow_module_level=True)
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
