@@ -294,7 +294,7 @@ replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// v0.38.x
-	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260831103820-de5f35a5a0cf
+	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260831110120-8dc22c9f3216
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
 
