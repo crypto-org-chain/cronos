@@ -13,6 +13,7 @@
 
 ### Bug fixes
 
+* [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(rpc): guard `TxsResults` length before indexing by block tx position.
 * [#2186](https://github.com/crypto-org-chain/cronos/pull/2186) fix(mempool): fall back to app.ChainID() for EVM sig preverifier when chain-id flag is unset.
 * [#2177](https://github.com/crypto-org-chain/cronos/pull/2177) fix(mempool): clear the ante nonce cache on eviction and bound it independently.
 * [#2147](https://github.com/crypto-org-chain/cronos/pull/2147) fix(cronos): bound ReplayBlock message count during decode.
