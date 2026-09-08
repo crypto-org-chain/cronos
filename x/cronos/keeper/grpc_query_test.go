@@ -29,7 +29,7 @@ func (suite *KeeperTestSuite) TestReplayBlockBounds() {
 	}{
 		{
 			name:     "too many messages",
-			msgs:     make([]*evmtypes.MsgEthereumTx, cronoskeeper.MaxReplayBlockMsgs+1),
+			msgs:     make([]*evmtypes.MsgEthereumTx, types.MaxReplayBlockMsgs+1),
 			errMatch: "too many messages",
 		},
 		{

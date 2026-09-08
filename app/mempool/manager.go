@@ -6,6 +6,8 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	antecache "github.com/evmos/ethermint/ante/cache"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -36,9 +38,10 @@ type Manager struct {
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
-	mpool   sdkmempool.Mempool
-	signer  sdkmempool.SignerExtractionAdapter
-	decoder sdk.TxDecoder
+	mpool     sdkmempool.Mempool
+	signer    sdkmempool.SignerExtractionAdapter
+	decoder   sdk.TxDecoder
+	anteCache *antecache.AnteCache
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
@@ -155,6 +158,12 @@ func (a *Manager) AdmissionMutex() *sync.Mutex {
 // SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.preVerify = fn
+}
+
+// SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
+// entries.
+func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
+	a.anteCache = ac
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
@@ -543,11 +552,29 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool and encoder cache together, so the cache never
-// outlives its pool entry.
+// evict removes tx from the pool, encoder cache, and ante cache together, so
+// no cache outlives its pool entry.
 func (a *Manager) evict(tx sdk.Tx) {
 	_ = a.mpool.Remove(tx)
 	a.encCache.Evict(tx)
+	a.evictAnteCache(tx)
+}
+
+func (a *Manager) evictAnteCache(tx sdk.Tx) {
+	if a.anteCache == nil || tx == nil {
+		return
+	}
+	for _, msg := range tx.GetMsgs() {
+		ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
+		if !ok {
+			continue
+		}
+		asTx := ethTx.AsTransaction()
+		if asTx == nil {
+			continue
+		}
+		a.anteCache.Delete(ethTx.GetFrom().String(), asTx.Nonce())
+	}
 }
 
 func (a *Manager) signers(tx sdk.Tx) []string {
