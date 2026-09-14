@@ -13,6 +13,7 @@
 
 ### Bug fixes
 
+* [#2179](https://github.com/crypto-org-chain/cronos/pull/2179) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
 * [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(rpc): guard `TxsResults` length before indexing by block tx position.
 * [#2186](https://github.com/crypto-org-chain/cronos/pull/2186) fix(mempool): fall back to app.ChainID() for EVM sig preverifier when chain-id flag is unset.
 * [#2177](https://github.com/crypto-org-chain/cronos/pull/2177) fix(mempool): clear the ante nonce cache on eviction and bound it independently.
@@ -28,7 +29,6 @@
 * [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
 * [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to fix historical-query use-after-free and merge-iterator overhead.
-
 
 *Jul 16, 2026*
 
