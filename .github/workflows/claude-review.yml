@@ -69,13 +69,13 @@ jobs:
           persist-credentials: false
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME_AI }}
           aws-region: us-east-1
 
       - name: Claude Code
-        uses: anthropics/claude-code-action@d40ddef4c030e508327d6e35a9c45f3368482c50 # v1.0.195
+        uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520 # v1.0.223
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           use_bedrock: true
