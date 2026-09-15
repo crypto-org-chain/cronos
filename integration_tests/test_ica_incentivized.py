@@ -13,6 +13,9 @@ from .utils import wait_for_fn
 
 pytestmark = pytest.mark.ica
 
+# ICA is no longer wired into the app.
+pytest.skip("ica is not enabled", allow_module_level=True)
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):

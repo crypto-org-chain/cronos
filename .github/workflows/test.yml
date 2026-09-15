@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       matrix:
-        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas, mint, evm]
+        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, gov, upgrade, slow, gas, mint, evm]
     env:
       TESTS_TO_RUN: ${{ matrix.tests }}
     steps:
@@ -98,7 +98,7 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./profile.txt
+          files: ./profile.txt
           flags: integration_tests
 
   upload-cache:

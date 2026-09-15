@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	icagenesistypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/genesis/types"
-	icatypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -125,7 +123,6 @@ const (
 
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
 // a token mapping change proposal governance transaction.
-// Deprecated: please use submit-proposal instead.
 func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token-mapping-change [denom] [contract]",
@@ -348,10 +345,6 @@ type ExportFeemarketParams struct {
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltypes.AppMap, error) {
-	// Add interchainaccounts with default genesis.
-	if appState[icatypes.ModuleName] == nil {
-		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
-	}
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)
 	if err != nil {
