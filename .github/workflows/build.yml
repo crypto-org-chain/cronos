@@ -35,14 +35,14 @@ jobs:
             **/*.nix
             .github/workflows/build.yml
             scripts/release.sh
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v9
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v9
         # magic-nix-cache v0.2.0 is archived/unmaintained and its arm64-darwin
         # binary crashes on the macos-14 runner (missing libc++ symbol), which
         # hangs the step forever. Restrict it to Linux; macOS relies on cachix.
@@ -329,7 +329,7 @@ jobs:
             **/*.go
             *.mod
             *.sum
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
@@ -353,7 +353,7 @@ jobs:
             sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
           done
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      - uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
@@ -411,7 +411,7 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
