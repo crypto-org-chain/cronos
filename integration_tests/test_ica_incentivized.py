@@ -11,7 +11,10 @@ from .ibc_utils import (
 )
 from .utils import wait_for_fn
 
-pytestmark = pytest.mark.ica
+pytestmark = [
+    pytest.mark.ica,
+    pytest.mark.skip("interchain-accounts wiring is being removed from the app"),
+]
 
 
 @pytest.fixture(scope="module")
