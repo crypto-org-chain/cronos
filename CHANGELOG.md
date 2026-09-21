@@ -9,6 +9,7 @@
 ### State Machine Breaking
 
 * [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
+* [#2192](https://github.com/crypto-org-chain/cronos/pull/2192) chore(app): remove interchain-accounts (ICA) wiring.
 
 ### Bug fixes
 
@@ -22,7 +23,7 @@
 * [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
 * [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.
 * [#2173](https://github.com/crypto-org-chain/cronos/pull/2173) fix(cronos): bound `IbcTimeout` in params validation to 30 days so a governance-set value cannot overflow the outbound IBC packet timeout.
- 
+
 ### Chores
 
 * [#2212](https://github.com/crypto-org-chain/cronos/pull/2212) chore(deps): bump ethermint and cronos-store.
