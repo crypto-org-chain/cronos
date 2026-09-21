@@ -302,15 +302,15 @@ schema = 3
     version = "v0.0.29"
     hash = "sha256-QP39Y1YMGWQSIAaD92s6LVLERgwh+5004a7U3flUTU8="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-7AdHQjSa6M6gESfKdXAwJLM+ALgtxWqLkKYIlsjX2Tk="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-N0TYukNwMH66J+i530opwuzBJWzfLrixgM1pChgKK0w="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-SIIJ6Is7MccaSzlGA4Gz6xo1DWHWYRoEG9lkFsgqDxs="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
@@ -378,8 +378,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260727155757-43e83c52f91d"
-    hash = "sha256-PSiIv77QWa/sUCwCFd51StpYtQQHa3WWa7mY/ZjgD3c="
+    version = "v0.22.1-0.20260916101647-867e6416772a"
+    hash = "sha256-YYlsN2qVNU03tJkMHJTwu9tqc5pOItdJo7phCjjvWi8="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
@@ -1055,8 +1055,8 @@ schema = 3
     version = "v0.0.0-20260508232706-74f9aab9d74a"
     hash = "sha256-SO8xfkN0mmZICYCvlH0jZbWmuFT30kvMZSkGZfmJQWQ="
   [mod."golang.org/x/mod"]
-    version = "v0.36.0"
-    hash = "sha256-ZhyOvy9ptbV+pna/CNyQFr5cKRn5O+B2QzkQAISKgco="
+    version = "v0.37.0"
+    hash = "sha256-dspScRv3KO4nytvjavhNO2b03P4UtiJQyWVGuEy9OUk="
   [mod."golang.org/x/net"]
     version = "v0.56.0"
     hash = "sha256-JUORjxDZqZanYWo2yunaDpQ2/zvHiFb0TnF1Jw6D+30="
@@ -1070,20 +1070,20 @@ schema = 3
     version = "v0.46.0"
     hash = "sha256-NzRXMSEk6upeudJvUEPVnw6clJ3d8UdC/vdfANWAc8g="
   [mod."golang.org/x/telemetry"]
-    version = "v0.0.0-20260508192327-42602be52be6"
-    hash = "sha256-jK+VMNDRQd4CLjTMX59k+6QMwWxdRQF9ErEgsQN5D+s="
+    version = "v0.0.0-20260625142307-59b4966ccb57"
+    hash = "sha256-NymRmhUJZd33Ziexww/0pMgnuioRXcykAQcICdq8Qps="
   [mod."golang.org/x/term"]
     version = "v0.44.0"
     hash = "sha256-nzbvOgvGRbx1qpq1rbk7b6zNsNeNj8mOGoyZLtnzq3w="
   [mod."golang.org/x/text"]
-    version = "v0.38.0"
-    hash = "sha256-PzREcn7yzTAJ0WBvyYL/2/r+tfoeKTY/E5HVXi/CJsU="
+    version = "v0.39.0"
+    hash = "sha256-jQR8eNeC6HIFxRdEbF3EAUcoCOvpSJ/latXSqt5w0YA="
   [mod."golang.org/x/time"]
     version = "v0.15.0"
     hash = "sha256-5D24A65wn7k93Jj3+918UKjB9ccmGHPBEqjD2XDB92E="
   [mod."golang.org/x/tools"]
-    version = "v0.45.0"
-    hash = "sha256-fKsYC186cbOCJROZGUqU6UMSxvK2DZ44hlCEytLvp5c="
+    version = "v0.47.0"
+    hash = "sha256-LyCNqEb/Jm94O6gaM01vXSHP9Yw/Cw0qVWXGxhCgwzo="
   [mod."google.golang.org/api"]
     version = "v0.276.0"
     hash = "sha256-qXHX3iYmJD3Pb1vaCaTwSoqvTdbnNljndShDM8sSJUM="
