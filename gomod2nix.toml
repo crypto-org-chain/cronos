@@ -302,15 +302,15 @@ schema = 3
     version = "v0.0.29"
     hash = "sha256-QP39Y1YMGWQSIAaD92s6LVLERgwh+5004a7U3flUTU8="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-7AdHQjSa6M6gESfKdXAwJLM+ALgtxWqLkKYIlsjX2Tk="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-N0TYukNwMH66J+i530opwuzBJWzfLrixgM1pChgKK0w="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260806235227-c224b839a4b1"
+    version = "v0.0.0-20260807143651-cbef7554cdc3"
     hash = "sha256-SIIJ6Is7MccaSzlGA4Gz6xo1DWHWYRoEG9lkFsgqDxs="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
@@ -378,8 +378,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260727155757-43e83c52f91d"
-    hash = "sha256-PSiIv77QWa/sUCwCFd51StpYtQQHa3WWa7mY/ZjgD3c="
+    version = "v0.22.1-0.20260916101647-867e6416772a"
+    hash = "sha256-YYlsN2qVNU03tJkMHJTwu9tqc5pOItdJo7phCjjvWi8="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
