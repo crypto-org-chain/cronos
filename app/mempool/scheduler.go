@@ -137,7 +137,9 @@ func (s *recheckScheduler) triggerRecheck() {
 	s.worker.recheck()
 }
 
-// RecheckTxs evicts pool txs invalidated by the last block.
+// RecheckTxs evicts pool txs invalidated by the last block. A Commit landing
+// mid-pass is harmless: the remaining chunks simply run against the newer
+// checkState, and each chunk re-proves any nonce gap under its own lock hold.
 func (s *recheckScheduler) RecheckTxs() {
 	if s.mpool == nil || s.recheckDisabled {
 		return
@@ -152,12 +154,7 @@ func (s *recheckScheduler) RecheckTxs() {
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
 	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
-	groups := s.capRecheckGroups(s.groupCandidates(candidates))
-	// Read gen only now: it must cover the RunTx phase below, not the O(pool)
-	// scan/grouping above, or a Commit landing during the scan would abort the
-	// whole pass before a single group runs.
-	gen := s.exec.gen.Load()
-	s.runRecheck(groups, gen)
+	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)))
 
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
@@ -351,43 +348,19 @@ type recheckGroup struct {
 
 // runRecheck re-validates candidates via RunTx(ReCheck), one signer group at a
 // time so a sender's nonce chain advances atomically with respect to other
-// senders' admissions. The pass is abandoned once gen advances mid-flight: the
-// remaining candidates would be validated against a base a concurrent Commit
-// has already superseded. drainStaging already cleared recheckSenders for this
-// cycle, so the unreached candidates' senders are re-merged into staging here —
-// otherwise a sender that isn't touched again by a later block would never be
-// rechecked until TTL. They're also appended to deferred, so selectTxs front-
-// loads them ahead of the priority-ordered snapshot's same old prefix next
-// cycle, same as capRecheckGroups' overflow carry.
-func (s *recheckScheduler) runRecheck(groups []recheckGroup, gen uint64) {
-	var evicted, cascaded, superseded float32
-	for i, g := range groups {
-		if len(g.txs) == 0 {
-			continue
-		}
-		e, c, unreachedFrom := s.runGroup(g, gen)
+// senders' admissions.
+func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
+	var evicted, cascaded float32
+	for _, g := range groups {
+		e, c := s.runGroup(g)
 		evicted += e
 		cascaded += c
-		if unreachedFrom != -1 {
-			unreached := make([]sdk.Tx, 0, len(g.txs)-unreachedFrom)
-			for _, cand := range g.txs[unreachedFrom:] {
-				unreached = append(unreached, cand.tx)
-			}
-			unreached = append(unreached, unreachedTxs(groups[i+1:])...)
-			superseded += float32(len(unreached))
-			s.recoverSenders(unreached)
-			s.appendDeferred(unreached)
-			break
-		}
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
 	}
 	if cascaded > 0 {
 		telemetry.IncrCounter(cascaded, "cronos", "mempool", "recheck", "cascade_evicted")
-	}
-	if superseded > 0 {
-		telemetry.IncrCounter(superseded, "cronos", "mempool", "recheck", "superseded")
 	}
 }
 
@@ -458,142 +431,53 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 // stall behind an arbitrarily deep queue.
 const recheckChunkSize = 256
 
-// nonceCursor is the account's next-expected-nonce view, carried across a
-// group's chunks so cascade detection in a later chunk can still reason about
-// a candidate accepted in an earlier one.
-type nonceCursor struct {
-	last uint64
-	ok   bool
-}
-
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
-// queue for one sender can't hold the admission mutex indefinitely. Nonce
-// contiguity holds within and across chunks via the returned cursor; an
+// queue for one sender can't hold the admission mutex indefinitely. An
 // admission of the same sender landing between chunks is the same residual
-// interleaving the design doc already accepts between groups. unreachedFrom
-// is -1 once every candidate has either run or been cascade-evicted; otherwise
-// it is the index where the aborting chunk would have started, leaving the
-// group untouched from there on. On a nonce gap the remaining higher-nonce
-// siblings in the same chunk are evicted without spending a RunTx on each,
-// since that eviction runs under the same lock hold as the gap proof. Each
-// later chunk's own head is still verified with its own RunTx before any
-// blind eviction there — the lock is released between chunks, so an admission
-// of the same sender can legitimately fill the gap in the meantime. Any
-// non-gap failure evicts only the failing tx, since a later sibling may still
-// be the account's next expected nonce.
-func (s *recheckScheduler) runGroup(g recheckGroup, gen uint64) (evicted, cascaded float32, unreachedFrom int) {
-	cursor := nonceCursor{}
-	gapFound := false
+// interleaving the design doc already accepts between groups.
+func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded float32) {
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		end := min(start+recheckChunkSize, len(g.txs))
-		var (
-			e, c float32
-			next nonceCursor
-			gap  bool
-			ok   bool
-		)
-		if gapFound {
-			e, c, next, gap, ok = s.cascadeChunkLocked(g, start, end, gen)
-		} else {
-			e, c, next, gap, ok = s.recheckChunkLocked(g, start, end, gen, cursor)
-		}
+		e, c := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)))
 		evicted += e
 		cascaded += c
-		if !ok {
-			return evicted, cascaded, start
-		}
-		cursor = next
-		gapFound = gap
 	}
-	return evicted, cascaded, -1
+	return evicted, cascaded
 }
 
-// runCandidatesLocked runs g.txs[start:end] against the current base,
-// evicting any candidate that fails and cascade-evicting the rest of the
-// range once a nonce gap is proven. Precondition: caller holds exec.mu and
-// has already confirmed gen is current.
-func (s *recheckScheduler) runCandidatesLocked(g recheckGroup, start, end int, cursor nonceCursor) (evicted, cascaded float32, next nonceCursor, gapFound bool) {
+// runChunkLocked runs g.txs[start:end] under one hold of exec.mu, evicting each
+// candidate that fails. On a proven nonce gap the rest of the chunk is
+// cascade-evicted without a RunTx each: siblings above a gap can't become
+// valid until the gap is filled, and nothing can fill it while the mutex is
+// held. A gap is only provable against a nonce this same lock hold accepted
+// (so lastOK+1 is the account's next expected nonce), and only when the
+// failing nonce is strictly above that. Nothing carries across chunks: once
+// the mutex is released, a same-sender admission or a Commit can move the
+// account's nonce, so a nonce error at the next chunk's head may mean stale
+// rather than gap, and cascading on it would evict valid siblings. Without an
+// accepted nonce a failure may also be a stale nonce, whose successor is valid.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evicted, cascaded float32) {
+	s.exec.mu.Lock()
+	defer s.exec.mu.Unlock()
+	var lastOK uint64
+	accepted := false
 	for i := start; i < end; i++ {
 		c := g.txs[i]
 		_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx)
 		if err == nil {
-			cursor = nonceCursor{last: c.seq, ok: true}
+			lastOK, accepted = c.seq, true
 			continue
 		}
 		s.evict(c.tx, g.key, c.seq, g.known, c.multiSigner)
 		evicted++
-		// A gap is only provable relative to a nonce this pass just accepted;
-		// without one the failure may be a stale nonce, whose successor is valid.
-		if g.cascadable && cursor.ok && c.seq > cursor.last+1 && isNonceErr(err) {
+		if g.cascadable && accepted && c.seq > lastOK+1 && isNonceErr(err) {
 			for _, rest := range g.txs[i+1 : end] {
 				s.evict(rest.tx, g.key, rest.seq, g.known, rest.multiSigner)
 				cascaded++
 			}
-			return evicted, cascaded, cursor, true
+			return evicted, cascaded
 		}
 	}
-	return evicted, cascaded, cursor, false
-}
-
-// recheckChunkLocked runs g.txs[start:end] under one hold of exec.mu. Returns
-// ok=false if gen advanced before the chunk started, meaning nothing in
-// [start, len(g.txs)) ran. gapFound reports a proven nonce gap discovered in
-// this chunk: the cascade for the rest of this chunk already ran here, under
-// the same lock as the admissions it must stay atomic with respect to.
-func (s *recheckScheduler) recheckChunkLocked(g recheckGroup, start, end int, gen uint64, cursor nonceCursor) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
-	s.exec.mu.Lock()
-	defer s.exec.mu.Unlock()
-	// gen only advances under the same mutex, so it cannot change once this chunk starts.
-	if s.exec.gen.Load() != gen {
-		return 0, 0, cursor, false, false
-	}
-	evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start, end, cursor)
-	return evicted, cascaded, next, gapFound, true
-}
-
-// cascadeChunkLocked handles a chunk that starts after a gap was proven in an
-// earlier chunk. The gap proof only covers evictions made under that earlier
-// chunk's own lock hold; the lock is released between chunks, so an admission
-// of the same sender can land in the gap before this chunk's turn and
-// legitimately fill it. This chunk's own head is therefore verified with a
-// RunTx before anything is blind-evicted: if it succeeds, the gap didn't
-// survive to this chunk, and the remainder falls back to normal
-// recheckChunkLocked semantics, seeded from the head's now-accepted nonce. If
-// it fails on a nonce error, the gap held, and the head plus the rest of the
-// chunk are cascade-evicted without a RunTx on the rest, same as before. Any
-// other failure (e.g. insufficient funds) carries no information about
-// whether the gap survived — the EVM ante checks balance/gas before nonce, so
-// a funds failure at the head says nothing about the account's true nonce
-// state — so that case falls through to recheckChunkLocked's normal per-tx
-// semantics for the rest of the chunk instead of assuming the gap held.
-func (s *recheckScheduler) cascadeChunkLocked(g recheckGroup, start, end int, gen uint64) (evicted, cascaded float32, next nonceCursor, gapFound, ok bool) {
-	s.exec.mu.Lock()
-	defer s.exec.mu.Unlock()
-	if s.exec.gen.Load() != gen {
-		return 0, 0, nonceCursor{}, true, false
-	}
-
-	head := g.txs[start]
-	_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, head.bz, head.tx)
-	if err == nil {
-		evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start+1, end, nonceCursor{last: head.seq, ok: true})
-		return evicted, cascaded, next, gapFound, true
-	}
-
-	s.evict(head.tx, g.key, head.seq, g.known, head.multiSigner)
-	if !isNonceErr(err) {
-		// No cursor context to carry over: we don't know the account's true
-		// nonce state, so run the rest of the chunk one RunTx at a time instead
-		// of assuming the gap held.
-		evicted, cascaded, next, gapFound = s.runCandidatesLocked(g, start+1, end, nonceCursor{})
-		return evicted + 1, cascaded, next, gapFound, true
-	}
-
-	for _, rest := range g.txs[start+1 : end] {
-		s.evict(rest.tx, g.key, rest.seq, g.known, rest.multiSigner)
-		cascaded++
-	}
-	return 1, cascaded, nonceCursor{}, true, true
+	return evicted, cascaded
 }
 
 // isNonceErr matches both ante paths: cosmos sig verification reports
@@ -631,19 +515,6 @@ func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
 	}
 	s.stagingMu.Lock()
 	s.mergeRecheckSenders(senders)
-	s.stagingMu.Unlock()
-}
-
-// appendDeferred appends txs to the deferred carry under stagingMu. Append,
-// not overwrite: capRecheckGroups may have already set deferred to its own
-// overflow carry earlier this same cycle, and that must survive alongside an
-// abort's unreached tail.
-func (s *recheckScheduler) appendDeferred(txs []sdk.Tx) {
-	if len(txs) == 0 {
-		return
-	}
-	s.stagingMu.Lock()
-	s.deferred = append(s.deferred, txs...)
 	s.stagingMu.Unlock()
 }
 

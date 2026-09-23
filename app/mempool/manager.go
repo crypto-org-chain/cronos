@@ -28,12 +28,6 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.sched.maxRecheckBatch = recheckBatchSize
 	a.sched.ttlNumBlocks = ttlNumBlocks
 	a.sched.recheckDisabled = recheckDisabled
-	// Left unrefreshed here: NewManager runs inside baseAppOptions, before
-	// LoadLatestVersion, so branching now would read an unloaded store. state.base
-	// stays nil until App wires the first RefreshMempoolStateLocked call after
-	// LoadLatestVersion succeeds; store() falling back to nil (checkState) until
-	// then is the correct degradation.
-	a.exec.state = &mempoolState{provider: app.CommitMultiStore}
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
@@ -67,16 +61,9 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 }
 
 // AdmissionMutex exposes the admission mutex so App.Commit can serialize
-// BaseApp.Commit() and the mempoolState refresh against admission and recheck.
+// BaseApp.Commit() (which resets checkState) against admission and recheck.
 func (a *Manager) AdmissionMutex() *sync.Mutex {
 	return &a.exec.mu
-}
-
-// RefreshMempoolStateLocked rebranches the mempool state off the freshly
-// committed store. Precondition: the caller holds AdmissionMutex, which
-// App.Commit does across BaseApp.Commit() and this call.
-func (a *Manager) RefreshMempoolStateLocked() {
-	a.exec.refreshLocked()
 }
 
 // SetPreVerify sets the pre-verification hook.

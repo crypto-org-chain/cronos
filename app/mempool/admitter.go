@@ -1,8 +1,6 @@
 package mempool
 
 import (
-	"fmt"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -13,7 +11,7 @@ import (
 )
 
 // admitter is the admission half of the app mempool: peer-relayed InsertTx and
-// RPC CheckTx, both validated by RunTx against the shared branch.
+// RPC CheckTx, both validated by RunTx under the shared mutex.
 type admitter struct {
 	exec  *txExec
 	trace bool
@@ -80,22 +78,10 @@ func (a *admitter) insertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// checkTxHandler runs RPC CheckTx. It calls the runner directly instead of the
-// runTx closure baseapp passes in (abci.go CheckTx), which hardcodes
-// txMultiStore = nil; the exec-mode mapping below mirrors BaseApp.CheckTx so
-// req.Type stays authoritative.
+// checkTxHandler runs RPC CheckTx through the runTx closure baseapp passes in,
+// which already maps req.Type to the exec mode.
 func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
-	return func(_ sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-		var mode sdk.ExecMode
-		switch req.Type {
-		case abci.CheckTxType_New:
-			mode = sdk.ExecModeCheck
-		case abci.CheckTxType_Recheck:
-			mode = sdk.ExecModeReCheck
-		default:
-			return nil, fmt.Errorf("unknown RequestCheckTx type: %s", req.Type)
-		}
-
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring the mutex.
 		var tx sdk.Tx
@@ -109,7 +95,7 @@ func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
 		a.exec.mu.Lock()
 		defer a.exec.mu.Unlock()
 
-		gasInfo, result, anteEvents, err := a.exec.runTxLocked(mode, req.Tx, tx)
+		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
