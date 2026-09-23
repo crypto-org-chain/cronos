@@ -338,6 +338,32 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	}
 }
 
+func TestRecheckTxs_InvalidatesPendingCacheAfterEviction(t *testing.T) {
+	f := newRecheckFixture()
+	f.addTimeout(1, "carol", 0, "carol-0", 5)
+
+	f.a.StageRecheckSenders(5, nil)
+	before := f.a.exec.pending.epoch.Load()
+	f.a.RecheckTxs()
+
+	if got := f.a.exec.pending.epoch.Load(); got == before {
+		t.Fatal("RecheckTxs must invalidate the pending cache after evicting txs, not just rely on StageRecheckSenders's earlier bump")
+	}
+}
+
+func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
+	f := newRecheckFixture("alice-0") // alice's seq-0 tx now fails recheck
+	f.add(1, "alice", 0, "alice-0")
+
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	before := f.a.exec.pending.epoch.Load()
+	f.a.RecheckTxs()
+
+	if got := f.a.exec.pending.epoch.Load(); got == before {
+		t.Fatal("RecheckTxs must invalidate the pending cache after runRecheck evicts a tx via RunTx failure")
+	}
+}
+
 // Two committed blocks staged without an intervening RecheckTxs drain (e.g. a
 // Commit error skipped the recheck) must union their senders, not drop the first.
 func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
@@ -1550,142 +1576,9 @@ func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
 		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
 	}
 
-	f.a.sched.evict(stale, "", 0, false, false)
+	f.a.sched.evict(stale)
 
 	if poolHas(f.pool, replacement) {
 		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
-	}
-}
-
-// evictionRecorder is a fake eviction hook recording every (sender, nonce)
-// it's invoked with, for asserting the scheduler notifies eviction even when
-// it never spends a RunTx on the evicted tx (cascade and TTL evictions).
-type evictionRecorder struct {
-	mu    sync.Mutex
-	calls []struct {
-		sender string
-		nonce  uint64
-	}
-}
-
-func (r *evictionRecorder) hook(sender string, nonce uint64) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.calls = append(r.calls, struct {
-		sender string
-		nonce  uint64
-	}{sender, nonce})
-}
-
-func (r *evictionRecorder) has(sender string, nonce uint64) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, c := range r.calls {
-		if c.sender == sender && c.nonce == nonce {
-			return true
-		}
-	}
-	return false
-}
-
-// F1: a cascade-evicted sibling never spends a RunTx, so the eviction hook is
-// the only signal available for dropping its App-level ante state (e.g.
-// ethermint's per-tx nonce cache).
-func TestEvictionHook_InvokedOnCascadeEviction(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	gapped := f.add(2, "carl", 7, carlSeq7Bytes)
-	higher := f.add(3, "carl", 8, carlSeq8Bytes)
-	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
-
-	rec := &evictionRecorder{}
-	f.a.sched.evictionHook = rec.hook
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}))
-
-	carl := sdk.AccAddress("carl").String()
-	if !rec.has(carl, 7) {
-		t.Fatal("eviction hook must fire for the gapped candidate's own eviction")
-	}
-	if !rec.has(carl, 8) {
-		t.Fatal("eviction hook must fire for a cascade-evicted sibling, which never spends a RunTx")
-	}
-	if rec.has(carl, 5) {
-		t.Fatal("eviction hook must not fire for a candidate that passed recheck")
-	}
-}
-
-// M1: a multi-signer tx caches App-level ante state for every signer it
-// names, not just the group's key signer, so a cascade-evicted multi-signer
-// sibling (which never spends a RunTx) must fire the hook once per named
-// signer. groupCandidates itself would force cascadable=false on any group
-// holding a multi-signer candidate (see its coSigned handling), so the group
-// here is built by hand to exercise the cascade-blind-eviction path directly.
-func TestEvictionHook_CascadeEvictionFiresForEveryMultiSignerSigner(t *testing.T) {
-	f := newRecheckFixture()
-	bob := sdk.AccAddress("bob").String()
-	alice := sdk.AccAddress("alice").String()
-
-	validTx := &ptrTx{id: 1}
-	gappedTx := &ptrTx{id: 2}
-	higherTx := &ptrTx{id: 3} // bob's tx also names alice as a co-signer at seq 3
-	f.signer.m[validTx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("bob"), 5)}
-	f.signer.m[gappedTx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("bob"), 7)}
-	f.signer.m[higherTx] = []sdkmempool.SignerData{
-		sdkmempool.NewSignerData(sdk.AccAddress("bob"), 8),
-		sdkmempool.NewSignerData(sdk.AccAddress("alice"), 3),
-	}
-	f.runner.failErrs = map[string]error{"gapped": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
-
-	group := recheckGroup{
-		key:        bob,
-		known:      true,
-		cascadable: true,
-		txs: []recheckCandidate{
-			{tx: validTx, bz: []byte("valid"), seq: 5},
-			{tx: gappedTx, bz: []byte("gapped"), seq: 7},
-			{tx: higherTx, bz: []byte("higher"), seq: 8, multiSigner: true},
-		},
-	}
-
-	rec := &evictionRecorder{}
-	f.a.sched.evictionHook = rec.hook
-
-	f.a.sched.runRecheck([]recheckGroup{group})
-
-	if !rec.has(bob, 7) {
-		t.Fatal("eviction hook must fire for the gapped candidate's own eviction")
-	}
-	if !rec.has(bob, 8) {
-		t.Fatal("eviction hook must fire for the cascade-evicted multi-signer sibling's key signer")
-	}
-	if !rec.has(alice, 3) {
-		t.Fatal("eviction hook must also fire for the co-signer named by the cascade-evicted multi-signer sibling")
-	}
-	if rec.has(bob, 5) {
-		t.Fatal("eviction hook must not fire for a candidate that passed recheck")
-	}
-}
-
-// F1: a TTL eviction never spends a RunTx either, so it needs the same hook.
-func TestEvictionHook_InvokedOnTTLEviction(t *testing.T) {
-	f := newRecheckFixture()
-	f.a.sched.ttlNumBlocks = 5
-	aged := f.add(1, "alice", 3, "alice-3")
-
-	f.a.sched.lastCommittedHeight = 10
-	f.a.sched.RecheckTxs() // first sighting: records arrival, tx survives
-
-	rec := &evictionRecorder{}
-	f.a.sched.evictionHook = rec.hook
-
-	f.a.sched.lastCommittedHeight = 15 // 15-10 == ttl -> evicted
-	f.a.sched.RecheckTxs()
-
-	if poolHas(f.pool, aged) {
-		t.Fatal("precondition: TTL-aged tx must be evicted")
-	}
-	if !rec.has(sdk.AccAddress("alice").String(), 3) {
-		t.Fatal("eviction hook must fire for a TTL eviction, which never spends a RunTx")
 	}
 }

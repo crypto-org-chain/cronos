@@ -2,14 +2,38 @@
 
 ## UNRELEASED
 
-*Jul 16, 2026*
-
 ### Improvements
 
-* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) mempool-owned branched context for admission + recheck
+* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group with atomic nonce-gap cascade eviction.
+* [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
+
+### State Machine Breaking
+
+* [#2171](https://github.com/crypto-org-chain/cronos/pull/2171) fix(cronos): reject `MsgTurnBridge` instead of reporting success for a no-op.
+* [#2192](https://github.com/crypto-org-chain/cronos/pull/2192) chore(app): remove interchain-accounts (ICA) wiring.
+
+### Bug fixes
+
+* [#2214](https://github.com/crypto-org-chain/cronos/pull/2214) fix(deps): bump ethermint to reject nonempty fee granter on EIP-712 signing paths.
+* [#2179](https://github.com/crypto-org-chain/cronos/pull/2179) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
+* [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(rpc): guard `TxsResults` length before indexing by block tx position.
+* [#2186](https://github.com/crypto-org-chain/cronos/pull/2186) fix(mempool): fall back to app.ChainID() for EVM sig preverifier when chain-id flag is unset.
+* [#2177](https://github.com/crypto-org-chain/cronos/pull/2177) fix(mempool): clear the ante nonce cache on eviction and bound it independently.
+* [#2147](https://github.com/crypto-org-chain/cronos/pull/2147) fix(cronos): bound ReplayBlock message count during decode.
+* [#2176](https://github.com/crypto-org-chain/cronos/pull/2176) fix(app): retry block list decryption instead of caching the blob before it is applied.
+* [#2155](https://github.com/crypto-org-chain/cronos/pull/2155) fix(mempool): size tx-cache-size and max-tx-bytes from mempool config directly.
+* [#2169](https://github.com/crypto-org-chain/cronos/pull/2169) fix(cronos): add safe multiply int check during voucher conversion to EVM coins.
+* [#2172](https://github.com/crypto-org-chain/cronos/pull/2172) fix(e2ee): cap the address batch in the `Keys` query.
+* [#2173](https://github.com/crypto-org-chain/cronos/pull/2173) fix(cronos): bound `IbcTimeout` in params validation to 30 days so a governance-set value cannot overflow the outbound IBC packet timeout.
+
 ### Chores
 
+* [#2212](https://github.com/crypto-org-chain/cronos/pull/2212) chore(deps): bump ethermint and cronos-store.
+* [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
+* [#2181](https://github.com/crypto-org-chain/cronos/pull/2181) build(store): repin cronos-store to fix historical-query use-after-free and merge-iterator overhead.
+
+*Jul 16, 2026*
 
 ## v1.8.0-alpha
 

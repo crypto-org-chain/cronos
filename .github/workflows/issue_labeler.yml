@@ -7,7 +7,7 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v3.4
+      - uses: github/issue-labeler@v3.5
         # run only when the issue currently has NO labels
         if: ${{ join(github.event.issue.labels.*.name, '') == '' }}
         with:

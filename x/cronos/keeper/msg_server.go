@@ -81,9 +81,12 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 	return &types.MsgUpdateTokenMappingResponse{}, nil
 }
 
-// TurnBridge implements the grpc method
+// TurnBridge implements the grpc method.
+// The gravity bridge it toggled was removed, so the message is no longer serviced.
+//
+//nolint:staticcheck // deprecated
 func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (*types.MsgTurnBridgeResponse, error) {
-	return nil, nil
+	return nil, errors.Wrap(sdkerrors.ErrNotSupported, "MsgTurnBridge is no longer supported")
 }
 
 func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {

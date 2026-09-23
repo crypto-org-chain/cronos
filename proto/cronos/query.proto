@@ -107,7 +107,7 @@ message QueryPermissionsRequest {
 // method.
 message QueryPermissionsResponse {
   bool can_change_token_mapping = 1;
-  bool can_turn_bridge          = 2;
+  bool can_turn_bridge          = 2 [deprecated = true];
 }
 
 // QueryBlockListRequest

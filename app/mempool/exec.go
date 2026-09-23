@@ -16,8 +16,8 @@ type txRunner interface {
 
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
-// txExec is what admission and recheck share: the RunTx entry point and the
-// codecs both need.
+// txExec is what admission and recheck share: the RunTx entry point, the
+// codecs both need, and the PendingTxs snapshot cache both invalidate.
 type txExec struct {
 	// mu serializes every RunTx against baseapp's checkState, the pending-nonce
 	// view admission and recheck share: a CheckTx/ReCheckTx ante write-back is
@@ -32,6 +32,8 @@ type txExec struct {
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	decoder   sdk.TxDecoder
+	// pending avoids re-walking the pool on every PendingTxs() call.
+	pending pendingTxCache
 }
 
 // runTxLocked runs tx against checkState. Precondition: the caller holds mu.

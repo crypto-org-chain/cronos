@@ -215,11 +215,10 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	if bytes.Equal(h.lastBlockList, blob) {
 		return nil
 	}
-	h.lastBlockList = make([]byte, len(blob))
-	copy(h.lastBlockList, blob)
 
 	if len(blob) == 0 {
 		h.blocklist = make(map[string]struct{})
+		h.lastBlockList = nil
 		return nil
 	}
 
@@ -256,6 +255,8 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	}
 
 	h.blocklist = m
+	h.lastBlockList = make([]byte, len(blob))
+	copy(h.lastBlockList, blob)
 	return nil
 }
 

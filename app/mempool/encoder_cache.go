@@ -32,7 +32,7 @@ type item struct {
 // Pass 0 for size or maxTxBytes to fall back to the cmdcfg defaults.
 func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
 	if size == 0 {
-		size = cmdcfg.DefaultTxCacheSize
+		size = defaultCacheSize
 	}
 	if maxTxBytes == 0 {
 		maxTxBytes = cmdcfg.DefaultTxCacheMaxTxBytes
@@ -40,7 +40,7 @@ func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
 	return &EncoderCache{
 		cap:        int(size),
 		maxTxBytes: int(maxTxBytes),
-		items:      make(map[sdk.Tx]*list.Element, size),
+		items:      make(map[sdk.Tx]*list.Element, preallocEntries(int(size))),
 	}
 }
 

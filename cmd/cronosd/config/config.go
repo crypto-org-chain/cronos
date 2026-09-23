@@ -21,40 +21,31 @@ type CronosConfig struct {
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 	// Capacity of the sharded LRU tx encode/decode cache.
-	// 0 = derive from MempoolTxsPerBlock at startup (2×, or -1 when unlimited). -1 = disable.
-	TxCacheSize int `mapstructure:"tx-cache-size"`
-	// Per-entry raw payload byte cap. Txs larger than this are decoded but
-	// not cached, bounding heap impact. Should not exceed mempool.max_tx_bytes.
-	TxCacheMaxTxBytes int `mapstructure:"tx-cache-max-tx-bytes"`
+	// 0 = derive from mempool.max-txs at startup (cache off if unbounded/disabled). -1 = disable.
+	MempoolTxCacheSize int `mapstructure:"mempool-tx-cache-size"`
 	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
-	// MempoolTxsPerBlock is the shared budget used as both the gossip-reap cap
+	// MaxTxPerBlock is the shared budget used as both the gossip-reap cap
 	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
 	// Commit cycle ≈ one block of senders). <=0 uses the default.
-	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
-	// MempoolTTLNumBlocks evicts mempool.type=app txs older than this many blocks
-	// (by arrival height), draining proposal-skipped txs whose sender never commits.
-	// 0 disables.
-	MempoolTTLNumBlocks int `mapstructure:"mempool-ttl-num-blocks"`
+	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
+	// MempoolTxTTLEnabled evicts mempool.type=app txs older than
+	// DefaultMempoolTTLNumBlocks blocks (by arrival height), draining
+	// proposal-skipped txs whose sender never commits. Default true.
+	MempoolTxTTLEnabled bool `mapstructure:"mempool-tx-ttl-enabled"`
+	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
+	// and block completion. Default true. false always walks the pool.
+	MempoolPendingTxCacheEnabled bool `mapstructure:"mempool-pending-tx-cache-enabled"`
 }
 
-// Defaults live here (not app/) because app/ imports this package and both
-// DefaultCronosConfig() and app's New() need them.
 const (
 	DefaultTxCacheMaxTxBytes = 65536
-	// DefaultMempoolGossipTTL re-gossips a resident tx at most ~once per window;
-	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
+	// DefaultMempoolGossipTTL is the re-gossip suppression window used when MempoolGossipTTL is unset.
 	DefaultMempoolGossipTTL = 15 * time.Second
-	// DefaultMempoolTxsPerBlock is one block's tx budget (~2900 = cronos mainnet
-	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
-	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
-	DefaultMempoolTxsPerBlock = 2900
-	// DefaultTxCacheSize is the tx encode/decode cache capacity when tx-cache-size
-	// is unset (0): two full blocks so the cache survives one proposal + one gossip
-	// reap cycle without eviction pressure.
-	DefaultTxCacheSize = 2 * DefaultMempoolTxsPerBlock
+	// DefaultMaxTxPerBlock is the tx-per-block budget used when MaxTxPerBlock is unset.
+	DefaultMaxTxPerBlock = 2900
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
@@ -87,13 +78,13 @@ func (c *RocksDBConfig) Validate() error {
 
 func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
-		DisableTxReplacement:       false,
-		DisableOptimisticExecution: false,
-		TxCacheSize:                0, // 0 = derive: 2×MempoolTxsPerBlock at startup, -1 when unlimited
-		TxCacheMaxTxBytes:          DefaultTxCacheMaxTxBytes,
-		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
-		MempoolTTLNumBlocks:        DefaultMempoolTTLNumBlocks,
+		DisableTxReplacement:         false,
+		DisableOptimisticExecution:   false,
+		MempoolTxCacheSize:           0, // 0 = derive from mempool.max-txs, -1 disables
+		MempoolGossipTTL:             DefaultMempoolGossipTTL,
+		MaxTxPerBlock:                DefaultMaxTxPerBlock,
+		MempoolTxTTLEnabled:          true,
+		MempoolPendingTxCacheEnabled: true,
 	}
 }
 

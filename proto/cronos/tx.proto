@@ -27,7 +27,9 @@ service Msg {
   rpc UpdateTokenMapping(MsgUpdateTokenMapping) returns (MsgUpdateTokenMappingResponse);
 
   // TurnBridge defines a method to disable or enable the gravity bridge
-  rpc TurnBridge(MsgTurnBridge) returns (MsgTurnBridgeResponse);
+  rpc TurnBridge(MsgTurnBridge) returns (MsgTurnBridgeResponse) {
+    option deprecated = true;
+  }
 
   // UpdateParams defines a method to update cronos module params
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
@@ -80,13 +82,16 @@ message MsgUpdateTokenMappingResponse {}
 
 // MsgTurnBridge defines the request type
 message MsgTurnBridge {
+  option deprecated             = true;
   option (cosmos.msg.v1.signer) = "sender";
   string sender                 = 1;
   bool   enable                 = 2;
 }
 
 // MsgTurnBridgeResponse defines the response type
-message MsgTurnBridgeResponse {}
+message MsgTurnBridgeResponse {
+  option deprecated = true;
+}
 
 // MsgUpdateParams defines the request type for updating cronos params.
 message MsgUpdateParams {

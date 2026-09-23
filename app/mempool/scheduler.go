@@ -7,6 +7,9 @@ import (
 	"sync"
 	"time"
 
+	antecache "github.com/evmos/ethermint/ante/cache"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -53,11 +56,10 @@ type recheckScheduler struct {
 	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
 	// including TTL/expiry eviction
 	recheckDisabled bool
-	// evictionHook, if set, is notified once per (sender, nonce) named by an
-	// evicted tx — every signer for a multi-signer tx, not just the group's key
-	// signer — so App-level state keyed on the same pair (e.g. ethermint's ante
-	// nonce cache) can be dropped along with it. Nil-safe: a nil hook is a no-op.
-	evictionHook func(sender string, nonce uint64)
+	// anteCache is ethermint's per-(sender, nonce) admission cache; evict drops
+	// a tx's entries so a cascade/TTL eviction that never spends a RunTx cannot
+	// leave a stale entry that lets a resubmit skip nonce verification.
+	anteCache *antecache.AnteCache
 }
 
 // recheckDecodingEnabled reports whether sender decoding/bookkeeping should run.
@@ -105,6 +107,8 @@ func (s *recheckScheduler) mergeRecheckSenders(senders map[string]struct{}) {
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height.
 func (s *recheckScheduler) stageRecheckSenders(height int64, txs [][]byte) {
+	s.exec.pending.invalidate()
+
 	// Decode + extract signers unlocked (the expensive part), then publish height
 	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
@@ -156,6 +160,7 @@ func (s *recheckScheduler) RecheckTxs() {
 	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
 	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)))
 
+	s.exec.pending.invalidate()
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
@@ -264,21 +269,12 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 // evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
-	// firstSigner already does the GetSigners lookup this needs for the eviction
-	// hook; reuse it for the single-signer case below instead of calling
-	// s.signers (a second GetSigners) just to get the same one key back.
-	key, seq, known, multiSigner := s.firstSigner(tx)
-	s.evict(tx, key, seq, known, multiSigner)
+	s.evict(tx)
 	if evictedSet == nil {
 		evictedSet = make(map[sdk.Tx]struct{})
 	}
 	evictedSet[tx] = struct{}{}
-	var sigs []string
-	if multiSigner {
-		sigs = s.signers(tx)
-	} else if known {
-		sigs = []string{key}
-	}
+	sigs := s.signers(tx)
 	if len(sigs) > 0 && recheckSenders == nil {
 		recheckSenders = make(map[string]struct{})
 	}
@@ -322,10 +318,6 @@ type recheckCandidate struct {
 	tx  sdk.Tx
 	bz  []byte
 	seq uint64
-	// multiSigner mirrors firstSigner's flag from group build time, so evict
-	// knows to fire the hook for every named signer without a second GetSigners
-	// call on the hot recheck path.
-	multiSigner bool
 }
 
 // recheckGroup holds one signer's candidates sorted ascending by seq.
@@ -336,13 +328,8 @@ type recheckCandidate struct {
 // dropped on encode error — because the cascade rule reasons about the next
 // expected nonce.
 type recheckGroup struct {
-	key string
-	txs []recheckCandidate
-	// known reports whether key identifies a real signer, set once at group
-	// creation and never flipped back — unlike cascadable, which also turns
-	// false for reasons unrelated to identity (multi-signer, unordered,
-	// duplicate seq). The eviction hook needs known, not cascadable.
-	known      bool
+	key        string
+	txs        []recheckCandidate
 	cascadable bool
 }
 
@@ -382,7 +369,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		key, seq, known, multiSigner := s.firstSigner(tx)
 		gi, seen := index[key]
 		if !seen {
-			groups = append(groups, recheckGroup{key: key, known: known, cascadable: known})
+			groups = append(groups, recheckGroup{key: key, cascadable: known})
 			gi = len(groups) - 1
 			index[key] = gi
 		}
@@ -403,7 +390,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 			g.cascadable = false
 			continue
 		}
-		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq, multiSigner: multiSigner})
+		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
 	}
 	for i := range groups {
 		g := &groups[i]
@@ -467,11 +454,11 @@ func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evict
 			lastOK, accepted = c.seq, true
 			continue
 		}
-		s.evict(c.tx, g.key, c.seq, g.known, c.multiSigner)
+		s.evict(c.tx)
 		evicted++
 		if g.cascadable && accepted && c.seq > lastOK+1 && isNonceErr(err) {
 			for _, rest := range g.txs[i+1 : end] {
-				s.evict(rest.tx, g.key, rest.seq, g.known, rest.multiSigner)
+				s.evict(rest.tx)
 				cascaded++
 			}
 			return evicted, cascaded
@@ -544,27 +531,30 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool and encoder cache together, so the cache never
-// outlives its pool entry, then notifies evictionHook (if set) once per signer
-// named by tx. A multi-signer tx caches App-level ante state per signer it
-// names (e.g. ethermint stages one nonce-cache entry per msg), so the hook
-// must fire once per named signer, not just the group's key signer — hence
-// the extra GetSigners call here rather than reusing sender/nonce, but only
-// on this eviction path, not the hot recheck pass.
-func (s *recheckScheduler) evict(tx sdk.Tx, sender string, nonce uint64, known, multiSigner bool) {
+// evict removes tx from the pool, encoder cache, and ante cache together, so
+// no cache outlives its pool entry.
+func (s *recheckScheduler) evict(tx sdk.Tx) {
 	_ = s.mpool.Remove(tx)
 	s.exec.encCache.Evict(tx)
-	if s.evictionHook == nil {
+	s.evictAnteCache(tx)
+}
+
+// evictAnteCache mirrors the ante's own staging: ethermint caches one
+// (from, nonce) entry per MsgEthereumTx, so a multi-msg tx drops one per msg.
+func (s *recheckScheduler) evictAnteCache(tx sdk.Tx) {
+	if s.anteCache == nil || tx == nil {
 		return
 	}
-	if !multiSigner {
-		if known {
-			s.evictionHook(sender, nonce)
+	for _, msg := range tx.GetMsgs() {
+		ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
+		if !ok {
+			continue
 		}
-		return
-	}
-	for _, sg := range s.allSigners(tx) {
-		s.evictionHook(sg.Signer.String(), sg.Sequence)
+		asTx := ethTx.AsTransaction()
+		if asTx == nil {
+			continue
+		}
+		s.anteCache.Delete(ethTx.GetFrom().String(), asTx.Nonce())
 	}
 }
 

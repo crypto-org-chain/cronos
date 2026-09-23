@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	antecache "github.com/evmos/ethermint/ante/cache"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,7 +22,7 @@ type Manager struct {
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled bool) *Manager {
+func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.adm.trace = app.Trace()
 	a.sched.mpool = mpool
@@ -28,6 +30,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.sched.maxRecheckBatch = recheckBatchSize
 	a.sched.ttlNumBlocks = ttlNumBlocks
 	a.sched.recheckDisabled = recheckDisabled
+	a.exec.pending.enabled = pendingCacheEnabled
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
@@ -71,14 +74,10 @@ func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.adm.preVerify = fn
 }
 
-// SetEvictionHook registers a callback invoked once per (sender, nonce) named
-// by every pool eviction — every signer of a multi-signer tx, not just one
-// per tx — including cascade and TTL evictions that never spend a RunTx on
-// the evicted tx. Lets the caller drop App-level state keyed on the same pair
-// (e.g. ethermint's ante nonce cache) that would otherwise outlive the pool
-// entry it was tracking.
-func (a *Manager) SetEvictionHook(fn func(sender string, nonce uint64)) {
-	a.sched.evictionHook = fn
+// SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
+// entries.
+func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
+	a.sched.anteCache = ac
 }
 
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
@@ -95,11 +94,14 @@ func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
+// PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
 func (a *Manager) PendingTxs() []sdk.Tx {
 	if a.sched.mpool == nil {
 		return nil
 	}
-	return PoolSnapshot(context.Background(), a.sched.mpool)
+	return a.exec.pending.get(func() []sdk.Tx {
+		return UnorderedPoolSnapshot(context.Background(), a.sched.mpool)
+	})
 }
 
 func (a *Manager) CountTx() int {

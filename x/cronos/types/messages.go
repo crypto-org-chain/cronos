@@ -122,14 +122,6 @@ func (msg MsgUpdateTokenMapping) Type() string {
 	return TypeMsgUpdateTokenMapping
 }
 
-// NewMsgTurnBridge ...
-func NewMsgTurnBridge(admin string, enable bool) *MsgTurnBridge {
-	return &MsgTurnBridge{
-		Sender: admin,
-		Enable: enable,
-	}
-}
-
 // ValidateBasic ...
 func (msg *MsgTurnBridge) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Sender)

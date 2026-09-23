@@ -1794,21 +1794,6 @@ class CosmosCLI:
             )
         )
 
-    def turn_bridge(self, enable, **kwargs):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        kwargs.setdefault("gas", DEFAULT_GAS)
-        return json.loads(
-            self.raw(
-                "tx",
-                "cronos",
-                "turn-bridge",
-                enable,
-                "-y",
-                home=self.data_dir,
-                **kwargs,
-            )
-        )
-
     def evm_params(self, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,

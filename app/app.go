@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -24,15 +23,9 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
-	ica "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts"
-	icacontroller "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller"
-	icacontrollerkeeper "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller/keeper"
 	icacontrollertypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/controller/types"
-	icahost "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host"
-	icahostkeeper "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host/keeper"
 	icahosttypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v11/modules/apps/27-interchain-accounts/types"
-	ibccallbacks "github.com/cosmos/ibc-go/v11/modules/apps/callbacks"
 	"github.com/cosmos/ibc-go/v11/modules/apps/transfer"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v11/modules/apps/transfer/keeper"
 	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
@@ -46,7 +39,6 @@ import (
 	"github.com/crypto-org-chain/cronos/client/docs"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
-	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -181,13 +173,13 @@ const (
 	FlagMempoolMaxTxBytes = "mempool.max_tx_bytes" // CometBFT mapstructure key uses underscore
 	FlagMempoolRecheck    = "mempool.recheck"      // CometBFT's own recheck toggle; app-mempool recheck honors it too
 
-	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
-	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagTxCacheSize                = "cronos.tx-cache-size"
-	FlagTxCacheMaxTxBytes          = "cronos.tx-cache-max-tx-bytes"
-	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
-	FlagMempoolTxsPerBlock         = "cronos.mempool-txs-per-block"
-	FlagMempoolTTLNumBlocks        = "cronos.mempool-ttl-num-blocks"
+	FlagDisableTxReplacement         = "cronos.disable-tx-replacement"
+	FlagDisableOptimisticExecution   = "cronos.disable-optimistic-execution"
+	FlagTxCacheSize                  = "cronos.mempool-tx-cache-size"
+	FlagMempoolGossipTTL             = "cronos.mempool-gossip-ttl"
+	FlagMaxTxPerBlock                = "cronos.mempool-txs-per-block"
+	FlagMempoolTxTTLEnabled          = "cronos.mempool-tx-ttl-enabled"
+	FlagMempoolPendingTxCacheEnabled = "cronos.mempool-pending-tx-cache-enabled"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -204,7 +196,6 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 
 	govProposalHandlers = append(govProposalHandlers,
 		paramsclient.ProposalHandler,
-		cronosclient.ProposalHandler,
 		// this line is used by starport scaffolding # stargate/app/govProposalHandler
 	)
 
@@ -224,7 +215,7 @@ var (
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:            {authtypes.Burner},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		icatypes.ModuleName:            nil,
+		icatypes.ModuleName:            nil,                                  // ICA is disabled, kept so the legacy interchain account module address stays a known module account
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		cronostypes.ModuleName:         {authtypes.Minter, authtypes.Burner},
 	}
@@ -256,7 +247,8 @@ func StoreKeys() (
 		feegrant.StoreKey, crisistypes.StoreKey,
 		// ibc keys
 		ibcexported.StoreKey, ibctransfertypes.StoreKey,
-		// ica keys
+		// ica keys: ICA is disabled but the stores stay mounted so that no store
+		// upgrade is required and any legacy ICA state remains readable.
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
 		// ethermint keys
@@ -314,8 +306,6 @@ type App struct {
 	UpgradeKeeper         upgradekeeper.Keeper
 	ParamsKeeper          paramskeeper.Keeper //nolint:staticcheck
 	IBCKeeper             *ibckeeper.Keeper   // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
-	ICAControllerKeeper   *icacontrollerkeeper.Keeper
-	ICAHostKeeper         *icahostkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	TransferKeeper        *ibctransferkeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
@@ -350,14 +340,23 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
-	// anteCache is the EVM ante's per-(sender, nonce) admission cache. Stored on
-	// App (not just local to setAnteHandler) so mempoolManager's eviction hook
-	// can share the same instance and delete a stale entry when the mempool
-	// evicts its tx without ever spending a RunTx on it (cascade/TTL eviction).
 	anteCache *cache.AnteCache
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
+}
+
+func parseBoolFlag(flag string, v interface{}) bool {
+	switch v.(type) {
+	case bool, string:
+	default:
+		panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", flag, v, v))
+	}
+	parsed, err := cast.ToBoolE(v)
+	if err != nil {
+		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
+	}
+	return parsed
 }
 
 // New returns a reference to an initialized chain.
@@ -376,21 +375,20 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
-	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
-	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
+	txsPerBlock := cmdcfg.DefaultMaxTxPerBlock
+	if v := appOpts.Get(FlagMaxTxPerBlock); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMaxTxPerBlock, v))
 		}
 		txsPerBlock = parsed
 	}
 	var activeDecoder sdk.TxDecoder
-	// txCacheSize=0 means derive: 2×txsPerBlock, or -1 (disabled) when unlimited.
-	defaultTxCacheSize := 2 * txsPerBlock
-	if txsPerBlock == 0 {
-		defaultTxCacheSize = -1
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	txCacheSize := -1
+	if mempoolMaxTxs > 0 {
+		txCacheSize = mempoolMaxTxs
 	}
-	txCacheSize := defaultTxCacheSize
 	if v := appOpts.Get(FlagTxCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
@@ -400,23 +398,14 @@ func New(
 			txCacheSize = parsed
 		}
 	}
-	maxTxBytes := cmdcfg.DefaultTxCacheMaxTxBytes
-	if v := appOpts.Get(FlagTxCacheMaxTxBytes); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: %w", FlagTxCacheMaxTxBytes, v, err))
-		}
-		if parsed > 0 {
-			maxTxBytes = parsed
-		}
+	maxTxBytes := 0
+	if v := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); v > 0 {
+		maxTxBytes = v
 	}
 	if txCacheSize < 0 {
 		logger.Info("tx encode/decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		if mempoolMaxTxBytes := cast.ToInt(appOpts.Get(FlagMempoolMaxTxBytes)); mempoolMaxTxBytes > 0 && maxTxBytes > mempoolMaxTxBytes {
-			panic(fmt.Errorf("%s (%d) must not exceed %s (%d)", FlagTxCacheMaxTxBytes, maxTxBytes, FlagMempoolMaxTxBytes, mempoolMaxTxBytes))
-		}
 		logger.Info("tx encode/decode cache enabled", "size", txCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = cronosmempool.NewCachingDecoder(txDecoder, cronosmempool.NewDecodeCache(uint(txCacheSize), uint(maxTxBytes)))
 	}
@@ -450,7 +439,6 @@ func New(
 
 	var mpool mempool.Mempool
 	var signerExtractor mempool.SignerExtractionAdapter
-	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	var senderCache *cache.SenderCache
 	if mempoolMaxTxs <= 0 {
 		logger.Info("sender cache disabled")
@@ -468,14 +456,26 @@ func New(
 		gossipTTL = parsed
 	}
 	ttlNumBlocks := int64(cmdcfg.DefaultMempoolTTLNumBlocks)
-	if v := appOpts.Get(FlagMempoolTTLNumBlocks); v != nil {
-		// Strict parse: a silent negative is meaningless; 0 explicitly disables.
-		parsed, err := cast.ToInt64E(v)
-		if err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTTLNumBlocks, v))
-		}
-		ttlNumBlocks = parsed
+	if v := appOpts.Get(FlagMempoolTxTTLEnabled); v != nil && !parseBoolFlag(FlagMempoolTxTTLEnabled, v) {
+		ttlNumBlocks = 0
 	}
+	pendingCacheEnabled := true
+	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
+		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
+	}
+
+	anteCacheMaxTxs := mempoolMaxTxs
+	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
+		anteCacheMaxTxs = -1
+		logger.Info("Tx replacement is disabled")
+	} else {
+		logger.Info("Tx replacement is enabled")
+		if anteCacheMaxTxs == 0 {
+			anteCacheMaxTxs = cmdcfg.DefaultMaxTxPerBlock
+		}
+	}
+	anteCache := cache.NewAnteCache(anteCacheMaxTxs)
+
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -509,18 +509,7 @@ func New(
 	recheckEnabled := true
 	if mempoolType == cronosmempool.TypeApp {
 		if v := appOpts.Get(FlagMempoolRecheck); v != nil {
-			// cast.ToBoolE silently coerces nonzero numbers (e.g. 2) to true.
-			switch v.(type) {
-			case bool, string:
-			default:
-				panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", FlagMempoolRecheck, v, v))
-			}
-			parsed, err := cast.ToBoolE(v)
-			if err != nil {
-				// v is a string here (bool never errors, other types panicked above).
-				panic(fmt.Errorf("invalid %s %q: must be a boolean", FlagMempoolRecheck, v))
-			}
-			recheckEnabled = parsed
+			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
@@ -566,7 +555,7 @@ func New(
 			// default handler. ExtTxSelector still applies the blocklist + gas/byte
 			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
-				logger.Warn("mempool.type=app: tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}
 			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
@@ -590,10 +579,10 @@ func New(
 			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled)
+			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
+			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
-			// Register EVM module preverifier
-			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(chainId, activeDecoder, senderCache))
+			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
@@ -646,6 +635,7 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		senderCache:          senderCache,
+		anteCache:            anteCache,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -780,25 +770,6 @@ func New(
 		authAddr,
 	)
 
-	// ICA Controller keeper
-	app.ICAControllerKeeper = icacontrollerkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[icacontrollertypes.StoreKey]),
-		app.IBCKeeper.ChannelKeeper,
-		app.MsgServiceRouter(),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	app.ICAHostKeeper = icahostkeeper.NewKeeper(
-		appCodec,
-		runtime.NewKVStoreService(keys[icahosttypes.StoreKey]),
-		app.IBCKeeper.ChannelKeeper,
-		app.AccountKeeper,
-		app.MsgServiceRouter(),
-		app.GRPCQueryRouter(),
-		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-	)
-	icaModule := ica.NewAppModule(app.ICAControllerKeeper, app.ICAHostKeeper)
-
 	// Create Transfer Keepers
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, app.AccountKeeper.AddressCodec(),
@@ -895,25 +866,9 @@ func New(
 		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
-	// Hoist EVM signature verification (ecrecover) out of the app-mempool
-	var icaControllerStack porttypes.IBCModule
-	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
-	icaCallbacks := ibccallbacks.NewIBCMiddleware(app.CronosKeeper, math.MaxUint64)
-	icaCallbacks.SetUnderlyingApplication(icaControllerStack)
-	icaCallbacks.SetICS4Wrapper(app.IBCKeeper.ChannelKeeper)
-	icaControllerStack = icaCallbacks
-	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
-	app.ICAControllerKeeper.WithICS4Wrapper(icaCallbacks)
-
-	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
-
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
-	// Add controller & ica auth modules to IBC router
-	ibcRouter.
-		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
-		AddRoute(icahosttypes.SubModuleName, icaHostStack).
-		AddRoute(ibctransfertypes.ModuleName, transferStack)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
@@ -979,7 +934,6 @@ func New(
 		// IBC light clients
 		ibctm.NewAppModule(tmLightClientModule),
 		transferModule,
-		icaModule,
 
 		// Ethermint app modules
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),
@@ -1003,6 +957,15 @@ func New(
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
 	app.BasicModuleManager.RegisterInterfaces(interfaceRegistry)
 
+	// ICA is no longer part of the module manager (see the "interchain accounts
+	// (ICA)" note above), so the basic manager above no longer registers its types.
+	// Register them explicitly so that historical ICA transactions stay decodable,
+	// e.g. by the tx service. There is no ICA module to handle them, so these
+	// messages remain unroutable.
+	icatypes.RegisterInterfaces(interfaceRegistry)
+	icacontrollertypes.RegisterInterfaces(interfaceRegistry)
+	icahosttypes.RegisterInterfaces(interfaceRegistry)
+
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
@@ -1018,7 +981,6 @@ func New(
 		stakingtypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		govtypes.ModuleName,
@@ -1038,7 +1000,6 @@ func New(
 		feemarkettypes.ModuleName,
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		distrtypes.ModuleName,
@@ -1076,7 +1037,6 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
-		icatypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
@@ -1160,17 +1120,8 @@ func New(
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
 
-	mempoolCacheMaxTxs := mempoolMaxTxs
-	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
-		mempoolCacheMaxTxs = -1
-	}
-	if mempoolCacheMaxTxs >= 0 {
-		logger.Info("Tx replacement is enabled")
-	} else {
-		logger.Info("Tx replacement is disabled")
-	}
 	if err := app.setAnteHandler(txConfig,
-		mempoolCacheMaxTxs,
+		anteCache,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
@@ -1261,7 +1212,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCache, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1292,14 +1243,6 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		blockedMap[addr.String()] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap, app.CronosKeeper.GetParams)
-	app.anteCache = cache.NewAnteCache(mempoolMaxTxs)
-	// mempoolManager (built earlier, inside the SetMempool baseAppOptions
-	// closure applied by NewBaseApp) is already set on app by this point, so
-	// wiring the eviction hook here can share app.anteCache with the ante
-	// options below rather than each holding a separate instance.
-	if app.mempoolManager != nil {
-		app.mempoolManager.SetEvictionHook(app.anteCache.Delete)
-	}
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -1319,7 +1262,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         app.anteCache,
+		AnteCache:         anteCache,
 		SenderCache:       app.senderCache,
 	}
 
@@ -1348,6 +1291,9 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
 // by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
+
+// AnteCache returns the ante-layer nonce cache installed on the ante handler.
+func (app *App) AnteCache() *cache.AnteCache { return app.anteCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding
 // with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.

@@ -53,6 +53,7 @@ func (a *admitter) admit(txBytes []byte) (code uint32, codespace, log string) {
 	}
 
 	a.cacheTx(tx, txBytes)
+	a.exec.pending.invalidate()
 	return abci.CodeTypeOK, "", ""
 }
 
@@ -101,6 +102,7 @@ func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
 		}
 
 		a.cacheTx(tx, req.Tx)
+		a.exec.pending.invalidate()
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.

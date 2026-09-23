@@ -33,14 +33,16 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 				return errorsmod.Wrap(types.ErrIbcCroDenomEmpty, "ibc is disabled")
 			}
 
-			// Send ibc tokens to escrow address
-			err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, acc, types.ModuleName, sdk.NewCoins(c))
+			amount, err := c.Amount.SafeMul(sdkmath.NewIntFromBigInt(types.TenPowTen))
 			if err != nil {
+				return errorsmod.Wrapf(err, "converting %s to 18 decimals", c)
+			}
+			amount18dec := sdk.NewCoin(evmParams.EvmDenom, amount)
+
+			// Send ibc tokens to escrow address
+			if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, acc, types.ModuleName, sdk.NewCoins(c)); err != nil {
 				return err
 			}
-			// Compute new amount, because basecro is a 8 decimals token, we need to multiply by 10^10 to make it
-			// a 18 decimals token
-			amount18dec := sdk.NewCoin(evmParams.EvmDenom, c.Amount.Mul(sdkmath.NewIntFromBigInt(types.TenPowTen)))
 
 			// Mint new evm tokens
 			if err := k.bankKeeper.MintCoins(
@@ -177,6 +179,8 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	// We use current time for timeout timestamp and zero height for timeoutHeight
 	// it means it can never fail by timeout
 	params := k.GetParams(ctx)
+	// MaxIbcTimeoutValue bounds IbcTimeout so that ctx.BlockTime().UnixNano() + IbcTimeout
+	// cannot overflow uint64 and wrap the packet timeout into the past
 	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
 	timeoutHeight := ibcclienttypes.ZeroHeight()
 	msg := ibctransfertypes.MsgTransfer{
