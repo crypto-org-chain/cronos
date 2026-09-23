@@ -14,9 +14,10 @@ from .eip712_utils import (
 from .utils import ADDRS, KEYS
 
 
-def test_native_tx(cronos):
+def broadcast_native_eip712_tx(cronos, src, mutate_auth_info=None):
     """
-    test eip-712 tx works:
+    Sign a legacy EIP-712 MsgSend as `src`, optionally mutate AuthInfo after
+    signing, broadcast it and return the sync tx_response.
     """
     cli = cronos.cosmos_cli()
     w3 = cronos.w3
@@ -25,7 +26,6 @@ def test_native_tx(cronos):
         "chainId": chain_id,
         "cosmosChainId": f"cronos_{chain_id}-1",
     }
-    src = "community"
     src_addr = cli.address(src)
     src_account = cli.account(src_addr)
     sender = {
@@ -58,9 +58,12 @@ def test_native_tx(cronos):
         signed.signature,
     )
     legacy_amino = tx["legacyAmino"]
+    auth_info = legacy_amino["authInfo"]
+    if mutate_auth_info is not None:
+        mutate_auth_info(auth_info)
     signed_tx = create_tx_raw_eip712(
         legacy_amino["body"],
-        legacy_amino["authInfo"],
+        auth_info,
         extension,
     )
     tx_bytes = base64.b64encode(signed_tx["message"].SerializeToString())
@@ -76,7 +79,37 @@ def test_native_tx(cronos):
             f"response code: {response.status_code}, "
             f"{response.reason}, {response.json()}"
         )
-    rsp = response.json()["tx_response"]
+    return response.json()["tx_response"], gas
+
+
+def test_native_tx(cronos):
+    """
+    test eip-712 tx works:
+    """
+    cli = cronos.cosmos_cli()
+    rsp, gas = broadcast_native_eip712_tx(cronos, "community")
     assert rsp["code"] == 0, rsp["raw_log"]
     rsp = cli.event_query_tx_for(rsp["txhash"])
     assert rsp["gas_wanted"] == str(gas)
+
+
+def test_native_tx_fee_granter_rejected(cronos):
+    """
+    AuthInfo.Fee.granter is not part of the legacy EIP-712 typed data, so a
+    relayer setting it after signing must be rejected even when the granter
+    holds a live feegrant allowance for the signer.
+    """
+    cli = cronos.cosmos_cli()
+    granter = cli.address("signer1")
+    grantee = cli.address("community")
+    rsp = cli.grant(granter, grantee, "100000000000000000basetcro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    granter_balance = cli.balance(granter)
+
+    def set_granter(auth_info):
+        auth_info.fee.granter = granter
+
+    rsp, _ = broadcast_native_eip712_tx(cronos, "community", set_granter)
+    assert rsp["code"] != 0, rsp
+    assert "does not commit fee granter" in rsp["raw_log"], rsp["raw_log"]
+    assert cli.balance(granter) == granter_balance

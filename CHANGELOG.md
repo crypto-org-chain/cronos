@@ -13,6 +13,7 @@
 
 ### Bug fixes
 
+* [#2214](https://github.com/crypto-org-chain/cronos/pull/2214) fix(deps): bump ethermint to reject nonempty fee granter on EIP-712 signing paths.
 * [#2179](https://github.com/crypto-org-chain/cronos/pull/2179) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
 * [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(rpc): guard `TxsResults` length before indexing by block tx position.
 * [#2186](https://github.com/crypto-org-chain/cronos/pull/2186) fix(mempool): fall back to app.ChainID() for EVM sig preverifier when chain-id flag is unset.
