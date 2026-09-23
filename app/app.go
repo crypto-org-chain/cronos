@@ -180,6 +180,7 @@ const (
 	FlagMaxTxPerBlock                = "cronos.mempool-txs-per-block"
 	FlagMempoolTxTTLEnabled          = "cronos.mempool-tx-ttl-enabled"
 	FlagMempoolPendingTxCacheEnabled = "cronos.mempool-pending-tx-cache-enabled"
+	FlagMempoolAdmissionMaxInflight  = "cronos.mempool-admission-max-inflight"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -463,6 +464,14 @@ func New(
 	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
 		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
+	admissionMaxInflight := cmdcfg.DefaultMempoolAdmissionMaxInflight
+	if v := appOpts.Get(FlagMempoolAdmissionMaxInflight); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: must be an integer", FlagMempoolAdmissionMaxInflight, v))
+		}
+		admissionMaxInflight = parsed
+	}
 
 	anteCacheMaxTxs := mempoolMaxTxs
 	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
@@ -581,6 +590,7 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			manager.SetAnteCache(anteCache)
+			manager.SetAdmissionMaxInflight(admissionMaxInflight)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
@@ -1640,10 +1650,10 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
-		mu := app.mempoolManager.AdmissionMutex()
-		mu.Lock()
-		defer mu.Unlock()
+		// AppMempool.Lock() is a no-op; the admission mutex serializes the checkState
+		// reset against concurrent admission, taken with priority over queued admits.
+		unlock := app.mempoolManager.LockForCommit()
+		defer unlock()
 		return app.BaseApp.Commit()
 	}()
 

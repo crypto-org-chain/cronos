@@ -420,12 +420,11 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 	}
 }
 
-func TestManager_AdmissionMutexGatesAdmission(t *testing.T) {
+func TestManager_CommitLockGatesAdmission(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	insert := a.InsertTxHandler()
-	mu := a.AdmissionMutex()
 
-	mu.Lock() // simulate App.Commit holding the admission mutex
+	unlock := a.LockForCommit() // simulate App.Commit holding the admission mutex
 	admitted := make(chan struct{})
 	go func() {
 		insert(&abci.RequestInsertTx{Tx: []byte("tx")}) //nolint:errcheck
@@ -434,17 +433,17 @@ func TestManager_AdmissionMutexGatesAdmission(t *testing.T) {
 
 	select {
 	case <-admitted:
-		t.Fatal("admission ran while AdmissionMutex held; Commit would race checkState")
+		t.Fatal("admission ran while Commit held the mutex; Commit would race checkState")
 	case <-time.After(50 * time.Millisecond):
 		// expected: admission blocked behind the mutex
 	}
 
-	mu.Unlock()
+	unlock()
 	select {
 	case <-admitted:
 		// admission proceeds once Commit releases the mutex
 	case <-time.After(time.Second):
-		t.Fatal("admission did not proceed after AdmissionMutex released")
+		t.Fatal("admission did not proceed after Commit released the mutex")
 	}
 }
 
