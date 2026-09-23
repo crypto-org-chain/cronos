@@ -38,6 +38,11 @@ mempool-tx-ttl-enabled = {{ .Cronos.MempoolTxTTLEnabled }}
 # Caches the PendingTxs() pool-scan result, invalidated on tx admission and
 # block completion. Default true. false always walks the pool.
 mempool-pending-tx-cache-enabled = {{ .Cronos.MempoolPendingTxCacheEnabled }}
+
+# Caps concurrent mempool.type=app admissions (CheckTx/InsertTx in pre-verify,
+# decode, or queued on the admission mutex). Excess txs are shed with a
+# retryable code instead of queuing. 0 = unbounded. Default 8192.
+mempool-admission-max-inflight = {{ .Cronos.MempoolAdmissionMaxInflight }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

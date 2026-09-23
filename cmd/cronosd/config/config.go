@@ -38,6 +38,10 @@ type CronosConfig struct {
 	// Caches the PendingTxs() pool-scan result, invalidated on tx admission
 	// and block completion. Default true. false always walks the pool.
 	MempoolPendingTxCacheEnabled bool `mapstructure:"mempool-pending-tx-cache-enabled"`
+	// MempoolAdmissionMaxInflight caps concurrent mempool.type=app admissions
+	// (CheckTx/InsertTx in pre-verify, decode, or queued on the admission mutex).
+	// Excess txs are shed with CodeTypeRetry instead of queuing. <=0 = unbounded.
+	MempoolAdmissionMaxInflight int `mapstructure:"mempool-admission-max-inflight"`
 }
 
 const (
@@ -49,6 +53,10 @@ const (
 	// DefaultMempoolTTLNumBlocks evicts mempool.type=app txs older than this many
 	// blocks by arrival height, draining proposal-skipped txs that never commit.
 	DefaultMempoolTTLNumBlocks = 120
+	// DefaultMempoolAdmissionMaxInflight is roughly half a second of serialized
+	// admission at ~16k tx/s: deep enough to absorb a batch, shallow enough that a
+	// runaway burst sheds instead of piling goroutines onto the admission mutex.
+	DefaultMempoolAdmissionMaxInflight = 8192
 )
 
 const (
@@ -85,6 +93,7 @@ func DefaultCronosConfig() CronosConfig {
 		MaxTxPerBlock:                DefaultMaxTxPerBlock,
 		MempoolTxTTLEnabled:          true,
 		MempoolPendingTxCacheEnabled: true,
+		MempoolAdmissionMaxInflight:  DefaultMempoolAdmissionMaxInflight,
 	}
 }
 
