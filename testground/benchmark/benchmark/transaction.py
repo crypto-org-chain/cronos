@@ -21,6 +21,8 @@ from .utils import DEFAULT_DENOM, LOCAL_RPC, gen_account, split, split_batch
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
 CONNECTION_POOL_SIZE = 1024
+# ABCI codes >= this are retryable (cometbft abci.CodeTypeRetry)
+CODE_TYPE_RETRY = 32_000
 TXS_DIR = "txs"
 
 Job = namedtuple(
@@ -248,6 +250,10 @@ async def async_sendtx(session, raw, rpc, sync=False):
             print("send tx error, will retry,", data["error"])
             return False
         result = data["result"]
+        if result["code"] >= CODE_TYPE_RETRY:
+            # app mempool sheds under load (queue full / pool full); resend
+            print("tx not admitted, will retry,", result["log"])
+            return False
         if result["code"] != 0:
             print("tx is invalid, won't retry,", result["log"])
         return True
