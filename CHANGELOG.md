@@ -28,6 +28,7 @@
 
 ### Chores
 
+* [#2219](https://github.com/crypto-org-chain/cronos/pull/2219) chore(deps): bump ethermint to v0.24.0, cosmos-sdk fork to 1e7193a, pin cronos-store at v1.9.0.
 * [#2212](https://github.com/crypto-org-chain/cronos/pull/2212) chore(deps): bump ethermint and cronos-store.
 * [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
