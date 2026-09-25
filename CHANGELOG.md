@@ -4,6 +4,7 @@
 
 ### Improvements
 
+* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group with atomic nonce-gap cascade eviction.
 * [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
 
 ### State Machine Breaking
