@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"math/big"
 	"net/http"
 	"os"
@@ -1516,11 +1517,7 @@ func RegisterSwaggerAPI(_ client.Context, rtr *mux.Router) {
 
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
-	dupMaccPerms := make(map[string][]string)
-	for k, v := range maccPerms {
-		dupMaccPerms[k] = v
-	}
-	return dupMaccPerms
+	return maps.Clone(maccPerms)
 }
 
 // initParamsKeeper init params keeper and its subspaces
