@@ -397,8 +397,8 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 
-	// v0.24.0
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.0
+	// TODO: repin to the crypto-org-chain/ethermint merge commit once refactor/block-stm-base-config lands
+	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20260930080008-9c5dc6e4b4b0
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

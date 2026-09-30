@@ -27,9 +27,7 @@
         'logs-cap': 10000,
         'txfee-cap': 2,
       },
-      evm: {
-        'block-executor': 'sequential',
-      },
+      'block-executor': 'sequential',
       grpc: {
         'skip-check-header': true,
       },
@@ -56,10 +54,8 @@
         versiondb: {
           enable: true,
         },
-        evm: {
-          'block-executor': 'block-stm',
-          'block-stm-workers': 32,
-        },
+        'block-executor': 'block-stm',
+        'block-stm-workers': 32,
       },
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',

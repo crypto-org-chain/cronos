@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Client Breaking
+
+* [#PRNUM](https://github.com/crypto-org-chain/cronos/pull/PRNUM) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.
+
 *Sept 23, 2026*
 
 ## v1.8.0
