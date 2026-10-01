@@ -290,8 +290,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3 h1:kw6+G2l6M09MF0YAGkzKPDna/iw2hFYDaGr5aN2B8kM=
 github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3/go.mod h1:KcZvZTqdLgOisktAoWwwcS2fgO4E110r44KxEGyq8SI=
-github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260806150823-1e7193afaaf8 h1:rGxTbchn3zh1ZOHVYRuHyu0aNTPibrWgwahrIkX/Cyw=
-github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260806150823-1e7193afaaf8/go.mod h1:d+mzrQ+PV+6t63HomWzLx+OoFeprkjO/b+0ih+LfvIo=
+github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260924083050-23eef471a53c h1:+QD7tRKjtg5UARW5r93Uj29HDstwi5LWvUjeBYwRtes=
+github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260924083050-23eef471a53c/go.mod h1:d+mzrQ+PV+6t63HomWzLx+OoFeprkjO/b+0ih+LfvIo=
 github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260923061457-2d12c238d139 h1:PZhDeIWkyn5O5FnPLip+5peb6smC8/bK2Ufkq06PggQ=
 github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260923061457-2d12c238d139/go.mod h1:pDMnEFkR+qMEeiTUA07p0Xk4qM1qaCHrHqbR96kJGbQ=
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139 h1:/lcf+16Wl0okUAkt1vXMbrdivdaptyG1W2EUQJAu4Z4=
@@ -975,8 +975,8 @@ github.com/quic-go/quic-go v0.60.0 h1:xcQioE8OM66UQLeUMHltK1CCcOu3JbVB4JAQdDQSB+
 github.com/quic-go/quic-go v0.60.0/go.mod h1:wpKpjmPpftl30sL6pFh7REVpjbcCVy4zt2vDyK1TuJk=
 github.com/quic-go/webtransport-go v0.11.1 h1:rrFQMO+7/52ZDJ04fsrjIaWqn6q1z1MYo9iVFq6JtbA=
 github.com/quic-go/webtransport-go v0.11.1/go.mod h1:SHgEzUFVyj+9WUSuGB1P6Zd351Pww2leWV3SwlTovkA=
-github.com/randy-cro/ethermint v0.0.0-20260930080008-9c5dc6e4b4b0 h1:OZLP7u7LV3Mni8qyX9fsBi20FaSUI7QIjL5D2DtIecA=
-github.com/randy-cro/ethermint v0.0.0-20260930080008-9c5dc6e4b4b0/go.mod h1:m35l99xHeyw4eT5WfCljzP5vO8zHC803sVxOWjzpsb0=
+github.com/randy-cro/ethermint v0.0.0-20261001051127-bf3f20a9070f h1:lauT/pSvog5IIt3k8aq0BwD4ehks1AnKBtPbcNVqCWw=
+github.com/randy-cro/ethermint v0.0.0-20261001051127-bf3f20a9070f/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 h1:bsUq1dX0N8AOIL7EB/X911+m4EHsnWEHeJ0c+3TTBrg=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
