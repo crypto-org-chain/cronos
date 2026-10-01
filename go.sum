@@ -298,6 +298,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d13
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139/go.mod h1:nbT4YcTZJqW0EY1zNO/o7hx+a0q2hCEjsnZi5vQy2N4=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139 h1:9mCdXbf9c8wCkJcjGpLBRubxPdLTCrdK9OhYLKYsiWw=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139/go.mod h1:vNigSKdbXLtFT5wQMaOyLMMXJn3DxL8GRG8cnOZbfUc=
+github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2 h1:342351/7PzRFMTB79sZhH+3T6bP5I2rrWYAWKpm6bkw=
+github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
@@ -975,8 +977,6 @@ github.com/quic-go/quic-go v0.60.0 h1:xcQioE8OM66UQLeUMHltK1CCcOu3JbVB4JAQdDQSB+
 github.com/quic-go/quic-go v0.60.0/go.mod h1:wpKpjmPpftl30sL6pFh7REVpjbcCVy4zt2vDyK1TuJk=
 github.com/quic-go/webtransport-go v0.11.1 h1:rrFQMO+7/52ZDJ04fsrjIaWqn6q1z1MYo9iVFq6JtbA=
 github.com/quic-go/webtransport-go v0.11.1/go.mod h1:SHgEzUFVyj+9WUSuGB1P6Zd351Pww2leWV3SwlTovkA=
-github.com/randy-cro/ethermint v0.0.0-20261001051518-a1640ffaab2b h1:sx+jOYfuwRfE5XkSpmML4wWQP77ZqTZkzr+EYz37wYA=
-github.com/randy-cro/ethermint v0.0.0-20261001051518-a1640ffaab2b/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 h1:bsUq1dX0N8AOIL7EB/X911+m4EHsnWEHeJ0c+3TTBrg=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
