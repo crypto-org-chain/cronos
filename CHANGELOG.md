@@ -6,6 +6,10 @@
 
 * [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.
 
+### Bug fixes
+
+* [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) fix(e2ee): `encrypt-to-validators` no longer panics when a bonded validator has no or an invalid encryption key; such validators are skipped with a warning.
+
 *Sept 23, 2026*
 
 ## v1.8.0
