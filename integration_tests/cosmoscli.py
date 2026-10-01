@@ -1968,15 +1968,15 @@ class CosmosCLI:
     def event_query_tx_for(self, hash, timeout=15, interval=0.3):
         rpc = "http" + self.node_rpc.removeprefix("tcp")
         target = hash.upper()
-        next_height = max(1, self._rpc_latest_height(rpc) - 5)
+        next_height = max(1, self._rpc_committed_height(rpc) - 5)
         deadline = time.monotonic() + timeout
         while True:
-            latest = self._rpc_latest_height(rpc)
-            for height in range(next_height, latest + 1):
+            committed = self._rpc_committed_height(rpc)
+            for height in range(next_height, committed + 1):
                 rsp = self._committed_tx_at(rpc, target, height)
                 if rsp is not None:
                     return rsp
-            next_height = max(next_height, latest + 1)
+            next_height = max(next_height, committed + 1)
             if time.monotonic() >= deadline:
                 raise AssertionError(
                     f"Error: timed out waiting for transaction {target} "
@@ -1985,9 +1985,9 @@ class CosmosCLI:
             time.sleep(interval)
 
     @staticmethod
-    def _rpc_latest_height(rpc):
-        rsp = requests.get(f"{rpc}/status").json()
-        return int(rsp["result"]["sync_info"]["latest_block_height"])
+    def _rpc_committed_height(rpc):
+        rsp = requests.get(f"{rpc}/abci_info").json()
+        return int(rsp["result"]["response"]["last_block_height"])
 
     @staticmethod
     def _committed_tx_at(rpc, target, height):
