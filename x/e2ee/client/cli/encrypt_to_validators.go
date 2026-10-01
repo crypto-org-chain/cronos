@@ -62,7 +62,20 @@ func EncryptToValidatorsCommand() *cobra.Command {
 				return err
 			}
 
-			recipients := validatorRecipients(os.Stderr, recs, rsp.Keys)
+			recipients := make([]age.Recipient, len(recs))
+			for i, key := range rsp.Keys {
+				if len(key) == 0 {
+					fmt.Fprintf(os.Stderr, "missing encryption key for validator %s\n", recs[i])
+					continue
+				}
+
+				recipient, err := age.ParseX25519Recipient(key)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "invalid encryption key for validator %s, %v\n", recs[i], err)
+					continue
+				}
+				recipients[i] = recipient
+			}
 
 			inputFile := args[0]
 			var input io.Reader
@@ -94,22 +107,4 @@ func EncryptToValidatorsCommand() *cobra.Command {
 	f := cmd.Flags()
 	f.StringP(flags.FlagOutput, "o", "-", "output file (default stdout)")
 	return cmd
-}
-
-func validatorRecipients(warn io.Writer, validators, keys []string) []age.Recipient {
-	recipients := make([]age.Recipient, 0, len(keys))
-	for i, key := range keys {
-		if len(key) == 0 {
-			fmt.Fprintf(warn, "missing encryption key for validator %s\n", validators[i])
-			continue
-		}
-
-		recipient, err := age.ParseX25519Recipient(key)
-		if err != nil {
-			fmt.Fprintf(warn, "invalid encryption key for validator %s, %v\n", validators[i], err)
-			continue
-		}
-		recipients = append(recipients, recipient)
-	}
-	return recipients
 }
