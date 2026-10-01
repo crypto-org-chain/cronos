@@ -975,8 +975,8 @@ github.com/quic-go/quic-go v0.60.0 h1:xcQioE8OM66UQLeUMHltK1CCcOu3JbVB4JAQdDQSB+
 github.com/quic-go/quic-go v0.60.0/go.mod h1:wpKpjmPpftl30sL6pFh7REVpjbcCVy4zt2vDyK1TuJk=
 github.com/quic-go/webtransport-go v0.11.1 h1:rrFQMO+7/52ZDJ04fsrjIaWqn6q1z1MYo9iVFq6JtbA=
 github.com/quic-go/webtransport-go v0.11.1/go.mod h1:SHgEzUFVyj+9WUSuGB1P6Zd351Pww2leWV3SwlTovkA=
-github.com/randy-cro/ethermint v0.0.0-20261001051127-bf3f20a9070f h1:lauT/pSvog5IIt3k8aq0BwD4ehks1AnKBtPbcNVqCWw=
-github.com/randy-cro/ethermint v0.0.0-20261001051127-bf3f20a9070f/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
+github.com/randy-cro/ethermint v0.0.0-20261001051518-a1640ffaab2b h1:sx+jOYfuwRfE5XkSpmML4wWQP77ZqTZkzr+EYz37wYA=
+github.com/randy-cro/ethermint v0.0.0-20261001051518-a1640ffaab2b/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9 h1:bsUq1dX0N8AOIL7EB/X911+m4EHsnWEHeJ0c+3TTBrg=
 github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
