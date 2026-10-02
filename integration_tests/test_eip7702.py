@@ -8,6 +8,7 @@ from integration_tests.utils import (
     derive_new_account,
     fund_acc,
     get_contract,
+    wait_for_receipt,
 )
 
 DELEGATION_PREFIX = "0xef0100"
@@ -41,7 +42,7 @@ def send_eip7702_transaction(
         }
     )
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    receipt = wait_for_receipt(w3, tx_hash)
 
     if not verify:
         return receipt
@@ -132,7 +133,7 @@ def test_eip7702_simple_7702_account(cronos):
 
     signed_tx = account.sign_transaction(tx)
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    receipt = wait_for_receipt(w3, tx_hash)
     assert receipt.status == 1
 
     balance = w3.eth.get_balance(acct1.address)
@@ -181,7 +182,7 @@ def test_eip7702_state_wont_be_cleared_if_reset_delegation(cronos, geth):
         )
         signed_tx = acc.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        receipt = wait_for_receipt(w3, tx_hash)
         assert receipt.status == 1
 
         # increase the counter to 1, the storage should be 1
