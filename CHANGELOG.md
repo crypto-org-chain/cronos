@@ -8,7 +8,7 @@
 
 ### Bug fixes
 
-* [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): poll committed blocks in `event_query_tx_for` instead of `wait-tx`, vote on the expedited proposal inside its window in `test_expedited_gov_params`, and block the EIP-7702 authority by its bech32 address in `test_block_list_eip7702` (renamed from `test_block_list_eip7022`).
+* [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): poll committed blocks in `event_query_tx_for` instead of `wait-tx`, vote on the expedited proposal inside its window in `test_expedited_gov_params`, and block the EIP-7702 authority by its bech32 address in `test_block_list_eip7702`.
 
 *Sept 23, 2026*
 
