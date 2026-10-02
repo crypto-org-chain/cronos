@@ -3,14 +3,19 @@ package mempool
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	errorsmod "cosmossdk.io/errors"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -34,8 +39,23 @@ type recheckRunner struct {
 	pool              sdkmempool.Mempool
 	failBytes         map[string]bool
 	failNoRemoveBytes map[string]bool
-	modes             []sdk.ExecMode
-	seen              map[string]bool
+	// failErrs returns a specific error per tx bytes, without removing from the
+	// pool, so tests can drive runRecheck's nonce-gap classification.
+	failErrs map[string]error
+	modes    []sdk.ExecMode
+	seen     map[string]bool
+	// calls records tx bytes in call order, for grouping assertions.
+	calls []string
+	// onCall, if set, runs after recording the call but before returning, letting
+	// a test move a sender's expected nonce mid-pass (an admission or Commit
+	// landing between chunks).
+	onCall func(txBytes []byte)
+	// signer + expectedNonce implement per-sender expected-nonce ante
+	// semantics: a tx whose seq is above its sender's expected nonce fails
+	// wrong-sequence, and a successful recheck advances that sender's expected
+	// nonce. Nil signer disables this; other tests drive failBytes/failErrs.
+	signer        sdkmempool.SignerExtractionAdapter
+	expectedNonce map[string]uint64
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -43,12 +63,41 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	r.calls = append(r.calls, string(txBytes))
+	if r.onCall != nil {
+		r.onCall(txBytes)
+	}
+
+	var sender string
+	var seq uint64
+	trackNonce := false
+	if r.signer != nil {
+		if sigs, err := r.signer.GetSigners(tx); err == nil && len(sigs) > 0 {
+			sender, seq, trackNonce = sigs[0].Signer.String(), sigs[0].Sequence, true
+		}
+	}
+	// The real ante rejects any mismatch, not just a gap: a stale nonce
+	// (seq < expected) is just as invalid as a gap (seq > expected).
+	if trackNonce && seq != r.expectedNonce[sender] {
+		return sdk.GasInfo{}, nil, nil, errorsmod.Wrap(sdkerrors.ErrWrongSequence, "nonce mismatch")
+	}
+
+	if err, ok := r.failErrs[string(txBytes)]; ok {
+		return sdk.GasInfo{}, nil, nil, err
+	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
 	}
 	if r.failNoRemoveBytes[string(txBytes)] {
 		return sdk.GasInfo{}, nil, nil, errors.New("msg execution failed on recheck")
+	}
+
+	if trackNonce {
+		if r.expectedNonce == nil {
+			r.expectedNonce = map[string]uint64{}
+		}
+		r.expectedNonce[sender] = seq + 1
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -78,8 +127,8 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	decoder := func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") }
 	a := newManager(runner, enc, txEncoder, decoder)
-	a.mpool = pool
-	a.signer = signer
+	a.sched.mpool = pool
+	a.sched.signer = signer
 	return &recheckFixture{a: a, pool: pool, enc: enc, signer: signer, runner: runner}
 }
 
@@ -136,8 +185,8 @@ func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 	survivor := f.add(2, "alice", 1, "alice-1")
 	untouched := f.add(3, "bob", 0, "bob-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.RecheckTxs()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, stale) {
 		t.Fatal("stale tx should have been removed from the pool")
@@ -169,8 +218,8 @@ func TestRecheckTxs_MsgExecFailureEvictsFromPool(t *testing.T) {
 	f.runner.failNoRemoveBytes = map[string]bool{"alice-0": true}
 	stale := f.add(1, "alice", 0, "alice-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.RecheckTxs()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, stale) {
 		t.Fatal("tx failing recheck at msg execution (not ante) must still be removed from the pool")
@@ -184,7 +233,7 @@ func TestRecheckTxs_EmptyPendingNoOp(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
 
-	f.a.RecheckTxs() // recheckSenders nil
+	f.a.sched.RecheckTxs() // recheckSenders nil
 
 	if len(f.runner.modes) != 0 {
 		t.Fatalf("no RunTx expected with empty recheckSenders, got %d calls", len(f.runner.modes))
@@ -194,11 +243,11 @@ func TestRecheckTxs_EmptyPendingNoOp(t *testing.T) {
 func TestRecheckTxs_DrainsPending(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 	first := len(f.runner.modes)
-	f.a.RecheckTxs() // recheckSenders consumed; second run is a no-op
+	f.a.sched.RecheckTxs() // recheckSenders consumed; second run is a no-op
 
 	if len(f.runner.modes) != first {
 		t.Fatal("recheckSenders must be drained after one RecheckTxs")
@@ -211,8 +260,8 @@ func TestRecheckTxs_EvictsExpiredUntouchedSender(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
-	f.a.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
-	f.a.RecheckTxs()            // recheckSenders nil: only the timeout sweep runs
+	f.a.sched.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
+	f.a.sched.RecheckTxs()            // recheckSenders nil: only the timeout sweep runs
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be evicted regardless of touched senders")
@@ -233,8 +282,8 @@ func TestRecheckTxs_TimeoutBoundary(t *testing.T) {
 	survivor := f.addTimeout(2, "dave", 0, "dave-0", 6)
 	noTimeout := f.addTimeout(3, "erin", 0, "erin-0", 0)
 
-	f.a.lastCommittedHeight = 5
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 5
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, atLimit) {
 		t.Fatal("tx with timeoutHeight == committedHeight must be evicted")
@@ -254,9 +303,9 @@ func TestRecheckTxs_SweepAndRecheckTogether(t *testing.T) {
 	expired := f.addTimeout(2, "carol", 0, "carol-0", 5)
 	survivor := f.add(3, "alice", 1, "alice-1")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 5
-	f.a.RecheckTxs()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.lastCommittedHeight = 5
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be swept")
@@ -279,7 +328,7 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.StageRecheckSenders(5, nil) // decoder nil: stages height, leaves recheckSenders nil
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("StageRecheckSenders must stage height so the sweep evicts the expired tx")
@@ -294,10 +343,10 @@ func TestRecheckTxs_InvalidatesPendingCacheAfterEviction(t *testing.T) {
 	f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.StageRecheckSenders(5, nil)
-	before := f.a.pendingTxCache.epoch.Load()
+	before := f.a.exec.pending.epoch.Load()
 	f.a.RecheckTxs()
 
-	if got := f.a.pendingTxCache.epoch.Load(); got == before {
+	if got := f.a.exec.pending.epoch.Load(); got == before {
 		t.Fatal("RecheckTxs must invalidate the pending cache after evicting txs, not just rely on StageRecheckSenders's earlier bump")
 	}
 }
@@ -306,11 +355,11 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 	f := newRecheckFixture("alice-0") // alice's seq-0 tx now fails recheck
 	f.add(1, "alice", 0, "alice-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	before := f.a.pendingTxCache.epoch.Load()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	before := f.a.exec.pending.epoch.Load()
 	f.a.RecheckTxs()
 
-	if got := f.a.pendingTxCache.epoch.Load(); got == before {
+	if got := f.a.exec.pending.epoch.Load(); got == before {
 		t.Fatal("RecheckTxs must invalidate the pending cache after runRecheck evicts a tx via RunTx failure")
 	}
 }
@@ -332,26 +381,26 @@ func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {
 		return nil, errors.New("unknown")
 	}
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
+	a.sched.signer = signer
 
 	a.StageRecheckSenders(10, [][]byte{[]byte("a")})
 	a.StageRecheckSenders(11, [][]byte{[]byte("b")}) // no drain between: must keep alice
 
-	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+	if _, ok := a.sched.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
 		t.Fatal("block-10 sender lost after staging block 11 without a recheck drain")
 	}
-	if _, ok := a.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
+	if _, ok := a.sched.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
 		t.Fatal("block-11 sender missing")
 	}
-	if a.lastCommittedHeight != 11 {
-		t.Fatalf("height must advance to 11, got %d", a.lastCommittedHeight)
+	if a.sched.lastCommittedHeight != 11 {
+		t.Fatalf("height must advance to 11, got %d", a.sched.lastCommittedHeight)
 	}
 }
 
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
-	a.RecheckTxs()                                  // mpool nil → no-op
+	a.sched.RecheckTxs()                            // mpool nil → no-op
 }
 
 func TestStageRecheckSenders_RecheckDisabledSkipsSendersButStagesHeight(t *testing.T) {
@@ -361,15 +410,15 @@ func TestStageRecheckSenders_RecheckDisabledSkipsSendersButStagesHeight(t *testi
 	}}
 	decoder := func(b []byte) (sdk.Tx, error) { return tx, nil }
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
-	a.recheckDisabled = true
+	a.sched.signer = signer
+	a.sched.recheckDisabled = true
 
 	a.StageRecheckSenders(7, [][]byte{[]byte("x")})
 
-	if a.lastCommittedHeight != 7 {
-		t.Fatalf("height must stage even when recheck disabled, got %d", a.lastCommittedHeight)
+	if a.sched.lastCommittedHeight != 7 {
+		t.Fatalf("height must stage even when recheck disabled, got %d", a.sched.lastCommittedHeight)
 	}
-	if a.recheckSenders != nil {
+	if a.sched.recheckSenders != nil {
 		t.Fatal("recheckDisabled must skip decode+merge into recheckSenders")
 	}
 }
@@ -381,9 +430,9 @@ func TestRecheckTxs_EncoderFallbackOnCacheMiss(t *testing.T) {
 	if _, ok := f.enc.Get(stale); ok {
 		t.Fatal("precondition: tx must not be in encCache")
 	}
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if !f.runner.seen["enc-1"] {
 		t.Fatal("cache-miss tx must be rechecked using encoder-produced bytes")
@@ -399,9 +448,9 @@ func TestRecheckTxs_MultiSignerMatchesAnySigner(t *testing.T) {
 	f := newRecheckFixture("enc-1")
 	// pool key = alice (first signer); recheckSenders names only the second signer, bob.
 	stale := f.insert(1, sdk.AccAddress("alice"), 0, sdk.AccAddress("bob"))
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("bob").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("bob").String(): {}}
 
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if !f.runner.seen["enc-1"] {
 		t.Fatal("tx must be rechecked when a non-primary signer is touched")
@@ -469,53 +518,85 @@ func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, er
 	return sd, nil
 }
 
-// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle.
+// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle
+// when the cap boundary falls between (single-tx) signer groups.
 func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 	const total = 5
 	const batch = 2
 	f := newRecheckFixture()
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
-	f.a.maxRecheckBatch = batch
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.maxRecheckBatch = batch
+	f.a.sched.recheckSenders = recheckSenders
 
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if got := len(f.runner.modes); got != batch {
 		t.Fatalf("expected %d RunTx calls with batch cap, got %d", batch, got)
 	}
 }
 
-// Overflow past the batch cap must carry forward and drain over later cycles —
-// front-loaded so the priority-ordered tail isn't re-deferred forever — with
-// every tx rechecked exactly once.
-func TestRecheckTxs_BatchCapCarriesOverflow(t *testing.T) {
-	const total = 5
-	const batch = 2
+// Reproduces the batch cap splitting a signer's nonce chain (pre-fix, the flat
+// cap sliced the candidate list before grouping by signer). bob's one-tx group
+// fills the cap; alice's five-tx chain must carry forward whole rather than
+// being split mid-chain, so it revalidates cleanly from her real nonce (8)
+// once a Commit lands between cycles and no valid tx is evicted.
+func TestRecheckTxs_BatchCapCarriesOverflowWithoutSplittingGroup(t *testing.T) {
+	const batch = 3
 	f := newRecheckFixture()
-	for i := 0; i < total; i++ {
-		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
-	}
-	f.a.maxRecheckBatch = batch
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.runner.signer = f.signer                                                      // enables per-sender expected-nonce semantics in the fake RunTx
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 8} // account nonce 8
 
-	// Cycle 1 touches alice; cycles 2-3 have empty recheckSenders but must still drain
-	// the carried overflow.
-	f.a.RecheckTxs()
-	f.a.RecheckTxs()
-	f.a.RecheckTxs()
-
-	if got := len(f.runner.modes); got != total {
-		t.Fatalf("expected all %d txs rechecked across cycles, got %d", total, got)
+	bob := f.add(1, "bob", 0, "bob-0")
+	aliceSeqs := []uint64{8, 9, 10, 11, 12}
+	alice := make([]*ptrTx, len(aliceSeqs))
+	for i, seq := range aliceSeqs {
+		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
 	}
-	for i := 0; i < total; i++ {
-		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
-			t.Fatalf("alice-%d was never rechecked (starved past the cap)", i)
+
+	f.a.sched.maxRecheckBatch = batch
+	f.a.sched.recheckSenders = map[string]struct{}{
+		sdk.AccAddress("bob").String():   {},
+		sdk.AccAddress("alice").String(): {},
+	}
+
+	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
+	// would push the running total to 6 > 3, so the whole group must defer.
+	f.a.sched.RecheckTxs()
+
+	if !f.runner.seen["bob-0"] {
+		t.Fatal("bob's group must run in cycle 1")
+	}
+	for _, seq := range aliceSeqs {
+		if f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
+			t.Fatalf("alice's group must not be partially run before deferring, but seq %d ran", seq)
 		}
 	}
-	if f.a.deferred != nil {
-		t.Fatalf("deferred queue must be drained, still holds %d", len(f.a.deferred))
+	if len(f.a.sched.deferred) != len(aliceSeqs) {
+		t.Fatalf("expected alice's whole group (%d txs) deferred, got %d", len(aliceSeqs), len(f.a.sched.deferred))
+	}
+
+	// Cycle 2: recheckSenders is empty, but the deferred carry must still run
+	// as one atomic group against alice's real nonce (still 8: her chain was
+	// only rechecked, never included in a block).
+	f.a.sched.RecheckTxs()
+
+	for _, seq := range aliceSeqs {
+		if !f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
+			t.Fatalf("alice-%d must be rechecked in cycle 2", seq)
+		}
+	}
+	if !poolHas(f.pool, bob) {
+		t.Fatal("bob's tx must remain valid in the pool")
+	}
+	for i, tx := range alice {
+		if !poolHas(f.pool, tx) {
+			t.Fatalf("alice's tx at index %d (seq %d) must not be evicted: the cap must not split her nonce chain", i, aliceSeqs[i])
+		}
 	}
 }
 
@@ -527,9 +608,9 @@ func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
 		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
 	}
 	// maxRecheckBatch left at zero default
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if got := len(f.runner.modes); got != total {
 		t.Fatalf("expected %d RunTx calls with no cap, got %d", total, got)
@@ -547,8 +628,8 @@ func TestRecheckTxs_UntouchedSenderNeverRechecked(t *testing.T) {
 
 	// Three blocks each touch alice only; carol is never in recheckSenders.
 	for i := 0; i < 3; i++ {
-		f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-		f.a.RecheckTxs()
+		f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+		f.a.sched.RecheckTxs()
 	}
 
 	if !poolHas(f.pool, idle) {
@@ -567,8 +648,8 @@ func TestRecheckTxs_NonceGapAfterTimeoutEvictionRechecked(t *testing.T) {
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5) // nonce 0, times out at height 5
 	gapped := f.addTimeout(2, "carol", 1, "carol-1", 0)  // nonce 1, no timeout
 
-	f.a.lastCommittedHeight = 5 // sweep evicts nonce 0; carol not in recheckSenders
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 5 // sweep evicts nonce 0; carol not in recheckSenders
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be swept")
@@ -585,15 +666,15 @@ func TestRecheckTxs_NonceGapAfterTTLEvictionRechecked(t *testing.T) {
 	// Same class of bug as the TimeoutHeight variant: TTL-evicted lower-nonce tx
 	// must trigger recheck of the surviving higher-nonce sibling.
 	f := newRecheckFixture("carol-1") // carol-1 fails recheck (nonce gap)
-	f.a.ttlNumBlocks = 5
+	f.a.sched.ttlNumBlocks = 5
 	aged := f.add(1, "carol", 0, "carol-0")
 	gapped := f.add(2, "carol", 1, "carol-1")
 
 	// Seed arrival directly: aged has been in pool 5+ blocks; gapped just arrived.
-	f.a.arrival = map[sdk.Tx]int64{aged: 5, gapped: 10}
+	f.a.sched.arrival = map[sdk.Tx]int64{aged: 5, gapped: 10}
 
-	f.a.lastCommittedHeight = 10 // aged: 10-5=5 >= ttl → evicted; gapped: 10-10=0 → survives
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 10 // aged: 10-5=5 >= ttl → evicted; gapped: 10-10=0 → survives
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, aged) {
 		t.Fatal("TTL-expired tx must be swept")
@@ -615,15 +696,15 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	a := newManager(runner, enc, txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
-	a.mpool = pool
-	a.signer = signer
+	a.sched.mpool = pool
+	a.sched.signer = signer
 
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
 	_ = pool.Insert(context.Background(), tx)
-	a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	a.RecheckTxs()
+	a.sched.RecheckTxs()
 
 	if signer.sawLocked {
 		t.Fatal("signer extraction ran inside SelectBy (under the pool lock)")
@@ -637,17 +718,17 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 // TimeoutHeight (EVM txs carry th=0 = never expire) and without a RunTx recheck.
 func TestRecheckTxs_TTLEvictsAgedTx(t *testing.T) {
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 5
+	f.a.sched.ttlNumBlocks = 5
 	aged := f.add(1, "alice", 0, "alice-0") // th=0: the timeout sweep never touches it
 
-	f.a.lastCommittedHeight = 10 // first sighting records arrival=10
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 10 // first sighting records arrival=10
+	f.a.sched.RecheckTxs()
 	if !poolHas(f.pool, aged) {
 		t.Fatal("tx must survive its first sighting")
 	}
 
-	f.a.lastCommittedHeight = 15 // 15-10 == 5 == ttl → evicted
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 15 // 15-10 == 5 == ttl → evicted
+	f.a.sched.RecheckTxs()
 	if poolHas(f.pool, aged) {
 		t.Fatal("tx older than ttlNumBlocks must be evicted")
 	}
@@ -662,13 +743,13 @@ func TestRecheckTxs_TTLEvictsAgedTx(t *testing.T) {
 // A tx younger than ttlNumBlocks survives the sweep.
 func TestRecheckTxs_TTLKeepsYoungTx(t *testing.T) {
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 5
+	f.a.sched.ttlNumBlocks = 5
 	young := f.add(1, "alice", 0, "alice-0")
 
-	f.a.lastCommittedHeight = 10 // arrival=10
-	f.a.RecheckTxs()
-	f.a.lastCommittedHeight = 14 // 14-10 == 4 < ttl
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 10 // arrival=10
+	f.a.sched.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 14 // 14-10 == 4 < ttl
+	f.a.sched.RecheckTxs()
 
 	if !poolHas(f.pool, young) {
 		t.Fatal("tx younger than ttlNumBlocks must stay")
@@ -682,34 +763,34 @@ func TestRecheckTxs_TTLDisabledKeepsOldTx(t *testing.T) {
 	old := f.add(1, "alice", 0, "alice-0")
 
 	for h := int64(1); h <= 200; h++ {
-		f.a.lastCommittedHeight = h
-		f.a.RecheckTxs()
+		f.a.sched.lastCommittedHeight = h
+		f.a.sched.RecheckTxs()
 	}
 
 	if !poolHas(f.pool, old) {
 		t.Fatal("TTL disabled: tx must never be evicted by age")
 	}
-	if f.a.arrival != nil {
+	if f.a.sched.arrival != nil {
 		t.Fatal("disabled TTL must not allocate the arrival map")
 	}
 }
 
 func TestRecheckTxs_RecheckDisabledSkipsTTLEviction(t *testing.T) {
 	f := newRecheckFixture()
-	f.a.recheckDisabled = true
-	f.a.ttlNumBlocks = 5
+	f.a.sched.recheckDisabled = true
+	f.a.sched.ttlNumBlocks = 5
 	aged := f.add(1, "alice", 0, "alice-0")
 
-	f.a.lastCommittedHeight = 10 // first sighting would record arrival=10 if TTL ran
-	f.a.RecheckTxs()
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 15 // 15-10 == ttl, but recheckDisabled skips the sweep entirely
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 10 // first sighting would record arrival=10 if TTL ran
+	f.a.sched.RecheckTxs()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.lastCommittedHeight = 15 // 15-10 == ttl, but recheckDisabled skips the sweep entirely
+	f.a.sched.RecheckTxs()
 
 	if !poolHas(f.pool, aged) {
 		t.Fatal("recheckDisabled must skip TTL eviction too, not just RunTx recheck")
 	}
-	if f.a.arrival != nil {
+	if f.a.sched.arrival != nil {
 		t.Fatal("recheckDisabled must not build the arrival map")
 	}
 	if len(f.runner.modes) != 0 {
@@ -719,12 +800,12 @@ func TestRecheckTxs_RecheckDisabledSkipsTTLEviction(t *testing.T) {
 
 func TestRecheckTxs_RecheckDisabledSkipsCandidateRunTx(t *testing.T) {
 	f := newRecheckFixture()
-	f.a.recheckDisabled = true
+	f.a.sched.recheckDisabled = true
 	tx := f.add(1, "alice", 0, "alice-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 1
-	f.a.RecheckTxs()
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.lastCommittedHeight = 1
+	f.a.sched.RecheckTxs()
 
 	if !poolHas(f.pool, tx) {
 		t.Fatal("recheckDisabled must not run RunTx reval even with a staged sender")
@@ -738,20 +819,20 @@ func TestRecheckTxs_RecheckDisabledSkipsCandidateRunTx(t *testing.T) {
 // each cycle, bounding the map to the live pool.
 func TestRecheckTxs_TTLArrivalReconcilesRemovedTxs(t *testing.T) {
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 100
+	f.a.sched.ttlNumBlocks = 100
 	tx := f.add(1, "alice", 0, "alice-0")
 
-	f.a.lastCommittedHeight = 1
-	f.a.RecheckTxs()
-	if len(f.a.arrival) != 1 {
-		t.Fatalf("arrival must track the live tx, got %d", len(f.a.arrival))
+	f.a.sched.lastCommittedHeight = 1
+	f.a.sched.RecheckTxs()
+	if len(f.a.sched.arrival) != 1 {
+		t.Fatalf("arrival must track the live tx, got %d", len(f.a.sched.arrival))
 	}
 
 	_ = f.pool.Remove(tx) // simulate block inclusion
-	f.a.lastCommittedHeight = 2
-	f.a.RecheckTxs()
-	if len(f.a.arrival) != 0 {
-		t.Fatalf("arrival must drop the removed tx, got %d", len(f.a.arrival))
+	f.a.sched.lastCommittedHeight = 2
+	f.a.sched.RecheckTxs()
+	if len(f.a.sched.arrival) != 0 {
+		t.Fatalf("arrival must drop the removed tx, got %d", len(f.a.sched.arrival))
 	}
 }
 
@@ -760,24 +841,27 @@ func TestRecheckTxs_TTLArrivalReconcilesRemovedTxs(t *testing.T) {
 func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 	const total = 5
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 2
-	f.a.maxRecheckBatch = 1 // far below total
+	f.a.sched.ttlNumBlocks = 2
+	f.a.sched.maxRecheckBatch = 1 // far below total; one sender per tx so the cap can bite
 	txs := make([]*ptrTx, total)
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		txs[i] = f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 
-	f.a.lastCommittedHeight = 100 // first sighting: arrival=100
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 100 // first sighting: arrival=100
+	f.a.sched.RecheckTxs()
 	if got := len(f.runner.modes); got != 1 {
 		t.Fatalf("cycle1: batch cap must bound recheck to 1, got %d", got)
 	}
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 102 // 102-100 == 2 == ttl → all aged out
+	f.a.sched.recheckSenders = recheckSenders
+	f.a.sched.lastCommittedHeight = 102 // 102-100 == 2 == ttl → all aged out
 	before := len(f.runner.modes)
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	for _, tx := range txs {
 		if poolHas(f.pool, tx) {
@@ -787,8 +871,8 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 	if got := len(f.runner.modes) - before; got != 0 {
 		t.Fatalf("TTL-evicted txs must not be rechecked; got %d new RunTx", got)
 	}
-	if f.a.deferred != nil {
-		t.Fatalf("nothing should carry over once all aged out, got %d", len(f.a.deferred))
+	if f.a.sched.deferred != nil {
+		t.Fatalf("nothing should carry over once all aged out, got %d", len(f.a.sched.deferred))
 	}
 }
 
@@ -797,32 +881,35 @@ func TestRecheckTxs_TTLEvictsRegardlessOfBatchCap(t *testing.T) {
 func TestRecheckTxs_TTLEvictsDeferredCarryover(t *testing.T) {
 	const total = 4
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 3
-	f.a.maxRecheckBatch = 1 // force overflow into deferred
+	f.a.sched.ttlNumBlocks = 3
+	f.a.sched.maxRecheckBatch = 1 // force overflow into deferred; one sender per tx so the cap can bite
 	txs := make([]*ptrTx, total)
+	recheckSenders := make(map[string]struct{}, total)
 	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+		sender := "sender" + strconv.Itoa(i)
+		txs[i] = f.add(i+1, sender, 0, sender+"-0")
+		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
 	}
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = recheckSenders
 
-	f.a.lastCommittedHeight = 50 // arrival=50 for all
-	f.a.RecheckTxs()
-	if len(f.a.deferred) == 0 {
+	f.a.sched.lastCommittedHeight = 50 // arrival=50 for all
+	f.a.sched.RecheckTxs()
+	if len(f.a.sched.deferred) == 0 {
 		t.Fatal("precondition: batch cap must have carried overflow")
 	}
 
 	// Jump past TTL with empty recheckSenders: only the scan sweep runs. The deferred
 	// carryover must be evicted, not survive as stale candidates.
-	f.a.lastCommittedHeight = 53 // 53-50 == 3 == ttl
-	f.a.RecheckTxs()
+	f.a.sched.lastCommittedHeight = 53 // 53-50 == 3 == ttl
+	f.a.sched.RecheckTxs()
 
 	for _, tx := range txs {
 		if poolHas(f.pool, tx) {
 			t.Fatalf("deferred tx %d must be TTL-evicted", tx.id)
 		}
 	}
-	if f.a.deferred != nil {
-		t.Fatalf("deferred queue must be empty after aged txs evicted, got %d", len(f.a.deferred))
+	if f.a.sched.deferred != nil {
+		t.Fatalf("deferred queue must be empty after aged txs evicted, got %d", len(f.a.sched.deferred))
 	}
 }
 
@@ -838,11 +925,11 @@ func TestStageSkippedSenders_MergesIntoRecheckSenders(t *testing.T) {
 		return nil, errors.New("unknown")
 	}
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
+	a.sched.signer = signer
 
 	a.StageSkippedSenders([][]byte{[]byte("a")})
 
-	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+	if _, ok := a.sched.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
 		t.Fatal("gate-skipped sender must appear in recheckSenders")
 	}
 }
@@ -859,13 +946,13 @@ func TestStageSkippedSenders_DoesNotTouchLastCommittedHeight(t *testing.T) {
 		return nil, errors.New("unknown")
 	}
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
-	a.lastCommittedHeight = 42
+	a.sched.signer = signer
+	a.sched.lastCommittedHeight = 42
 
 	a.StageSkippedSenders([][]byte{[]byte("a")})
 
-	if a.lastCommittedHeight != 42 {
-		t.Fatalf("StageSkippedSenders must not touch lastCommittedHeight: got %d, want 42", a.lastCommittedHeight)
+	if a.sched.lastCommittedHeight != 42 {
+		t.Fatalf("StageSkippedSenders must not touch lastCommittedHeight: got %d, want 42", a.sched.lastCommittedHeight)
 	}
 }
 
@@ -887,26 +974,26 @@ func TestStageSkippedSenders_MergesWithCommittedSenders(t *testing.T) {
 		return nil, errors.New("unknown")
 	}
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
+	a.sched.signer = signer
 
 	a.StageRecheckSenders(10, [][]byte{[]byte("a")}) // alice from committed block
 	a.StageSkippedSenders([][]byte{[]byte("b")})     // bob from gate skip
 
-	if _, ok := a.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
+	if _, ok := a.sched.recheckSenders[sdk.AccAddress("alice").String()]; !ok {
 		t.Fatal("committed sender must be preserved after StageSkippedSenders")
 	}
-	if _, ok := a.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
+	if _, ok := a.sched.recheckSenders[sdk.AccAddress("bob").String()]; !ok {
 		t.Fatal("gate-skipped sender must be merged in")
 	}
-	if a.lastCommittedHeight != 10 {
-		t.Fatalf("height must stay at 10, got %d", a.lastCommittedHeight)
+	if a.sched.lastCommittedHeight != 10 {
+		t.Fatalf("height must stay at 10, got %d", a.sched.lastCommittedHeight)
 	}
 }
 
 func TestStageSkippedSenders_NilDecoderNoop(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageSkippedSenders([][]byte{[]byte("x")}) // decoder nil → must not panic
-	if a.recheckSenders != nil {
+	if a.sched.recheckSenders != nil {
 		t.Fatal("nil decoder must leave recheckSenders unchanged")
 	}
 }
@@ -915,7 +1002,7 @@ func TestStageSkippedSenders_EmptyIsNoop(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil })
 	a.StageSkippedSenders(nil)
 	a.StageSkippedSenders([][]byte{})
-	if a.recheckSenders != nil {
+	if a.sched.recheckSenders != nil {
 		t.Fatal("empty input must not allocate recheckSenders")
 	}
 }
@@ -927,12 +1014,12 @@ func TestStageSkippedSenders_RecheckDisabledSkipsMerge(t *testing.T) {
 	}}
 	decoder := func(b []byte) (sdk.Tx, error) { return tx, nil }
 	a := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-	a.signer = signer
-	a.recheckDisabled = true
+	a.sched.signer = signer
+	a.sched.recheckDisabled = true
 
 	a.StageSkippedSenders([][]byte{[]byte("x")})
 
-	if a.recheckSenders != nil {
+	if a.sched.recheckSenders != nil {
 		t.Fatal("recheckDisabled must skip decode+merge into recheckSenders")
 	}
 }
@@ -947,7 +1034,7 @@ func TestStageSkippedSenders_TriggerRecheckNextCycle(t *testing.T) {
 	// the stale tx. The fakeSigner already has stale → alice, so
 	// StageSkippedSenders extracts alice and adds her to recheckSenders.
 	gateSkippedBz := []byte("gate-skipped-alice")
-	f.a.decoder = func(b []byte) (sdk.Tx, error) {
+	f.a.exec.decoder = func(b []byte) (sdk.Tx, error) {
 		if string(b) == string(gateSkippedBz) {
 			return stale, nil
 		}
@@ -955,7 +1042,7 @@ func TestStageSkippedSenders_TriggerRecheckNextCycle(t *testing.T) {
 	}
 
 	f.a.StageSkippedSenders([][]byte{gateSkippedBz})
-	f.a.RecheckTxs()
+	f.a.sched.RecheckTxs()
 
 	if poolHas(f.pool, stale) {
 		t.Fatal("gate-skipped and recheck-failed tx must be evicted in one cycle")
@@ -973,9 +1060,9 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 		SignerExtractor: signer,
 	})
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil) // encCache nil
-	a.mpool = pool
-	a.signer = signer
-	a.ttlNumBlocks = 2
+	a.sched.mpool = pool
+	a.sched.signer = signer
+	a.sched.ttlNumBlocks = 2
 
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
@@ -983,12 +1070,515 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a.lastCommittedHeight = 10
-	a.RecheckTxs() // arrival=10
-	a.lastCommittedHeight = 12
-	a.RecheckTxs() // 12-10 == 2 → evict via nil encCache; must not panic
+	a.sched.lastCommittedHeight = 10
+	a.sched.RecheckTxs() // arrival=10
+	a.sched.lastCommittedHeight = 12
+	a.sched.RecheckTxs() // 12-10 == 2 → evict via nil encCache; must not panic
 
 	if poolHas(pool, tx) {
 		t.Fatal("aged tx must be evicted even with nil encCache")
+	}
+}
+
+const aliceSeq0Bytes = "alice-0"
+
+const (
+	carlSeq5Bytes = "carl-5"
+	carlSeq7Bytes = "carl-7"
+	carlSeq8Bytes = "carl-8"
+)
+
+func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
+	f := newRecheckFixture()
+	aliceLow := f.add(1, "alice", 0, aliceSeq0Bytes)
+	bob := f.add(2, "bob", 0, "bob-0")
+	aliceHigh := f.add(3, "alice", 1, "alice-1")
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}))
+
+	want := []string{aliceSeq0Bytes, "alice-1", "bob-0"}
+	if !slices.Equal(f.runner.calls, want) {
+		t.Fatalf("candidates must run grouped by signer in first-appearance order: got %v, want %v", f.runner.calls, want)
+	}
+}
+
+func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	gapped := f.add(2, "carl", 7, carlSeq7Bytes)
+	higher := f.add(3, "carl", 8, carlSeq8Bytes)
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}))
+
+	if f.runner.seen[carlSeq8Bytes] {
+		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
+	}
+	if poolHas(f.pool, gapped) || poolHas(f.pool, higher) {
+		t.Fatal("the gapped tx and its higher-nonce siblings must be evicted")
+	}
+	if !poolHas(f.pool, valid) {
+		t.Fatal("the tx that passed recheck must stay in the pool")
+	}
+}
+
+// A wrong-sequence failure with no accepted nonce before it may be a stale nonce
+// (already committed), in which case the successor is the account's expected one.
+func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
+	f := newRecheckFixture()
+	stale := f.add(1, "carl", 5, carlSeq5Bytes)
+	next := f.add(2, "carl", 6, "carl-6")
+	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}))
+
+	if !f.runner.seen["carl-6"] {
+		t.Fatal("the successor of a stale nonce must still be rechecked")
+	}
+	if poolHas(f.pool, stale) {
+		t.Fatal("the stale tx must be evicted")
+	}
+	if !poolHas(f.pool, next) {
+		t.Fatal("the successor must stay in the pool after passing recheck")
+	}
+}
+
+func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	failing := f.add(2, "carl", 7, carlSeq7Bytes)
+	higher := f.add(3, "carl", 8, carlSeq8Bytes)
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}))
+
+	if !f.runner.seen[carlSeq8Bytes] {
+		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
+	}
+}
+
+// groupCandidates sorts a group ascending by seq before it runs, so a
+// non-ascending pool/deferred order (5, 9, 7) no longer disables the cascade —
+// the group becomes the signer's clean ascending view (5, 7, 9), and every
+// candidate still gets its own RunTx up to the real gap.
+func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	gapped := f.add(2, "carl", 9, "carl-9")
+	lower := f.add(3, "carl", 7, carlSeq7Bytes)
+	f.runner.failErrs = map[string]error{"carl-9": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower})
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
+	}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}))
+
+	if !f.runner.seen[carlSeq7Bytes] {
+		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
+	}
+	if !poolHas(f.pool, valid) || !poolHas(f.pool, lower) {
+		t.Fatal("the two candidates that pass recheck must stay in the pool")
+	}
+	if poolHas(f.pool, gapped) {
+		t.Fatal("the failing candidate must be evicted")
+	}
+}
+
+// A multi-signer candidate makes its own group's nonce view incomplete: the
+// group is keyed on the first signer, so the co-signers' nonces it also
+// advances are invisible there.
+func TestGroupCandidates_MultiSignerDisablesCascade(t *testing.T) {
+	f := newRecheckFixture()
+	single := f.insert(1, sdk.AccAddress("alice"), 3)
+	multi := f.insert(2, sdk.AccAddress("alice"), 5, sdk.AccAddress("bob"))
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{single, multi})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected both txs in one group keyed on alice, got %d groups", len(groups))
+	}
+	if groups[0].cascadable {
+		t.Fatal("a multi-signer candidate in the group must disable cascade")
+	}
+}
+
+// The multi-signer tx is keyed on bob, so alice's own group [3, 5] looks like a
+// clean ascending view with a gap at 4 — but the bob-keyed tx also carries
+// alice at nonce 4 and would fill it. Every signer a multi-signer tx names must
+// lose cascade, not just the group that tx lands in.
+func TestGroupCandidates_MultiSignerDisablesCascadeInCoSignerGroup(t *testing.T) {
+	f := newRecheckFixture()
+	alice3 := f.insert(1, sdk.AccAddress("alice"), 3)
+	alice5 := f.insert(2, sdk.AccAddress("alice"), 5)
+	bobMulti := f.insert(3, sdk.AccAddress("bob"), 4, sdk.AccAddress("alice"))
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{alice3, alice5, bobMulti})
+
+	if len(groups) != 2 {
+		t.Fatalf("expected an alice group and a bob group, got %d", len(groups))
+	}
+	for _, g := range groups {
+		if g.cascadable {
+			t.Fatalf("group %q must not cascade: the bob-keyed multi-signer tx names alice too", g.key)
+		}
+	}
+}
+
+// F2: an unordered tx keys its SignerData.Sequence at 0 (ChooseNonce orders it
+// by timeout, not sequence), so a group holding it alongside ordered seqs
+// 6, 7, 8 has no duplicate seq and would otherwise look like a clean
+// ascending-nonce view. groupCandidates must disable cascade for it directly,
+// since the seq it carries can't be reasoned about by the gap rule.
+func TestGroupCandidates_UnorderedTxDisablesCascade(t *testing.T) {
+	f := newRecheckFixture()
+	unordered := &ptrTx{id: 1, unordered: true, timeoutTS: time.Now().Add(time.Hour)}
+	f.signer.m[unordered] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	if err := f.pool.Insert(sdk.Context{}, unordered); err != nil {
+		t.Fatal(err)
+	}
+	seq6 := f.insert(2, sdk.AccAddress("alice"), 6)
+	seq7 := f.insert(3, sdk.AccAddress("alice"), 7)
+	seq8 := f.insert(4, sdk.AccAddress("alice"), 8)
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{unordered, seq6, seq7, seq8})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group keyed on alice, got %d", len(groups))
+	}
+	if groups[0].cascadable {
+		t.Fatal("an unordered tx in the group must disable cascade")
+	}
+}
+
+// Deferred front-loading can hand groupCandidates an out-of-nonce-order group
+// (e.g. alice-5 ahead of alice-3 and alice-4). Without sorting, alice-5 would
+// run first and fail wrong-sequence even though it becomes valid two txs later.
+func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
+	f := newRecheckFixture()
+	seq5 := f.add(1, "alice", 5, "alice-5")
+	seq3 := f.add(2, "alice", 3, "alice-3")
+	seq4 := f.add(3, "alice", 4, "alice-4")
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{seq5, seq3, seq4})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	got := []uint64{groups[0].txs[0].seq, groups[0].txs[1].seq, groups[0].txs[2].seq}
+	if got[0] != 3 || got[1] != 4 || got[2] != 5 {
+		t.Fatalf("group must be sorted ascending by seq, got %v", got)
+	}
+}
+
+// The seq <= previous-seq check still needs to catch duplicates once sorting
+// is in play, and the sort must be stable so tied seqs keep pool order.
+func TestGroupCandidates_DuplicateSeqDisablesCascadeStableOrder(t *testing.T) {
+	f := newRecheckFixture()
+	first := f.add(1, "alice", 5, "alice-5a")
+	second := f.add(2, "alice", 5, "alice-5b") // duplicate seq
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{first, second})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	g := groups[0]
+	if g.cascadable {
+		t.Fatal("a duplicate seq within a group must disable cascade")
+	}
+	if g.txs[0].tx != first || g.txs[1].tx != second {
+		t.Fatal("stable sort must preserve pool order for equal-seq txs")
+	}
+}
+
+// A group larger than recheckChunkSize must still run every candidate: the
+// chunking in runGroup bounds one mutex hold, not how much of the group
+// eventually gets rechecked.
+func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
+	const total = recheckChunkSize + 50
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, total)
+	for i := 0; i < total; i++ {
+		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+
+	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	if evicted != 0 || cascaded != 0 {
+		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
+	}
+	if got := len(f.runner.calls); got != total {
+		t.Fatalf("expected every candidate across chunk boundaries to run, got %d RunTx calls", got)
+	}
+	for i := 0; i < total; i++ {
+		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
+			t.Fatalf("alice-%d must have run", i)
+		}
+	}
+}
+
+// Nothing carries across a chunk boundary: the mutex is released between
+// chunks, so a same-sender admission (or a Commit) can move the account's
+// nonce, and a nonce error at the next chunk's head may mean stale rather than
+// gap. Each case lays out one signer's group spanning two chunks, moves the
+// expected nonce as chunk 2's head runs (admissions landing in the gap between
+// the lock holds), and checks that chunk 2 never blind-evicts a candidate that
+// is valid by then.
+func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
+	const n = recheckChunkSize
+	const total = n + 3 // chunk 1 = [0, n); chunk 2 = [n, n+3)
+	// gapAtBoundary keeps 0..n-2 ascending, then jumps at index n-1 so chunk 1
+	// proves a gap at its very last index — its cascade range is empty — and
+	// chunk 2 continues ascending past the jump: n+4, n+5, n+6.
+	gapAtBoundary := func(i int) uint64 {
+		if i < n-1 {
+			return uint64(i)
+		}
+		return uint64(n) + 3 + uint64(i-(n-1))
+	}
+	contiguous := func(i int) uint64 { return uint64(i) }
+
+	testCases := []struct {
+		name  string
+		seqOf func(i int) uint64
+		// nonceAfterChunk1 is the account's expected nonce once the admissions
+		// that landed between the two lock holds have been applied.
+		nonceAfterChunk1 uint64
+		wantEvicted      float32
+		wantSurvivors    []int // chunk 2 indexes that must stay pooled and spend their own RunTx
+		wantGone         []int
+	}{
+		{
+			name:             "gap filled exactly up to chunk 2's head",
+			seqOf:            gapAtBoundary,
+			nonceAfterChunk1: uint64(n) + 4,
+			wantEvicted:      1,
+			wantSurvivors:    []int{n, n + 1, n + 2},
+			wantGone:         []int{n - 1},
+		},
+		{
+			// The head is now stale, not gapped: reading its nonce error as
+			// "the gap held" would blind-evict the valid tail behind it.
+			name:             "gap filled past chunk 2's head",
+			seqOf:            gapAtBoundary,
+			nonceAfterChunk1: uint64(n) + 5,
+			wantEvicted:      2,
+			wantSurvivors:    []int{n + 1, n + 2},
+			wantGone:         []int{n - 1, n},
+		},
+		{
+			// No gap anywhere; two same-sender admissions overtake chunk 2's
+			// first two candidates. The second stale failure sits above chunk
+			// 1's last accepted nonce + 1 and would pass the gap rule if that
+			// cursor carried over.
+			name:             "stale run after the boundary is not a gap",
+			seqOf:            contiguous,
+			nonceAfterChunk1: uint64(n) + 2,
+			wantEvicted:      2,
+			wantSurvivors:    []int{n + 2},
+			wantGone:         []int{n, n + 1},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			f.runner.signer = f.signer
+			dave := sdk.AccAddress("dave").String()
+			f.runner.expectedNonce = map[string]uint64{dave: 0}
+			bz := func(i int) string { return "dave-" + strconv.Itoa(i) }
+			txs := make([]sdk.Tx, total)
+			ptrTxs := make([]*ptrTx, total)
+			for i := 0; i < total; i++ {
+				ptrTxs[i] = f.add(i+1, "dave", tc.seqOf(i), bz(i))
+				txs[i] = ptrTxs[i]
+			}
+			f.runner.onCall = func(b []byte) {
+				if string(b) == bz(n) {
+					f.runner.expectedNonce[dave] = tc.nonceAfterChunk1
+				}
+			}
+
+			groups := f.a.sched.groupCandidates(txs)
+			if len(groups) != 1 || !groups[0].cascadable {
+				t.Fatalf("expected 1 cascadable group, got %+v", groups)
+			}
+
+			evicted, cascaded := f.a.sched.runGroup(groups[0])
+			if evicted != tc.wantEvicted {
+				t.Fatalf("expected %v direct evictions, got %v", tc.wantEvicted, evicted)
+			}
+			if cascaded != 0 {
+				t.Fatalf("no gap is provable after the boundary, so nothing may cascade; got %v", cascaded)
+			}
+			for _, i := range tc.wantSurvivors {
+				if !f.runner.seen[bz(i)] {
+					t.Fatalf("candidate %d must have spent a RunTx, not been blind-evicted", i)
+				}
+				if !poolHas(f.pool, ptrTxs[i]) {
+					t.Fatalf("candidate %d is valid and must not be evicted", i)
+				}
+			}
+			for _, i := range tc.wantGone {
+				if poolHas(f.pool, ptrTxs[i]) {
+					t.Fatalf("candidate %d failed recheck and must be evicted", i)
+				}
+			}
+		})
+	}
+}
+
+// A nonce gap proven inside a chunk cascade-evicts the rest of that chunk
+// only. The next chunk runs every candidate with its own RunTx again: they are
+// still gapped here (nothing filled the gap), so each is evicted, but none is
+// evicted blind.
+func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
+	const total = 3*recheckChunkSize - 88 // spans 3 chunks; boundaries at 256, 512
+	const gapIndex = 400                  // inside chunk 2 ([256, 512))
+	const chunk3Head = 2 * recheckChunkSize
+	f := newRecheckFixture()
+	f.runner.signer = f.signer // real nonce tracking: the gap must hold on its own, not via failErrs
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("carl").String(): 0}
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	bz := func(i int) string { return "carl-" + strconv.Itoa(i) }
+	for i := 0; i < total; i++ {
+		seq := uint64(i)
+		if i >= gapIndex {
+			seq += 2 // opens a gap at gapIndex and keeps ascending order past it
+		}
+		ptrTxs[i] = f.add(i+1, "carl", seq, bz(i))
+		txs[i] = ptrTxs[i]
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 || !groups[0].cascadable {
+		t.Fatalf("expected 1 cascadable group, got %+v", groups)
+	}
+
+	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	// Direct evictions: the gapped candidate, plus every chunk-3 candidate,
+	// each of which fails its own RunTx.
+	if want := float32(1 + total - chunk3Head); evicted != want {
+		t.Fatalf("expected %v direct evictions, got %v", want, evicted)
+	}
+	if want := float32(chunk3Head - gapIndex - 1); cascaded != want {
+		t.Fatalf("expected %v cascade-evicted siblings (rest of chunk 2 only), got %v", want, cascaded)
+	}
+	for i := gapIndex + 1; i < chunk3Head; i++ {
+		if f.runner.seen[bz(i)] {
+			t.Fatalf("chunk-2 sibling at index %d must be cascade-evicted without a RunTx", i)
+		}
+	}
+	for i := chunk3Head; i < total; i++ {
+		if !f.runner.seen[bz(i)] {
+			t.Fatalf("chunk-3 candidate at index %d must spend its own RunTx: the gap proof does not cross the lock release", i)
+		}
+	}
+	for i := gapIndex; i < total; i++ {
+		if poolHas(f.pool, ptrTxs[i]) {
+			t.Fatalf("candidate at index %d is behind the gap and must be evicted", i)
+		}
+	}
+	if !f.runner.seen[bz(gapIndex-1)] {
+		t.Fatal("the last successful candidate before the gap must have run")
+	}
+}
+
+// firstSigner has a nil guard on s.signer; signers() must agree so an abort
+// path (recoverSenders -> signers) can't panic when the scheduler was never
+// wired with a signer extractor.
+func TestSigners_NilSignerNoPanic(t *testing.T) {
+	s := &recheckScheduler{}
+	if got := s.signers(&ptrTx{id: 1}); got != nil {
+		t.Fatalf("expected nil signers with a nil extractor, got %v", got)
+	}
+}
+
+// F1 regression: the deferred carry from capRecheckGroups is tx-identity-keyed
+// (deferredLive), so it alone cannot survive a fee bump replacing the head of
+// a deferred group at the same (sender, nonce) key. capRecheckGroups must
+// also merge the deferred groups' senders into recheckSenders, so the next
+// cycle's selectTxs re-picks alice's whole live queue by sender instead of
+// relying on the stale deferred pointer. Without that, the surviving tail
+// (seq 6-9) would be regrouped alone, fail wrong-sequence against a base
+// still expecting nonce 5, and be evicted in full.
+func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) {
+	const batch = 3
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 5}
+
+	bob := f.add(1, "bob", 0, "bob-0")
+	aliceSeqs := []uint64{5, 6, 7, 8, 9}
+	alice := make([]*ptrTx, len(aliceSeqs))
+	for i, seq := range aliceSeqs {
+		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
+	}
+
+	f.a.sched.maxRecheckBatch = batch
+	f.a.sched.recheckSenders = map[string]struct{}{
+		sdk.AccAddress("bob").String():   {},
+		sdk.AccAddress("alice").String(): {},
+	}
+
+	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
+	// overflows and must defer whole.
+	f.a.sched.RecheckTxs()
+	if !poolHas(f.pool, bob) {
+		t.Fatal("precondition: bob's tx must survive cycle 1")
+	}
+	if len(f.a.sched.deferred) != len(aliceSeqs) {
+		t.Fatalf("precondition: alice's whole group must defer, got %d", len(f.a.sched.deferred))
+	}
+
+	// alice fee-bumps her head tx: same (sender, nonce) key, new tx identity.
+	// PriorityNonceMempool.Insert replaces the deferred pointer's pool entry.
+	bumped := f.add(99, "alice", aliceSeqs[0], "alice-5-bumped")
+	if poolHas(f.pool, alice[0]) {
+		t.Fatal("precondition: fee bump must replace the original nonce-5 entry")
+	}
+
+	// No block touches alice between cycles; her real nonce stays 5.
+	// Cycle 2: recheckSenders is drained empty going in; only capRecheckGroups'
+	// re-staging from cycle 1 covers alice here.
+	f.a.sched.RecheckTxs()
+
+	if !poolHas(f.pool, bumped) {
+		t.Fatal("the fee-bumped replacement at nonce 5 must survive recheck")
+	}
+	for i, seq := range aliceSeqs[1:] {
+		if !poolHas(f.pool, alice[i+1]) {
+			t.Fatalf("alice's tail tx at seq %d must not be evicted after a head fee bump", seq)
+		}
+	}
+}
+
+// F2 (documented residual, not fixed in code): PriorityNonceMempool.Remove
+// resolves by (sender, nonce) key, not tx identity, so evicting a stale
+// recheck candidate drops whatever currently occupies that key. If an
+// admission lands between the snapshot and the eviction and replaces the slot
+// (e.g. a fee bump), the freshly admitted replacement is what gets dropped,
+// not the stale tx the pass was actually rechecking.
+func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
+	f := newRecheckFixture()
+	stale := f.add(1, "alice", 0, "alice-0")
+
+	// A fee bump lands at the same (sender, nonce) key before eviction runs.
+	replacement := f.insert(2, sdk.AccAddress("alice"), 0)
+	if poolHas(f.pool, stale) {
+		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
+	}
+
+	f.a.sched.evict(stale)
+
+	if poolHas(f.pool, replacement) {
+		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
 	}
 }
