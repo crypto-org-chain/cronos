@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 import web3
+from dateutil.parser import isoparse
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -26,6 +27,7 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
+    find_log_event_attrs,
     fund_acc,
     get_expedited_params,
     get_receipts_by_block,
@@ -38,6 +40,7 @@ from .utils import (
     submit_gov_proposal,
     w3_wait_for_block,
     wait_for_block,
+    wait_for_block_time,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -69,19 +72,52 @@ def test_expedited_gov_params(cronos):
 
     # re-submit the same params as an expedited proposal to keep covering the
     # expedited path, previously covered by disabling the ica controller.
-    submit_gov_proposal(
-        cronos,
-        msg,
-        messages=[
-            {
-                "@type": msg,
-                "authority": authority,
-                "params": params,
-            }
-        ],
-        deposit="5basetcro",
-        expedited=True,
+    rsp = cli.submit_gov_proposal(
+        "community",
+        "submit-proposal",
+        {
+            "title": "title",
+            "summary": "summary",
+            "deposit": "5basetcro",
+            "expedited": True,
+            "messages": [
+                {
+                    "@type": msg,
+                    "authority": authority,
+                    "params": params,
+                }
+            ],
+        },
     )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    proposal_id = find_log_event_attrs(
+        rsp["events"], "submit_proposal", lambda attrs: "proposal_id" in attrs
+    )["proposal_id"]
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal.get("expedited"), proposal
+    assert proposal["status"] == "PROPOSAL_STATUS_VOTING_PERIOD", proposal
+
+    num_validators = len(cronos.config["validators"])
+    with ThreadPoolExecutor(num_validators) as executor:
+        votes = list(
+            executor.map(
+                lambda i: cronos.cosmos_cli(i).gov_vote(
+                    "validator", proposal_id, "yes", broadcast_mode="sync"
+                ),
+                range(num_validators),
+            )
+        )
+    for vote in votes:
+        assert vote["code"] == 0, vote["raw_log"]
+
+    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
+    wait_for_new_blocks(cli, 1)
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+    assert proposal.get("expedited"), proposal
+    assert (
+        int(proposal["final_tally_result"]["yes_count"]) == cli.staking_pool()
+    ), proposal
     assert_gov_params(cli, param0)
 
 
