@@ -1976,7 +1976,7 @@ class CosmosCLI:
                 rsp = self._committed_tx_at(rpc, target, height)
                 if rsp is not None:
                     return rsp
-            next_height = max(next_height, committed + 1)
+            next_height = committed + 1
             if time.monotonic() >= deadline:
                 raise AssertionError(
                     f"Error: timed out waiting for transaction {target} "
