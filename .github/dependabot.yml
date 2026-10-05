@@ -36,6 +36,21 @@ updates:
   # Tracked via .github/workflows/dependabot-ethermint.yml (pseudo-version on develop).
   - dependency-name: "github.com/evmos/ethermint"
   - dependency-name: "github.com/crypto-org-chain/ethermint"
+  # First versions requiring go 1.26; drop once the toolchain (nix, CI) moves off go 1.25.
+  - dependency-name: "golang.org/x/crypto"
+    versions: [">= 0.56.0"]
+  - dependency-name: "golang.org/x/mod"
+    versions: [">= 0.41.0"]
+  - dependency-name: "golang.org/x/sys"
+    versions: [">= 0.48.0"]
+  - dependency-name: "golang.org/x/text"
+    versions: [">= 0.42.0"]
+  - dependency-name: "golang.org/x/term"
+    versions: [">= 0.46.0"]
+  - dependency-name: "golang.org/x/sync"
+    versions: [">= 0.23.0"]
+  - dependency-name: "github.com/shirou/gopsutil/v4"
+    versions: [">= 4.26.9"]
   groups:
     cosmos-sdk:
       patterns:
