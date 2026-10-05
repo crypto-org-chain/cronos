@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	stdruntime "runtime"
 	"slices"
 	"sort"
 	"time"
@@ -78,7 +77,7 @@ import (
 	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/baseapp/txnrunner"
+	"github.com/cosmos/cosmos-sdk/baseapp/blockexec"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
@@ -593,7 +592,7 @@ func New(
 		}
 	})
 
-	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
+	blockSTMEnabled := cast.ToString(appOpts.Get(server.FlagBlockExecutor)) == config.BlockExecutorBlockSTM
 	optimisticExecutionDisabled := cast.ToBool(appOpts.Get(FlagDisableOptimisticExecution))
 
 	var cacheSize int
@@ -1181,32 +1180,14 @@ func New(
 
 	if blockSTMEnabled {
 		sdk.SetAddrCacheEnabled(false)
-		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
-		if workers == 0 {
-			workers = maxParallelism()
-		}
-		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
-		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
-		coinDenom := func(ms storetypes.MultiStore) string {
-			denom := app.EvmKeeper.GetParams(sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())).EvmDenom
-			return denom
-		}
-		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
-			txnrunner.NewSTMRunner(
-				activeDecoder,
-				app.GetStoreKeys(),
-				workers,
-				preEstimate,
-				coinDenom,
-			),
-		))
-	} else {
-		// SetBlockSTMTxRunner allows for arbitrary replacement of the tx runner for the BaseApp
-		// not just for block-stm execution.
-		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
-			txnrunner.NewDefaultRunner(app.txConfig.TxDecoder()),
-		))
 	}
+	coinDenom := func(ms storetypes.MultiStore) string {
+		return app.EvmKeeper.GetParams(sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())).EvmDenom
+	}
+	blockexec.Apply(
+		bApp, appOpts, app.GetStoreKeys(), activeDecoder, coinDenom,
+		blockexec.WithRunnerWrap(func(inner sdk.TxRunner) sdk.TxRunner { return evmapp.NewPatchedTxRunner(inner) }),
+	)
 
 	return app
 }
@@ -1610,10 +1591,6 @@ func (app *App) Close() error {
 		app.Logger().Error(msg, "error", err)
 	}
 	return err
-}
-
-func maxParallelism() int {
-	return min(stdruntime.GOMAXPROCS(0), stdruntime.NumCPU())
 }
 
 func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {

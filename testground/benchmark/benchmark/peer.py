@@ -213,11 +213,9 @@ def patch_configs(
             "cache-size": 0,
         },
         "mempool": {"max-txs": MEMPOOL_SIZE},
-        "evm": {
-            "block-executor": "block-stm",  # or "sequential"
-            "block-stm-workers": 0,
-            "block-stm-pre-estimate": True,
-        },
+        "block-executor": "block-stm",  # or "sequential"
+        "block-stm-workers": 0,
+        "block-stm-pre-estimate": True,
         "json-rpc": {"enable-indexer": True},
         "telemetry": {
             "enabled": True,

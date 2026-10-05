@@ -2,6 +2,18 @@
 
 ## UNRELEASED
 
+### Client Breaking
+
+* [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.
+
+### Bug fixes
+
+* [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): fix flaky tx waits, expedited gov voting and EIP-7702 integration tests.
+
+*Sept 23, 2026*
+
+## v1.8.0
+
 ### Improvements
 
 * [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group with atomic nonce-gap cascade eviction.
@@ -14,6 +26,7 @@
 
 ### Bug fixes
 
+* [#2215](https://github.com/crypto-org-chain/cronos/pull/2215) fix(deps): bump cronos-store to pick up memiavl WAL wait and prune underflow fixes.
 * [#2214](https://github.com/crypto-org-chain/cronos/pull/2214) fix(deps): bump ethermint to reject nonempty fee granter on EIP-712 signing paths.
 * [#2179](https://github.com/crypto-org-chain/cronos/pull/2179) fix(cronos): bound concurrent `ReplayBlock` queries and honor the request context.
 * [#2175](https://github.com/crypto-org-chain/cronos/pull/2175) fix(rpc): guard `TxsResults` length before indexing by block tx position.
@@ -28,6 +41,7 @@
 
 ### Chores
 
+* [#2219](https://github.com/crypto-org-chain/cronos/pull/2219) chore(deps): bump ethermint to v0.24.0, cosmos-sdk fork to 1e7193a, pin cronos-store at v1.9.0.
 * [#2212](https://github.com/crypto-org-chain/cronos/pull/2212) chore(deps): bump ethermint and cronos-store.
 * [#2180](https://github.com/crypto-org-chain/cronos/pull/2180) chore: bump golang.org/x/text to v0.39.0.
 * [#2157](https://github.com/crypto-org-chain/cronos/pull/2157) chore: repin cronos-store, cometbft v0.39, cosmos-sdk v0.54 forks.
