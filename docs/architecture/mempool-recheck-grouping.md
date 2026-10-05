@@ -82,7 +82,8 @@ signer, any signer named by a multi-signer tx (that tx is grouped under its firs
 and can fill a nonce this group cannot see), any sender of a batch eth tx with more than
 one `MsgEthereumTx` (the EVM signer adapter reports only the first msg's nonce, so after
 the batch the account expects more than `lastOK+1` and a stale sibling would look like a
-gap), an unordered tx (keyed by timeout, not
+gap; for the same reason staging and selection treat every batch sender as a signer, so a
+committed batch rechecks each co-sender's pooled txs), an unordered tx (keyed by timeout, not
 sequence), a duplicate sequence, or a tx dropped on encode error. A non-nonce failure
 (e.g. insufficient funds) evicts only that tx; the next sibling then fails as a proven gap
 if it really is one.

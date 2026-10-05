@@ -601,6 +601,10 @@ func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known
 	return sigs[0].Signer.String(), sigs[0].Sequence, true, len(sigs) > 1
 }
 
+// signers returns every sender tx advances a nonce for: GetSigners' entries
+// plus, for a batch eth tx, each MsgEthereumTx sender the EVM signer adapter
+// leaves out. Staging and selection key on these, so a block that commits a
+// batch rechecks every co-sender's pooled txs, not just the first sender's.
 func (s *recheckScheduler) signers(tx sdk.Tx) []string {
 	sigs := s.allSigners(tx)
 	if len(sigs) == 0 {
@@ -609,6 +613,11 @@ func (s *recheckScheduler) signers(tx sdk.Tx) []string {
 	keys := make([]string, len(sigs))
 	for i, sg := range sigs {
 		keys[i] = sg.Signer.String()
+	}
+	for _, sender := range batchEthSenders(tx) {
+		if !slices.Contains(keys, sender) {
+			keys = append(keys, sender)
+		}
 	}
 	return keys
 }

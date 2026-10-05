@@ -1315,6 +1315,57 @@ func TestGroupCandidates_BatchEthTxDisablesCascade(t *testing.T) {
 	}
 }
 
+// The EVM signer adapter names only the first MsgEthereumTx's sender, so
+// staging and selection would otherwise skip a batch's co-senders: their
+// pooled txs would go stale unnoticed when the batch commits, and the batch
+// itself would never be rechecked when a co-sender lands in a block.
+func TestSigners_BatchEthTxIncludesCoSenders(t *testing.T) {
+	alice, bob := common.Address{0xa1}, common.Address{0xb0}
+	aliceKey := sdk.AccAddress(alice.Bytes()).String()
+	bobKey := sdk.AccAddress(bob.Bytes()).String()
+
+	testCases := []struct {
+		name string
+		tx   sdk.Tx
+		want []string
+	}{
+		{"single eth msg", newEthTx(alice, 5), []string{aliceKey}},
+		{"same-sender batch dedups", ethBatch([]common.Address{alice, alice}, []uint64{5, 6}), []string{aliceKey}},
+		{"multi-sender batch adds co-sender", ethBatch([]common.Address{alice, bob}, []uint64{5, 3}), []string{aliceKey, bobKey}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			f.addEth(tc.tx, alice, 5, "tx")
+			if got := f.a.sched.signers(tc.tx); !slices.Equal(got, tc.want) {
+				t.Fatalf("signers = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestRecheckTxs_BatchEthTxRecheckedWhenCoSenderStaged(t *testing.T) {
+	alice, bob := common.Address{0xa1}, common.Address{0xb0}
+	f := newRecheckFixture()
+	batch := ethBatch([]common.Address{alice, bob}, []uint64{5, 3})
+	f.addEth(batch, alice, 5, "batch")
+	aliceOnly := newEthTx(alice, 6)
+	f.addEth(aliceOnly, alice, 6, "alice-6")
+
+	// Only bob was in the block: the batch advances bob's nonce too, so it must
+	// be rechecked; alice's own single tx must not.
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress(bob.Bytes()).String(): {}}
+	f.a.sched.RecheckTxs()
+
+	if !f.runner.seen["batch"] {
+		t.Fatal("a batch naming a staged co-sender must be rechecked")
+	}
+	if f.runner.seen["alice-6"] {
+		t.Fatal("a tx of an unstaged sender must not be rechecked")
+	}
+}
+
 // Batch A consumes alice 5, 6, 7 but is keyed on 5, so after A the account
 // expects 8. B (a separate tx at 7, admitted through the ante cache's
 // replacement skip) is stale, and 7 > 5+1 would read as a gap without the
