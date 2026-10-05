@@ -51,6 +51,9 @@ updates:
     versions: [">= 0.23.0"]
   - dependency-name: "github.com/shirou/gopsutil/v4"
     versions: [">= 4.26.9"]
+  # v1.11 binds C APIs missing from the RocksDB 10.x that nix builds against.
+  - dependency-name: "github.com/linxGnu/grocksdb"
+    versions: [">= 1.11.0"]
   groups:
     cosmos-sdk:
       patterns:

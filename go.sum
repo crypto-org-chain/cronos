@@ -709,8 +709,8 @@ github.com/libp2p/go-yamux/v5 v5.0.1 h1:f0WoX/bEF2E8SbE4c/k1Mo+/9z0O4oC/hWEA+nfY
 github.com/libp2p/go-yamux/v5 v5.0.1/go.mod h1:en+3cdX51U0ZslwRdRLrvQsdayFt3TSUKvBGErzpWbU=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
-github.com/linxGnu/grocksdb v1.11.1 h1:/gjcsviJimrQCDDlQCVuvzmeVAvgapQKaFQkQSe48bQ=
-github.com/linxGnu/grocksdb v1.11.1/go.mod h1:WaN+XviOp90uf+bYQ0s4y6DxXedPPMb4QwIsqMd3LdU=
+github.com/linxGnu/grocksdb v1.10.8 h1:Nau01Hhm/0kaVTR6d4viwD6npYbnDvZAfzwJCLzKRYo=
+github.com/linxGnu/grocksdb v1.10.8/go.mod h1:OLQKZwiKwaJiAVCsOzWKvwiLwfZ5Vz8Md5TYR7t7pM8=
 github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e h1:Q6MvJtQK/iRcRtzAscm/zF23XxJlbECiGPyRicsX+Ak=
 github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e/go.mod h1:autxFIvghDt3jPTLoqZ9OZ7s9qTGNAWmYCjVFWPX/zg=
 github.com/lyft/protoc-gen-validate v0.0.13/go.mod h1:XbGvPuh87YZc5TdIa2/I4pLk0QoUACkjt2znoq26NVQ=
