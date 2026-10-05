@@ -363,8 +363,22 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	index := make(map[string]int)
 	// Every signer named by a multi-signer tx: that tx is grouped under its first
 	// signer only, so it can advance a co-signer's nonce from outside that
-	// co-signer's group, making a gap there unprovable.
+	// co-signer's group, making a gap there unprovable. A batch eth tx counts
+	// too, even from a single sender: the EVM signer adapter reports only the
+	// first MsgEthereumTx's nonce, so after the batch the account expects a
+	// higher nonce than lastOK+1, and a stale sibling would pass the gap rule.
 	var coSigned map[string]struct{}
+	markCoSigned := func(signers []string) {
+		if len(signers) == 0 {
+			return
+		}
+		if coSigned == nil {
+			coSigned = make(map[string]struct{})
+		}
+		for _, sg := range signers {
+			coSigned[sg] = struct{}{}
+		}
+	}
 	for _, tx := range candidates {
 		key, seq, known, multiSigner := s.firstSigner(tx)
 		gi, seen := index[key]
@@ -375,13 +389,9 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		}
 		g := &groups[gi]
 		if multiSigner {
-			if coSigned == nil {
-				coSigned = make(map[string]struct{})
-			}
-			for _, sg := range s.signers(tx) {
-				coSigned[sg] = struct{}{}
-			}
+			markCoSigned(s.signers(tx))
 		}
+		markCoSigned(batchEthSenders(tx))
 		if unordered, ok := tx.(sdk.TxWithUnordered); ok && unordered.GetUnordered() {
 			g.cascadable = false // unordered txs key by timeout, not sequence: seq here is meaningless for the gap rule
 		}
@@ -410,6 +420,25 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		}
 	}
 	return groups
+}
+
+// batchEthSenders returns the sender of every MsgEthereumTx in tx when it
+// carries more than one, nil otherwise, so a single-msg tx stays alloc-free.
+func batchEthSenders(tx sdk.Tx) []string {
+	msgs := tx.GetMsgs()
+	if len(msgs) < 2 {
+		return nil
+	}
+	var senders []string
+	for _, msg := range msgs {
+		if m, ok := msg.(*evmtypes.MsgEthereumTx); ok {
+			senders = append(senders, m.GetFrom().String())
+		}
+	}
+	if len(senders) < 2 {
+		return nil
+	}
+	return senders
 }
 
 // recheckChunkSize bounds how many candidates one signer group runs under a

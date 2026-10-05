@@ -10,6 +10,7 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -56,6 +57,9 @@ type recheckRunner struct {
 	// nonce. Nil signer disables this; other tests drive failBytes/failErrs.
 	signer        sdkmempool.SignerExtractionAdapter
 	expectedNonce map[string]uint64
+	// nonceSpan maps tx bytes to how many consecutive nonces the tx consumes
+	// (a batch eth tx); absent means 1.
+	nonceSpan map[string]uint64
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -97,7 +101,11 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 		if r.expectedNonce == nil {
 			r.expectedNonce = map[string]uint64{}
 		}
-		r.expectedNonce[sender] = seq + 1
+		span, ok := r.nonceSpan[string(txBytes)]
+		if !ok {
+			span = 1
+		}
+		r.expectedNonce[sender] = seq + span
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
@@ -1223,6 +1231,121 @@ func TestGroupCandidates_MultiSignerDisablesCascadeInCoSignerGroup(t *testing.T)
 		if g.cascadable {
 			t.Fatalf("group %q must not cascade: the bob-keyed multi-signer tx names alice too", g.key)
 		}
+	}
+}
+
+// addEth pools tx keyed the way the EVM signer adapter keys it: by the first
+// MsgEthereumTx's sender and nonce only.
+func (f *recheckFixture) addEth(tx sdk.Tx, from common.Address, nonce uint64, bz string) {
+	f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress(from.Bytes()), nonce)}
+	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+		panic(err)
+	}
+	f.enc.Set(tx, []byte(bz))
+}
+
+func ethBatch(from []common.Address, nonces []uint64) *multiMsgTx {
+	msgs := make([]sdk.Msg, len(nonces))
+	for i, n := range nonces {
+		msgs[i] = newEthTx(from[i], n).msg
+	}
+	return &multiMsgTx{msgs: msgs}
+}
+
+func TestGroupCandidates_BatchEthTxDisablesCascade(t *testing.T) {
+	alice, bob := common.Address{0xa1}, common.Address{0xb0}
+	aliceKey := sdk.AccAddress(alice.Bytes()).String()
+	bobKey := sdk.AccAddress(bob.Bytes()).String()
+
+	testCases := []struct {
+		name           string
+		malleate       func(f *recheckFixture) []sdk.Tx
+		wantCascadable map[string]bool
+	}{
+		{
+			name: "single eth msg keeps cascade",
+			malleate: func(f *recheckFixture) []sdk.Tx {
+				a5, a6 := newEthTx(alice, 5), newEthTx(alice, 6)
+				f.addEth(a5, alice, 5, "a5")
+				f.addEth(a6, alice, 6, "a6")
+				return []sdk.Tx{a5, a6}
+			},
+			wantCascadable: map[string]bool{aliceKey: true},
+		},
+		{
+			name: "same-sender batch disables its group",
+			malleate: func(f *recheckFixture) []sdk.Tx {
+				batch := ethBatch([]common.Address{alice, alice, alice}, []uint64{5, 6, 7})
+				a8 := newEthTx(alice, 8)
+				f.addEth(batch, alice, 5, "batch")
+				f.addEth(a8, alice, 8, "a8")
+				return []sdk.Tx{batch, a8}
+			},
+			wantCascadable: map[string]bool{aliceKey: false},
+		},
+		{
+			// The adapter keys the batch on alice only, so bob's nonce 3 is
+			// advanced from outside bob's group.
+			name: "multi-sender batch disables the co-sender's group",
+			malleate: func(f *recheckFixture) []sdk.Tx {
+				batch := ethBatch([]common.Address{alice, bob}, []uint64{5, 3})
+				b4, b6 := newEthTx(bob, 4), newEthTx(bob, 6)
+				f.addEth(batch, alice, 5, "batch")
+				f.addEth(b4, bob, 4, "b4")
+				f.addEth(b6, bob, 6, "b6")
+				return []sdk.Tx{batch, b4, b6}
+			},
+			wantCascadable: map[string]bool{aliceKey: false, bobKey: false},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			groups := f.a.sched.groupCandidates(tc.malleate(f))
+			if len(groups) != len(tc.wantCascadable) {
+				t.Fatalf("expected %d groups, got %d", len(tc.wantCascadable), len(groups))
+			}
+			for _, g := range groups {
+				if want := tc.wantCascadable[g.key]; g.cascadable != want {
+					t.Fatalf("group %s: cascadable=%v, want %v", g.key, g.cascadable, want)
+				}
+			}
+		})
+	}
+}
+
+// Batch A consumes alice 5, 6, 7 but is keyed on 5, so after A the account
+// expects 8. B (a separate tx at 7, admitted through the ante cache's
+// replacement skip) is stale, and 7 > 5+1 would read as a gap without the
+// batch guard, cascade-evicting C, which is exactly the next expected nonce.
+func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
+	alice := common.Address{0xa1}
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress(alice.Bytes()).String(): 5}
+	f.runner.nonceSpan = map[string]uint64{"A": 3}
+
+	a := ethBatch([]common.Address{alice, alice, alice}, []uint64{5, 6, 7})
+	b, c := newEthTx(alice, 7), newEthTx(alice, 8)
+	f.addEth(a, alice, 5, "A")
+	f.addEth(b, alice, 7, "B")
+	f.addEth(c, alice, 8, "C")
+
+	groups := f.a.sched.groupCandidates([]sdk.Tx{a, b, c})
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	evicted, cascaded := f.a.sched.runGroup(groups[0])
+
+	if cascaded != 0 {
+		t.Fatalf("a stale sibling after a batch must not cascade, got %v", cascaded)
+	}
+	if evicted != 1 || poolHas(f.pool, b) {
+		t.Fatalf("only stale B must be evicted, got evicted=%v", evicted)
+	}
+	if !f.runner.seen["C"] || !poolHas(f.pool, c) {
+		t.Fatal("C is the next expected nonce after the batch and must run and stay pooled")
 	}
 }
 
