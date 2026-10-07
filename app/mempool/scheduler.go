@@ -3,6 +3,7 @@ package mempool
 import (
 	"cmp"
 	"context"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -97,9 +98,7 @@ func (s *recheckScheduler) mergeRecheckSenders(senders map[string]struct{}) {
 	if s.recheckSenders == nil {
 		s.recheckSenders = senders
 	} else {
-		for sg := range senders {
-			s.recheckSenders[sg] = struct{}{}
-		}
+		maps.Copy(s.recheckSenders, senders)
 	}
 }
 
@@ -186,10 +185,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 		}
 	}
 
-	var (
-		expiredEvicted float32
-		ttlEvicted     float32
-	)
+	var expiredEvicted, ttlEvicted int
 	// Rebuild arrival from this cycle's snapshot so txs gone from the pool fall out.
 	var newArrival map[sdk.Tx]int64
 	if s.ttlNumBlocks > 0 {
@@ -199,6 +195,8 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
 	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
+	// Wall clock is fine here: eviction is node-local, and the ante re-checks a
+	// tx's timeout against block time before it can land in a block.
 	now := time.Now()
 	for _, tx := range snapshot {
 		if txTimedout(tx, height, now) {
@@ -218,10 +216,10 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	}
 	s.arrival = newArrival
 	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
+		telemetry.IncrCounter(float32(expiredEvicted), "cronos", "mempool", "recheck", "expired")
 	}
 	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
+		telemetry.IncrCounter(float32(ttlEvicted), "cronos", "mempool", "recheck", "ttl_expired")
 	}
 
 	// Pass 2: candidate selection over surviving (non-evicted) txs.
@@ -338,17 +336,17 @@ type recheckGroup struct {
 // time so a sender's nonce chain advances atomically with respect to other
 // senders' admissions.
 func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
-	var evicted, cascaded float32
+	var evicted, cascaded int
 	for _, g := range groups {
 		e, c := s.runGroup(g)
 		evicted += e
 		cascaded += c
 	}
 	if evicted > 0 {
-		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
+		telemetry.IncrCounter(float32(evicted), "cronos", "mempool", "recheck", "evicted")
 	}
 	if cascaded > 0 {
-		telemetry.IncrCounter(cascaded, "cronos", "mempool", "recheck", "cascade_evicted")
+		telemetry.IncrCounter(float32(cascaded), "cronos", "mempool", "recheck", "cascade_evicted")
 	}
 }
 
@@ -452,7 +450,7 @@ const recheckChunkSize = 256
 // queue for one sender can't hold the admission mutex indefinitely. An
 // admission of the same sender landing between chunks is the same residual
 // interleaving the design doc already accepts between groups.
-func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded float32) {
+func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
 		e, c := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)))
 		evicted += e
@@ -472,7 +470,7 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded float32) 
 // account's nonce, so a nonce error at the next chunk's head may mean stale
 // rather than gap, and cascading on it would evict valid siblings. Without an
 // accepted nonce a failure may also be a stale nonce, whose successor is valid.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evicted, cascaded float32) {
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evicted, cascaded int) {
 	s.exec.mu.Lock()
 	defer s.exec.mu.Unlock()
 	var lastOK uint64

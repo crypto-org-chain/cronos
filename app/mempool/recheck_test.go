@@ -1493,7 +1493,7 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 		// nonceAfterChunk1 is the account's expected nonce once the admissions
 		// that landed between the two lock holds have been applied.
 		nonceAfterChunk1 uint64
-		wantEvicted      float32
+		wantEvicted      int
 		wantSurvivors    []int // chunk 2 indexes that must stay pooled and spend their own RunTx
 		wantGone         []int
 	}{
@@ -1608,10 +1608,10 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 	evicted, cascaded := f.a.sched.runGroup(groups[0])
 	// Direct evictions: the gapped candidate, plus every chunk-3 candidate,
 	// each of which fails its own RunTx.
-	if want := float32(1 + total - chunk3Head); evicted != want {
+	if want := 1 + total - chunk3Head; evicted != want {
 		t.Fatalf("expected %v direct evictions, got %v", want, evicted)
 	}
-	if want := float32(chunk3Head - gapIndex - 1); cascaded != want {
+	if want := chunk3Head - gapIndex - 1; cascaded != want {
 		t.Fatalf("expected %v cascade-evicted siblings (rest of chunk 2 only), got %v", want, cascaded)
 	}
 	for i := gapIndex + 1; i < chunk3Head; i++ {
