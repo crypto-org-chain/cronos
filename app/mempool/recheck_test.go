@@ -1194,46 +1194,6 @@ func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 	}
 }
 
-// A multi-signer candidate makes its own group's nonce view incomplete: the
-// group is keyed on the first signer, so the co-signers' nonces it also
-// advances are invisible there.
-func TestGroupCandidates_MultiSignerDisablesCascade(t *testing.T) {
-	f := newRecheckFixture()
-	single := f.insert(1, sdk.AccAddress("alice"), 3)
-	multi := f.insert(2, sdk.AccAddress("alice"), 5, sdk.AccAddress("bob"))
-
-	groups := f.a.sched.groupCandidates([]sdk.Tx{single, multi})
-
-	if len(groups) != 1 {
-		t.Fatalf("expected both txs in one group keyed on alice, got %d groups", len(groups))
-	}
-	if groups[0].cascadable {
-		t.Fatal("a multi-signer candidate in the group must disable cascade")
-	}
-}
-
-// The multi-signer tx is keyed on bob, so alice's own group [3, 5] looks like a
-// clean ascending view with a gap at 4 — but the bob-keyed tx also carries
-// alice at nonce 4 and would fill it. Every signer a multi-signer tx names must
-// lose cascade, not just the group that tx lands in.
-func TestGroupCandidates_MultiSignerDisablesCascadeInCoSignerGroup(t *testing.T) {
-	f := newRecheckFixture()
-	alice3 := f.insert(1, sdk.AccAddress("alice"), 3)
-	alice5 := f.insert(2, sdk.AccAddress("alice"), 5)
-	bobMulti := f.insert(3, sdk.AccAddress("bob"), 4, sdk.AccAddress("alice"))
-
-	groups := f.a.sched.groupCandidates([]sdk.Tx{alice3, alice5, bobMulti})
-
-	if len(groups) != 2 {
-		t.Fatalf("expected an alice group and a bob group, got %d", len(groups))
-	}
-	for _, g := range groups {
-		if g.cascadable {
-			t.Fatalf("group %q must not cascade: the bob-keyed multi-signer tx names alice too", g.key)
-		}
-	}
-}
-
 // addEth pools tx keyed the way the EVM signer adapter keys it: by the first
 // MsgEthereumTx's sender and nonce only.
 func (f *recheckFixture) addEth(tx sdk.Tx, from common.Address, nonce uint64, bz string) {
@@ -1252,57 +1212,110 @@ func ethBatch(from []common.Address, nonces []uint64) *multiMsgTx {
 	return &multiMsgTx{msgs: msgs}
 }
 
-func TestGroupCandidates_BatchEthTxDisablesCascade(t *testing.T) {
-	alice, bob := common.Address{0xa1}, common.Address{0xb0}
-	aliceKey := sdk.AccAddress(alice.Bytes()).String()
-	bobKey := sdk.AccAddress(bob.Bytes()).String()
+// Cascade is only safe on a signer's clean ascending-nonce view. Each case
+// builds a candidate set that hides part of some signer's nonce view (or, for
+// the control, doesn't) and checks every resulting group's cascadable flag.
+func TestGroupCandidates_CascadeGuards(t *testing.T) {
+	alice, bob := sdk.AccAddress("alice"), sdk.AccAddress("bob")
+	ethAlice, ethBob := common.Address{0xa1}, common.Address{0xb0}
+	ethAliceKey := sdk.AccAddress(ethAlice.Bytes()).String()
+	ethBobKey := sdk.AccAddress(ethBob.Bytes()).String()
 
 	testCases := []struct {
 		name           string
-		malleate       func(f *recheckFixture) []sdk.Tx
+		malleate       func(t *testing.T, f *recheckFixture) []sdk.Tx
 		wantCascadable map[string]bool
+		// check, if set, asserts anything beyond the cascadable flags.
+		check func(t *testing.T, groups []recheckGroup, txs []sdk.Tx)
 	}{
 		{
 			name: "single eth msg keeps cascade",
-			malleate: func(f *recheckFixture) []sdk.Tx {
-				a5, a6 := newEthTx(alice, 5), newEthTx(alice, 6)
-				f.addEth(a5, alice, 5, "a5")
-				f.addEth(a6, alice, 6, "a6")
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				a5, a6 := newEthTx(ethAlice, 5), newEthTx(ethAlice, 6)
+				f.addEth(a5, ethAlice, 5, "a5")
+				f.addEth(a6, ethAlice, 6, "a6")
 				return []sdk.Tx{a5, a6}
 			},
-			wantCascadable: map[string]bool{aliceKey: true},
+			wantCascadable: map[string]bool{ethAliceKey: true},
 		},
 		{
-			name: "same-sender batch disables its group",
-			malleate: func(f *recheckFixture) []sdk.Tx {
-				batch := ethBatch([]common.Address{alice, alice, alice}, []uint64{5, 6, 7})
-				a8 := newEthTx(alice, 8)
-				f.addEth(batch, alice, 5, "batch")
-				f.addEth(a8, alice, 8, "a8")
+			// The group is keyed on the first signer, so the co-signers' nonces
+			// the multi-signer tx also advances are invisible there.
+			name: "multi-signer tx disables its own group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				return []sdk.Tx{f.insert(1, alice, 3), f.insert(2, alice, 5, bob)}
+			},
+			wantCascadable: map[string]bool{alice.String(): false},
+		},
+		{
+			// Alice's own group [3, 5] looks clean with a gap at 4, but the
+			// bob-keyed tx also carries alice at nonce 4 and would fill it.
+			name: "multi-signer tx disables the co-signer's group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				return []sdk.Tx{f.insert(1, alice, 3), f.insert(2, alice, 5), f.insert(3, bob, 4, alice)}
+			},
+			wantCascadable: map[string]bool{alice.String(): false, bob.String(): false},
+		},
+		{
+			name: "same-sender batch eth tx disables its group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				batch := ethBatch([]common.Address{ethAlice, ethAlice, ethAlice}, []uint64{5, 6, 7})
+				a8 := newEthTx(ethAlice, 8)
+				f.addEth(batch, ethAlice, 5, "batch")
+				f.addEth(a8, ethAlice, 8, "a8")
 				return []sdk.Tx{batch, a8}
 			},
-			wantCascadable: map[string]bool{aliceKey: false},
+			wantCascadable: map[string]bool{ethAliceKey: false},
 		},
 		{
 			// The adapter keys the batch on alice only, so bob's nonce 3 is
 			// advanced from outside bob's group.
-			name: "multi-sender batch disables the co-sender's group",
-			malleate: func(f *recheckFixture) []sdk.Tx {
-				batch := ethBatch([]common.Address{alice, bob}, []uint64{5, 3})
-				b4, b6 := newEthTx(bob, 4), newEthTx(bob, 6)
-				f.addEth(batch, alice, 5, "batch")
-				f.addEth(b4, bob, 4, "b4")
-				f.addEth(b6, bob, 6, "b6")
+			name: "multi-sender batch eth tx disables the co-sender's group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				batch := ethBatch([]common.Address{ethAlice, ethBob}, []uint64{5, 3})
+				b4, b6 := newEthTx(ethBob, 4), newEthTx(ethBob, 6)
+				f.addEth(batch, ethAlice, 5, "batch")
+				f.addEth(b4, ethBob, 4, "b4")
+				f.addEth(b6, ethBob, 6, "b6")
 				return []sdk.Tx{batch, b4, b6}
 			},
-			wantCascadable: map[string]bool{aliceKey: false, bobKey: false},
+			wantCascadable: map[string]bool{ethAliceKey: false, ethBobKey: false},
+		},
+		{
+			// ChooseNonce keys an unordered tx by timeout and its seq is 0, so
+			// next to 6, 7, 8 the group would otherwise look clean.
+			name: "unordered tx disables its group",
+			malleate: func(t *testing.T, f *recheckFixture) []sdk.Tx {
+				t.Helper()
+				unordered := &ptrTx{id: 1, unordered: true, timeoutTS: time.Now().Add(time.Hour)}
+				f.signer.m[unordered] = []sdkmempool.SignerData{sdkmempool.NewSignerData(alice, 0)}
+				if err := f.pool.Insert(sdk.Context{}, unordered); err != nil {
+					t.Fatal(err)
+				}
+				return []sdk.Tx{unordered, f.insert(2, alice, 6), f.insert(3, alice, 7), f.insert(4, alice, 8)}
+			},
+			wantCascadable: map[string]bool{alice.String(): false},
+		},
+		{
+			name: "duplicate seq disables its group and keeps pool order",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				return []sdk.Tx{f.add(1, "alice", 5, "alice-5a"), f.add(2, "alice", 5, "alice-5b")}
+			},
+			wantCascadable: map[string]bool{alice.String(): false},
+			check: func(t *testing.T, groups []recheckGroup, txs []sdk.Tx) {
+				t.Helper()
+				if groups[0].txs[0].tx != txs[0] || groups[0].txs[1].tx != txs[1] {
+					t.Fatal("stable sort must preserve pool order for equal-seq txs")
+				}
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRecheckFixture()
-			groups := f.a.sched.groupCandidates(tc.malleate(f))
+			txs := tc.malleate(t, f)
+			groups := f.a.sched.groupCandidates(txs)
 			if len(groups) != len(tc.wantCascadable) {
 				t.Fatalf("expected %d groups, got %d", len(tc.wantCascadable), len(groups))
 			}
@@ -1310,6 +1323,9 @@ func TestGroupCandidates_BatchEthTxDisablesCascade(t *testing.T) {
 				if want := tc.wantCascadable[g.key]; g.cascadable != want {
 					t.Fatalf("group %s: cascadable=%v, want %v", g.key, g.cascadable, want)
 				}
+			}
+			if tc.check != nil {
+				tc.check(t, groups, txs)
 			}
 		})
 	}
@@ -1400,32 +1416,6 @@ func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	}
 }
 
-// F2: an unordered tx keys its SignerData.Sequence at 0 (ChooseNonce orders it
-// by timeout, not sequence), so a group holding it alongside ordered seqs
-// 6, 7, 8 has no duplicate seq and would otherwise look like a clean
-// ascending-nonce view. groupCandidates must disable cascade for it directly,
-// since the seq it carries can't be reasoned about by the gap rule.
-func TestGroupCandidates_UnorderedTxDisablesCascade(t *testing.T) {
-	f := newRecheckFixture()
-	unordered := &ptrTx{id: 1, unordered: true, timeoutTS: time.Now().Add(time.Hour)}
-	f.signer.m[unordered] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
-	if err := f.pool.Insert(sdk.Context{}, unordered); err != nil {
-		t.Fatal(err)
-	}
-	seq6 := f.insert(2, sdk.AccAddress("alice"), 6)
-	seq7 := f.insert(3, sdk.AccAddress("alice"), 7)
-	seq8 := f.insert(4, sdk.AccAddress("alice"), 8)
-
-	groups := f.a.sched.groupCandidates([]sdk.Tx{unordered, seq6, seq7, seq8})
-
-	if len(groups) != 1 {
-		t.Fatalf("expected 1 group keyed on alice, got %d", len(groups))
-	}
-	if groups[0].cascadable {
-		t.Fatal("an unordered tx in the group must disable cascade")
-	}
-}
-
 // Deferred front-loading can hand groupCandidates an out-of-nonce-order group
 // (e.g. alice-5 ahead of alice-3 and alice-4). Without sorting, alice-5 would
 // run first and fail wrong-sequence even though it becomes valid two txs later.
@@ -1443,27 +1433,6 @@ func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 	got := []uint64{groups[0].txs[0].seq, groups[0].txs[1].seq, groups[0].txs[2].seq}
 	if got[0] != 3 || got[1] != 4 || got[2] != 5 {
 		t.Fatalf("group must be sorted ascending by seq, got %v", got)
-	}
-}
-
-// The seq <= previous-seq check still needs to catch duplicates once sorting
-// is in play, and the sort must be stable so tied seqs keep pool order.
-func TestGroupCandidates_DuplicateSeqDisablesCascadeStableOrder(t *testing.T) {
-	f := newRecheckFixture()
-	first := f.add(1, "alice", 5, "alice-5a")
-	second := f.add(2, "alice", 5, "alice-5b") // duplicate seq
-
-	groups := f.a.sched.groupCandidates([]sdk.Tx{first, second})
-
-	if len(groups) != 1 {
-		t.Fatalf("expected 1 group, got %d", len(groups))
-	}
-	g := groups[0]
-	if g.cascadable {
-		t.Fatal("a duplicate seq within a group must disable cascade")
-	}
-	if g.txs[0].tx != first || g.txs[1].tx != second {
-		t.Fatal("stable sort must preserve pool order for equal-seq txs")
 	}
 }
 
@@ -1675,13 +1644,13 @@ func TestSigners_NilSignerNoPanic(t *testing.T) {
 	}
 }
 
-// F1 regression: the deferred carry from capRecheckGroups is tx-identity-keyed
+// The deferred carry from capRecheckGroups is tx-identity-keyed
 // (deferredLive), so it alone cannot survive a fee bump replacing the head of
 // a deferred group at the same (sender, nonce) key. capRecheckGroups must
 // also merge the deferred groups' senders into recheckSenders, so the next
 // cycle's selectTxs re-picks alice's whole live queue by sender instead of
 // relying on the stale deferred pointer. Without that, the surviving tail
-// (seq 6-9) would be regrouped alone, fail wrong-sequence against a base
+// (seq 6-9) would be regrouped alone, fail wrong-sequence against checkState
 // still expecting nonce 5, and be evicted in full.
 func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) {
 	const batch = 3
@@ -1734,7 +1703,7 @@ func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) 
 	}
 }
 
-// F2 (documented residual, not fixed in code): PriorityNonceMempool.Remove
+// Documented residual, not fixed in code: PriorityNonceMempool.Remove
 // resolves by (sender, nonce) key, not tx identity, so evicting a stale
 // recheck candidate drops whatever currently occupies that key. If an
 // admission lands between the snapshot and the eviction and replaces the slot

@@ -323,7 +323,8 @@ type recheckCandidate struct {
 // recheckGroup holds one signer's candidates sorted ascending by seq.
 // cascadable is false when the group is not that signer's contiguous
 // ascending-nonce view — an unknown signer, a signer named by a multi-signer tx
-// (that tx is grouped elsewhere, so it can fill a nonce this group can't see), a
+// (that tx is grouped elsewhere, so it can fill a nonce this group can't see),
+// a sender of a batch eth tx (its seq shows only the first msg's nonce), a
 // duplicate seq, an unordered tx (keyed by timeout, not sequence), or a tx
 // dropped on encode error — because the cascade rule reasons about the next
 // expected nonce.

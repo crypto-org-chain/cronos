@@ -81,8 +81,8 @@ func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 			f.a.TriggerRecheck()
 		}(int64(i + 1))
 	}
-	// admit races commit + recheck through the same admission-mutex-guarded path
-	// (RunTx's shared base), exercised together under -race.
+	// admit races commit + recheck through the same admission-mutex-guarded
+	// RunTx path, exercised together under -race.
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
 		go func(i int) {
