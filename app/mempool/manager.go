@@ -48,7 +48,7 @@ type Manager struct {
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
-	// Separate from mu so FinalizeBlock staging never blocks behind mu's RunTx batches.
+	// Separate from gate so FinalizeBlock staging never blocks behind its RunTx batches.
 	stagingMu sync.Mutex
 	// recheckSenders accumulates senders of committed blocks awaiting recheck; merged
 	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
