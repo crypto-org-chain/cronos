@@ -460,7 +460,7 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
 		evicted += e
 		cascaded += c
 		if !ok {
-			s.recoverSenders(unreachedTxs([]recheckGroup{{txs: g.txs[start:]}}))
+			s.recoverSenders(candidateTxs(g.txs[start:]))
 			break
 		}
 	}
@@ -519,9 +519,15 @@ func isNonceErr(err error) bool {
 func unreachedTxs(groups []recheckGroup) []sdk.Tx {
 	var txs []sdk.Tx
 	for _, g := range groups {
-		for _, c := range g.txs {
-			txs = append(txs, c.tx)
-		}
+		txs = append(txs, candidateTxs(g.txs)...)
+	}
+	return txs
+}
+
+func candidateTxs(cs []recheckCandidate) []sdk.Tx {
+	txs := make([]sdk.Tx, len(cs))
+	for i, c := range cs {
+		txs[i] = c.tx
 	}
 	return txs
 }

@@ -1475,6 +1475,46 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	}
 }
 
+// Cascade soundness needs every RunTx of a chunk under one admission-mutex
+// hold; bounding Commit's wait needs that hold released after each chunk.
+func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
+	const total = recheckChunkSize + 3
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, total)
+	for i := 0; i < total; i++ {
+		txs[i] = f.add(i+1, "fay", uint64(i), "fay-"+strconv.Itoa(i))
+	}
+	var unlockedRuns int
+	f.runner.onCall = func([]byte) {
+		if f.a.exec.mu.TryLock() {
+			f.a.exec.mu.Unlock()
+			unlockedRuns++
+		}
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	height := int64(-1)
+	for start := 0; start < total; start += recheckChunkSize {
+		end := min(start+recheckChunkSize, total)
+		if _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, &height); !ok {
+			t.Fatalf("chunk at %d aborted without a Commit", start)
+		}
+		if !f.a.exec.mu.TryLock() {
+			t.Fatalf("chunk at %d returned still holding the admission mutex", start)
+		}
+		f.a.exec.mu.Unlock()
+	}
+	if unlockedRuns != 0 {
+		t.Fatalf("%d recheck RunTx calls ran without the admission mutex", unlockedRuns)
+	}
+	if got := len(f.runner.calls); got != total {
+		t.Fatalf("expected %d RunTx calls, got %d", total, got)
+	}
+}
+
 // Nothing carries across a chunk boundary: the mutex is released between
 // chunks, so a same-sender admission (or a Commit) can move the account's
 // nonce, and a nonce error at the next chunk's head may mean stale rather than
