@@ -77,6 +77,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.56.0/go.mod h1:rqP9UEhOXv9WhQ7Gjz+G5y/pf8+BJZW5/Ts0AhE0PwE=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0 h1:0YP0+/ixwu+Uqeu/FGiBZNQ19huiUxxiPXIc9WsLKuQ=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0/go.mod h1:6ZZMQhZKDvUvkJw2rc+oDP90tMMzuU/J+5HG1ZmPOmE=
+github.com/JayT106/ethermint v0.0.0-20261013134008-76d9e3bb07d6 h1:HomYqyTc75+sSxRGu9niuCY639KHnpoErCFGUN6PD9o=
+github.com/JayT106/ethermint v0.0.0-20261013134008-76d9e3bb07d6/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAwZ/2OOE=
 github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
@@ -298,8 +300,6 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d13
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139/go.mod h1:nbT4YcTZJqW0EY1zNO/o7hx+a0q2hCEjsnZi5vQy2N4=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139 h1:9mCdXbf9c8wCkJcjGpLBRubxPdLTCrdK9OhYLKYsiWw=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139/go.mod h1:vNigSKdbXLtFT5wQMaOyLMMXJn3DxL8GRG8cnOZbfUc=
-github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2 h1:342351/7PzRFMTB79sZhH+3T6bP5I2rrWYAWKpm6bkw=
-github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2/go.mod h1:2+JdG/eUaq6G9mwBzxNNaotrqk7PHOmiWvEdytMN/T4=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=

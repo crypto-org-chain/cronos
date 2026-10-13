@@ -397,8 +397,8 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 
-	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2
+	// develop + crypto-org-chain/ethermint#1118; re-pin to crypto-org-chain/ethermint once it merges
+	github.com/evmos/ethermint => github.com/JayT106/ethermint v0.0.0-20261013134008-76d9e3bb07d6
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

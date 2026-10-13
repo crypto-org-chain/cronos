@@ -83,7 +83,9 @@ def test_pruned_node(cronos):
     # check block bloom
     block = w3.eth.get_block(txreceipt.blockNumber)
     assert "baseFeePerGas" in block
-    assert block.miner == "0x0000000000000000000000000000000000000000"
+    # resolved at the latest height, so pruned state no longer zeroes it
+    validators = {ADDRS["validator"], ADDRS["validator2"], ADDRS["validator3"]}
+    assert block.miner in validators
     bloom = BloomFilter(big_endian_to_int(block.logsBloom))
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
