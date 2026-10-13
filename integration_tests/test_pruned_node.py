@@ -1,9 +1,12 @@
+import json
 from pathlib import Path
 
 import pytest
+import requests
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
+from web3 import Web3
 from web3.datastructures import AttributeDict
 
 from .network import setup_custom_cronos
@@ -11,6 +14,7 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     KEYS,
+    decode_bech32,
     deploy_contract,
     sign_transaction,
     wait_for_new_blocks,
@@ -29,6 +33,21 @@ def cronos(request, tmp_path_factory):
         26900,
         Path(__file__).parent / "configs/pruned-node.jsonnet",
     )
+
+
+def proposer_account(cli, height):
+    "operator account of the block's proposer, matched to staking by consensus pubkey"
+    rpc = "http" + cli.node_rpc.removeprefix("tcp")
+    header = requests.get(f"{rpc}/block", params={"height": height}).json()["result"]
+    proposer = header["block"]["header"]["proposer_address"]
+    vals = requests.get(f"{rpc}/validators", params={"height": height}).json()
+    pubkey = next(
+        v["pub_key"]["value"]
+        for v in vals["result"]["validators"]
+        if v["address"] == proposer
+    )
+    val = next(v for v in cli.validators() if pubkey in json.dumps(v))
+    return Web3.to_checksum_address(decode_bech32(val["operator_address"]))
 
 
 def test_pruned_node(cronos):
@@ -84,8 +103,10 @@ def test_pruned_node(cronos):
     block = w3.eth.get_block(txreceipt.blockNumber)
     assert "baseFeePerGas" in block
     # resolved at the latest height, so pruned state no longer zeroes it
-    validators = {ADDRS["validator"], ADDRS["validator2"], ADDRS["validator3"]}
-    assert block.miner in validators
+    assert block.miner == proposer_account(cronos.cosmos_cli(0), block.number)
+    assert txreceipt.effectiveGasPrice == min(
+        tx["maxFeePerGas"], block.baseFeePerGas + tx["maxPriorityFeePerGas"]
+    )
     bloom = BloomFilter(big_endian_to_int(block.logsBloom))
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
