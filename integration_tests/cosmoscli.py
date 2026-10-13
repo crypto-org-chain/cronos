@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from collections import namedtuple
 
 import bech32
@@ -1964,58 +1965,54 @@ class CosmosCLI:
             home=self.data_dir,
         )
 
-    def event_query_tx_for(self, hash):
+    def event_query_tx_for(self, hash, timeout=15, interval=0.3):
         rpc = "http" + self.node_rpc.removeprefix("tcp")
-        start = max(1, self._rpc_latest_height(rpc) - 5)
-        try:
-            return json.loads(
-                self.raw(
-                    "query",
-                    "event-query-tx-for",
-                    hash,
-                    home=self.data_dir,
-                    node=self.node_rpc,
+        target = hash.upper()
+        next_height = max(1, self._rpc_committed_height(rpc) - 5)
+        deadline = time.monotonic() + timeout
+        while True:
+            committed = self._rpc_committed_height(rpc)
+            for height in range(next_height, committed + 1):
+                rsp = self._committed_tx_at(rpc, target, height)
+                if rsp is not None:
+                    return rsp
+            next_height = committed + 1
+            if time.monotonic() >= deadline:
+                raise AssertionError(
+                    f"Error: timed out waiting for transaction {target} "
+                    "to be included in a block"
                 )
-            )
-        except AssertionError as exc:
-            if "timed out waiting" not in str(exc):
-                raise
-            rsp = self._find_committed_tx(rpc, hash, start)
-            if rsp is None:
-                raise
-            return rsp
+            time.sleep(interval)
 
     @staticmethod
-    def _rpc_latest_height(rpc):
-        rsp = requests.get(f"{rpc}/status").json()
-        return int(rsp["result"]["sync_info"]["latest_block_height"])
+    def _rpc_committed_height(rpc):
+        rsp = requests.get(f"{rpc}/abci_info").json()
+        return int(rsp["result"]["response"]["last_block_height"])
 
-    def _find_committed_tx(self, rpc, hash, start):
-        for height in range(start, self._rpc_latest_height(rpc) + 1):
-            block = requests.get(f"{rpc}/block", params={"height": height}).json()
-            txs = block["result"]["block"]["data"]["txs"] or []
-            for index, tx in enumerate(txs):
-                if hashlib.sha256(base64.b64decode(tx)).hexdigest().upper() != (
-                    hash.upper()
-                ):
-                    continue
-                results = requests.get(
-                    f"{rpc}/block_results", params={"height": height}
-                ).json()["result"]["txs_results"]
-                res = results[index]
-                return {
-                    "height": str(height),
-                    "txhash": hash.upper(),
-                    "codespace": res.get("codespace", ""),
-                    "code": res.get("code", 0),
-                    "data": res.get("data") or "",
-                    "raw_log": res.get("log", ""),
-                    "logs": [],
-                    "info": res.get("info", ""),
-                    "gas_wanted": res.get("gas_wanted", "0"),
-                    "gas_used": res.get("gas_used", "0"),
-                    "events": res.get("events") or [],
-                }
+    @staticmethod
+    def _committed_tx_at(rpc, target, height):
+        block = requests.get(f"{rpc}/block", params={"height": height}).json()
+        txs = block["result"]["block"]["data"]["txs"] or []
+        for index, tx in enumerate(txs):
+            if hashlib.sha256(base64.b64decode(tx)).hexdigest().upper() != target:
+                continue
+            results = requests.get(
+                f"{rpc}/block_results", params={"height": height}
+            ).json()["result"]["txs_results"]
+            res = results[index]
+            return {
+                "height": str(height),
+                "txhash": target,
+                "codespace": res.get("codespace", ""),
+                "code": res.get("code", 0),
+                "data": res.get("data") or "",
+                "raw_log": res.get("log", ""),
+                "logs": [],
+                "info": res.get("info", ""),
+                "gas_wanted": res.get("gas_wanted", "0"),
+                "gas_used": res.get("gas_used", "0"),
+                "events": res.get("events") or [],
+            }
         return None
 
     def query_bank_send(self, *denoms):
