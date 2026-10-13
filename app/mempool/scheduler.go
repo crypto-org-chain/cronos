@@ -333,8 +333,8 @@ type recheckGroup struct {
 }
 
 // runRecheck re-validates candidates via RunTx(ReCheck), one signer group at a
-// time so a sender's nonce chain advances atomically with respect to other
-// senders' admissions.
+// time so a sender's nonce chain runs contiguously; see runGroup for what may
+// land between its chunks.
 func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
 	var evicted, cascaded int
 	for _, g := range groups {

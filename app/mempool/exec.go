@@ -14,7 +14,11 @@ type txRunner interface {
 	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
 }
 
-var _ txRunner = (*baseapp.BaseApp)(nil)
+var (
+	_ txRunner = (*baseapp.BaseApp)(nil)
+	// committedHeight relies on this to detect a Commit between recheck chunks.
+	_ interface{ LastBlockHeight() int64 } = (*baseapp.BaseApp)(nil)
+)
 
 // txExec is what admission and recheck share: the RunTx entry point, the
 // codecs both need, and the PendingTxs snapshot cache both invalidate.
