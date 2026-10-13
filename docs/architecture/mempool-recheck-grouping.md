@@ -115,7 +115,8 @@ order: `recheckMu > exec.mu > stagingMu`.
 - A Commit landing between groups is harmless: each group starts from its signer's
   lowest pooled nonce against the newer `checkState`. Inside a multi-chunk group it is
   not, since the reset drops the nonces earlier chunks re-applied, so the group stops
-  and its sender is re-staged for the recheck that Commit triggers.
+  and its sender is re-staged for the recheck that Commit triggers. Counter:
+  `cronos.mempool.recheck.restaged` (candidates left unchecked this pass).
 - The admission mutex is still held across the whole `BaseApp.Commit()` (item 1 of
   #2109) until memiavl reads are safe during commit.
 

@@ -1412,7 +1412,7 @@ func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
 
 	if cascaded != 0 {
 		t.Fatalf("a stale sibling after a batch must not cascade, got %v", cascaded)
@@ -1461,7 +1461,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
 
-	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
 	}
@@ -1516,9 +1516,8 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 }
 
 // Nothing carries across a chunk boundary: the mutex is released between
-// chunks, so a same-sender admission (or a Commit) can move the account's
-// nonce, and a nonce error at the next chunk's head may mean stale rather than
-// gap. Each case lays out one signer's group spanning two chunks, moves the
+// chunks, so a same-sender admission can move the account's nonce, and a
+// nonce error at the next chunk's head may mean stale rather than gap. Each case lays out one signer's group spanning two chunks, moves the
 // expected nonce as chunk 2's head runs (admissions landing in the gap between
 // the lock holds), and checks that chunk 2 never blind-evicts a candidate that
 // is valid by then.
@@ -1602,7 +1601,7 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 				t.Fatalf("expected 1 cascadable group, got %+v", groups)
 			}
 
-			evicted, cascaded := f.a.sched.runGroup(groups[0])
+			evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
 			if evicted != tc.wantEvicted {
 				t.Fatalf("expected %v direct evictions, got %v", tc.wantEvicted, evicted)
 			}
@@ -1652,9 +1651,12 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, restaged := f.a.sched.runGroup(groups[0])
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("a Commit between chunks must not evict anything, got evicted=%v cascaded=%v", evicted, cascaded)
+	}
+	if want := total - recheckChunkSize; restaged != want {
+		t.Fatalf("expected %d candidates reported as restaged, got %d", want, restaged)
 	}
 	for i := recheckChunkSize; i < total; i++ {
 		if f.runner.seen[bz(i)] {
@@ -1697,7 +1699,7 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 		t.Fatalf("expected 1 cascadable group, got %+v", groups)
 	}
 
-	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
 	// Direct evictions: the gapped candidate, plus every chunk-3 candidate,
 	// each of which fails its own RunTx.
 	if want := 1 + total - chunk3Head; evicted != want {

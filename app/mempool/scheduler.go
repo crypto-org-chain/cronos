@@ -336,17 +336,21 @@ type recheckGroup struct {
 // time so a sender's nonce chain runs contiguously; see runGroup for what may
 // land between its chunks.
 func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
-	var evicted, cascaded int
+	var evicted, cascaded, restaged int
 	for _, g := range groups {
-		e, c := s.runGroup(g)
+		e, c, r := s.runGroup(g)
 		evicted += e
 		cascaded += c
+		restaged += r
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(float32(evicted), "cronos", "mempool", "recheck", "evicted")
 	}
 	if cascaded > 0 {
 		telemetry.IncrCounter(float32(cascaded), "cronos", "mempool", "recheck", "cascade_evicted")
+	}
+	if restaged > 0 {
+		telemetry.IncrCounter(float32(restaged), "cronos", "mempool", "recheck", "restaged")
 	}
 }
 
@@ -452,8 +456,9 @@ const recheckChunkSize = 256
 // interleaving the design doc already accepts between groups. A Commit landing
 // between chunks is not: its checkState reset drops the nonces earlier chunks
 // re-applied, so every later candidate would fail wrong-sequence. The rest of
-// the group is re-staged for the recheck that Commit triggers instead.
-func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
+// the group is re-staged for the recheck that Commit triggers instead;
+// restaged counts the candidates left unchecked.
+func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded, restaged int) {
 	height := int64(-1)
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
 		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), &height)
@@ -461,10 +466,10 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
 		cascaded += c
 		if !ok {
 			s.recoverSenders(candidateTxs(g.txs[start:]))
-			break
+			return evicted, cascaded, len(g.txs) - start
 		}
 	}
-	return evicted, cascaded
+	return evicted, cascaded, 0
 }
 
 // runChunkLocked runs g.txs[start:end] under one hold of exec.mu, evicting each
@@ -474,9 +479,9 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
 // held. A gap is only provable against a nonce this same lock hold accepted
 // (so lastOK+1 is the account's next expected nonce), and only when the
 // failing nonce is strictly above that. Nothing carries across chunks: once
-// the mutex is released, a same-sender admission or a Commit can move the
-// account's nonce, so a nonce error at the next chunk's head may mean stale
-// rather than gap, and cascading on it would evict valid siblings. Without an
+// the mutex is released, a same-sender admission can move the account's
+// nonce, so a nonce error at the next chunk's head may mean stale rather than
+// gap, and cascading on it would evict valid siblings. Without an
 // accepted nonce a failure may also be a stale nonce, whose successor is valid.
 // height pins the committed height seen by the group's first chunk; ok is
 // false, with nothing run, when a Commit has landed since.
