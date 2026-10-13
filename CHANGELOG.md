@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group with atomic nonce-gap cascade eviction.
 * [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): fix flaky tx waits, expedited gov voting and EIP-7702 integration tests.
 
 *Sept 23, 2026*
