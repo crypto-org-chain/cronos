@@ -60,6 +60,15 @@ type recheckRunner struct {
 	// nonceSpan maps tx bytes to how many consecutive nonces the tx consumes
 	// (a batch eth tx); absent means 1.
 	nonceSpan map[string]uint64
+	// lastHeight is what LastBlockHeight reports; a test bumps it in onCall
+	// to simulate a Commit landing between chunks.
+	lastHeight int64
+}
+
+func (r *recheckRunner) LastBlockHeight() int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lastHeight
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -1574,6 +1583,49 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A Commit between chunks resets checkState to the committed nonce, so the
+// next chunk would fail every candidate wrong-sequence. The group must stop
+// instead and re-stage its sender for the recheck that Commit triggers.
+func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
+	const total = recheckChunkSize + 3
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	erin := sdk.AccAddress("erin").String()
+	f.runner.expectedNonce = map[string]uint64{erin: 0}
+	bz := func(i int) string { return "erin-" + strconv.Itoa(i) }
+	txs := make([]sdk.Tx, total)
+	ptrTxs := make([]*ptrTx, total)
+	for i := 0; i < total; i++ {
+		ptrTxs[i] = f.add(i+1, "erin", uint64(i), bz(i))
+		txs[i] = ptrTxs[i]
+	}
+	f.runner.onCall = func(b []byte) {
+		if string(b) == bz(recheckChunkSize-1) {
+			f.runner.lastHeight++
+		}
+	}
+
+	groups := f.a.sched.groupCandidates(txs)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	evicted, cascaded := f.a.sched.runGroup(groups[0])
+	if evicted != 0 || cascaded != 0 {
+		t.Fatalf("a Commit between chunks must not evict anything, got evicted=%v cascaded=%v", evicted, cascaded)
+	}
+	for i := recheckChunkSize; i < total; i++ {
+		if f.runner.seen[bz(i)] {
+			t.Fatalf("candidate %d ran against the reset checkState", i)
+		}
+		if !poolHas(f.pool, ptrTxs[i]) {
+			t.Fatalf("candidate %d is valid and must stay pooled", i)
+		}
+	}
+	if _, ok := f.a.sched.recheckSenders[erin]; !ok {
+		t.Fatal("the sender must be re-staged so the next cycle rechecks its whole chain")
 	}
 }
 

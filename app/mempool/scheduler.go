@@ -141,8 +141,8 @@ func (s *recheckScheduler) triggerRecheck() {
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block. A Commit landing
-// mid-pass is harmless: the remaining chunks simply run against the newer
-// checkState, and each chunk re-proves any nonce gap under its own lock hold.
+// mid-pass is harmless between groups: each group starts from its signer's
+// lowest pooled nonce. Inside a multi-chunk group runGroup stops and re-stages.
 func (s *recheckScheduler) RecheckTxs() {
 	if s.mpool == nil || s.recheckDisabled {
 		return
@@ -449,12 +449,20 @@ const recheckChunkSize = 256
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
 // queue for one sender can't hold the admission mutex indefinitely. An
 // admission of the same sender landing between chunks is the same residual
-// interleaving the design doc already accepts between groups.
+// interleaving the design doc already accepts between groups. A Commit landing
+// between chunks is not: its checkState reset drops the nonces earlier chunks
+// re-applied, so every later candidate would fail wrong-sequence. The rest of
+// the group is re-staged for the recheck that Commit triggers instead.
 func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
+	height := int64(-1)
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		e, c := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)))
+		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), &height)
 		evicted += e
 		cascaded += c
+		if !ok {
+			s.recoverSenders(unreachedTxs([]recheckGroup{{txs: g.txs[start:]}}))
+			break
+		}
 	}
 	return evicted, cascaded
 }
@@ -470,9 +478,16 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded int) {
 // account's nonce, so a nonce error at the next chunk's head may mean stale
 // rather than gap, and cascading on it would evict valid siblings. Without an
 // accepted nonce a failure may also be a stale nonce, whose successor is valid.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evicted, cascaded int) {
+// height pins the committed height seen by the group's first chunk; ok is
+// false, with nothing run, when a Commit has landed since.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height *int64) (evicted, cascaded int, ok bool) {
 	s.exec.mu.Lock()
 	defer s.exec.mu.Unlock()
+	if h := s.exec.committedHeight(); *height < 0 {
+		*height = h
+	} else if h != *height {
+		return 0, 0, false
+	}
 	var lastOK uint64
 	accepted := false
 	for i := start; i < end; i++ {
@@ -489,10 +504,10 @@ func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int) (evict
 				s.evict(rest.tx)
 				cascaded++
 			}
-			return evicted, cascaded
+			return evicted, cascaded, true
 		}
 	}
-	return evicted, cascaded
+	return evicted, cascaded, true
 }
 
 // isNonceErr matches both ante paths: cosmos sig verification reports

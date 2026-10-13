@@ -57,8 +57,9 @@ would otherwise vanish from the carry and its live tail would fail as a false ga
 
 A group runs in chunks of `recheckChunkSize` (256) candidates, each under one hold of the
 admission mutex. Without this, one sender's queue depth bounds how long `App.Commit`
-waits on the mutex. Between chunks, a same-sender admission or a Commit can land; that is
-the same residual interleaving accepted between groups.
+waits on the mutex. Between chunks, a same-sender admission can land; that is the same
+residual interleaving accepted between groups. A Commit can land there too; see
+Residuals.
 
 ### Cascade eviction
 
@@ -111,8 +112,10 @@ order: `recheckMu > exec.mu > stagingMu`.
   stale candidate whose slot was replaced by a fee bump between snapshot and eviction
   drops the replacement. `BaseApp.RunTx` does the same on a ReCheck ante failure; the
   client's resubmit resolves it.
-- A Commit landing mid-pass is harmless: the remaining chunks run against the newer
-  `checkState`, and each chunk re-proves any gap under its own lock hold.
+- A Commit landing between groups is harmless: each group starts from its signer's
+  lowest pooled nonce against the newer `checkState`. Inside a multi-chunk group it is
+  not, since the reset drops the nonces earlier chunks re-applied, so the group stops
+  and its sender is re-staged for the recheck that Commit triggers.
 - The admission mutex is still held across the whole `BaseApp.Commit()` (item 1 of
   #2109) until memiavl reads are safe during commit.
 

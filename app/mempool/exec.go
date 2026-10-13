@@ -40,3 +40,12 @@ type txExec struct {
 func (e *txExec) runTxLocked(mode sdk.ExecMode, bz []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 	return e.runner.RunTx(mode, bz, tx, -1, nil, nil)
 }
+
+// committedHeight is the height of the last Commit, or 0 if the runner can't
+// report it. Stable while mu is held, since Commit resets checkState under mu.
+func (e *txExec) committedHeight() int64 {
+	if h, ok := e.runner.(interface{ LastBlockHeight() int64 }); ok {
+		return h.LastBlockHeight()
+	}
+	return 0
+}
