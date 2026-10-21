@@ -12,6 +12,7 @@ AnteHandler before mempool admission. These tests verify:
   - bad-sig / under-fee tx is rejected at admission, not at block time
   - with disable-tx-replacement=true, same-nonce tx fails at nonce check
     (ErrInvalidSequence), not at the feebump rule
+  - eth batches must come from one sender; their msgs can't be replaced
   - txpool RPC namespace (content, inspect, status, contentFrom) backed by
     the app mempool via MempoolClient.PendingTxs
 """
@@ -23,7 +24,14 @@ import web3
 from web3 import Web3
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    KEYS,
+    build_batch_tx_signed,
+    deploy_contract,
+    sign_transaction,
+)
 
 pytestmark = pytest.mark.slow
 
@@ -286,6 +294,50 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     # Wait for original tx to mine so sender state is clean for subsequent tests.
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
     assert receipt.status == 1
+
+
+# ---------------------------------------------------------------------------
+# eth batch admission
+# ---------------------------------------------------------------------------
+
+
+def _signed_transfer(w3, name, **kw):
+    tx = {"to": ADDRS["validator"], "value": 1, **kw}
+    return sign_transaction(w3, tx, KEYS[name])
+
+
+def test_multi_sender_batch_rejected(cronos_app_mempool):
+    """Eth msgs in one cosmos tx must share a sender."""
+    w3: Web3 = cronos_app_mempool.w3
+    cli = cronos_app_mempool.cosmos_cli()
+    nonce_b = w3.eth.get_transaction_count(ADDRS["signer1"])
+    signed_a = _signed_transfer(w3, "community")
+    batch, _ = build_batch_tx_signed(cli, [_signed_transfer(w3, "signer1"), signed_a])
+    hash_a = w3.eth.send_raw_transaction(signed_a.raw_transaction)
+
+    rsp = cli.broadcast_tx_json(batch, wait=False)
+    assert rsp["code"] != 0, f"batch was admitted: {rsp}"
+    assert "share a sender" in rsp["raw_log"], rsp["raw_log"]
+
+    assert w3.eth.wait_for_transaction_receipt(hash_a, timeout=30).status == 1
+    assert w3.eth.get_transaction_count(ADDRS["signer1"]) == nonce_b
+
+
+def test_batch_later_msg_not_poolable(cronos_app_mempool):
+    """[X@n, X@n+1] is pooled; X@n+1 alone is rejected: batches aren't cached."""
+    w3: Web3 = cronos_app_mempool.w3
+    cli = cronos_app_mempool.cosmos_cli()
+    nonce = w3.eth.get_transaction_count(ADDRS["signer2"])
+    signed = [_signed_transfer(w3, "signer2", nonce=nonce + i) for i in range(2)]
+    batch, hashes = build_batch_tx_signed(cli, signed)
+
+    rsp = cli.broadcast_tx_json(batch, wait=False)
+    assert rsp["code"] == 0, rsp["raw_log"]
+    with pytest.raises(Exception, match="invalid nonce"):
+        w3.eth.send_raw_transaction(signed[1].raw_transaction)
+
+    for h in hashes:
+        assert w3.eth.wait_for_transaction_receipt(h, timeout=30).status == 1
 
 
 # ---------------------------------------------------------------------------

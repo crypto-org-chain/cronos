@@ -113,7 +113,7 @@ func (a *Manager) recheckDecodingEnabled() bool {
 	return !a.recheckDisabled && a.signer != nil && a.decoder != nil
 }
 
-// StageSkippedSenders merges the senders of proposal-gate-rejected txs into
+// StageSkippedSenders merges the senders of proposal-skipped txs into
 // recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	if !a.recheckDecodingEnabled() || len(txs) == 0 {

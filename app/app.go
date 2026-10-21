@@ -358,6 +358,17 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
+// txReplacement requires the new tx's priority to be feeBump% above the old one's.
+// Multi-msg txs neither replace nor get replaced: the pool keys a tx by its first msg/signer only.
+func txReplacement(feeBump int64) func(op, np int64, oTx, nTx sdk.Tx) bool {
+	return func(op, np int64, oTx, nTx sdk.Tx) bool {
+		if len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 {
+			return false
+		}
+		return np >= op*(100+feeBump)/100
+	}
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -484,12 +495,7 @@ func New(
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
-			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
-				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
-				// otherwise, the Insert will return error
-				threshold := 100 + feeBump
-				return np >= op*threshold/100
-			},
+			TxReplacement:   txReplacement(feeBump),
 		})
 	} else {
 		logger.Info("NoOpMempool is enabled")
@@ -545,14 +551,14 @@ func New(
 		if encCache != nil {
 			// mempool.type=app: reuse the SDK default handler. Cache verifier
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
-			// blocklist + baseFee gate.
+			// blocklist + baseFee gate + eth nonce dedup.
 			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
 			ppHandler = NewMempoolProposalHandler(h, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
 			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
-			// default handler. ExtTxSelector still applies the blocklist + gas/byte
-			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
+			// default handler. ExtTxSelector still applies the blocklist, gas/byte
+			// caps and eth nonce dedup (NoOp branch: over req.Txs, already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
 				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}

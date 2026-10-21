@@ -11,7 +11,11 @@ import (
 	"filippo.io/age"
 	cmttypes "github.com/cometbft/cometbft/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,6 +26,8 @@ const invalidTx = "invalid"
 
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
 type stubTx struct{ sdk.Tx }
+
+func (*stubTx) GetMsgs() []sdk.Msg { return nil }
 
 func TestExtTxSelector(t *testing.T) {
 	const maxB = 1 << 20
@@ -77,7 +83,7 @@ func TestExtTxSelector(t *testing.T) {
 		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
-	t.Run("gate-skipped bytes accumulated in gateSkipped, accepted bytes excluded", func(t *testing.T) {
+	t.Run("gate-skipped bytes accumulated in skipped, accepted bytes excluded", func(t *testing.T) {
 		const denom = "basecro"
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
@@ -85,26 +91,29 @@ func TestExtTxSelector(t *testing.T) {
 		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // feeCap=40 >= 20 → select
 		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
 		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
-		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped())
-		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
+		ts.Clear()
+		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainSkipped())
+		require.Nil(t, ts.DrainSkipped(), "second drain must be nil")
 	})
 
-	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
+	t.Run("DrainSkipped on empty selector is nil", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
-		require.Nil(t, ts.DrainGateSkipped())
+		require.Nil(t, ts.DrainSkipped())
 	})
 
-	t.Run("Clear does NOT reset gateSkipped; only DrainGateSkipped does", func(t *testing.T) {
+	t.Run("DrainSkipped returns only the last cleared round, so an undrained selector stays bounded", func(t *testing.T) {
 		// DefaultProposalHandler defers Clear() inside inner(), so it fires before
-		// our wrapper calls DrainGateSkipped(). gateSkipped must survive Clear().
+		// our wrapper calls DrainSkipped().
 		const denom = "basecro"
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
-		ts.Clear() // simulates the defer inside DefaultProposalHandler.PrepareProposalHandler
-		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped(), "gateSkipped must survive Clear()")
-		require.Nil(t, ts.DrainGateSkipped(), "DrainGateSkipped itself must null the slice")
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low1"))
+		ts.Clear()
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low2"))
+		ts.Clear()
+		require.Equal(t, [][]byte{[]byte("low2")}, ts.DrainSkipped())
+		require.Nil(t, ts.DrainSkipped(), "DrainSkipped itself must null the slice")
 	})
 
 	t.Run("nil baseFee disables the gate", func(t *testing.T) {
@@ -115,13 +124,169 @@ func TestExtTxSelector(t *testing.T) {
 		require.Equal(t, [][]byte{[]byte("low")}, ts.SelectedTxs(bg))
 	})
 
-	t.Run("Clear resets selection and baseFee cache", func(t *testing.T) {
+	t.Run("Clear resets selection, baseFee cache and selected eth nonces", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
-		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("a"))
+		tx := newEthMsgsTx(newEthMsg(common.HexToAddress("0xa"), 7))
+		ts.SelectTxForProposal(bg, maxB, maxB, tx, []byte("a"))
 		ts.Clear()
 		require.Empty(t, ts.SelectedTxs(bg))
 		require.Nil(t, ts.baseFee)
+		ts.SelectTxForProposal(bg, maxB, maxB, tx, []byte("a"))
+		require.Equal(t, [][]byte{[]byte("a")}, ts.SelectedTxs(bg), "next round may select the same nonce again")
 	})
+}
+
+type ExtTxSelectorEthDedupSuite struct {
+	suite.Suite
+}
+
+func TestExtTxSelectorEthDedupSuite(t *testing.T) {
+	suite.Run(t, new(ExtTxSelectorEthDedupSuite))
+}
+
+func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
+	const (
+		maxB  = 1 << 20
+		bzB1A = "B1,A"
+	)
+	var (
+		a, b1 = common.HexToAddress("0xa"), common.HexToAddress("0xb1")
+		msgA  = newEthMsg(a, 7)
+	)
+	type input struct {
+		tx sdk.Tx
+		bz string
+	}
+	testCases := []struct {
+		name        string
+		maxGas      uint64 // 0 means maxB
+		inputs      []input
+		expSelected []string
+		expSkipped  []string
+	}{
+		{
+			name: "distinct sender nonces are all selected",
+			inputs: []input{
+				{newEthMsgsTx(msgA), "A"},
+				{newEthMsgsTx(newEthMsg(a, 8)), "A8"},
+				{newEthMsgsTx(newEthMsg(b1, 7)), "B1"},
+			},
+			expSelected: []string{"A", "A8", "B1"},
+		},
+		{
+			name: "batches reusing a selected message are skipped",
+			inputs: []input{
+				{newEthMsgsTx(msgA), "A"},
+				{newEthMsgsTx(newEthMsg(b1, 0), msgA), bzB1A},
+			},
+			expSelected: []string{"A"},
+			expSkipped:  []string{bzB1A},
+		},
+		{
+			name: "single tx reusing a selected batch's later message is skipped",
+			inputs: []input{
+				{newEthMsgsTx(newEthMsg(b1, 0), msgA), bzB1A},
+				{newEthMsgsTx(msgA), "A"},
+			},
+			expSelected: []string{bzB1A},
+			expSkipped:  []string{"A"},
+		},
+		{
+			name: "dedup-skipped tx does not reserve its other nonces",
+			inputs: []input{
+				{newEthMsgsTx(msgA), "A"},
+				{newEthMsgsTx(newEthMsg(b1, 0), msgA), bzB1A},
+				{newEthMsgsTx(newEthMsg(b1, 0)), "B1"},
+			},
+			expSelected: []string{"A", "B1"},
+			expSkipped:  []string{bzB1A},
+		},
+		{
+			name:   "gas-skipped tx does not reserve its nonces",
+			maxGas: 10,
+			inputs: []input{
+				{ethMsgsTx{gasOnlyTx{gas: 20}, []sdk.Msg{msgA}}, "A-big"},
+				{newEthMsgsTx(msgA), "A"},
+			},
+			expSelected: []string{"A"},
+		},
+		{
+			name:       "duplicate within one tx is skipped",
+			inputs:     []input{{newEthMsgsTx(msgA, msgA), "A,A"}},
+			expSkipped: []string{"A,A"},
+		},
+		{
+			name: "non-eth txs are not deduplicated",
+			inputs: []input{
+				{gasOnlyTx{gas: 1}, "x"},
+				{gasOnlyTx{gas: 1}, "y"},
+			},
+			expSelected: []string{"x", "y"},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			ts := NewExtTxSelector(func(sdk.Tx, []byte) error { return nil }, nil)
+			maxGas := tc.maxGas
+			if maxGas == 0 {
+				maxGas = maxB
+			}
+			for _, in := range tc.inputs {
+				ts.SelectTxForProposal(context.Background(), maxB, maxGas, in.tx, []byte(in.bz))
+			}
+			s.Require().Equal(tc.expSelected, toStrings(ts.SelectedTxs(context.Background())))
+			ts.Clear()
+			s.Require().Equal(tc.expSkipped, toStrings(ts.DrainSkipped()))
+		})
+	}
+}
+
+// toStrings maps empty input to nil so expectations can leave the field unset.
+func toStrings(bzs [][]byte) []string {
+	if len(bzs) == 0 {
+		return nil
+	}
+	out := make([]string, len(bzs))
+	for i, bz := range bzs {
+		out[i] = string(bz)
+	}
+	return out
+}
+
+func newEthMsg(from common.Address, nonce uint64) *evmtypes.MsgEthereumTx {
+	msg := &evmtypes.MsgEthereumTx{From: from.Bytes()}
+	msg.Raw.Transaction = ethtypes.NewTx(&ethtypes.LegacyTx{Nonce: nonce})
+	return msg
+}
+
+// ethMsgsTx is a FeeTx carrying msgs; zero gas leaves only the dedup gate in play.
+type ethMsgsTx struct {
+	gasOnlyTx
+	msgs []sdk.Msg
+}
+
+func newEthMsgsTx(msgs ...sdk.Msg) ethMsgsTx { return ethMsgsTx{msgs: msgs} }
+
+func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
+
+func TestTxReplacement(t *testing.T) {
+	single := newEthMsgsTx(newEthMsg(common.Address{}, 0))
+	batch := newEthMsgsTx(newEthMsg(common.Address{}, 0), newEthMsg(common.Address{}, 1))
+	replace := txReplacement(10)
+	for _, tc := range []struct {
+		name     string
+		np       int64
+		oTx, nTx sdk.Tx
+		exp      bool
+	}{
+		{"fee bump met", 110, single, single, true},
+		{"fee bump not met", 109, single, single, false},
+		{"batch is never replaced", 1000, batch, single, false},
+		{"batch never replaces", 1000, single, batch, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.exp, replace(100, tc.np, tc.oTx, tc.nTx)) })
+	}
 }
 
 // gasOnlyTx implements sdk.FeeTx with only a gas value.

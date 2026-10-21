@@ -11,6 +11,7 @@ import (
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
+	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
@@ -42,9 +43,17 @@ type ExtTxSelector struct {
 	baseFee  *big.Int
 	evmDenom string
 
-	// gateSkipped accumulates raw bytes of txs rejected by the baseFee gate this
-	// round. Drained after each proposal so stranded senders are staged for recheck.
-	gateSkipped [][]byte
+	// (sender, nonce) of every selected MsgEthereumTx; a repeat can't execute.
+	selectedEthNonces map[ethSenderNonce]struct{}
+
+	// txs skipped by the baseFee gate or eth dedup, for recheck staging. Clear hands the
+	// round's list to lastSkipped (it runs before the caller drains), so an undrained selector stays bounded.
+	skipped, lastSkipped [][]byte
+}
+
+type ethSenderNonce struct {
+	sender common.Address
+	nonce  uint64
 }
 
 func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
@@ -63,13 +72,15 @@ func (ts *ExtTxSelector) Clear() {
 	ts.totalGas = 0
 	ts.baseFee = nil
 	ts.evmDenom = ""
+	clear(ts.selectedEthNonces)
+	ts.lastSkipped, ts.skipped = ts.skipped, nil
 }
 
-// DrainGateSkipped returns and clears the raw bytes of txs rejected by the
-// baseFee gate this proposal round.
-func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
-	out := ts.gateSkipped
-	ts.gateSkipped = nil
+// DrainSkipped returns and clears the raw bytes of txs skipped by the baseFee
+// gate or as eth (sender, nonce) duplicates in the last cleared proposal round.
+func (ts *ExtTxSelector) DrainSkipped() [][]byte {
+	out := ts.lastSkipped
+	ts.lastSkipped = nil
 	return out
 }
 
@@ -96,7 +107,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 			if gas := feeTx.GetGas(); gas > 0 {
 				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
 				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
-					ts.gateSkipped = append(ts.gateSkipped, txBz)
+					ts.skipped = append(ts.skipped, txBz)
 					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped")
 					return isFull()
 				}
@@ -104,18 +115,66 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		}
 	}
 
+	var gasWanted uint64
 	if maxBlockGas > 0 && isFeeTx {
-		gasWanted := feeTx.GetGas()
+		gasWanted = feeTx.GetGas()
 		// Overflow-safe: totalGas <= maxBlockGas by induction.
 		if gasWanted > maxBlockGas-ts.totalGas {
 			return isFull()
 		}
-		ts.totalGas += gasWanted
 	}
 
+	// Last check, so a tx skipped for any other reason never reserves its nonces.
+	if !ts.reserveEthNonces(memTx) {
+		ts.skipped = append(ts.skipped, txBz)
+		telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "dup_eth_nonce", "skipped")
+		return isFull()
+	}
+
+	ts.totalGas += gasWanted
 	ts.selectedTxs = append(ts.selectedTxs, txBz)
 	ts.totalBytes += txSize
 	return isFull()
+}
+
+// reserveEthNonces records the (sender, nonce) of each MsgEthereumTx in tx, or none if one
+// repeats (the fast path doesn't re-run ante).
+func (ts *ExtTxSelector) reserveEthNonces(tx sdk.Tx) bool {
+	if tx == nil {
+		return true
+	}
+	msgs := tx.GetMsgs()
+	for i, msg := range msgs {
+		k, ok := ethSenderNonceOf(msg)
+		if !ok {
+			continue
+		}
+		if _, dup := ts.selectedEthNonces[k]; dup {
+			for _, prev := range msgs[:i] {
+				if pk, ok := ethSenderNonceOf(prev); ok {
+					delete(ts.selectedEthNonces, pk)
+				}
+			}
+			return false
+		}
+		if ts.selectedEthNonces == nil {
+			ts.selectedEthNonces = make(map[ethSenderNonce]struct{})
+		}
+		ts.selectedEthNonces[k] = struct{}{}
+	}
+	return true
+}
+
+func ethSenderNonceOf(msg sdk.Msg) (ethSenderNonce, bool) {
+	ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
+	if !ok {
+		return ethSenderNonce{}, false
+	}
+	ethTx := ethMsg.AsTransaction()
+	if ethTx == nil {
+		return ethSenderNonce{}, false
+	}
+	return ethSenderNonce{sender: ethMsg.GetSender(), nonce: ethTx.Nonce()}, true
 }
 
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
@@ -133,7 +192,7 @@ type MempoolProposalHandler struct {
 	inner          sdk.PrepareProposalHandler
 }
 
-// NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
+// NewMempoolProposalHandler wraps h with the ExtTxSelector (blocklist, baseFee gate, eth nonce dedup).
 func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string), signerExtractor mempool.SignerExtractionAdapter) *MempoolProposalHandler {
 	extSel := NewExtTxSelector(validateTx, baseFeeRetriever)
 	h.SetTxSelector(extSel)
@@ -156,7 +215,7 @@ func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			}
 		}
 		resp, err := h.inner(ctx, req)
-		skipped := h.extSel.DrainGateSkipped() // drain every round, even on error, so it never goes stale
+		skipped := h.extSel.DrainSkipped() // drain every round, even on error, so it never goes stale
 		if err == nil && h.mempoolManager != nil && len(skipped) > 0 {
 			h.mempoolManager.StageSkippedSenders(skipped)
 		}
