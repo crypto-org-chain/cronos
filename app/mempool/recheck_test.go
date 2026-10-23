@@ -346,6 +346,16 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			expRan:   []string{replBz, siblingBz},
 		},
 		{
+			// The stale tx and the replacement itself both resolve to the replacement.
+			name:     "replacement reached twice is rechecked once",
+			replaced: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{stale, cur, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
 			name:        "failing replacement is evicted",
 			replaced:    true,
 			failingRepl: true,

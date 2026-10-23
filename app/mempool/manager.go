@@ -532,6 +532,9 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
+	// Two candidates can resolve to the same replacement; its second strict recheck would fail
+	// the nonce and evict it. Only comparable (known) txs can be map keys.
+	var rechecked map[sdk.Tx]struct{}
 	for _, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
@@ -543,7 +546,8 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		// tx would remove the replacement (the pool removes by sender and nonce). One removed
 		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
 		pooled := true
-		if cur, found, known := a.pooledAt(tx); known && cur != tx {
+		cur, found, known := a.pooledAt(tx)
+		if known && cur != tx {
 			a.encCache.Evict(tx)
 			pooled = found
 			if found {
@@ -553,6 +557,16 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 					continue
 				}
 			}
+		}
+		if known {
+			if _, dup := rechecked[tx]; dup {
+				a.mu.Unlock()
+				continue
+			}
+			if rechecked == nil {
+				rechecked = make(map[sdk.Tx]struct{}, len(candidates))
+			}
+			rechecked[tx] = struct{}{}
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
