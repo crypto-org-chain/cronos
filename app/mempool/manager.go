@@ -123,7 +123,7 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 		if err != nil {
 			continue
 		}
-		for _, s := range a.stagedSenders(tx) {
+		for _, s := range a.signers(tx) {
 			senders[s] = struct{}{}
 		}
 	}

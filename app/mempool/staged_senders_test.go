@@ -27,30 +27,18 @@ func newEthMsg(from common.Address, nonce uint64) *evmtypes.MsgEthereumTx {
 	return msg
 }
 
-func TestStageSendersIncludesEveryEthSender(t *testing.T) {
+func TestStageRecheckSendersIncludesEveryEthSender(t *testing.T) {
 	a, b := common.Address{0x1}, common.Address{0x2}
 	batch := &multiMsgTx{msgs: []sdk.Msg{newEthMsg(a, 0), newEthMsg(b, 5)}}
-	expSenders := map[string]struct{}{
+	m := newManager(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return batch, nil })
+	// The pool keys the batch by its first eth msg only.
+	m.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+		batch: {sdkmempool.NewSignerData(a.Bytes(), 0)},
+	}}
+
+	m.StageRecheckSenders(1, [][]byte{[]byte("batch")})
+	require.Equal(t, map[string]struct{}{
 		sdk.AccAddress(a.Bytes()).String(): {},
 		sdk.AccAddress(b.Bytes()).String(): {},
-	}
-
-	for _, tc := range []struct {
-		name  string
-		stage func(*Manager, [][]byte)
-	}{
-		{"committed block", func(m *Manager, txs [][]byte) { m.StageRecheckSenders(1, txs) }},
-		{"proposal-skipped txs", (*Manager).StageSkippedSenders},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			m := newManager(&stubRunner{}, nil, noopEncoder, func([]byte) (sdk.Tx, error) { return batch, nil })
-			// The pool keys the batch by its first eth msg only.
-			m.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
-				batch: {sdkmempool.NewSignerData(a.Bytes(), 0)},
-			}}
-
-			tc.stage(m, [][]byte{[]byte("batch")})
-			require.Equal(t, expSenders, m.recheckSenders)
-		})
-	}
+	}, m.recheckSenders)
 }

@@ -170,7 +170,7 @@ def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
 def test_tx_replacement_rfc(cronos_app_mempool):
     """Same-nonce tx with +20% gasPrice replaces the original in mempool.
 
-    Verifies the three-cache interaction path:
+    Verifies the admission path:
       send_raw(A') -> insertSeenCache miss (different bytes)
                    -> RunTx -> nonce N mismatches, pool holds an eth tx at (X, N)
                    -> nonce check skipped (replacement allowed)
