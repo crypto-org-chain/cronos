@@ -385,6 +385,12 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 				expTip = big.NewInt(tc.tip)
 			}
 			require.Equal(t, expTip, pooled.GetMsgs()[0].(*evmtypes.MsgEthereumTx).AsTransaction().GasTipCap())
+
+			// Accepted or rejected, the replacement leaves checkState consistent: the next nonce is admitted.
+			resp, err = f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 1, big.NewInt(1e11), big.NewInt(1e10), nil))
+			require.NoError(t, err)
+			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+			require.Equal(t, 2, f.app.Mempool().CountTx())
 		})
 	}
 }

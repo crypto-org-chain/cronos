@@ -8,14 +8,13 @@
 * [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache.
   - Only a single-msg eth tx replaces a pooled one; cosmos txs are no longer replaced.
   - A replacement must raise the fee cap and tip cap by `mempool.feebump`% (not the pool priority), with the fee cap strictly higher even at `mempool.feebump = 0`.
-  - `cronos.disable-tx-replacement` makes the pool reject every replacement; a negative `mempool.feebump` disables replacement too.
-  - Resending the pooled tx itself returns "tx already in mempool".
+  - `cronos.disable-tx-replacement` makes the pool reject every replacement. A negative `mempool.feebump` already selects the no-op mempool (only valid with `mempool.type=flood`), so nothing is replaced.
+  - With replacement enabled, resending the pooled tx itself returns "tx already in mempool".
   - `App.AnteCache` and `Manager.SetAnteCache` are removed.
 
 ### Bug fixes
 
 * [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) fix(mempool): with `mempool.type=app`, a stale tx failing recheck or expiring no longer removes its replacement.
-
 * [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): fix flaky tx waits, expedited gov voting and EIP-7702 integration tests.
 
 *Sept 23, 2026*

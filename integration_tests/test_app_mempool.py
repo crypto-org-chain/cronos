@@ -172,7 +172,7 @@ def test_tx_replacement_rfc(cronos_app_mempool):
 
     Verifies the admission path:
       send_raw(A') -> insertSeenCache miss (different bytes)
-                   -> RunTx -> nonce N mismatches, pool holds an eth tx at (X, N)
+                   -> RunTx -> pool holds a single-msg eth tx at (X, N)
                    -> nonce check skipped (replacement allowed)
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.
