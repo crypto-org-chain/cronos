@@ -20,6 +20,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 const invalidTx = "invalid"
@@ -273,6 +274,7 @@ func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
 func TestTxReplacement(t *testing.T) {
 	single := newEthMsgsTx(newEthMsg(common.Address{}, 0))
 	batch := newEthMsgsTx(newEthMsg(common.Address{}, 0), newEthMsg(common.Address{}, 1))
+	cosmos := newEthMsgsTx(&banktypes.MsgSend{})
 	replace := txReplacement(10)
 	for _, tc := range []struct {
 		name     string
@@ -284,6 +286,9 @@ func TestTxReplacement(t *testing.T) {
 		{"fee bump not met", 109, single, single, false},
 		{"batch is never replaced", 1000, batch, single, false},
 		{"batch never replaces", 1000, single, batch, false},
+		{"cosmos tx replaces a cosmos tx", 110, cosmos, cosmos, true},
+		{"eth tx never replaces a cosmos tx", 1000, cosmos, single, false},
+		{"cosmos tx never replaces an eth tx", 1000, single, cosmos, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.exp, replace(100, tc.np, tc.oTx, tc.nTx)) })
 	}

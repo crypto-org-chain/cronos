@@ -51,6 +51,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+	ethermintante "github.com/evmos/ethermint/ante"
 	"github.com/evmos/ethermint/ante/cache"
 	"github.com/evmos/ethermint/appmempool"
 	evmenc "github.com/evmos/ethermint/encoding"
@@ -339,8 +340,6 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
-	anteCache *cache.AnteCache
-
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -360,13 +359,23 @@ func parseBoolFlag(flag string, v interface{}) bool {
 
 // txReplacement requires the new tx's priority to be feeBump% above the old one's.
 // Multi-msg txs neither replace nor get replaced: the pool keys a tx by its first msg/signer only.
+// An eth tx and a cosmos tx from one account share a key, so neither replaces the other.
 func txReplacement(feeBump int64) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	return func(op, np int64, oTx, nTx sdk.Tx) bool {
-		if len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 {
+		if len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 || isEthTx(oTx) != isEthTx(nTx) {
 			return false
 		}
 		return np >= op*(100+feeBump)/100
 	}
+}
+
+func isEthTx(tx sdk.Tx) bool {
+	msgs := tx.GetMsgs()
+	if len(msgs) == 0 {
+		return false
+	}
+	_, ok := msgs[0].(*evmtypes.MsgEthereumTx)
+	return ok
 }
 
 // New returns a reference to an initialized chain.
@@ -474,17 +483,7 @@ func New(
 		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
 
-	anteCacheMaxTxs := mempoolMaxTxs
-	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
-		anteCacheMaxTxs = -1
-		logger.Info("Tx replacement is disabled")
-	} else {
-		logger.Info("Tx replacement is enabled")
-		if anteCacheMaxTxs == 0 {
-			anteCacheMaxTxs = cmdcfg.DefaultMaxTxPerBlock
-		}
-	}
-	anteCache := cache.NewAnteCache(anteCacheMaxTxs)
+	disableTxReplacement := cast.ToBool(appOpts.Get(FlagDisableTxReplacement))
 
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
@@ -501,6 +500,12 @@ func New(
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
+	// Assigned only from a concrete pool so a disabled one stays a nil interface, not a typed nil.
+	var txPool ethermintante.TxPool
+	if pnm, ok := mpool.(*mempool.PriorityNonceMempool[int64]); ok && !disableTxReplacement {
+		txPool = pnm
+	}
+	logger.Info("Tx replacement", "enabled", txPool != nil)
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
@@ -585,7 +590,6 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
-			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
@@ -640,7 +644,6 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		senderCache:          senderCache,
-		anteCache:            anteCache,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1126,7 +1129,7 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 
 	if err := app.setAnteHandler(txConfig,
-		anteCache,
+		txPool,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
@@ -1199,7 +1202,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCache, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, txPool ethermintante.TxPool, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1249,7 +1252,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCa
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         anteCache,
+		TxPool:            txPool,
 		SenderCache:       app.senderCache,
 	}
 
@@ -1278,9 +1281,6 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
 // by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
-
-// AnteCache returns the ante-layer nonce cache installed on the ante handler.
-func (app *App) AnteCache() *cache.AnteCache { return app.anteCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding
 // with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.
