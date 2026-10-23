@@ -6,7 +6,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	ethermintante "github.com/evmos/ethermint/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -642,7 +641,7 @@ func (a *Manager) isPooled(tx sdk.Tx) bool {
 // decoded pointers, as their use as map keys here already assumes. known is false when the pool
 // can't be queried, so callers fall back to removal by key.
 func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
-	pool, ok := a.mpool.(ethermintante.TxPool)
+	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
 	if !ok || a.signer == nil || tx == nil {
 		return nil, false, false
 	}

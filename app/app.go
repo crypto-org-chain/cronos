@@ -370,13 +370,13 @@ func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk
 }
 
 // ethTxPool returns mpool for the ante's replacement lookup, or nil (never a typed nil) when
-// replacement is disabled or mpool isn't a PriorityNonceMempool.
+// replacement is disabled or mpool can't look up a pooled tx.
 func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
-	priorityMempool, ok := mpool.(*mempool.PriorityNonceMempool[int64])
+	pool, ok := mpool.(mempool.TxLookupMempool)
 	if !ok || disabled {
 		return nil
 	}
-	return priorityMempool
+	return pool
 }
 
 // New returns a reference to an initialized chain.
