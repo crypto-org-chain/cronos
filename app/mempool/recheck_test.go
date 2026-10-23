@@ -3,6 +3,7 @@ package mempool
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -36,6 +37,7 @@ type recheckRunner struct {
 	failNoRemoveBytes map[string]bool
 	modes             []sdk.ExecMode
 	seen              map[string]bool
+	ran               []string // tx bytes in RunTx order
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -43,6 +45,7 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	r.ran = append(r.ran, string(txBytes))
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -319,24 +322,39 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 // replacement out of the pool, since the pool removes by that key.
 func TestStaleTxKeepsReplacement(t *testing.T) {
 	for _, tc := range []struct {
-		name  string
-		evict func(f *recheckFixture, stale sdk.Tx)
+		name   string
+		evict  func(f *recheckFixture, stale, sibling sdk.Tx)
+		expRan []string
 	}{
-		{"failed recheck", func(f *recheckFixture, stale sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale}) }},
-		{"TTL or timeout eviction", func(f *recheckFixture, stale sdk.Tx) { f.a.evictForRecheck(stale, nil, nil) }},
+		{
+			// The replacement is rechecked in the stale tx's place, so the sender's sequence
+			// is replayed before the sibling at the next nonce.
+			name:   "recheck",
+			evict:  func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) },
+			expRan: []string{"alice-0", "alice-1"},
+		},
+		{
+			name: "TTL or timeout eviction",
+			evict: func(f *recheckFixture, stale, _ sdk.Tx) {
+				if _, _, evicted := f.a.evictForRecheck(stale, nil, nil); evicted {
+					t.Fatal("a replaced tx must not count as evicted")
+				}
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRecheckFixture("alice-0-stale")
 			stale := f.add(1, "alice", 0, "alice-0-stale")
 			replacement := f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+			sibling := f.add(3, "alice", 1, "alice-1")
 
-			tc.evict(f, stale)
+			tc.evict(f, stale, sibling)
 
-			if !poolHas(f.pool, replacement) {
-				t.Fatal("replacement must stay pooled")
+			if !poolHas(f.pool, replacement) || !poolHas(f.pool, sibling) {
+				t.Fatal("replacement and sibling must stay pooled")
 			}
-			if f.runner.seen["alice-0-stale"] {
-				t.Fatal("stale tx must not be rechecked")
+			if !slices.Equal(tc.expRan, f.runner.ran) {
+				t.Fatalf("rechecked %v, want %v", f.runner.ran, tc.expRan)
 			}
 			if _, ok := f.enc.Get(stale); ok {
 				t.Fatal("stale tx must leave the encoder cache")

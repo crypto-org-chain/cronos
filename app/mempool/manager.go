@@ -402,16 +402,19 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	now := time.Now()
 	for _, tx := range snapshot {
+		var evicted bool
 		if txTimedout(tx, height, now) {
-			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-			expiredEvicted++
+			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
+				expiredEvicted++
+			}
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
-				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-				ttlEvicted++
+				if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
+					ttlEvicted++
+				}
 				continue
 			}
 			newArrival[tx] = arrived
@@ -468,15 +471,19 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 }
 
 // evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
-func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
+// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free. It reports whether
+// tx was pooled; a replaced tx stays a candidate so runRecheck rechecks its replacement.
+func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}, bool) {
 	a.mu.Lock()
+	pooled := a.isPooled(tx)
 	a.evict(tx)
 	a.mu.Unlock()
-	if evictedSet == nil {
-		evictedSet = make(map[sdk.Tx]struct{})
+	if pooled {
+		if evictedSet == nil {
+			evictedSet = make(map[sdk.Tx]struct{})
+		}
+		evictedSet[tx] = struct{}{}
 	}
-	evictedSet[tx] = struct{}{}
 	sigs := a.signers(tx)
 	if len(sigs) > 0 && recheckSenders == nil {
 		recheckSenders = make(map[string]struct{})
@@ -484,7 +491,7 @@ func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, rec
 	for _, s := range sigs {
 		recheckSenders[s] = struct{}{}
 	}
-	return evictedSet, recheckSenders
+	return evictedSet, recheckSenders, pooled
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
@@ -509,12 +516,19 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			continue
 		}
 		a.mu.Lock()
-		// Skip a tx replaced or removed since the snapshot: a failed recheck removes by sender and
-		// nonce, which would take out the replacement too.
-		if !a.isPooled(tx) {
+		// A tx replaced since the snapshot is rechecked as its replacement: rechecking the stale tx
+		// would remove the replacement on failure (the pool removes by sender and nonce), and
+		// skipping it would leave the sender's sequence short for its later nonces.
+		if cur, found, known := a.pooledAt(tx); known && cur != tx {
 			a.encCache.Evict(tx)
-			a.mu.Unlock()
-			continue
+			if found {
+				tx = cur
+				bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx)
+			}
+			if !found || err != nil {
+				a.mu.Unlock()
+				continue
+			}
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil {
@@ -567,22 +581,29 @@ func (a *Manager) evict(tx sdk.Tx) {
 // isPooled reports whether tx itself, not a replacement, is pooled at its sender and nonce.
 // It falls back to true when the pool or tx type can't tell, keeping removal by key.
 func (a *Manager) isPooled(tx sdk.Tx) bool {
+	cur, found, known := a.pooledAt(tx)
+	return !known || (found && cur == tx)
+}
+
+// pooledAt returns the tx pooled at tx's sender and nonce. known is false when the pool can't
+// be queried or tx can't be compared, so callers fall back to removal by key.
+func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
 	pool, ok := a.mpool.(interface {
 		GetTx(sender string, nonce uint64) (sdk.Tx, bool)
 	})
 	if t := reflect.TypeOf(tx); !ok || a.signer == nil || t == nil || !t.Comparable() {
-		return true
+		return nil, false, false
 	}
 	sigs, err := a.signer.GetSigners(tx)
 	if err != nil || len(sigs) == 0 {
-		return true
+		return nil, false, false
 	}
 	nonce, err := sdkmempool.ChooseNonce(sigs[0].Sequence, tx)
 	if err != nil {
-		return true
+		return nil, false, false
 	}
-	pooled, found := pool.GetTx(sigs[0].Signer.String(), nonce)
-	return found && pooled == tx
+	cur, found = pool.GetTx(sigs[0].Signer.String(), nonce)
+	return cur, found, true
 }
 
 // stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects
