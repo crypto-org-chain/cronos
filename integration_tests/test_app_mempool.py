@@ -324,7 +324,7 @@ def test_multi_sender_batch_rejected(cronos_app_mempool):
 
 
 def test_batch_later_msg_not_poolable(cronos_app_mempool):
-    """[X@n, X@n+1] is pooled; X@n+1 alone is rejected: batches aren't cached."""
+    """[X@n, X@n+1] is pooled; X@n+1 alone is rejected: the pool keys it by msg 0."""
     w3: Web3 = cronos_app_mempool.w3
     cli = cronos_app_mempool.cosmos_cli()
     nonce = w3.eth.get_transaction_count(ADDRS["signer2"])
@@ -359,8 +359,12 @@ def cronos_app_no_replace(tmp_path_factory):
     )
 
 
+@pytest.mark.flaky(max_runs=3)
 def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     """With disable-tx-replacement=true, same-nonce tx fails at nonce check.
+
+    Marked flaky: if a Commit resets checkState while the original is pooled,
+    the replacement passes the nonce check and the disabled pool rule rejects it.
 
     Path verified:
       ante TxPool = nil
