@@ -378,7 +378,8 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 // selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
 // only invokes this when recheck is enabled.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
+	// deferredLive: carried-over tx -> still in pool, plus replacements scheduled in a carried tx's
+	// slot (so they aren't rechecked again). Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
 		deferredLive = make(map[sdk.Tx]bool, len(deferred))
@@ -400,27 +401,39 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
 	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
+	var timedOut, ttlExpired []sdk.Tx
 	now := time.Now()
 	for _, tx := range snapshot {
-		var evicted bool
 		if txTimedout(tx, height, now) {
-			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
-				expiredEvicted++
-			}
+			timedOut = append(timedOut, tx)
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
-				if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
-					ttlEvicted++
-				}
+				ttlExpired = append(ttlExpired, tx)
 				continue
 			}
 			newArrival[tx] = arrived
 		}
 	}
 	a.arrival = newArrival
+	if len(timedOut) > 0 || len(ttlExpired) > 0 {
+		// One hold for the whole batch: per-tx locking would queue behind every waiting admission.
+		a.mu.Lock()
+		var evicted bool
+		for _, tx := range timedOut {
+			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
+				expiredEvicted++
+			}
+		}
+		for _, tx := range ttlExpired {
+			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
+				ttlEvicted++
+			}
+		}
+		a.mu.Unlock()
+	}
 	if expiredEvicted > 0 {
 		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
 	}
@@ -483,11 +496,10 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 // evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free. It reports whether
 // tx was pooled; a replaced tx stays a candidate so runRecheck rechecks its replacement.
+// Callers hold mu, as evict requires.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}, bool) {
-	a.mu.Lock()
 	pooled := a.isPooled(tx)
 	a.evict(tx)
-	a.mu.Unlock()
 	if pooled {
 		if evictedSet == nil {
 			evictedSet = make(map[sdk.Tx]struct{})
