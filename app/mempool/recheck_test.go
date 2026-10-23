@@ -324,10 +324,12 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 	const staleBz, replBz, siblingBz = "alice-0-stale", "alice-0", "alice-1"
 	recheck := func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) }
 	// recheckDeferred rechecks stale and sibling as carried over from a capped cycle.
+	var selected []sdk.Tx
 	recheckDeferred := func(senders map[string]struct{}) func(f *recheckFixture, stale, sibling sdk.Tx) {
 		return func(f *recheckFixture, stale, sibling sdk.Tx) {
 			snapshot := PoolSnapshot(context.Background(), f.pool)
-			f.a.runRecheck(f.a.selectTxs(snapshot, senders, 5, []sdk.Tx{stale, sibling}))
+			selected = f.a.selectTxs(snapshot, senders, 5, []sdk.Tx{stale, sibling})
+			f.a.runRecheck(selected)
 		}
 	}
 	for _, tc := range []struct {
@@ -410,8 +412,13 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			}
 			sibling := f.add(3, "alice", 1, siblingBz)
 
+			selected = nil
 			tc.evict(f, stale, sibling)
 
+			// A duplicate candidate would take a recheck batch slot.
+			if selected != nil && len(selected) != 2 {
+				t.Fatalf("selected %d candidates, want the replacement and sibling once each", len(selected))
+			}
 			if !poolHas(f.pool, sibling) {
 				t.Fatal("sibling must stay pooled")
 			}
@@ -449,7 +456,7 @@ func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
 
 // Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
 func TestEvictionHoldsAdmissionLock(t *testing.T) {
-	f := newRecheckFixture()
+	f := newRecheckFixture("bob-0") // the candidate fails recheck, so its eviction is probed too
 	expired := f.addTimeout(1, "alice", 0, "alice-0", 5)
 	candidate := f.add(2, "bob", 0, "bob-0")
 	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
