@@ -359,14 +359,26 @@ func parseBoolFlag(flag string, v interface{}) bool {
 
 // txReplacement requires the new tx's priority to be feeBump% above the old one's.
 // Multi-msg txs neither replace nor get replaced: the pool keys a tx by its first msg/signer only.
-// An eth tx and a cosmos tx from one account share a key, so neither replaces the other.
-func txReplacement(feeBump int64) func(op, np int64, oTx, nTx sdk.Tx) bool {
+// An eth tx and a cosmos tx never replace each other: the ante only lets an eth tx through for an
+// eth tx, so a cross-type match only happens after Commit resets checkState, and depends on timing.
+// When disabled, nothing is replaced, even after that reset.
+func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	return func(op, np int64, oTx, nTx sdk.Tx) bool {
-		if len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 || isEthTx(oTx) != isEthTx(nTx) {
+		if disabled || len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 || isEthTx(oTx) != isEthTx(nTx) {
 			return false
 		}
 		return np >= op*(100+feeBump)/100
 	}
+}
+
+// ethTxPool returns mpool for the ante's replacement lookup, or nil (never a typed nil) when
+// replacement is disabled or mpool isn't a PriorityNonceMempool.
+func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
+	priorityMempool, ok := mpool.(*mempool.PriorityNonceMempool[int64])
+	if !ok || disabled {
+		return nil
+	}
+	return priorityMempool
 }
 
 func isEthTx(tx sdk.Tx) bool {
@@ -494,17 +506,13 @@ func New(
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
-			TxReplacement:   txReplacement(feeBump),
+			TxReplacement:   txReplacement(feeBump, disableTxReplacement),
 		})
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
-	// Assigned only from a concrete pool so a disabled one stays a nil interface, not a typed nil.
-	var txPool ethermintante.TxPool
-	if pnm, ok := mpool.(*mempool.PriorityNonceMempool[int64]); ok && !disableTxReplacement {
-		txPool = pnm
-	}
+	txPool := ethTxPool(mpool, disableTxReplacement)
 	logger.Info("Tx replacement", "enabled", txPool != nil)
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))

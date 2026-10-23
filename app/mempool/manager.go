@@ -551,11 +551,16 @@ func (a *Manager) evict(tx sdk.Tx) {
 	a.encCache.Evict(tx)
 }
 
-// stagedSenders adds every eth msg sender to tx's pool signer: a batch tx can
-// use a nonce that another pooled tx, keyed by that sender, also holds.
+// stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects
+// multi-sender batches, but a proposer can include one whose later msg uses a nonce
+// that another pooled tx, keyed by that sender, also holds.
 func (a *Manager) stagedSenders(tx sdk.Tx) []string {
 	keys := a.signers(tx)
-	for _, msg := range tx.GetMsgs() {
+	msgs := tx.GetMsgs()
+	if len(msgs) < 2 {
+		return keys
+	}
+	for _, msg := range msgs[1:] {
 		if ethTx, ok := msg.(*evmtypes.MsgEthereumTx); ok {
 			keys = append(keys, ethTx.GetFrom().String())
 		}

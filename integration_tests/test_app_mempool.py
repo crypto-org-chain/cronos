@@ -172,7 +172,7 @@ def test_tx_replacement_rfc(cronos_app_mempool):
 
     Verifies the three-cache interaction path:
       send_raw(A') -> insertSeenCache miss (different bytes)
-                   -> RunTx -> AnteCache.Exists(X, N) == true
+                   -> RunTx -> nonce N mismatches, pool holds an eth tx at (X, N)
                    -> nonce check skipped (replacement allowed)
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.
@@ -238,8 +238,8 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     """Same-nonce replacement with insufficient fee bump is rejected at admission.
 
     Exercises the app-mempool path where:
-      1. Tx A passes CheckTx -> AnteCache.Set(addr, N)
-      2. Tx A' (same nonce, +5% tip) passes AnteCache skip (Exists=true)
+      1. Tx A passes CheckTx and is pooled at (addr, N)
+      2. Tx A' (same nonce, +5% tip) skips the nonce check: A is pooled at (addr, N)
       3. PriorityNonceMempool.Insert calls TxReplacement: np < op*110/100 -> rejected
 
     Complements test_tx_replacement_rfc (success path) by covering the failure
@@ -349,7 +349,7 @@ def test_batch_later_msg_not_poolable(cronos_app_mempool):
 def cronos_app_no_replace(tmp_path_factory):
     """App-mempool node with cronos.disable-tx-replacement=true.
 
-    AnteCache becomes a no-op (maxTx=-1): same-nonce replacements hit the
+    The ante gets no pool to look up: same-nonce replacements hit the
     normal nonce check and fail with ErrInvalidSequence before reaching
     PriorityNonceMempool.Insert.
     """
@@ -363,15 +363,15 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     """With disable-tx-replacement=true, same-nonce tx fails at nonce check.
 
     Path verified:
-      AnteCache.maxTx = -1 (no-op)
-      Tx A CheckTx: checkState seq N -> N+1; AnteCache.Set is no-op
-      Tx A' (same nonce N, +20% fee): AnteCache.Exists(addr,N) = false
+      ante TxPool = nil
+      Tx A CheckTx: checkState seq N -> N+1
+      Tx A' (same nonce N, +20% fee): no pool lookup
         -> normal nonce check: expectedNonce=N+1, txNonce=N
         -> ErrInvalidSequence: "invalid nonce; got N, expected N+1"
 
     The error must contain "nonce" or "sequence", NOT "replacement" or
-    "fit the replacement rule" — that would indicate the cache skip fired
-    and the feebump rule was reached instead, meaning the flag had no effect.
+    "fit the replacement rule" — that would indicate the nonce check was
+    skipped and the feebump rule was reached instead, meaning the flag had no effect.
     """
     w3: Web3 = cronos_app_no_replace.w3
     key = KEYS["validator"]
@@ -410,7 +410,7 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     ), f"expected nonce/sequence error but got: {msg}"
     assert (
         "replacement" not in msg
-    ), f"got feebump rule error — cache skip fired when it should not: {msg}"
+    ), f"got feebump rule error — nonce check skipped when it should not: {msg}"
 
     # Original tx must still mine (chain is functional)
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)

@@ -13,12 +13,14 @@ import (
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethermintante "github.com/evmos/ethermint/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -274,23 +276,45 @@ func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
 func TestTxReplacement(t *testing.T) {
 	single := newEthMsgsTx(newEthMsg(common.Address{}, 0))
 	batch := newEthMsgsTx(newEthMsg(common.Address{}, 0), newEthMsg(common.Address{}, 1))
-	cosmos := newEthMsgsTx(&banktypes.MsgSend{})
-	replace := txReplacement(10)
+	cosmos := ethMsgsTx{msgs: []sdk.Msg{&banktypes.MsgSend{}}}
 	for _, tc := range []struct {
 		name     string
+		disabled bool
 		np       int64
 		oTx, nTx sdk.Tx
 		exp      bool
 	}{
-		{"fee bump met", 110, single, single, true},
-		{"fee bump not met", 109, single, single, false},
-		{"batch is never replaced", 1000, batch, single, false},
-		{"batch never replaces", 1000, single, batch, false},
-		{"cosmos tx replaces a cosmos tx", 110, cosmos, cosmos, true},
-		{"eth tx never replaces a cosmos tx", 1000, cosmos, single, false},
-		{"cosmos tx never replaces an eth tx", 1000, single, cosmos, false},
+		{"fee bump met", false, 110, single, single, true},
+		{"fee bump not met", false, 109, single, single, false},
+		{"disabled", true, 1000, single, single, false},
+		{"batch is never replaced", false, 1000, batch, single, false},
+		{"batch never replaces", false, 1000, single, batch, false},
+		{"cosmos tx replaces a cosmos tx", false, 110, cosmos, cosmos, true},
+		{"eth tx never replaces a cosmos tx", false, 1000, cosmos, single, false},
+		{"cosmos tx never replaces an eth tx", false, 1000, single, cosmos, false},
 	} {
-		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.exp, replace(100, tc.np, tc.oTx, tc.nTx)) })
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.exp, txReplacement(10, tc.disabled)(100, tc.np, tc.oTx, tc.nTx))
+		})
+	}
+}
+
+func TestEthTxPool(t *testing.T) {
+	priorityMempool := mempool.NewPriorityMempool(mempool.DefaultPriorityNonceMempoolConfig())
+	for _, tc := range []struct {
+		name     string
+		mpool    mempool.Mempool
+		disabled bool
+		expPool  ethermintante.TxPool
+	}{
+		{"priority nonce mempool", priorityMempool, false, priorityMempool},
+		{"replacement disabled", priorityMempool, true, nil},
+		{"no-op mempool", mempool.NoOpMempool{}, false, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Compare the interfaces directly: a typed nil would not equal nil.
+			require.True(t, ethTxPool(tc.mpool, tc.disabled) == tc.expPool)
+		})
 	}
 }
 
