@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math"
@@ -319,21 +320,23 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 }
 
 func TestAppInsertTx_Replacement(t *testing.T) {
+	const ruleErr = "replacement rule"
+	disabled := minimalOptionsMap{cronos.FlagDisableTxReplacement: true}
 	for _, tc := range []struct {
-		name        string
-		opts        minimalOptionsMap
-		tip         int64
-		expReplaced bool
-		expRawLog   string
+		name string
+		opts minimalOptionsMap
+		// commitBetween resets checkState to the pooled tx's nonce before the replacement arrives.
+		commitBetween bool
+		tip           int64
+		expReplaced   bool
+		expRawLog     string
 	}{
 		{name: "fee bump replaces the pooled tx", tip: 12e9, expReplaced: true},
-		{name: "under-bump is rejected", tip: 10.5e9, expRawLog: "replacement rule"},
-		{
-			name:      "disabled replacement keeps the nonce check",
-			opts:      minimalOptionsMap{cronos.FlagDisableTxReplacement: true},
-			tip:       12e9,
-			expRawLog: "invalid nonce",
-		},
+		{name: "under-bump is rejected", tip: 10.5e9, expRawLog: ruleErr},
+		{name: "disabled replacement keeps the nonce check", opts: disabled, tip: 12e9, expRawLog: "invalid nonce"},
+		{name: "fee bump after a reset survives the recheck", commitBetween: true, tip: 12e9, expReplaced: true},
+		{name: "under-bump after a reset is rejected", commitBetween: true, tip: 10.5e9, expRawLog: ruleErr},
+		{name: "disabled replacement after a reset hits the pool rule", opts: disabled, commitBetween: true, tip: 12e9, expRawLog: ruleErr},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := minimalOptionsMap{cronos.FlagMempoolFeeBump: 10}
@@ -345,13 +348,29 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 
-			resp, err = f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 0, big.NewInt(tc.tip), nil))
+			if tc.commitBetween {
+				_, err = f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
+				require.NoError(t, err)
+				_, err = f.app.Commit()
+				require.NoError(t, err)
+				f.app.MempoolManager().WaitForRecheck(context.Background())
+				require.Equal(t, 1, f.app.Mempool().CountTx(), "empty block must not evict")
+			}
+
+			replacement := f.signTransferAt(t, acc, 0, big.NewInt(tc.tip), nil)
+			resp, err = f.app.MempoolClient().InsertTx(replacement)
 			require.NoError(t, err)
 			if tc.expReplaced {
 				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 			} else {
 				require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 				require.Contains(t, resp.RawLog, tc.expRawLog)
+			}
+
+			if tc.commitBetween {
+				// Recheck the sender: a sequence bumped past the pooled nonce would evict it here.
+				f.app.MempoolManager().StageRecheckSenders(2, [][]byte{replacement})
+				f.app.MempoolManager().RecheckTxs()
 			}
 
 			require.Equal(t, 1, f.app.Mempool().CountTx())

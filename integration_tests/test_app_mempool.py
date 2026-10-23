@@ -10,8 +10,8 @@ AnteHandler before mempool admission. These tests verify:
   - replacement tx (RBF) at same nonce with higher fee is admitted
   - replacement tx with insufficient fee bump is rejected at admission
   - bad-sig / under-fee tx is rejected at admission, not at block time
-  - with disable-tx-replacement=true, same-nonce tx fails at nonce check
-    (ErrInvalidSequence), not at the feebump rule
+  - with disable-tx-replacement=true, a same-nonce tx never replaces the
+    original (nonce error, or the pool rule after a Commit reset)
   - eth batches must come from one sender; their msgs can't be replaced
   - txpool RPC namespace (content, inspect, status, contentFrom) backed by
     the app mempool via MempoolClient.PendingTxs
