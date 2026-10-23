@@ -499,7 +499,7 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 // Callers hold mu, as evict requires.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}, bool) {
 	pooled := a.isPooled(tx)
-	a.evict(tx)
+	a.evictPooled(tx, pooled)
 	if pooled {
 		if evictedSet == nil {
 			evictedSet = make(map[sdk.Tx]struct{})
@@ -610,7 +610,12 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 // sender and nonce, since the pool removes by that key. Callers hold mu so admission can't
 // replace tx in between.
 func (a *Manager) evict(tx sdk.Tx) {
-	if a.isPooled(tx) {
+	a.evictPooled(tx, a.isPooled(tx))
+}
+
+// evictPooled is evict with isPooled(tx) already known.
+func (a *Manager) evictPooled(tx sdk.Tx, pooled bool) {
+	if pooled {
 		_ = a.mpool.Remove(tx)
 	}
 	a.encCache.Evict(tx)

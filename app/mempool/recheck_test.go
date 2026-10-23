@@ -457,15 +457,18 @@ func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
 // Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
 func TestEvictionHoldsAdmissionLock(t *testing.T) {
 	f := newRecheckFixture("bob-0") // the candidate fails recheck, so its eviction is probed too
-	expired := f.addTimeout(1, "alice", 0, "alice-0", 5)
-	candidate := f.add(2, "bob", 0, "bob-0")
+	timedOut := f.addTimeout(1, "alice", 0, "alice-0", 5)
+	aged := f.add(2, "carol", 0, "carol-0")
+	candidate := f.add(3, "bob", 0, "bob-0")
 	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
 	f.a.mpool = probe
+	f.a.ttlNumBlocks = 5
+	f.a.arrival = map[sdk.Tx]int64{aged: 0}
 
-	f.a.selectTxs([]sdk.Tx{expired}, nil, 5, nil)
+	f.a.selectTxs([]sdk.Tx{timedOut, aged}, nil, 5, nil)
 	f.a.runRecheck([]sdk.Tx{candidate})
-	if poolHas(f.pool, expired) {
-		t.Fatal("timed-out tx must be evicted")
+	if poolHas(f.pool, timedOut) || poolHas(f.pool, aged) {
+		t.Fatal("timed-out and TTL-expired txs must be evicted")
 	}
 
 	if probe.calls == 0 || probe.unlocked != 0 {
