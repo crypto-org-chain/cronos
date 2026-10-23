@@ -177,8 +177,9 @@ def test_tx_replacement_rfc(cronos_app_mempool):
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.
 
-    Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100
-    (Go integer arithmetic). base*12//10 satisfies this for all integer base >= 0.
+    Config: default.jsonnet feebump=10 requires a strictly higher fee cap and both
+    caps >= old*110/100. A legacy gasPrice sets both caps, so base*12//10 satisfies
+    this for any base gas price >= 5.
 
     Marked flaky because A can be reaped into a block before A' arrives if the
     500ms reap_interval fires in the window between the two send_raw calls. This
@@ -209,8 +210,7 @@ def test_tx_replacement_rfc(cronos_app_mempool):
     except web3.exceptions.TransactionNotFound:
         pass
 
-    # tx A': same nonce, higher gasPrice — satisfies feebump=10 threshold
-    # (base*12//10 >= base*110//100 for all integer base >= 0)
+    # tx A': same nonce, +20% gasPrice — clears the feebump=10 threshold
     tx_a_prime = {
         "to": ADDRS["community"],
         "value": 2,
@@ -288,7 +288,7 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
         w3.eth.send_raw_transaction(signed_under.raw_transaction)
     msg = str(exc_info.value).lower()
     assert (
-        "replacement rule" in msg or "replacement" in msg
+        "replacement transaction underpriced" in msg
     ), f"expected feebump rejection but got: {msg}"
 
     # Wait for original tx to mine so sender state is clean for subsequent tests.

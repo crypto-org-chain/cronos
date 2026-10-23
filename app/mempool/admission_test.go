@@ -33,6 +33,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -320,7 +321,10 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 }
 
 func TestAppInsertTx_Replacement(t *testing.T) {
-	const ruleErr = "replacement rule"
+	const (
+		ruleErr   = "replacement rule"
+		resendErr = "tx already in mempool"
+	)
 	disabled := minimalOptionsMap{cronos.FlagDisableTxReplacement: true}
 	for _, tc := range []struct {
 		name string
@@ -330,9 +334,13 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 		tip           int64
 		expReplaced   bool
 		expRawLog     string
+		// expResend expects ErrTxInMempoolCache, the code JSON-RPC reports as geth's "already known".
+		expResend bool
 	}{
 		{name: "fee bump replaces the pooled tx", tip: 12e9, expReplaced: true},
 		{name: "under-bump is rejected", tip: 10.5e9, expRawLog: ruleErr},
+		{name: "resend is already in mempool", tip: 10e9, expRawLog: resendErr, expResend: true},
+		{name: "resend after a reset is already in mempool", commitBetween: true, tip: 10e9, expRawLog: resendErr, expResend: true},
 		{name: "disabled replacement keeps the nonce check", opts: disabled, tip: 12e9, expRawLog: "invalid nonce"},
 		{name: "fee bump after a reset survives the recheck", commitBetween: true, tip: 12e9, expReplaced: true},
 		{name: "under-bump after a reset is rejected", commitBetween: true, tip: 10.5e9, expRawLog: ruleErr},
@@ -369,6 +377,10 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 			} else {
 				require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 				require.Contains(t, resp.RawLog, tc.expRawLog)
+				if tc.expResend {
+					require.Equal(t, errortypes.ErrTxInMempoolCache.Codespace(), resp.Codespace)
+					require.Equal(t, errortypes.ErrTxInMempoolCache.ABCICode(), resp.Code)
+				}
 			}
 
 			if tc.commitBetween {
