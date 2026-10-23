@@ -315,6 +315,36 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 	}
 }
 
+// A stale snapshot tx whose sender and nonce a replacement now holds must not take the
+// replacement out of the pool, since the pool removes by that key.
+func TestStaleTxKeepsReplacement(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		evict func(f *recheckFixture, stale sdk.Tx)
+	}{
+		{"failed recheck", func(f *recheckFixture, stale sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale}) }},
+		{"TTL or timeout eviction", func(f *recheckFixture, stale sdk.Tx) { f.a.evictForRecheck(stale, nil, nil) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture("alice-0-stale")
+			stale := f.add(1, "alice", 0, "alice-0-stale")
+			replacement := f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+
+			tc.evict(f, stale)
+
+			if !poolHas(f.pool, replacement) {
+				t.Fatal("replacement must stay pooled")
+			}
+			if f.runner.seen["alice-0-stale"] {
+				t.Fatal("stale tx must not be rechecked")
+			}
+			if _, ok := f.enc.Get(stale); ok {
+				t.Fatal("stale tx must leave the encoder cache")
+			}
+		})
+	}
+}
+
 // Two committed blocks staged without an intervening RecheckTxs drain (e.g. a
 // Commit error skipped the recheck) must union their senders, not drop the first.
 func TestStageRecheckSenders_MergesAcrossBlocks(t *testing.T) {

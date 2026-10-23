@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"time"
 
@@ -28,7 +29,7 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 type Manager struct {
 	// mu guards BaseApp.checkState
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
-	// normally relies on. Held only around RunTx, never the lock-free pool scan.
+	// normally relies on. Held around RunTx and evict, never the lock-free pool scan.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -469,7 +470,9 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 // evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
+	a.mu.Lock()
 	a.evict(tx)
+	a.mu.Unlock()
 	if evictedSet == nil {
 		evictedSet = make(map[sdk.Tx]struct{})
 	}
@@ -506,12 +509,19 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			continue
 		}
 		a.mu.Lock()
+		// Skip a tx replaced or removed since the snapshot: a failed recheck removes by sender and
+		// nonce, which would take out the replacement too.
+		if !a.isPooled(tx) {
+			a.encCache.Evict(tx)
+			a.mu.Unlock()
+			continue
+		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		a.mu.Unlock()
 		if err != nil {
 			a.evict(tx)
 			evicted++
 		}
+		a.mu.Unlock()
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
@@ -544,10 +554,35 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool and encoder cache together.
+// evict drops tx from the encoder cache, and from the pool unless a replacement now holds its
+// sender and nonce, since the pool removes by that key. Callers hold mu so admission can't
+// replace tx in between.
 func (a *Manager) evict(tx sdk.Tx) {
-	_ = a.mpool.Remove(tx)
+	if a.isPooled(tx) {
+		_ = a.mpool.Remove(tx)
+	}
 	a.encCache.Evict(tx)
+}
+
+// isPooled reports whether tx itself, not a replacement, is pooled at its sender and nonce.
+// It falls back to true when the pool or tx type can't tell, keeping removal by key.
+func (a *Manager) isPooled(tx sdk.Tx) bool {
+	pool, ok := a.mpool.(interface {
+		GetTx(sender string, nonce uint64) (sdk.Tx, bool)
+	})
+	if t := reflect.TypeOf(tx); !ok || a.signer == nil || t == nil || !t.Comparable() {
+		return true
+	}
+	sigs, err := a.signer.GetSigners(tx)
+	if err != nil || len(sigs) == 0 {
+		return true
+	}
+	nonce, err := sdkmempool.ChooseNonce(sigs[0].Sequence, tx)
+	if err != nil {
+		return true
+	}
+	pooled, found := pool.GetTx(sigs[0].Signer.String(), nonce)
+	return found && pooled == tx
 }
 
 // stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects

@@ -357,7 +357,8 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
-// txReplacement requires the new tx's priority to be feeBump% above the old one's.
+// txReplacement requires the new tx's priority to be strictly higher and at least feeBump% above
+// the old one's, so integer rounding or feeBump=0 never lets an equal-fee tx replace a pooled one.
 // Multi-msg txs neither replace nor get replaced: the pool keys a tx by its first msg/signer only.
 // An eth tx and a cosmos tx never replace each other: the ante skips the nonce check only when the
 // pooled tx is an eth tx, so a cross-type match needs a Commit reset of checkState and depends on timing.
@@ -367,7 +368,7 @@ func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk
 		if disabled || len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 || isEthTx(oTx) != isEthTx(nTx) {
 			return false
 		}
-		return np >= op*(100+feeBump)/100
+		return np > op && np >= op*(100+feeBump)/100
 	}
 }
 
