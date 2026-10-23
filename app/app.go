@@ -359,13 +359,13 @@ func parseBoolFlag(flag string, v interface{}) bool {
 
 // txReplacement requires the new tx's priority to be strictly higher and at least feeBump% above
 // the old one's, so integer rounding or feeBump=0 never lets an equal-fee tx replace a pooled one.
-// Multi-msg txs neither replace nor get replaced: the pool keys a tx by its first msg/signer only.
-// An eth tx and a cosmos tx never replace each other: the ante skips the nonce check only when the
-// pooled tx is an eth tx, so a cross-type match needs a Commit reset of checkState and depends on timing.
+// Only a single-msg eth tx replaces a single-msg eth tx: the pool keys a tx by its first msg/signer,
+// and only the eth ante skips the nonce check for a pooled tx. Any other match needs a Commit reset
+// of checkState, where the replacement's nonce check bumps the sequence and its recheck then evicts it.
 // When disabled, nothing is replaced, even after that reset.
 func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	return func(op, np int64, oTx, nTx sdk.Tx) bool {
-		if disabled || len(oTx.GetMsgs()) > 1 || len(nTx.GetMsgs()) > 1 || isEthTx(oTx) != isEthTx(nTx) {
+		if disabled || !isSingleEthTx(oTx) || !isSingleEthTx(nTx) {
 			return false
 		}
 		return np > op && np >= op*(100+feeBump)/100
@@ -382,9 +382,9 @@ func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
 	return priorityMempool
 }
 
-func isEthTx(tx sdk.Tx) bool {
+func isSingleEthTx(tx sdk.Tx) bool {
 	msgs := tx.GetMsgs()
-	if len(msgs) == 0 {
+	if len(msgs) != 1 {
 		return false
 	}
 	_, ok := msgs[0].(*evmtypes.MsgEthereumTx)

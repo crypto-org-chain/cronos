@@ -293,7 +293,7 @@ func TestTxReplacement(t *testing.T) {
 		{"disabled", 10, true, 100, 1000, single, single, false},
 		{"batch is never replaced", 10, false, 100, 1000, batch, single, false},
 		{"batch never replaces", 10, false, 100, 1000, single, batch, false},
-		{"cosmos tx replaces a cosmos tx", 10, false, 100, 110, cosmos, cosmos, true},
+		{"cosmos tx never replaces a cosmos tx", 10, false, 100, 1000, cosmos, cosmos, false},
 		{"eth tx never replaces a cosmos tx", 10, false, 100, 1000, cosmos, single, false},
 		{"cosmos tx never replaces an eth tx", 10, false, 100, 1000, single, cosmos, false},
 	} {
