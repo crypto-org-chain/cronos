@@ -349,9 +349,9 @@ def test_batch_later_msg_not_poolable(cronos_app_mempool):
 def cronos_app_no_replace(tmp_path_factory):
     """App-mempool node with cronos.disable-tx-replacement=true.
 
-    The ante gets no pool to look up: same-nonce replacements hit the
-    normal nonce check and fail with ErrInvalidSequence before reaching
-    PriorityNonceMempool.Insert.
+    The ante gets no pool to look up, so a same-nonce replacement fails the
+    normal nonce check, or, after a Commit resets checkState, the disabled
+    pool rule.
     """
     path = tmp_path_factory.mktemp("cronos-app-no-replace")
     yield from setup_custom_cronos(
@@ -359,12 +359,8 @@ def cronos_app_no_replace(tmp_path_factory):
     )
 
 
-@pytest.mark.flaky(max_runs=3)
 def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
-    """With disable-tx-replacement=true, same-nonce tx fails at nonce check.
-
-    Marked flaky: if a Commit resets checkState while the original is pooled,
-    the replacement passes the nonce check and the disabled pool rule rejects it.
+    """With disable-tx-replacement=true, a same-nonce tx never replaces the original.
 
     Path verified:
       ante TxPool = nil
@@ -372,10 +368,10 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
       Tx A' (same nonce N, +20% fee): no pool lookup
         -> normal nonce check: expectedNonce=N+1, txNonce=N
         -> ErrInvalidSequence: "invalid nonce; got N, expected N+1"
+      If a Commit reset checkState to N while A was pooled, A' passes the
+      nonce check and the disabled pool rule rejects it instead.
 
-    The error must contain "nonce" or "sequence", NOT "replacement" or
-    "fit the replacement rule" — that would indicate the nonce check was
-    skipped and the feebump rule was reached instead, meaning the flag had no effect.
+    The flag had no effect only if A' is accepted.
     """
     w3: Web3 = cronos_app_no_replace.w3
     key = KEYS["validator"]
@@ -394,7 +390,7 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     signed_orig = sign_transaction(w3, tx_orig, key)
     hash_orig = w3.eth.send_raw_transaction(signed_orig.raw_transaction)
 
-    # +20% fee — sufficient for feebump rule, but must fail at nonce check
+    # +20% fee: enough for the feebump rule if replacement were enabled
     tx_replace = {
         "to": ADDRS["community"],
         "value": 2,
@@ -407,16 +403,11 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed_replace.raw_transaction)
     msg = str(exc_info.value).lower()
-
-    # Must be a nonce/sequence error — NOT the feebump rule
     assert any(
-        s in msg for s in ("nonce", "sequence")
-    ), f"expected nonce/sequence error but got: {msg}"
-    assert (
-        "replacement" not in msg
-    ), f"got feebump rule error — nonce check skipped when it should not: {msg}"
+        s in msg for s in ("nonce", "sequence", "replacement rule")
+    ), f"expected a nonce or replacement-rule error but got: {msg}"
 
-    # Original tx must still mine (chain is functional)
+    # The original tx, not the replacement, must mine
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
     assert receipt.status == 1
 

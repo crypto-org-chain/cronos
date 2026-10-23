@@ -8,7 +8,7 @@
 
 ### Improvements
 
-* [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache. An eth tx and a cosmos tx no longer replace each other, `cronos.disable-tx-replacement` also turns off the pool's replacement rule, and a negative `mempool.feebump` (no-op app mempool) now disables replacement too. `App.AnteCache` and `Manager.SetAnteCache` are removed.
+* [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache. An eth tx and a cosmos tx no longer replace each other, `cronos.disable-tx-replacement` also turns off the pool's replacement rule, and a negative `mempool.feebump` (no-op mempool under `mempool.type=flood`) now disables replacement too. `App.AnteCache` and `Manager.SetAnteCache` are removed.
 
 ### Bug fixes
 

@@ -32,6 +32,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -65,19 +66,26 @@ type admissionFixture struct {
 // the From field to a different address post-sign so VerifyEthSig must reject.
 func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperFrom *common.Address) []byte {
 	tb.Helper()
+	bz := f.signTransferAt(tb, acc, acc.Nonce, big.NewInt(0), tamperFrom)
+	acc.Nonce++
+	return bz
+}
+
+// signTransferAt is signTransfer at an explicit nonce and tip, leaving acc.Nonce unchanged.
+func (f *admissionFixture) signTransferAt(tb testing.TB, acc *testAccount, nonce uint64, tip *big.Int, tamperFrom *common.Address) []byte {
+	tb.Helper()
 	tx := evmtypes.NewTx(
 		cronos.TestEthChainID,
-		acc.Nonce,
+		nonce,
 		&common.Address{0x1},     // to: arbitrary EOA
 		big.NewInt(0),            // value
 		21000,                    // gas limit
 		nil,                      // gas price
 		big.NewInt(100000000000), // gasFeeCap
-		big.NewInt(0),            // gasTipCap
+		tip,                      // gasTipCap
 		nil,                      // data
 		nil,                      // access list
 	)
-	acc.Nonce++
 
 	msg := tx
 	msg.From = acc.Address.Bytes()
@@ -308,6 +316,54 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 	require.NoError(t, err, "admission failures map to a code, not a transport error")
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered tx must be rejected")
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
+}
+
+func TestAppInsertTx_Replacement(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		opts        minimalOptionsMap
+		tip         int64
+		expReplaced bool
+		expRawLog   string
+	}{
+		{name: "fee bump replaces the pooled tx", tip: 12e9, expReplaced: true},
+		{name: "under-bump is rejected", tip: 10.5e9, expRawLog: "replacement rule"},
+		{
+			name:      "disabled replacement keeps the nonce check",
+			opts:      minimalOptionsMap{cronos.FlagDisableTxReplacement: true},
+			tip:       12e9,
+			expRawLog: "invalid nonce",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := minimalOptionsMap{cronos.FlagMempoolFeeBump: 10}
+			maps.Copy(opts, tc.opts)
+			f := setupAdmissionAppWithOpts(t, 1, opts)
+			acc := &f.accounts[0]
+
+			resp, err := f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 0, big.NewInt(10e9), nil))
+			require.NoError(t, err)
+			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+
+			resp, err = f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 0, big.NewInt(tc.tip), nil))
+			require.NoError(t, err)
+			if tc.expReplaced {
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+			} else {
+				require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+				require.Contains(t, resp.RawLog, tc.expRawLog)
+			}
+
+			require.Equal(t, 1, f.app.Mempool().CountTx())
+			pooled, ok := f.app.Mempool().(*sdkmempool.PriorityNonceMempool[int64]).GetTx(sdk.AccAddress(acc.Address.Bytes()).String(), 0)
+			require.True(t, ok)
+			expTip := big.NewInt(10e9)
+			if tc.expReplaced {
+				expTip = big.NewInt(tc.tip)
+			}
+			require.Equal(t, expTip, pooled.GetMsgs()[0].(*evmtypes.MsgEthereumTx).AsTransaction().GasTipCap())
+		})
+	}
 }
 
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {

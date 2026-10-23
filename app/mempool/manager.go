@@ -544,8 +544,7 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool and encoder cache together, so the cache
-// never outlives its pool entry.
+// evict removes tx from the pool and encoder cache together.
 func (a *Manager) evict(tx sdk.Tx) {
 	_ = a.mpool.Remove(tx)
 	a.encCache.Evict(tx)
