@@ -323,6 +323,13 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 func TestStaleTxKeepsReplacement(t *testing.T) {
 	const staleBz, replBz, siblingBz = "alice-0-stale", "alice-0", "alice-1"
 	recheck := func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) }
+	// recheckDeferred rechecks stale and sibling as carried over from a capped cycle.
+	recheckDeferred := func(senders map[string]struct{}) func(f *recheckFixture, stale, sibling sdk.Tx) {
+		return func(f *recheckFixture, stale, sibling sdk.Tx) {
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+			f.a.runRecheck(f.a.selectTxs(snapshot, senders, 5, []sdk.Tx{stale, sibling}))
+		}
+	}
 	for _, tc := range []struct {
 		name         string
 		replaced     bool // otherwise the stale tx is removed, as FinalizeBlock does for an included tx
@@ -361,6 +368,19 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			},
 			expRan: []string{replBz, siblingBz},
 		},
+		{
+			// A deferred tx replaced since the carry is rechecked as its replacement, in its slot.
+			name:     "deferred replaced tx",
+			replaced: true,
+			evict:    recheckDeferred(nil),
+			expRan:   []string{replBz, siblingBz},
+		},
+		{
+			name:     "deferred replaced tx with its sender staged is rechecked once",
+			replaced: true,
+			evict:    recheckDeferred(map[string]struct{}{sdk.AccAddress("alice").String(): {}}),
+			expRan:   []string{replBz, siblingBz},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRecheckFixture(staleBz)
@@ -398,6 +418,38 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 				t.Fatal("stale tx must leave the encoder cache")
 			}
 		})
+	}
+}
+
+// lockProbePool counts pool lookups made without the Manager's admission lock held.
+type lockProbePool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	mu              *sync.Mutex
+	calls, unlocked int
+}
+
+func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
+	p.calls++
+	if p.mu.TryLock() {
+		p.mu.Unlock()
+		p.unlocked++
+	}
+	return p.PriorityNonceMempool.GetTx(sender, nonce)
+}
+
+// Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
+func TestEvictionHoldsAdmissionLock(t *testing.T) {
+	f := newRecheckFixture()
+	expired := f.add(1, "alice", 0, "alice-0")
+	candidate := f.add(2, "bob", 0, "bob-0")
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	f.a.mpool = probe
+
+	f.a.evictForRecheck(expired, nil, nil)
+	f.a.runRecheck([]sdk.Tx{candidate})
+
+	if probe.calls == 0 || probe.unlocked != 0 {
+		t.Fatalf("pool lookups: %d, without the admission lock: %d", probe.calls, probe.unlocked)
 	}
 }
 

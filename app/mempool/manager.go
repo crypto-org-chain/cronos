@@ -458,7 +458,17 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
 	for _, tx := range deferred {
 		if deferredLive[tx] {
-			ordered = append(ordered, tx) // skip txs included/evicted since carry
+			ordered = append(ordered, tx)
+			continue
+		}
+		// Recheck a tx replaced since the carry as its replacement, in its slot, so the sender's
+		// later deferred nonces see the sequence replayed. Skip txs included/evicted since.
+		a.encCache.Evict(tx)
+		if cur, found, known := a.pooledAt(tx); known && found && cur != tx {
+			if _, dup := deferredLive[cur]; !dup {
+				deferredLive[cur] = true // keeps the fresh-candidates loop from rechecking it twice
+				ordered = append(ordered, cur)
+			}
 		}
 	}
 	for _, tx := range candidates {
@@ -516,7 +526,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			continue
 		}
 		a.mu.Lock()
-		// Every candidate replays its sender's sequence for the later nonces, so none is skipped.
+		// A candidate replays its sender's sequence for the later nonces, so it isn't skipped.
 		// One replaced since the snapshot is rechecked as its replacement, since a failing stale
 		// tx would remove the replacement (the pool removes by sender and nonce). One removed
 		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
