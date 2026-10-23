@@ -381,6 +381,17 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			expRan: []string{replBz, siblingBz},
 		},
 		{
+			// Likewise for a TTL-expired stale tx.
+			name:     "TTL-expired replaced tx",
+			replaced: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				f.a.ttlNumBlocks = 5
+				f.a.arrival = map[sdk.Tx]int64{stale: 0}
+				f.a.runRecheck(f.a.selectTxs([]sdk.Tx{stale, sibling}, nil, 10, nil))
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
 			// A deferred tx replaced since the carry is rechecked as its replacement, in its slot.
 			name:     "deferred replaced tx",
 			replaced: true,

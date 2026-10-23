@@ -358,10 +358,10 @@ func parseBoolFlag(flag string, v interface{}) bool {
 }
 
 // txReplacement is ethermint's eth-only rule: a single-msg eth tx replaces a pooled one by raising
-// its fee cap (strictly) and tip cap by feeBump%. Only the eth ante skips the nonce check for a
-// pooled tx, so any other match needs a Commit reset of checkState, where the replacement's nonce
-// check bumps the sequence and its recheck then evicts it. When disabled, nothing is replaced, even
-// after that reset; a nil rule would replace everything.
+// its fee cap (strictly) and tip cap by feeBump%. It must refuse any other match: only the eth ante
+// skips the nonce check for a pooled tx, so another tx at a pooled nonce gets through only after a
+// Commit reset of checkState, and replacing then would advance the sequence past the pooled nonce.
+// When disabled, nothing is replaced, even after that reset; a nil rule would replace everything.
 func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	if disabled {
 		return func(int64, int64, sdk.Tx, sdk.Tx) bool { return false }

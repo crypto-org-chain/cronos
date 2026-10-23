@@ -403,9 +403,10 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed_replace.raw_transaction)
     msg = str(exc_info.value).lower()
+    # JSON-RPC reports a pool rule rejection as geth's "replacement ... underpriced".
     assert any(
-        s in msg for s in ("nonce", "sequence", "replacement rule")
-    ), f"expected a nonce or replacement-rule error but got: {msg}"
+        s in msg for s in ("nonce", "sequence", "replacement")
+    ), f"expected a nonce or replacement error but got: {msg}"
 
     # The original tx, not the replacement, must mine
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
