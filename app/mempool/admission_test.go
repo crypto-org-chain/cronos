@@ -67,25 +67,25 @@ type admissionFixture struct {
 // the From field to a different address post-sign so VerifyEthSig must reject.
 func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperFrom *common.Address) []byte {
 	tb.Helper()
-	bz := f.signTransferAt(tb, acc, acc.Nonce, big.NewInt(0), tamperFrom)
+	bz := f.signTransferAt(tb, acc, acc.Nonce, big.NewInt(100000000000), big.NewInt(0), tamperFrom)
 	acc.Nonce++
 	return bz
 }
 
-// signTransferAt is signTransfer at an explicit nonce and tip, leaving acc.Nonce unchanged.
-func (f *admissionFixture) signTransferAt(tb testing.TB, acc *testAccount, nonce uint64, tip *big.Int, tamperFrom *common.Address) []byte {
+// signTransferAt is signTransfer at an explicit nonce, fee cap and tip, leaving acc.Nonce unchanged.
+func (f *admissionFixture) signTransferAt(tb testing.TB, acc *testAccount, nonce uint64, feeCap, tip *big.Int, tamperFrom *common.Address) []byte {
 	tb.Helper()
 	tx := evmtypes.NewTx(
 		cronos.TestEthChainID,
 		nonce,
-		&common.Address{0x1},     // to: arbitrary EOA
-		big.NewInt(0),            // value
-		21000,                    // gas limit
-		nil,                      // gas price
-		big.NewInt(100000000000), // gasFeeCap
-		tip,                      // gasTipCap
-		nil,                      // data
-		nil,                      // access list
+		&common.Address{0x1}, // to: arbitrary EOA
+		big.NewInt(0),        // value
+		21000,                // gas limit
+		nil,                  // gas price
+		feeCap,               // gasFeeCap
+		tip,                  // gasTipCap
+		nil,                  // data
+		nil,                  // access list
 	)
 
 	msg := tx
@@ -344,7 +344,11 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 			f := setupAdmissionAppWithOpts(t, 1, opts)
 			acc := &f.accounts[0]
 
-			resp, err := f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 0, big.NewInt(10e9), nil))
+			// Fee cap and tip move together, so the tip sets the bump.
+			signAt := func(tip int64) []byte {
+				return f.signTransferAt(t, acc, 0, big.NewInt(10*tip), big.NewInt(tip), nil)
+			}
+			resp, err := f.app.MempoolClient().InsertTx(signAt(10e9))
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
 
@@ -357,7 +361,7 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 				require.Equal(t, 1, f.app.Mempool().CountTx(), "empty block must not evict")
 			}
 
-			replacement := f.signTransferAt(t, acc, 0, big.NewInt(tc.tip), nil)
+			replacement := signAt(tc.tip)
 			resp, err = f.app.MempoolClient().InsertTx(replacement)
 			require.NoError(t, err)
 			if tc.expReplaced {

@@ -240,7 +240,7 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     Exercises the app-mempool path where:
       1. Tx A passes CheckTx and is pooled at (addr, N)
       2. Tx A' (same nonce, +5% tip) skips the nonce check: A is pooled at (addr, N)
-      3. PriorityNonceMempool.Insert calls TxReplacement: np < op*110/100 -> rejected
+      3. PriorityNonceMempool.Insert calls TxReplacement: caps under +10% -> rejected
 
     Complements test_tx_replacement_rfc (success path) by covering the failure
     branch of TxReplacement inside the app-mempool admission path.
@@ -252,7 +252,7 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     key = KEYS["validator"]
     nonce = w3.eth.get_transaction_count(ADDRS["validator"])
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
-    # Ensure non-zero tip so % bumps are meaningful — priority = tip / 1e6.
+    # Ensure a non-zero tip so the % bump on the tip cap is meaningful.
     priority_fee = max(w3.eth.max_priority_fee, w3.to_wei(1, "gwei"))
 
     tx_orig = {

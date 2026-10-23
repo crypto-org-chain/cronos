@@ -273,32 +273,30 @@ func newEthMsgsTx(msgs ...sdk.Msg) ethMsgsTx { return ethMsgsTx{msgs: msgs} }
 
 func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
 
+// The fee-cap rule itself is ethermint's ante.EthTxReplacement, tested there; this covers its wiring.
 func TestTxReplacement(t *testing.T) {
-	single := newEthMsgsTx(newEthMsg(common.Address{}, 0))
-	batch := newEthMsgsTx(newEthMsg(common.Address{}, 0), newEthMsg(common.Address{}, 1))
+	priced := func(gasPrice int64) ethMsgsTx {
+		msg := &evmtypes.MsgEthereumTx{}
+		msg.Raw.Transaction = ethtypes.NewTx(&ethtypes.LegacyTx{GasPrice: big.NewInt(gasPrice)})
+		return newEthMsgsTx(msg)
+	}
 	cosmos := ethMsgsTx{msgs: []sdk.Msg{&banktypes.MsgSend{}}}
 	for _, tc := range []struct {
 		name     string
 		feeBump  int64
 		disabled bool
-		op, np   int64
 		oTx, nTx sdk.Tx
 		exp      bool
 	}{
-		{"fee bump met", 10, false, 100, 110, single, single, true},
-		{"fee bump not met", 10, false, 100, 109, single, single, false},
-		{"equal priority after rounding", 10, false, 5, 5, single, single, false},
-		{"zero fee bump still needs an increase", 0, false, 100, 100, single, single, false},
-		{"zero fee bump with an increase", 0, false, 100, 101, single, single, true},
-		{"disabled", 10, true, 100, 1000, single, single, false},
-		{"batch is never replaced", 10, false, 100, 1000, batch, single, false},
-		{"batch never replaces", 10, false, 100, 1000, single, batch, false},
-		{"cosmos tx never replaces a cosmos tx", 10, false, 100, 1000, cosmos, cosmos, false},
-		{"eth tx never replaces a cosmos tx", 10, false, 100, 1000, cosmos, single, false},
-		{"cosmos tx never replaces an eth tx", 10, false, 100, 1000, single, cosmos, false},
+		{"fee bump met", 10, false, priced(1000), priced(1100), true},
+		{"fee bump not met", 10, false, priced(1000), priced(1099), false},
+		{"zero fee bump still needs a higher fee", 0, false, priced(1000), priced(1000), false},
+		{"disabled", 10, true, priced(1000), priced(9000), false},
+		{"cosmos tx never replaces a cosmos tx", 10, false, cosmos, cosmos, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.exp, txReplacement(tc.feeBump, tc.disabled)(tc.op, tc.np, tc.oTx, tc.nTx))
+			// The rule ignores the pool priorities.
+			require.Equal(t, tc.exp, txReplacement(tc.feeBump, tc.disabled)(1, 0, tc.oTx, tc.nTx))
 		})
 	}
 }

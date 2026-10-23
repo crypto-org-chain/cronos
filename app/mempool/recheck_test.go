@@ -454,6 +454,27 @@ func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
 	return p.PriorityNonceMempool.GetTx(sender, nonce)
 }
 
+// More expired txs than one lock hold evicts are all evicted, each under mu.
+func TestEvictionAcrossLockHolds(t *testing.T) {
+	f := newRecheckFixture()
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	expired := make([]sdk.Tx, 0, evictBatchSize+1)
+	for i := range evictBatchSize + 1 {
+		s := "sender-" + strconv.Itoa(i)
+		expired = append(expired, f.addTimeout(i, s, 0, s, 5))
+	}
+	f.a.mpool = probe
+
+	f.a.selectTxs(expired, nil, 5, nil)
+
+	if n := f.pool.CountTx(); n != 0 {
+		t.Fatalf("%d expired txs left pooled", n)
+	}
+	if probe.calls == 0 || probe.unlocked != 0 {
+		t.Fatalf("pool lookups: %d, without the admission lock: %d", probe.calls, probe.unlocked)
+	}
+}
+
 // Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
 func TestEvictionHoldsAdmissionLock(t *testing.T) {
 	f := newRecheckFixture("bob-0") // the candidate fails recheck, so its eviction is probed too

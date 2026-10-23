@@ -357,19 +357,16 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
-// txReplacement requires the new tx's priority to be strictly higher and at least feeBump% above
-// the old one's, so integer rounding or feeBump=0 never lets an equal-fee tx replace a pooled one.
-// Only a single-msg eth tx replaces a single-msg eth tx: the pool keys a tx by its first msg/signer,
-// and only the eth ante skips the nonce check for a pooled tx. Any other match needs a Commit reset
-// of checkState, where the replacement's nonce check bumps the sequence and its recheck then evicts it.
-// When disabled, nothing is replaced, even after that reset.
+// txReplacement is ethermint's eth-only rule: a single-msg eth tx replaces a pooled one by raising
+// its fee cap (strictly) and tip cap by feeBump%. Only the eth ante skips the nonce check for a
+// pooled tx, so any other match needs a Commit reset of checkState, where the replacement's nonce
+// check bumps the sequence and its recheck then evicts it. When disabled, nothing is replaced, even
+// after that reset; a nil rule would replace everything.
 func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
-	return func(op, np int64, oTx, nTx sdk.Tx) bool {
-		if disabled || !ethermintante.IsSingleEthTx(oTx) || !ethermintante.IsSingleEthTx(nTx) {
-			return false
-		}
-		return np > op && np >= op*(100+feeBump)/100
+	if disabled {
+		return func(int64, int64, sdk.Tx, sdk.Tx) bool { return false }
 	}
+	return ethermintante.EthTxReplacement(feeBump)
 }
 
 // ethTxPool returns mpool for the ante's replacement lookup, or nil (never a typed nil) when

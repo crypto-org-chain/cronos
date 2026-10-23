@@ -2,7 +2,6 @@ package mempool
 
 import (
 	"context"
-	"slices"
 	"sync"
 	"time"
 
@@ -539,10 +538,10 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
-	// Replacements rechecked in a stale tx's place. Two candidates resolving to one tx would recheck
-	// it twice, and the second strict recheck would fail the nonce and evict it. Redirects are rare,
-	// so this stays nil on most cycles.
-	var redirected map[sdk.Tx]struct{}
+	// Txs rechecked so far. Two candidates resolving to one tx would recheck it twice, and the second
+	// strict recheck would fail the nonce and evict it; that takes a redirect, which is rare, so the
+	// set stays nil until the first one and is then seeded with the earlier candidates.
+	var seen map[sdk.Tx]struct{}
 	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
@@ -559,23 +558,25 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			a.encCache.Evict(tx)
 			pooled = found
 			if found {
-				if _, dup := redirected[cur]; dup || slices.Contains(candidates[:i], cur) {
-					a.mu.Unlock()
-					continue
+				if seen == nil {
+					seen = make(map[sdk.Tx]struct{}, i+1)
+					for _, prev := range candidates[:i] {
+						seen[prev] = struct{}{}
+					}
 				}
-				if redirected == nil {
-					redirected = make(map[sdk.Tx]struct{})
-				}
-				redirected[cur] = struct{}{}
 				tx = cur
 				if bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx); err != nil {
 					a.mu.Unlock()
 					continue
 				}
 			}
-		} else if _, dup := redirected[tx]; dup {
-			a.mu.Unlock()
-			continue
+		}
+		if seen != nil {
+			if _, dup := seen[tx]; dup {
+				a.mu.Unlock()
+				continue
+			}
+			seen[tx] = struct{}{}
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
