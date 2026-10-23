@@ -4,7 +4,7 @@
 
 ### Client Breaking
 
-* [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache. Only a single-msg eth tx replaces a pooled one, by raising the fee cap (strictly) and tip cap by `mempool.feebump`%; `cronos.disable-tx-replacement` makes the pool reject every replacement. `App.AnteCache` and `Manager.SetAnteCache` are removed.
+* [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache. Only a single-msg eth tx replaces a pooled one, by raising the fee cap (strictly) and tip cap by `mempool.feebump`%; `cronos.disable-tx-replacement` makes the pool reject every replacement. JSON-RPC reports a resend and an underpriced replacement with geth's `already known` and `replacement transaction underpriced`. `App.AnteCache` and `Manager.SetAnteCache` are removed.
 * [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.
 
 ### Bug fixes

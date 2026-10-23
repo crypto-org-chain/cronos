@@ -423,7 +423,8 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	// Evict in bounded holds: one per tx would queue behind every waiting admission, and one for a
 	// mass expiry would stall admission for the whole batch.
 	numTimedOut := len(timedOut)
-	expired := append(timedOut, ttlExpired...)
+	expired := make([]sdk.Tx, 0, len(timedOut)+len(ttlExpired))
+	expired = append(append(expired, timedOut...), ttlExpired...)
 	for start := 0; start < len(expired); start += evictBatchSize {
 		a.mu.Lock()
 		for i := start; i < min(start+evictBatchSize, len(expired)); i++ {
@@ -579,6 +580,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
+			// baseapp removes tx only when the ante fails; this covers any other failure.
 			a.evict(tx)
 			evicted++
 		}

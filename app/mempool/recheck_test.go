@@ -466,7 +466,7 @@ func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
 }
 
 // More expired txs than one lock hold evicts are all evicted, each under mu.
-func TestEvictionAcrossLockHolds(t *testing.T) {
+func TestEvictionBeyondOneBatch(t *testing.T) {
 	f := newRecheckFixture()
 	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
 	expired := make([]sdk.Tx, 0, evictBatchSize+1)
