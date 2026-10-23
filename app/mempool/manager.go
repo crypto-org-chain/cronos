@@ -516,22 +516,24 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			continue
 		}
 		a.mu.Lock()
-		// A tx replaced since the snapshot is rechecked as its replacement: rechecking the stale tx
-		// would remove the replacement on failure (the pool removes by sender and nonce), and
-		// skipping it would leave the sender's sequence short for its later nonces.
+		// Every candidate replays its sender's sequence for the later nonces, so none is skipped.
+		// One replaced since the snapshot is rechecked as its replacement, since a failing stale
+		// tx would remove the replacement (the pool removes by sender and nonce). One removed
+		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
+		pooled := true
 		if cur, found, known := a.pooledAt(tx); known && cur != tx {
 			a.encCache.Evict(tx)
+			pooled = found
 			if found {
 				tx = cur
-				bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx)
-			}
-			if !found || err != nil {
-				a.mu.Unlock()
-				continue
+				if bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx); err != nil {
+					a.mu.Unlock()
+					continue
+				}
 			}
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		if err != nil {
+		if err != nil && pooled {
 			a.evict(tx)
 			evicted++
 		}

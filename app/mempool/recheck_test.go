@@ -318,23 +318,31 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 	}
 }
 
-// A stale snapshot tx whose sender and nonce a replacement now holds must not take the
-// replacement out of the pool, since the pool removes by that key.
+// A snapshot tx replaced or removed since must neither take a replacement out of the pool
+// (the pool removes by sender and nonce) nor skip replaying its sender's sequence.
 func TestStaleTxKeepsReplacement(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		evict  func(f *recheckFixture, stale, sibling sdk.Tx)
-		expRan []string
+		name     string
+		replaced bool // otherwise the stale tx is removed, as FinalizeBlock does for an included tx
+		evict    func(f *recheckFixture, stale, sibling sdk.Tx)
+		expRan   []string
 	}{
 		{
-			// The replacement is rechecked in the stale tx's place, so the sender's sequence
-			// is replayed before the sibling at the next nonce.
-			name:   "recheck",
-			evict:  func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) },
-			expRan: []string{"alice-0", "alice-1"},
+			// The replacement is rechecked in the stale tx's place, before the sibling at the next nonce.
+			name:     "recheck a replaced tx",
+			replaced: true,
+			evict:    func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) },
+			expRan:   []string{"alice-0", "alice-1"},
 		},
 		{
-			name: "TTL or timeout eviction",
+			// The removed tx still replays the sequence; its failure has nothing to evict.
+			name:   "recheck a removed tx",
+			evict:  func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) },
+			expRan: []string{"alice-0-stale", "alice-1"},
+		},
+		{
+			name:     "TTL or timeout eviction of a replaced tx",
+			replaced: true,
 			evict: func(f *recheckFixture, stale, _ sdk.Tx) {
 				if _, _, evicted := f.a.evictForRecheck(stale, nil, nil); evicted {
 					t.Fatal("a replaced tx must not count as evicted")
@@ -345,12 +353,17 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRecheckFixture("alice-0-stale")
 			stale := f.add(1, "alice", 0, "alice-0-stale")
-			replacement := f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+			var replacement sdk.Tx
+			if tc.replaced {
+				replacement = f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+			} else if err := f.pool.Remove(stale); err != nil {
+				t.Fatal(err)
+			}
 			sibling := f.add(3, "alice", 1, "alice-1")
 
 			tc.evict(f, stale, sibling)
 
-			if !poolHas(f.pool, replacement) || !poolHas(f.pool, sibling) {
+			if !poolHas(f.pool, sibling) || (replacement != nil && !poolHas(f.pool, replacement)) {
 				t.Fatal("replacement and sibling must stay pooled")
 			}
 			if !slices.Equal(tc.expRan, f.runner.ran) {
