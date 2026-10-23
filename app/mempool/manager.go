@@ -2,11 +2,12 @@ package mempool
 
 import (
 	"context"
-	"reflect"
+	"slices"
 	"sync"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	ethermintante "github.com/evmos/ethermint/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -18,6 +19,9 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
+
+// evictBatchSize bounds how many expired txs one admission-lock hold evicts.
+const evictBatchSize = 1024
 
 type txRunner interface {
 	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
@@ -418,17 +422,20 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		}
 	}
 	a.arrival = newArrival
-	if len(timedOut) > 0 || len(ttlExpired) > 0 {
-		// One hold for the whole batch: per-tx locking would queue behind every waiting admission.
+	// Evict in bounded holds: one per tx would queue behind every waiting admission, and one for a
+	// mass expiry would stall admission for the whole batch.
+	numTimedOut := len(timedOut)
+	expired := append(timedOut, ttlExpired...)
+	for start := 0; start < len(expired); start += evictBatchSize {
 		a.mu.Lock()
-		var evicted bool
-		for _, tx := range timedOut {
-			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
-				expiredEvicted++
+		for i := start; i < min(start+evictBatchSize, len(expired)); i++ {
+			var evicted bool
+			if evictedSet, recheckSenders, evicted = a.evictForRecheck(expired[i], evictedSet, recheckSenders); !evicted {
+				continue
 			}
-		}
-		for _, tx := range ttlExpired {
-			if evictedSet, recheckSenders, evicted = a.evictForRecheck(tx, evictedSet, recheckSenders); evicted {
+			if i < numTimedOut {
+				expiredEvicted++
+			} else {
 				ttlEvicted++
 			}
 		}
@@ -532,10 +539,11 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
-	// Two candidates can resolve to the same replacement; its second strict recheck would fail
-	// the nonce and evict it. Only comparable (known) txs can be map keys.
-	var rechecked map[sdk.Tx]struct{}
-	for _, tx := range candidates {
+	// Replacements rechecked in a stale tx's place. Two candidates resolving to one tx would recheck
+	// it twice, and the second strict recheck would fail the nonce and evict it. Redirects are rare,
+	// so this stays nil on most cycles.
+	var redirected map[sdk.Tx]struct{}
+	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
 			continue
@@ -551,22 +559,23 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			a.encCache.Evict(tx)
 			pooled = found
 			if found {
+				if _, dup := redirected[cur]; dup || slices.Contains(candidates[:i], cur) {
+					a.mu.Unlock()
+					continue
+				}
+				if redirected == nil {
+					redirected = make(map[sdk.Tx]struct{})
+				}
+				redirected[cur] = struct{}{}
 				tx = cur
 				if bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx); err != nil {
 					a.mu.Unlock()
 					continue
 				}
 			}
-		}
-		if known {
-			if _, dup := rechecked[tx]; dup {
-				a.mu.Unlock()
-				continue
-			}
-			if rechecked == nil {
-				rechecked = make(map[sdk.Tx]struct{}, len(candidates))
-			}
-			rechecked[tx] = struct{}{}
+		} else if _, dup := redirected[tx]; dup {
+			a.mu.Unlock()
+			continue
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
@@ -628,13 +637,12 @@ func (a *Manager) isPooled(tx sdk.Tx) bool {
 	return !known || (found && cur == tx)
 }
 
-// pooledAt returns the tx pooled at tx's sender and nonce. known is false when the pool can't
-// be queried or tx can't be compared, so callers fall back to removal by key.
+// pooledAt returns the tx pooled at tx's sender and nonce, compared by identity: pooled txs are
+// decoded pointers, as their use as map keys here already assumes. known is false when the pool
+// can't be queried, so callers fall back to removal by key.
 func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
-	pool, ok := a.mpool.(interface {
-		GetTx(sender string, nonce uint64) (sdk.Tx, bool)
-	})
-	if t := reflect.TypeOf(tx); !ok || a.signer == nil || t == nil || !t.Comparable() {
+	pool, ok := a.mpool.(ethermintante.TxPool)
+	if !ok || a.signer == nil || tx == nil {
 		return nil, false, false
 	}
 	sigs, err := a.signer.GetSigners(tx)

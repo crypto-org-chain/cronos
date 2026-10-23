@@ -365,7 +365,7 @@ func parseBoolFlag(flag string, v interface{}) bool {
 // When disabled, nothing is replaced, even after that reset.
 func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	return func(op, np int64, oTx, nTx sdk.Tx) bool {
-		if disabled || !isSingleEthTx(oTx) || !isSingleEthTx(nTx) {
+		if disabled || !ethermintante.IsSingleEthTx(oTx) || !ethermintante.IsSingleEthTx(nTx) {
 			return false
 		}
 		return np > op && np >= op*(100+feeBump)/100
@@ -380,15 +380,6 @@ func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
 		return nil
 	}
 	return priorityMempool
-}
-
-func isSingleEthTx(tx sdk.Tx) bool {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return false
-	}
-	_, ok := msgs[0].(*evmtypes.MsgEthereumTx)
-	return ok
 }
 
 // New returns a reference to an initialized chain.
