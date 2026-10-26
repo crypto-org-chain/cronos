@@ -509,7 +509,7 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 // Callers hold mu, as evict requires.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}, bool) {
 	pooled := a.isPooled(tx)
-	a.evictPooled(tx, pooled)
+	a.evict(tx, pooled)
 	if pooled {
 		if evictedSet == nil {
 			evictedSet = make(map[sdk.Tx]struct{})
@@ -595,7 +595,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if err != nil && pooled {
 			// baseapp removes tx only when the ante fails; this covers any other failure. Nothing was
 			// admitted at the key since the lookup, as mu is still held.
-			a.evictPooled(tx, true)
+			a.evict(tx, true)
 			evicted++
 			if hasKey {
 				if evictedKeys == nil {
@@ -637,15 +637,10 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict drops tx from the encoder cache, and from the pool unless a replacement now holds its
-// sender and nonce, since the pool removes by that key. Callers hold mu so admission can't
-// replace tx in between.
-func (a *Manager) evict(tx sdk.Tx) {
-	a.evictPooled(tx, a.isPooled(tx))
-}
-
-// evictPooled is evict with isPooled(tx) already known.
-func (a *Manager) evictPooled(tx sdk.Tx, pooled bool) {
+// evict drops tx from the encoder cache, and from the pool only when pooled: the pool removes by
+// sender and nonce, so a replacement now holding them must stay. Callers hold mu from the check
+// behind pooled on, so admission can't replace tx in between.
+func (a *Manager) evict(tx sdk.Tx, pooled bool) {
 	if pooled {
 		_ = a.mpool.Remove(tx)
 	}
