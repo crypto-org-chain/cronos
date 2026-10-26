@@ -1,7 +1,7 @@
 diff --git a/app/app.go b/app/app.go
 --- a/app/app.go
 +++ b/app/app.go
-@@ -1249,6 +1249,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, txPool ethermintante.TxPool, bl
+@@ -1276,6 +1276,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, txPool ethermintante.TxPool, bl
  		},
  		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
  		PendingTxListener: app.onPendingTx,

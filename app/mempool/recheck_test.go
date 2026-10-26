@@ -325,6 +325,7 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 	recheck := func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) }
 	// recheckDeferred rechecks stale and sibling as carried over from a capped cycle.
 	var selected []sdk.Tx
+	var admitted sdk.Tx // a tx an evict step admitted mid-recheck, which must stay pooled
 	recheckDeferred := func(senders map[string]struct{}) func(f *recheckFixture, stale, sibling sdk.Tx) {
 		return func(f *recheckFixture, stale, sibling sdk.Tx) {
 			snapshot := PoolSnapshot(context.Background(), f.pool)
@@ -383,7 +384,6 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			failingRepl: true,
 			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
 				// Admit it while encoding the stale tx, the one step runRecheck takes without mu.
-				var admitted sdk.Tx
 				encode := f.a.txEncoder
 				f.enc.Evict(stale)
 				f.a.txEncoder = func(tx sdk.Tx) ([]byte, error) {
@@ -394,9 +394,6 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 				}
 				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
 				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
-				if !poolHas(f.pool, admitted) {
-					panic("the tx admitted since must stay pooled")
-				}
 			},
 			expRan: []string{replBz, siblingBz},
 		},
@@ -459,8 +456,11 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			}
 			sibling := f.add(3, "alice", 1, siblingBz)
 
-			selected = nil
+			selected, admitted = nil, nil
 			tc.evict(f, stale, sibling)
+			if admitted != nil && !poolHas(f.pool, admitted) {
+				t.Fatal("the tx admitted since must stay pooled")
+			}
 
 			// A duplicate candidate would take a recheck batch slot.
 			if selected != nil && len(selected) != 2 {

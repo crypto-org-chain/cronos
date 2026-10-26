@@ -377,7 +377,7 @@ type noTxReplacementMempool struct {
 	*mempool.PriorityNonceMempool[int64]
 }
 
-// Losing any of these silently falls back to slower selection or to removal by key.
+// Losing any of these silently falls back to unlocked iteration, slower snapshots, or removal by key.
 var (
 	_ mempool.ExtMempool       = noTxReplacementMempool{}
 	_ mempool.UnorderedMempool = noTxReplacementMempool{}
