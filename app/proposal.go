@@ -46,9 +46,9 @@ type ExtTxSelector struct {
 	// (sender, nonce) of every selected MsgEthereumTx; a repeat can't execute.
 	selectedEthNonces map[ethSenderNonce]struct{}
 
-	// txs skipped by the baseFee gate or eth dedup, for recheck staging. Clear hands the
-	// round's list to lastSkipped (it runs before the caller drains), so an undrained selector stays bounded.
-	skipped, lastSkipped [][]byte
+	// gateSkipped accumulates raw bytes of txs rejected by the baseFee gate this
+	// round. Drained after each proposal so stranded senders are staged for recheck.
+	gateSkipped [][]byte
 }
 
 type ethSenderNonce struct {
@@ -73,14 +73,13 @@ func (ts *ExtTxSelector) Clear() {
 	ts.baseFee = nil
 	ts.evmDenom = ""
 	clear(ts.selectedEthNonces)
-	ts.lastSkipped, ts.skipped = ts.skipped, nil
 }
 
-// DrainSkipped returns and clears the raw bytes of txs skipped by the baseFee
-// gate or as eth (sender, nonce) duplicates in the last cleared proposal round.
-func (ts *ExtTxSelector) DrainSkipped() [][]byte {
-	out := ts.lastSkipped
-	ts.lastSkipped = nil
+// DrainGateSkipped returns and clears the raw bytes of txs rejected by the
+// baseFee gate this proposal round.
+func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
+	out := ts.gateSkipped
+	ts.gateSkipped = nil
 	return out
 }
 
@@ -107,7 +106,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 			if gas := feeTx.GetGas(); gas > 0 {
 				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
 				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
-					ts.skipped = append(ts.skipped, txBz)
+					ts.gateSkipped = append(ts.gateSkipped, txBz)
 					telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "skipped")
 					return isFull()
 				}
@@ -124,9 +123,10 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		}
 	}
 
-	// Last check, so a tx skipped for any other reason never reserves its nonces.
+	// Last check, so a tx skipped for any other reason never reserves its nonces. A dup isn't
+	// staged for recheck: it goes stale only once the tx it collides with commits, which stages
+	// that tx's eth senders.
 	if !ts.reserveEthNonces(memTx) {
-		ts.skipped = append(ts.skipped, txBz)
 		telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "dup_eth_nonce", "skipped")
 		return isFull()
 	}
@@ -215,7 +215,7 @@ func (h *MempoolProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			}
 		}
 		resp, err := h.inner(ctx, req)
-		skipped := h.extSel.DrainSkipped() // drain every round, even on error, so it never goes stale
+		skipped := h.extSel.DrainGateSkipped() // drain every round, even on error, so it never goes stale
 		if err == nil && h.mempoolManager != nil && len(skipped) > 0 {
 			h.mempoolManager.StageSkippedSenders(skipped)
 		}

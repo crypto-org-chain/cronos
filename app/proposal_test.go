@@ -88,7 +88,7 @@ func TestExtTxSelector(t *testing.T) {
 		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
-	t.Run("gate-skipped bytes accumulated in skipped, accepted bytes excluded", func(t *testing.T) {
+	t.Run("gate-skipped bytes accumulated in gateSkipped, accepted bytes excluded", func(t *testing.T) {
 		const denom = "basecro"
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
@@ -96,29 +96,26 @@ func TestExtTxSelector(t *testing.T) {
 		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // feeCap=40 >= 20 → select
 		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
 		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
-		ts.Clear()
-		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainSkipped())
-		require.Nil(t, ts.DrainSkipped(), "second drain must be nil")
+		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped())
+		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
 	})
 
-	t.Run("DrainSkipped on empty selector is nil", func(t *testing.T) {
+	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
-		require.Nil(t, ts.DrainSkipped())
+		require.Nil(t, ts.DrainGateSkipped())
 	})
 
-	t.Run("DrainSkipped returns only the last cleared round, so an undrained selector stays bounded", func(t *testing.T) {
+	t.Run("Clear does NOT reset gateSkipped; only DrainGateSkipped does", func(t *testing.T) {
 		// DefaultProposalHandler defers Clear() inside inner(), so it fires before
-		// our wrapper calls DrainSkipped().
+		// our wrapper calls DrainGateSkipped(). gateSkipped must survive Clear().
 		const denom = "basecro"
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low1"))
-		ts.Clear()
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low2"))
-		ts.Clear()
-		require.Equal(t, [][]byte{[]byte("low2")}, ts.DrainSkipped())
-		require.Nil(t, ts.DrainSkipped(), "DrainSkipped itself must null the slice")
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.Clear() // simulates the defer inside DefaultProposalHandler.PrepareProposalHandler
+		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped(), "gateSkipped must survive Clear()")
+		require.Nil(t, ts.DrainGateSkipped(), "DrainGateSkipped itself must null the slice")
 	})
 
 	t.Run("nil baseFee disables the gate", func(t *testing.T) {
@@ -167,7 +164,6 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 		maxGas      uint64 // 0 means maxB
 		inputs      []input
 		expSelected []string
-		expSkipped  []string
 	}{
 		{
 			name: "distinct sender nonces are all selected",
@@ -185,7 +181,6 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 				{newEthMsgsTx(newEthMsg(b1, 0), msgA), bzB1A},
 			},
 			expSelected: []string{"A"},
-			expSkipped:  []string{bzB1A},
 		},
 		{
 			name: "single tx reusing a selected batch's later message is skipped",
@@ -194,7 +189,6 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 				{newEthMsgsTx(msgA), "A"},
 			},
 			expSelected: []string{bzB1A},
-			expSkipped:  []string{"A"},
 		},
 		{
 			name: "dedup-skipped tx does not reserve its other nonces",
@@ -204,7 +198,6 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 				{newEthMsgsTx(newEthMsg(b1, 0)), "B1"},
 			},
 			expSelected: []string{"A", "B1"},
-			expSkipped:  []string{bzB1A},
 		},
 		{
 			name:   "gas-skipped tx does not reserve its nonces",
@@ -216,9 +209,8 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 			expSelected: []string{"A"},
 		},
 		{
-			name:       "duplicate within one tx is skipped",
-			inputs:     []input{{newEthMsgsTx(msgA, msgA), "A,A"}},
-			expSkipped: []string{"A,A"},
+			name:   "duplicate within one tx is skipped",
+			inputs: []input{{newEthMsgsTx(msgA, msgA), "A,A"}},
 		},
 		{
 			name: "non-eth txs are not deduplicated",
@@ -241,8 +233,7 @@ func (s *ExtTxSelectorEthDedupSuite) TestSelectTxForProposal() {
 				ts.SelectTxForProposal(context.Background(), maxB, maxGas, in.tx, []byte(in.bz))
 			}
 			s.Require().Equal(tc.expSelected, toStrings(ts.SelectedTxs(context.Background())))
-			ts.Clear()
-			s.Require().Equal(tc.expSkipped, toStrings(ts.DrainSkipped()))
+			s.Require().Nil(ts.DrainGateSkipped(), "dedup skips aren't staged for recheck")
 		})
 	}
 }
@@ -354,8 +345,8 @@ type decodeVerifier struct {
 
 func (v decodeVerifier) TxDecode(bz []byte) (sdk.Tx, error) { return v.txs[string(bz)], nil }
 
-// The drain relies on the SDK handler clearing the selector before it returns.
-func TestMempoolProposalHandlerDrainsSkippedAfterClear(t *testing.T) {
+// Gate skips must survive the Clear the SDK handler defers, as the drain runs after it.
+func TestMempoolProposalHandlerKeepsGateSkippedAcrossClear(t *testing.T) {
 	const denom = "basecro"
 	feeFn := func(sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 	verifier := decodeVerifier{txs: map[string]sdk.Tx{
@@ -368,7 +359,7 @@ func TestMempoolProposalHandlerDrainsSkippedAfterClear(t *testing.T) {
 	resp, err := h.inner(sdk.Context{}, &abci.RequestPrepareProposal{Txs: [][]byte{[]byte("low"), []byte("ok")}, MaxTxBytes: 1 << 20})
 	require.NoError(t, err)
 	require.Equal(t, [][]byte{[]byte("ok")}, resp.Txs)
-	require.Equal(t, [][]byte{[]byte("low")}, h.extSel.DrainSkipped())
+	require.Equal(t, [][]byte{[]byte("low")}, h.extSel.DrainGateSkipped())
 }
 
 func TestCacheProposalTxVerifier(t *testing.T) {
