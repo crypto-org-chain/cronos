@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"math"
 	"os"
 	"testing"
@@ -97,7 +96,8 @@ func setupMemIAVLAppWithHistory(t *testing.T, blocks int64) (*App, sdk.AccAddres
 
 // TestHistoricalQueryClosesMemIAVLDB checks that historical queries don't leak fds.
 // A query below the latest height opens a read-only memiavl DB; baseapp must close
-// it (fork #1816), otherwise every such query leaks an fd.
+// it (fork #1816). Since cronos-store #132 a read-only DB no longer holds the WAL
+// open, so an unclosed one leaks its snapshot mmaps rather than fds.
 func TestHistoricalQueryClosesMemIAVLDB(t *testing.T) {
 	app, acctAddr := setupMemIAVLAppWithHistory(t, 10)
 
@@ -131,33 +131,4 @@ func TestHistoricalQueryClosesMemIAVLDB(t *testing.T) {
 
 	require.LessOrEqualf(t, after-before, 2,
 		"historical queries leaked file descriptors: read-only memiavl DB not closed")
-}
-
-// TestCacheMultiStoreWithVersionLeaksWhenNotClosed confirms the leak is real:
-// opening historical read-only stores without closing them grows the fd count.
-func TestCacheMultiStoreWithVersionLeaksWhenNotClosed(t *testing.T) {
-	app, _ := setupMemIAVLAppWithHistory(t, 10)
-	cms := app.CommitMultiStore()
-
-	const iters = 5
-	var closers []io.Closer
-	t.Cleanup(func() {
-		for _, c := range closers {
-			_ = c.Close()
-		}
-	})
-
-	before := numOpenFDs(t)
-	for i := 0; i < iters; i++ {
-		s, err := cms.CacheMultiStoreWithVersion(3)
-		require.NoError(t, err)
-		c, ok := s.(io.Closer)
-		require.True(t, ok, "historical CacheMultiStoreWithVersion must return an io.Closer")
-		closers = append(closers, c)
-	}
-	after := numOpenFDs(t)
-	t.Logf("fd delta over %d unclosed loads: %d (before=%d after=%d)", iters, after-before, before, after)
-
-	require.GreaterOrEqualf(t, after-before, iters,
-		"expected unclosed read-only loads to accumulate fds")
 }
