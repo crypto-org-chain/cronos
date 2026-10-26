@@ -377,6 +377,13 @@ type noTxReplacementMempool struct {
 	*mempool.PriorityNonceMempool[int64]
 }
 
+// Losing any of these silently falls back to slower selection or to removal by key.
+var (
+	_ mempool.ExtMempool       = noTxReplacementMempool{}
+	_ mempool.UnorderedMempool = noTxReplacementMempool{}
+	_ mempool.TxLookupMempool  = noTxReplacementMempool{}
+)
+
 func (m noTxReplacementMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	err := m.PriorityNonceMempool.Insert(ctx, tx)
 	if stderrors.Is(err, mempool.ErrTxReplacement) {

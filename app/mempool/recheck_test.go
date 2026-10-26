@@ -38,6 +38,7 @@ type recheckRunner struct {
 	modes             []sdk.ExecMode
 	seen              map[string]bool
 	ran               []string // tx bytes in RunTx order
+	afterRun          func(txBytes string)
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -46,6 +47,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
 	r.ran = append(r.ran, string(txBytes))
+	if r.afterRun != nil {
+		defer r.afterRun(string(txBytes))
+	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -372,6 +376,27 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
 				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
 				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			// A tx admitted at the evicted key already had its nonce applied by CheckTx; the stale tx
+			// must not be redirected to it, or the strict recheck would evict it.
+			name:        "stale tx after its failing replacement skips a tx admitted since",
+			replaced:    true,
+			failingRepl: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				var admitted sdk.Tx
+				f.runner.afterRun = func(bz string) {
+					if bz == replBz {
+						admitted = f.add(4, "alice", 0, "alice-0-new")
+					}
+				}
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+				if !poolHas(f.pool, admitted) {
+					panic("the tx admitted since must stay pooled")
+				}
 			},
 			expRan: []string{replBz, siblingBz},
 		},

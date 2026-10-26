@@ -542,8 +542,8 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	// strict recheck would fail the nonce and evict it; that takes a redirect, which is rare, so the
 	// set stays nil until the first one and is then seeded with the earlier candidates.
 	var seen map[sdk.Tx]struct{}
-	// Keys evicted this cycle. A stale tx at one of them, replaced by the evicted tx, must not replay
-	// the sequence past a nonce nothing holds.
+	// Keys evicted this cycle. A stale tx at one of them must not replay the sequence past a nonce
+	// nothing holds, nor be redirected to a tx admitted there since, whose nonce CheckTx already applied.
 	var evictedKeys map[poolKey]struct{}
 	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
@@ -560,7 +560,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if known && cur != tx {
 			a.encCache.Evict(tx)
 			pooled = found
-			if !found && evictedKeys != nil {
+			if evictedKeys != nil {
 				if key, ok := a.keyOf(tx); ok {
 					if _, stale := evictedKeys[key]; stale {
 						a.mu.Unlock()
