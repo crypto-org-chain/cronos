@@ -516,23 +516,60 @@ func (p *afterRemovePool) Remove(tx sdk.Tx) error {
 // A tx admitted at a deferred tx's key after that tx expired already had its nonce applied by
 // CheckTx; rechecking it in the deferred slot would fail the nonce and evict it.
 func TestDeferredExpiredTxNotRedirected(t *testing.T) {
-	f := newRecheckFixture()
-	deferred := f.addTimeout(1, "alice", 0, "alice-0-old", 5)
-	sibling := f.add(2, "alice", 1, "alice-1")
-	snapshot := PoolSnapshot(context.Background(), f.pool)
-	var admitted sdk.Tx
-	f.a.mpool = &afterRemovePool{PriorityNonceMempool: f.pool, after: func(removed sdk.Tx) {
-		if removed == deferred {
-			admitted = f.add(3, "alice", 0, "alice-0-new")
-		}
-	}}
+	for _, tc := range []struct {
+		name string
+		// setup pools the deferred tx and returns it with the tx pass 1 evicts at its key.
+		setup func(f *recheckFixture) (deferred, expired sdk.Tx)
+	}{
+		{
+			name: "deferred tx expired",
+			setup: func(f *recheckFixture) (sdk.Tx, sdk.Tx) {
+				tx := f.addTimeout(1, "alice", 0, "alice-0-old", 5)
+				return tx, tx
+			},
+		},
+		{
+			name: "deferred tx replaced by a tx that expired",
+			setup: func(f *recheckFixture) (sdk.Tx, sdk.Tx) {
+				old := f.add(1, "alice", 0, "alice-0-old")
+				return old, f.addTimeout(4, "alice", 0, "alice-0-repl", 5)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			deferred, expired := tc.setup(f)
+			sibling := f.add(2, "alice", 1, "alice-1")
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+			var admitted sdk.Tx
+			f.a.mpool = &afterRemovePool{PriorityNonceMempool: f.pool, after: func(removed sdk.Tx) {
+				if removed == expired {
+					admitted = f.add(3, "alice", 0, "alice-0-new")
+				}
+			}}
 
-	selected := f.a.selectTxs(snapshot, nil, 5, []sdk.Tx{deferred})
-	if admitted == nil || !poolHas(f.pool, admitted) {
-		t.Fatal("the expired tx must be evicted and the new one pooled")
+			selected := f.a.selectTxs(snapshot, nil, 5, []sdk.Tx{deferred})
+			if admitted == nil || !poolHas(f.pool, admitted) {
+				t.Fatal("the expired tx must be evicted and the new one pooled")
+			}
+			if !slices.Equal(selected, []sdk.Tx{sibling}) {
+				t.Fatalf("selected %v, want only the sibling", selected)
+			}
+		})
 	}
-	if !slices.Equal(selected, []sdk.Tx{sibling}) {
-		t.Fatalf("selected %v, want only the sibling", selected)
+}
+
+// Recheck holds mu per candidate; this measures a cycle whose candidates all pass.
+func BenchmarkRunRecheck(b *testing.B) {
+	const candidates = 5000
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, candidates)
+	for i := range txs {
+		s := "sender-" + strconv.Itoa(i)
+		txs[i] = f.add(i, s, 0, s)
+	}
+	for b.Loop() {
+		f.a.runRecheck(txs)
 	}
 }
 

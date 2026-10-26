@@ -77,6 +77,10 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
+	if _, ok := mpool.(sdkmempool.TxLookupMempool); !ok {
+		app.Logger().Warn("app mempool can't look up pooled txs; recheck falls back to removal by sender and nonce, " +
+			"so a stale tx failing recheck can remove its replacement")
+	}
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
@@ -475,19 +479,30 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	// Front-load surviving deferred ahead of fresh candidates: the snapshot is
 	// priority-ordered, so otherwise capRecheckTxs re-takes the same prefix and starves the tail.
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
+	// Keys freed in pass 1: a tx admitted at one since has its nonce applied, so a deferred tx at
+	// that key, whether evicted itself or replaced by an evicted tx, isn't redirected to it.
+	var evictedKeys map[poolKey]struct{}
+	if len(evictedSet) > 0 {
+		evictedKeys = make(map[poolKey]struct{}, len(evictedSet))
+		for tx := range evictedSet {
+			if key, ok := a.keyOf(tx); ok {
+				evictedKeys[key] = struct{}{}
+			}
+		}
+	}
 	for _, tx := range deferred {
 		if deferredLive[tx] {
 			ordered = append(ordered, tx)
 			continue
 		}
 		// Recheck a tx replaced since the carry as its replacement, in its slot, so the sender's
-		// later deferred nonces see the sequence replayed. Skip txs included/evicted since; one
-		// evicted in pass 1 isn't redirected, since a tx admitted at its key has its nonce applied.
+		// later deferred nonces see the sequence replayed. Skip txs included/evicted since.
 		a.encCache.Evict(tx)
-		if _, wasEvicted := evictedSet[tx]; wasEvicted {
+		key, hasKey := a.keyOf(tx)
+		if _, freed := evictedKeys[key]; freed && hasKey {
 			continue
 		}
-		if cur, found, known := a.pooledAt(tx); known && found && cur != tx {
+		if cur, found, known := a.pooledAtKey(key, hasKey); known && found && cur != tx {
 			if _, dup := deferredLive[cur]; !dup {
 				deferredLive[cur] = true // keeps the fresh-candidates loop from rechecking it twice
 				ordered = append(ordered, cur)
@@ -554,14 +569,15 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if err != nil {
 			continue
 		}
+		// Derived from tx alone, so outside mu. A redirect keeps the sender and nonce, so the key
+		// holds for the replacement too.
+		key, hasKey := a.keyOf(tx)
 		a.mu.Lock()
 		// A candidate replays its sender's sequence for the later nonces, so it isn't skipped.
 		// One replaced since the snapshot is rechecked as its replacement, since a failing stale
 		// tx would remove the replacement (the pool removes by sender and nonce). One removed
 		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
 		pooled := true
-		// A redirect keeps the sender and nonce, so the key holds for the replacement too.
-		key, hasKey := a.keyOf(tx)
 		cur, found, known := a.pooledAtKey(key, hasKey)
 		if known && cur != tx {
 			a.encCache.Evict(tx)
