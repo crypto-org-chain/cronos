@@ -38,7 +38,6 @@ type recheckRunner struct {
 	modes             []sdk.ExecMode
 	seen              map[string]bool
 	ran               []string // tx bytes in RunTx order
-	afterRun          func(txBytes string)
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -47,9 +46,6 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
 	r.ran = append(r.ran, string(txBytes))
-	if r.afterRun != nil {
-		defer r.afterRun(string(txBytes))
-	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -386,11 +382,15 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			replaced:    true,
 			failingRepl: true,
 			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				// Admit it while encoding the stale tx, the one step runRecheck takes without mu.
 				var admitted sdk.Tx
-				f.runner.afterRun = func(bz string) {
-					if bz == replBz {
+				encode := f.a.txEncoder
+				f.enc.Evict(stale)
+				f.a.txEncoder = func(tx sdk.Tx) ([]byte, error) {
+					if tx == stale && admitted == nil {
 						admitted = f.add(4, "alice", 0, "alice-0-new")
 					}
+					return encode(tx)
 				}
 				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
 				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
@@ -499,6 +499,41 @@ func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
 		p.unlocked++
 	}
 	return p.PriorityNonceMempool.GetTx(sender, nonce)
+}
+
+// afterRemovePool runs after on each removal, e.g. to admit a tx at the freed key.
+type afterRemovePool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	after func(sdk.Tx)
+}
+
+func (p *afterRemovePool) Remove(tx sdk.Tx) error {
+	err := p.PriorityNonceMempool.Remove(tx)
+	p.after(tx)
+	return err
+}
+
+// A tx admitted at a deferred tx's key after that tx expired already had its nonce applied by
+// CheckTx; rechecking it in the deferred slot would fail the nonce and evict it.
+func TestDeferredExpiredTxNotRedirected(t *testing.T) {
+	f := newRecheckFixture()
+	deferred := f.addTimeout(1, "alice", 0, "alice-0-old", 5)
+	sibling := f.add(2, "alice", 1, "alice-1")
+	snapshot := PoolSnapshot(context.Background(), f.pool)
+	var admitted sdk.Tx
+	f.a.mpool = &afterRemovePool{PriorityNonceMempool: f.pool, after: func(removed sdk.Tx) {
+		if removed == deferred {
+			admitted = f.add(3, "alice", 0, "alice-0-new")
+		}
+	}}
+
+	selected := f.a.selectTxs(snapshot, nil, 5, []sdk.Tx{deferred})
+	if admitted == nil || !poolHas(f.pool, admitted) {
+		t.Fatal("the expired tx must be evicted and the new one pooled")
+	}
+	if !slices.Equal(selected, []sdk.Tx{sibling}) {
+		t.Fatalf("selected %v, want only the sibling", selected)
+	}
 }
 
 // More expired txs than one lock hold evicts are all evicted, each under mu.

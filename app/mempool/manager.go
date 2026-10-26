@@ -481,8 +481,12 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 			continue
 		}
 		// Recheck a tx replaced since the carry as its replacement, in its slot, so the sender's
-		// later deferred nonces see the sequence replayed. Skip txs included/evicted since.
+		// later deferred nonces see the sequence replayed. Skip txs included/evicted since; one
+		// evicted in pass 1 isn't redirected, since a tx admitted at its key has its nonce applied.
 		a.encCache.Evict(tx)
+		if _, wasEvicted := evictedSet[tx]; wasEvicted {
+			continue
+		}
 		if cur, found, known := a.pooledAt(tx); known && found && cur != tx {
 			if _, dup := deferredLive[cur]; !dup {
 				deferredLive[cur] = true // keeps the fresh-candidates loop from rechecking it twice
@@ -556,17 +560,15 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		// tx would remove the replacement (the pool removes by sender and nonce). One removed
 		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
 		pooled := true
-		cur, found, known := a.pooledAt(tx)
+		// A redirect keeps the sender and nonce, so the key holds for the replacement too.
+		key, hasKey := a.keyOf(tx)
+		cur, found, known := a.pooledAtKey(key, hasKey)
 		if known && cur != tx {
 			a.encCache.Evict(tx)
 			pooled = found
-			if evictedKeys != nil {
-				if key, ok := a.keyOf(tx); ok {
-					if _, stale := evictedKeys[key]; stale {
-						a.mu.Unlock()
-						continue
-					}
-				}
+			if _, stale := evictedKeys[key]; stale {
+				a.mu.Unlock()
+				continue
 			}
 			if found {
 				if seen == nil {
@@ -591,10 +593,11 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
-			// baseapp removes tx only when the ante fails; this covers any other failure.
-			a.evict(tx)
+			// baseapp removes tx only when the ante fails; this covers any other failure. Nothing was
+			// admitted at the key since the lookup, as mu is still held.
+			a.evictPooled(tx, true)
 			evicted++
-			if key, ok := a.keyOf(tx); ok {
+			if hasKey {
 				if evictedKeys == nil {
 					evictedKeys = make(map[poolKey]struct{})
 				}
@@ -660,12 +663,13 @@ func (a *Manager) isPooled(tx sdk.Tx) bool {
 // decoded pointers, as their use as map keys here already assumes. known is false when the pool
 // can't be queried, so callers fall back to removal by key.
 func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
+	return a.pooledAtKey(a.keyOf(tx))
+}
+
+// pooledAtKey is pooledAt with tx's key already derived; hasKey is keyOf's ok.
+func (a *Manager) pooledAtKey(key poolKey, hasKey bool) (cur sdk.Tx, found, known bool) {
 	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
-	if !ok {
-		return nil, false, false
-	}
-	key, ok := a.keyOf(tx)
-	if !ok {
+	if !ok || !hasKey {
 		return nil, false, false
 	}
 	cur, found = pool.GetTx(key.sender, key.nonce)

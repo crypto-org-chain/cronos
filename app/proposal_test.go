@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"filippo.io/age"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
@@ -343,6 +345,31 @@ func (t feeCapTx) GetGas() uint64                      { return t.gas }
 func (t feeCapTx) GetFee() sdk.Coins                   { return t.fee }
 func (feeCapTx) FeePayer() []byte                      { return nil }
 func (feeCapTx) FeeGranter() []byte                    { return nil }
+
+// decodeVerifier decodes txs by their raw bytes; the NoOp mempool path only decodes.
+type decodeVerifier struct {
+	baseapp.ProposalTxVerifier
+	txs map[string]sdk.Tx
+}
+
+func (v decodeVerifier) TxDecode(bz []byte) (sdk.Tx, error) { return v.txs[string(bz)], nil }
+
+// The drain relies on the SDK handler clearing the selector before it returns.
+func TestMempoolProposalHandlerDrainsSkippedAfterClear(t *testing.T) {
+	const denom = "basecro"
+	feeFn := func(sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
+	verifier := decodeVerifier{txs: map[string]sdk.Tx{
+		"low": feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))},
+		"ok":  feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))},
+	}}
+	h := NewMempoolProposalHandler(baseapp.NewDefaultProposalHandler(mempool.NoOpMempool{}, verifier),
+		func(sdk.Tx, []byte) error { return nil }, feeFn, nil)
+
+	resp, err := h.inner(sdk.Context{}, &abci.RequestPrepareProposal{Txs: [][]byte{[]byte("low"), []byte("ok")}, MaxTxBytes: 1 << 20})
+	require.NoError(t, err)
+	require.Equal(t, [][]byte{[]byte("ok")}, resp.Txs)
+	require.Equal(t, [][]byte{[]byte("low")}, h.extSel.DrainSkipped())
+}
 
 func TestCacheProposalTxVerifier(t *testing.T) {
 	// Hit path only: encCache.Get returns cached bytes without touching BaseApp
