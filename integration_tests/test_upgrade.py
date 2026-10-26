@@ -22,6 +22,7 @@ from .utils import (
     CONTRACTS,
     approve_proposal,
     assert_gov_params,
+    decode_base64,
     deploy_contract,
     edit_ini_sections,
     eth_to_bech32,
@@ -203,9 +204,27 @@ def exec(c, tmp_path_factory):
                 mode=mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
+            if rsp.get("logs"):
+                events = rsp["logs"][0]["events"]
+            else:
+                # event_query_tx_for returns raw block_results events, whose
+                # attributes are base64 encoded on older CometBFT versions
+                events = [
+                    {
+                        "type": ev["type"],
+                        "attributes": [
+                            {
+                                "key": decode_base64(attr["key"]),
+                                "value": decode_base64(attr["value"] or ""),
+                            }
+                            for attr in ev["attributes"]
+                        ],
+                    }
+                    for ev in rsp["events"]
+                ]
             approve_proposal(
                 c,
-                rsp["logs"][0]["events"],
+                events,
                 msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
                 wait_tx=False,
             )

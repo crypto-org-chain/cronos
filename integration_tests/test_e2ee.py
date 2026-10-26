@@ -176,7 +176,7 @@ def test_invalid_block_list(cronos):
     assert "failed to read header" in str(exc.value)
 
 
-def test_block_list_eip7022(cronos):
+def test_block_list_eip7702(cronos):
     gen_validator_identity(cronos)
     cli = cronos.cosmos_cli()
     w3 = cronos.w3
@@ -185,7 +185,7 @@ def test_block_list_eip7022(cronos):
     fund_acc(w3, acc)
     acc_nonce = w3.eth.get_transaction_count(acc.address)
     # set blocklist
-    encrypt_to_validators(cli, {"addresses": [acc.address]})
+    encrypt_to_validators(cli, {"addresses": [eth_to_bech32(acc.address)]})
 
     target_address = "0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9"
 
@@ -217,6 +217,10 @@ def test_block_list_eip7022(cronos):
     nonce = get_nonce(cli, sender)
     # check tx in mempool
     assert HexBytes(txhash) in w3.eth.get_filter_changes(flt.filter_id)
+
+    # but won't be included into block
+    wait_for_new_blocks(cli, 2)
+    assert nonce == get_nonce(cli, sender)
 
     # clear blocklist
     encrypt_to_validators(cli, {})
