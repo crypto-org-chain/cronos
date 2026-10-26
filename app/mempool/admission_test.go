@@ -344,7 +344,7 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 		{name: "disabled replacement keeps the nonce check", opts: disabled, tip: 12e9, expRawLog: "invalid nonce"},
 		{name: "fee bump after a reset survives the recheck", commitBetween: true, tip: 12e9, expReplaced: true},
 		{name: "under-bump after a reset is rejected", commitBetween: true, tip: 10.5e9, expRawLog: ruleErr},
-		{name: "disabled replacement after a reset hits the pool rule", opts: disabled, commitBetween: true, tip: 12e9, expRawLog: ruleErr},
+		{name: "disabled replacement after a reset is an invalid nonce", opts: disabled, commitBetween: true, tip: 12e9, expRawLog: "replacement is disabled"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := minimalOptionsMap{cronos.FlagMempoolFeeBump: 10}
@@ -390,7 +390,7 @@ func TestAppInsertTx_Replacement(t *testing.T) {
 			}
 
 			require.Equal(t, 1, f.app.Mempool().CountTx())
-			pooled, ok := f.app.Mempool().(*sdkmempool.PriorityNonceMempool[int64]).GetTx(sdk.AccAddress(acc.Address.Bytes()).String(), 0)
+			pooled, ok := f.app.Mempool().(sdkmempool.TxLookupMempool).GetTx(sdk.AccAddress(acc.Address.Bytes()).String(), 0)
 			require.True(t, ok)
 			expTip := big.NewInt(10e9)
 			if tc.expReplaced {

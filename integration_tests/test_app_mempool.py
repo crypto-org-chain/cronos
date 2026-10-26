@@ -171,8 +171,7 @@ def test_tx_replacement_rfc(cronos_app_mempool):
     """Same-nonce tx with +20% gasPrice replaces the original in mempool.
 
     Verifies the admission path:
-      send_raw(A') -> insertSeenCache miss (different bytes)
-                   -> RunTx -> pool holds a single-msg eth tx at (X, N)
+      send_raw(A') -> RunTx -> pool holds a single-msg eth tx at (X, N)
                    -> nonce check skipped (replacement allowed)
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.

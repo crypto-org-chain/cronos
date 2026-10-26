@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -369,6 +370,21 @@ func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk
 	return ethermintante.EthTxReplacement(feeBump)
 }
 
+// noTxReplacementMempool reports a tx at a pooled nonce as an invalid nonce, not as failing the
+// replacement rule, which JSON-RPC reports as underpriced although no fee bump would help.
+// Such a tx passes the nonce check only after a Commit reset of checkState.
+type noTxReplacementMempool struct {
+	*mempool.PriorityNonceMempool[int64]
+}
+
+func (m noTxReplacementMempool) Insert(ctx context.Context, tx sdk.Tx) error {
+	err := m.PriorityNonceMempool.Insert(ctx, tx)
+	if stderrors.Is(err, mempool.ErrTxReplacement) {
+		return sdkerrors.ErrInvalidSequence.Wrap("invalid nonce; a tx at this nonce is pooled and tx replacement is disabled")
+	}
+	return err
+}
+
 // ethTxPool returns mpool for the ante's replacement lookup, or nil (never a typed nil) when
 // replacement is disabled or mpool can't look up a pooled tx.
 func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
@@ -491,12 +507,16 @@ func New(
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		priorityPool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement:   txReplacement(feeBump, disableTxReplacement),
 		})
+		mpool = priorityPool
+		if disableTxReplacement {
+			mpool = noTxReplacementMempool{priorityPool}
+		}
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
