@@ -365,6 +365,17 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			expRan:      []string{replBz, siblingBz},
 		},
 		{
+			// Nothing holds the stale tx's nonce once its replacement is evicted, so it must not replay it.
+			name:        "stale tx after its failing replacement is skipped",
+			replaced:    true,
+			failingRepl: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
 			// The removed tx still replays the sequence; its failure has nothing to evict.
 			name:   "recheck a removed tx",
 			evict:  recheck,

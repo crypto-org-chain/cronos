@@ -368,7 +368,7 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
         -> normal nonce check: expectedNonce=N+1, txNonce=N
         -> ErrInvalidSequence: "invalid nonce; got N, expected N+1"
       If a Commit reset checkState to N while A was pooled, A' passes the
-      nonce check and the disabled pool rule rejects it instead.
+      nonce check and the pool rejects it, also as an invalid nonce.
 
     The flag had no effect only if A' is accepted.
     """
@@ -402,10 +402,9 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed_replace.raw_transaction)
     msg = str(exc_info.value).lower()
-    # JSON-RPC reports a pool rule rejection as geth's "replacement ... underpriced".
-    assert any(
-        s in msg for s in ("nonce", "sequence", "replacement")
-    ), f"expected a nonce or replacement error but got: {msg}"
+    # No fee bump can help, so it must not read as geth's underpriced replacement.
+    assert "invalid nonce" in msg, f"expected an invalid nonce error but got: {msg}"
+    assert "underpriced" not in msg, msg
 
     # The original tx, not the replacement, must mine
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)

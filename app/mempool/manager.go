@@ -542,6 +542,9 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	// strict recheck would fail the nonce and evict it; that takes a redirect, which is rare, so the
 	// set stays nil until the first one and is then seeded with the earlier candidates.
 	var seen map[sdk.Tx]struct{}
+	// Keys evicted this cycle. A stale tx at one of them, replaced by the evicted tx, must not replay
+	// the sequence past a nonce nothing holds.
+	var evictedKeys map[poolKey]struct{}
 	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
@@ -557,6 +560,14 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if known && cur != tx {
 			a.encCache.Evict(tx)
 			pooled = found
+			if !found && evictedKeys != nil {
+				if key, ok := a.keyOf(tx); ok {
+					if _, stale := evictedKeys[key]; stale {
+						a.mu.Unlock()
+						continue
+					}
+				}
+			}
 			if found {
 				if seen == nil {
 					seen = make(map[sdk.Tx]struct{}, i+1)
@@ -583,6 +594,12 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 			// baseapp removes tx only when the ante fails; this covers any other failure.
 			a.evict(tx)
 			evicted++
+			if key, ok := a.keyOf(tx); ok {
+				if evictedKeys == nil {
+					evictedKeys = make(map[poolKey]struct{})
+				}
+				evictedKeys[key] = struct{}{}
+			}
 		}
 		a.mu.Unlock()
 	}
@@ -644,19 +661,36 @@ func (a *Manager) isPooled(tx sdk.Tx) bool {
 // can't be queried, so callers fall back to removal by key.
 func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
 	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
-	if !ok || a.signer == nil || tx == nil {
+	if !ok {
 		return nil, false, false
+	}
+	key, ok := a.keyOf(tx)
+	if !ok {
+		return nil, false, false
+	}
+	cur, found = pool.GetTx(key.sender, key.nonce)
+	return cur, found, true
+}
+
+type poolKey struct {
+	sender string
+	nonce  uint64
+}
+
+// keyOf returns the sender and nonce the pool keys tx by.
+func (a *Manager) keyOf(tx sdk.Tx) (poolKey, bool) {
+	if a.signer == nil || tx == nil {
+		return poolKey{}, false
 	}
 	sigs, err := a.signer.GetSigners(tx)
 	if err != nil || len(sigs) == 0 {
-		return nil, false, false
+		return poolKey{}, false
 	}
 	nonce, err := sdkmempool.ChooseNonce(sigs[0].Sequence, tx)
 	if err != nil {
-		return nil, false, false
+		return poolKey{}, false
 	}
-	cur, found = pool.GetTx(sigs[0].Signer.String(), nonce)
-	return cur, found, true
+	return poolKey{sigs[0].Signer.String(), nonce}, true
 }
 
 // stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects
