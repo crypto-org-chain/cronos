@@ -574,9 +574,10 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		key, hasKey := a.keyOf(tx)
 		a.mu.Lock()
 		// A candidate replays its sender's sequence for the later nonces, so it isn't skipped.
-		// One replaced since the snapshot is rechecked as its replacement, since a failing stale
-		// tx would remove the replacement (the pool removes by sender and nonce). One removed
-		// since, e.g. included by FinalizeBlock, is still rechecked but has nothing to evict.
+		// One replaced (or re-admitted after a removal) since the snapshot is rechecked as the tx
+		// now pooled, since a failing stale tx would remove it (the pool removes by sender and
+		// nonce). One removed since, e.g. included by FinalizeBlock, is still rechecked but has
+		// nothing to evict.
 		pooled := true
 		cur, found, known := a.pooledAtKey(key, hasKey)
 		if known && cur != tx {
@@ -666,18 +667,13 @@ func (a *Manager) evict(tx sdk.Tx, pooled bool) {
 // isPooled reports whether tx itself, not a replacement, is pooled at its sender and nonce.
 // It falls back to true when the pool or tx type can't tell, keeping removal by key.
 func (a *Manager) isPooled(tx sdk.Tx) bool {
-	cur, found, known := a.pooledAt(tx)
+	cur, found, known := a.pooledAtKey(a.keyOf(tx))
 	return !known || (found && cur == tx)
 }
 
-// pooledAt returns the tx pooled at tx's sender and nonce, compared by identity: pooled txs are
-// decoded pointers, as their use as map keys here already assumes. known is false when the pool
-// can't be queried, so callers fall back to removal by key.
-func (a *Manager) pooledAt(tx sdk.Tx) (cur sdk.Tx, found, known bool) {
-	return a.pooledAtKey(a.keyOf(tx))
-}
-
-// pooledAtKey is pooledAt with tx's key already derived; hasKey is keyOf's ok.
+// pooledAtKey returns the tx pooled at key, a result of keyOf (hasKey is its ok). Callers compare
+// it by identity: pooled txs are decoded pointers, as their use as map keys here already assumes.
+// known is false when the pool can't be queried, so callers fall back to removal by key.
 func (a *Manager) pooledAtKey(key poolKey, hasKey bool) (cur sdk.Tx, found, known bool) {
 	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
 	if !ok || !hasKey {

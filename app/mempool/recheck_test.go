@@ -559,6 +559,30 @@ func TestDeferredExpiredTxNotRedirected(t *testing.T) {
 	}
 }
 
+// A deferred tx and the deferred replacement it resolves to are rechecked once: a second strict
+// recheck of the replacement would fail its nonce and evict it.
+func TestDeferredRedirectToDeferredReplacement(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		order func(stale, repl sdk.Tx) []sdk.Tx
+	}{
+		{"stale first", func(stale, repl sdk.Tx) []sdk.Tx { return []sdk.Tx{stale, repl} }},
+		{"replacement first", func(stale, repl sdk.Tx) []sdk.Tx { return []sdk.Tx{repl, stale} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			stale := f.add(1, "alice", 0, "alice-0-stale")
+			repl := f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+
+			selected := f.a.selectTxs(snapshot, nil, 5, tc.order(stale, repl))
+			if !slices.Equal(selected, []sdk.Tx{repl}) {
+				t.Fatalf("selected %v, want the replacement once", selected)
+			}
+		})
+	}
+}
+
 // Recheck holds mu per candidate; this measures a cycle whose candidates all pass.
 func BenchmarkRunRecheck(b *testing.B) {
 	const candidates = 5000
