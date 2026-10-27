@@ -22,7 +22,7 @@ Edit `testground/benchmark-options.json` (see [README.md](README.md#configure-be
   "validator_generate_load": true,
   "num_idle": 20,
   "config_patch": { "mempool": { "size": 100000 } },
-  "app_patch": { "evm": { "block-stm-workers": 8 } },
+  "app_patch": { "block-stm-workers": 8 },
   "genesis_patch": {},
   "node_overrides": {}
 }

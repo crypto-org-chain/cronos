@@ -16,8 +16,8 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.54.3
 	github.com/cosmos/gogoproto v1.7.2
-	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260518071248-f0453c15e437
-	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260518071248-f0453c15e437
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139
 	github.com/ethereum/go-ethereum v1.16.9
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
@@ -389,16 +389,16 @@ replace (
 	// v0.39.x
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3
 	// release/v0.54.x
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260805154329-743fc8dc9dbc
-	// master
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260807143651-cbef7554cdc3
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260807143651-cbef7554cdc3
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260807143651-cbef7554cdc3
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260924083050-23eef471a53c
+	// v1.9.0
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260923061457-2d12c238d139
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260923061457-2d12c238d139
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260922081214-84a631b06a9b
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
