@@ -266,6 +266,23 @@ func newEthMsgsTx(msgs ...sdk.Msg) ethMsgsTx { return ethMsgsTx{msgs: msgs} }
 
 func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
 
+// Measures the eth (sender, nonce) dedup per selected tx; each round reuses the cleared map.
+func BenchmarkExtTxSelectorEthDedup(b *testing.B) {
+	const n = 10000
+	txs := make([]ethMsgsTx, n)
+	for i := range txs {
+		txs[i] = newEthMsgsTx(newEthMsg(common.BigToAddress(big.NewInt(int64(i))), 0))
+	}
+	ts := NewExtTxSelector(func(sdk.Tx, []byte) error { return nil }, nil)
+	bz := []byte("tx")
+	for b.Loop() {
+		for _, tx := range txs {
+			ts.SelectTxForProposal(context.Background(), 1<<30, 0, tx, bz)
+		}
+		ts.Clear()
+	}
+}
+
 // The fee-cap rule itself is ethermint's ante.EthTxReplacement, tested there; this covers its wiring.
 func TestTxReplacement(t *testing.T) {
 	priced := func(gasPrice int64) ethMsgsTx {
