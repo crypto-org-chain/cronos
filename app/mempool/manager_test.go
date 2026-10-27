@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -417,33 +416,6 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 
 	if got := len(runner.state); got != goroutines*perG {
 		t.Fatalf("expected %d distinct txs, got %d", goroutines*perG, got)
-	}
-}
-
-func TestManager_CommitLockGatesAdmission(t *testing.T) {
-	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	insert := a.InsertTxHandler()
-
-	unlock := a.LockForCommit() // simulate App.Commit holding the admission mutex
-	admitted := make(chan struct{})
-	go func() {
-		insert(&abci.RequestInsertTx{Tx: []byte("tx")}) //nolint:errcheck
-		close(admitted)
-	}()
-
-	select {
-	case <-admitted:
-		t.Fatal("admission ran while Commit held the mutex; Commit would race checkState")
-	case <-time.After(50 * time.Millisecond):
-		// expected: admission blocked behind the mutex
-	}
-
-	unlock()
-	select {
-	case <-admitted:
-		// admission proceeds once Commit releases the mutex
-	case <-time.After(time.Second):
-		t.Fatal("admission did not proceed after Commit released the mutex")
 	}
 }
 

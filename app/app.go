@@ -466,8 +466,8 @@ func New(
 	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
 	if v := appOpts.Get(FlagMempoolRPCMaxInflight); v != nil {
 		parsed, err := cast.ToIntE(v)
-		if err != nil {
-			panic(fmt.Errorf("invalid %s %q: must be an integer", FlagMempoolRPCMaxInflight, v))
+		if _, isBool := v.(bool); isBool || err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %v: must be a non-negative integer", FlagMempoolRPCMaxInflight, v))
 		}
 		rpcMaxInflight = parsed
 	}
@@ -1627,8 +1627,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// AppMempool.Lock() is a no-op; the admission mutex serializes the checkState
-		// reset against concurrent admission, taken with priority over queued admits.
+		// AppMempool.Lock() is a no-op; this serializes the checkState reset against admission.
 		unlock := app.mempoolManager.LockForCommit()
 		defer unlock()
 		return app.BaseApp.Commit()

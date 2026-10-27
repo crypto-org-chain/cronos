@@ -36,7 +36,7 @@ type Manager struct {
 	// admissions. AppMempool.Lock() is a no-op, so gate replaces the mempool lock
 	// BaseApp normally relies on. Held only around RunTx, never the lock-free pool scan.
 	gate admissionGate
-	// rpcTxLimit bounds RPC admissions only; peer gossip inserts one tx at a time per peer.
+	// rpcTxLimit bounds RPC admissions only; gossip is already bounded by the p2p receive pool.
 	rpcTxLimit inflightLimit
 
 	runner    txRunner
@@ -157,13 +157,12 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// LockForCommit acquires the admission mutex ahead of queued admissions, so
-// Commit's checkState reset never waits out an admission backlog.
+// LockForCommit acquires the admission mutex ahead of queued admissions.
 func (a *Manager) LockForCommit() (unlock func()) {
 	return a.gate.lockForCommit()
 }
 
-// SetRPCMaxInflight caps RPC txs being admitted at once; excess get CodeTypeRetry. <=0 = unlimited.
+// SetRPCMaxInflight caps RPC txs being admitted at once; excess get CodeTypeRetry. 0 = unlimited.
 func (a *Manager) SetRPCMaxInflight(n int) {
 	a.rpcTxLimit.max.Store(int64(n))
 }

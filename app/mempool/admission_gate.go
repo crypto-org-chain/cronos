@@ -7,27 +7,23 @@ import (
 
 // admissionGate is the RunTx mutex with Commit priority. sync.Mutex goes FIFO
 // once a waiter starves for 1ms, so under a burst Commit would wait behind every
-// queued admission; here queued admissions park on the pending Commit instead,
-// so Commit waits for one in-flight RunTx plus a wake-and-yield per waiter.
+// queued admission. Here an admission that gets the mutex while Commit is pending
+// releases it and waits, so Commit waits for one in-flight RunTx plus a
+// wake-and-yield per queued admission.
 type admissionGate struct {
 	mu sync.Mutex
 	// commit is non-nil from lockForCommit until its unlock, which closes the channel.
 	commit atomic.Pointer[chan struct{}]
 }
 
-// lock acquires mu, parking behind a pending Commit instead of ahead of it.
+// lock acquires mu unless a Commit is pending, in which case it waits for that Commit first.
 func (g *admissionGate) lock() {
 	for {
-		if ch := g.commit.Load(); ch != nil {
-			<-*ch
-			continue
-		}
 		g.mu.Lock()
 		ch := g.commit.Load()
 		if ch == nil {
 			return
 		}
-		// Commit arrived while we were queued: yield instead of running RunTx ahead of it.
 		g.mu.Unlock()
 		<-*ch
 	}
