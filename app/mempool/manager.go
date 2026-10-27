@@ -713,13 +713,7 @@ func (a *Manager) keyOf(tx sdk.Tx) (poolKey, bool) {
 // keyAndSigners is keyOf plus signers, from one signer extraction.
 func (a *Manager) keyAndSigners(tx sdk.Tx) (keyedTx, []string) {
 	sigs := a.signerData(tx)
-	if sigs == nil {
-		return keyedTx{}, nil
-	}
-	signers := make([]string, len(sigs))
-	for i, s := range sigs {
-		signers[i] = s.Signer.String()
-	}
+	signers := signerStrings(sigs)
 	if len(sigs) == 0 {
 		return keyedTx{}, signers
 	}
@@ -765,13 +759,16 @@ func (a *Manager) stagedSenders(tx sdk.Tx) []string {
 }
 
 func (a *Manager) signers(tx sdk.Tx) []string {
-	sigs, err := a.signer.GetSigners(tx)
-	if err != nil {
+	return signerStrings(a.signerData(tx))
+}
+
+func signerStrings(sigs []sdkmempool.SignerData) []string {
+	if sigs == nil {
 		return nil
 	}
-	keys := make([]string, len(sigs))
+	strs := make([]string, len(sigs))
 	for i, s := range sigs {
-		keys[i] = s.Signer.String()
+		strs[i] = s.Signer.String()
 	}
-	return keys
+	return strs
 }
