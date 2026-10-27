@@ -123,9 +123,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		}
 	}
 
-	// Last check, so a tx skipped for any other reason never reserves its nonces. A dup isn't
-	// staged for recheck: it goes stale only once the tx it collides with commits, which stages
-	// that tx's eth senders.
+	// Last check, so a skipped tx never reserves nonces. A dup isn't staged: the tx it collides with
+	// stages its senders when it commits.
 	if !ts.reserveEthNonces(memTx) {
 		telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "dup_eth_nonce", "skipped")
 		return isFull()
@@ -137,8 +136,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 	return isFull()
 }
 
-// reserveEthNonces records the (sender, nonce) of each MsgEthereumTx in tx, or none if one
-// repeats (the fast path doesn't re-run ante).
+// reserveEthNonces records each eth msg's sender and nonce, or none if one repeats; the fast path
+// skips the ante, which would catch it.
 func (ts *ExtTxSelector) reserveEthNonces(tx sdk.Tx) bool {
 	if tx == nil {
 		return true

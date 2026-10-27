@@ -358,11 +358,8 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
-// txReplacement is ethermint's eth-only rule: a single-msg eth tx replaces a pooled one by raising
-// its fee cap (strictly) and tip cap by feeBump%. It must refuse any other match: only the eth ante
-// skips the nonce check for a pooled tx, so another tx at a pooled nonce gets through only after a
-// Commit reset of checkState, and replacing then would advance the sequence past the pooled nonce.
-// When disabled, nothing is replaced, even after that reset; a nil rule would replace everything.
+// txReplacement is ethermint's eth-only fee-bump rule, or one that refuses everything when disabled
+// (a nil rule would replace everything).
 func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
 	if disabled {
 		return func(int64, int64, sdk.Tx, sdk.Tx) bool { return false }
@@ -370,14 +367,13 @@ func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk
 	return ethermintante.EthTxReplacement(feeBump)
 }
 
-// noTxReplacementMempool reports a tx at a pooled nonce as an invalid nonce, not as failing the
-// replacement rule, which JSON-RPC reports as underpriced although no fee bump would help.
-// Such a tx passes the nonce check only after a Commit reset of checkState.
+// noTxReplacementMempool reports a tx at a pooled nonce as an invalid nonce, not underpriced, since
+// no fee bump would help.
 type noTxReplacementMempool struct {
 	*mempool.PriorityNonceMempool[int64]
 }
 
-// Losing any of these silently falls back to unlocked iteration, slower snapshots, or removal by key.
+// Losing any of these silently degrades the manager's fast paths.
 var (
 	_ mempool.ExtMempool       = noTxReplacementMempool{}
 	_ mempool.UnorderedMempool = noTxReplacementMempool{}
@@ -392,8 +388,7 @@ func (m noTxReplacementMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	return err
 }
 
-// ethTxPool returns mpool for the ante's replacement lookup, or nil (never a typed nil) when
-// replacement is disabled or mpool can't look up a pooled tx.
+// ethTxPool returns mpool for the ante's lookup, or a nil interface when replacement is off.
 func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
 	pool, ok := mpool.(mempool.TxLookupMempool)
 	if !ok || disabled {

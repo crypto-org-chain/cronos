@@ -32,6 +32,7 @@ type Manager struct {
 	// mu guards BaseApp.checkState
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
 	// normally relies on. Held around RunTx and evict, never the lock-free pool scan.
+	// Taken before the pool lock, never under it.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -78,8 +79,7 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a.trace = app.Trace()
 	a.mpool = mpool
 	if _, ok := mpool.(sdkmempool.TxLookupMempool); !ok {
-		app.Logger().Warn("app mempool can't look up pooled txs; recheck falls back to removal by sender and nonce, " +
-			"so a stale tx failing recheck can remove its replacement")
+		app.Logger().Warn("app mempool can't look up pooled txs; a stale tx failing recheck can remove its replacement")
 	}
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
@@ -384,8 +384,7 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 // selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
 // only invokes this when recheck is enabled.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	// deferredLive: carried-over tx -> still in pool, plus replacements scheduled in a carried tx's
-	// slot (so they aren't rechecked again). Sized to the small carry; nil if none.
+	// deferredLive: carried-over tx -> still in pool, plus replacements scheduled in a carried tx's slot.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
 		deferredLive = make(map[sdk.Tx]bool, len(deferred))
@@ -404,9 +403,8 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
 
-	// Pass 1: evictions. Collect senders of every expired tx: an evicted tx's remaining pool txs
-	// (e.g. higher-nonce siblings) become invalid after the gap, and a replaced one stays a
-	// candidate so its replacement is rechecked.
+	// Pass 1: evictions. Recheck every expired tx's senders: its later nonces now have a gap, and a
+	// replaced one's replacement still needs a recheck.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	var timedOut, ttlExpired []sdk.Tx
 	now := time.Now()
@@ -425,19 +423,16 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		}
 	}
 	a.arrival = newArrival
-	// Evict in bounded holds: one per tx would queue behind every waiting admission, and one for a
-	// mass expiry would stall admission for the whole batch.
+	// Evict in batches: one mu hold per tx queues behind admissions; one for all stalls them.
 	numTimedOut := len(timedOut)
 	expired := make([]sdk.Tx, 0, len(timedOut)+len(ttlExpired))
 	expired = append(append(expired, timedOut...), ttlExpired...)
-	keys := make([]keyedTx, min(evictBatchSize, len(expired)))
-	// Keys freed here: a tx admitted at one since has its nonce applied, so a deferred tx at that
-	// key, whether evicted itself or replaced by an evicted tx, isn't redirected to it below.
+	keys := make([]poolKey, min(evictBatchSize, len(expired)))
+	// A tx admitted at a freed key already applied its nonce, so deferred txs aren't redirected to it.
 	var freedKeys map[poolKey]struct{}
 	for start := 0; start < len(expired); start += evictBatchSize {
 		batch := expired[start:min(start+evictBatchSize, len(expired))]
-		// Keys and signers come from the tx alone, so they're derived outside mu; only the
-		// lookup and the removal need it.
+		// Keys depend only on the tx, so derive them outside mu.
 		for j, tx := range batch {
 			var sigs []string
 			keys[j], sigs = a.keyAndSigners(tx)
@@ -449,11 +444,11 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 			if evictedSet, evicted = a.evictForRecheck(tx, keys[j], evictedSet); !evicted {
 				continue
 			}
-			if keys[j].ok {
+			if keys[j].valid() {
 				if freedKeys == nil {
 					freedKeys = make(map[poolKey]struct{})
 				}
-				freedKeys[keys[j].key] = struct{}{}
+				freedKeys[keys[j]] = struct{}{}
 			}
 			if start+j < numTimedOut {
 				expiredEvicted++
@@ -503,16 +498,15 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 			ordered = append(ordered, tx)
 			continue
 		}
-		// Recheck a tx replaced since the carry as its replacement, in its slot, so the sender's
-		// later deferred nonces see the sequence replayed. Skip txs included/evicted since.
+		// Recheck a replaced tx's replacement in its slot, so later deferred nonces see the sequence.
 		a.encCache.Evict(tx)
-		key, hasKey := a.keyOf(tx)
-		if _, freed := freedKeys[key]; freed && hasKey {
+		key := a.keyOf(tx)
+		if _, freed := freedKeys[key]; freed {
 			continue
 		}
-		if cur, found, known := a.pooledAtKey(key, hasKey); known && found && cur != tx {
+		if cur, found, known := a.pooledAtKey(key); known && found && cur != tx {
 			if _, dup := deferredLive[cur]; !dup {
-				deferredLive[cur] = true // keeps the fresh-candidates loop from rechecking it twice
+				deferredLive[cur] = true
 				ordered = append(ordered, cur)
 			}
 		}
@@ -526,13 +520,11 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
-// evictForRecheck evicts tx, keyed by k, allocating evictedSet lazily so a no-eviction cycle
-// stays alloc-free. It reports whether tx was pooled; a replaced tx stays a candidate so
-// runRecheck rechecks its replacement.
-// Callers hold mu, as evict requires.
-func (a *Manager) evictForRecheck(tx sdk.Tx, k keyedTx, evictedSet map[sdk.Tx]struct{}) (map[sdk.Tx]struct{}, bool) {
-	cur, found, known := a.pooledAtKey(k.key, k.ok)
-	// tx itself, not a replacement; true when the pool or tx type can't tell, keeping removal by key.
+// evictForRecheck evicts tx and reports whether it was pooled; a replaced tx stays a candidate so its
+// replacement is rechecked. Callers hold mu.
+func (a *Manager) evictForRecheck(tx sdk.Tx, key poolKey, evictedSet map[sdk.Tx]struct{}) (map[sdk.Tx]struct{}, bool) {
+	cur, found, known := a.pooledAtKey(key)
+	// When the pool can't tell, fall back to removal by key.
 	pooled := !known || (found && cur == tx)
 	a.evict(tx, pooled)
 	if pooled {
@@ -542,12 +534,6 @@ func (a *Manager) evictForRecheck(tx sdk.Tx, k keyedTx, evictedSet map[sdk.Tx]st
 		evictedSet[tx] = struct{}{}
 	}
 	return evictedSet, pooled
-}
-
-// keyedTx is a tx's keyOf result.
-type keyedTx struct {
-	key poolKey
-	ok  bool
 }
 
 // addSigners folds sigs into senders, allocating it lazily.
@@ -577,29 +563,22 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
-	// Txs rechecked so far. Two candidates resolving to one tx would recheck it twice, and the second
-	// strict recheck would fail the nonce and evict it; that takes a redirect, which is rare, so the
-	// set stays nil until the first one and is then seeded with the earlier candidates.
+	// A second recheck of one tx would fail its nonce and evict it. Only a redirect can cause that,
+	// so the set is built lazily from the earlier candidates.
 	var seen map[sdk.Tx]struct{}
-	// Keys evicted this cycle. A stale tx at one of them must not replay the sequence past a nonce
-	// nothing holds, nor be redirected to a tx admitted there since, whose nonce CheckTx already applied.
+	// A stale tx at an evicted key must neither replay the sequence nor be redirected.
 	var evictedKeys map[poolKey]struct{}
 	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
 			continue
 		}
-		// Derived from tx alone, so outside mu. A redirect keeps the sender and nonce, so the key
-		// holds for the replacement too.
-		key, hasKey := a.keyOf(tx)
+		key := a.keyOf(tx) // outside mu; a redirect keeps the key
 		a.mu.Lock()
-		// A candidate replays its sender's sequence for the later nonces, so it isn't skipped.
-		// One replaced (or re-admitted after a removal) since the snapshot is rechecked as the tx
-		// now pooled, since a failing stale tx would remove it (the pool removes by sender and
-		// nonce). One removed since, e.g. included by FinalizeBlock, is still rechecked but has
-		// nothing to evict.
+		// A tx replaced since the snapshot is rechecked as its replacement, since the pool removes by
+		// key; one removed since still replays the sequence but has nothing to evict.
 		pooled := true
-		cur, found, known := a.pooledAtKey(key, hasKey)
+		cur, found, known := a.pooledAtKey(key)
 		if known && cur != tx {
 			a.encCache.Evict(tx)
 			pooled = found
@@ -630,11 +609,10 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		}
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
 		if err != nil && pooled {
-			// baseapp removes tx only when the ante fails; this covers any other failure. Nothing was
-			// admitted at the key since the lookup, as mu is still held.
+			// baseapp removes tx only on an ante failure; mu still held, so the key is unchanged.
 			a.evict(tx, true)
 			evicted++
-			if hasKey {
+			if key.valid() {
 				if evictedKeys == nil {
 					evictedKeys = make(map[poolKey]struct{})
 				}
@@ -674,9 +652,8 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict drops tx from the encoder cache, and from the pool only when pooled: the pool removes by
-// sender and nonce, so a replacement now holding them must stay. Callers hold mu from the check
-// behind pooled on, so admission can't replace tx in between.
+// evict drops tx from the encoder cache, and from the pool only when pooled, since the pool removes
+// by key and a replacement must stay. Callers hold mu since computing pooled.
 func (a *Manager) evict(tx sdk.Tx, pooled bool) {
 	if pooled {
 		_ = a.mpool.Remove(tx)
@@ -684,41 +661,41 @@ func (a *Manager) evict(tx sdk.Tx, pooled bool) {
 	a.encCache.Evict(tx)
 }
 
-// pooledAtKey returns the tx pooled at key, a result of keyOf (hasKey is its ok). Callers compare
-// it by identity: pooled txs are decoded pointers, as their use as map keys here already assumes.
-// known is false when the pool can't be queried, so callers fall back to removal by key.
-func (a *Manager) pooledAtKey(key poolKey, hasKey bool) (cur sdk.Tx, found, known bool) {
+// pooledAtKey returns the tx pooled at key, compared by identity since pooled txs are decoded
+// pointers. known is false when the pool or key can't be queried.
+func (a *Manager) pooledAtKey(key poolKey) (cur sdk.Tx, found, known bool) {
 	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
-	if !ok || !hasKey {
+	if !ok || !key.valid() {
 		return nil, false, false
 	}
 	cur, found = pool.GetTx(key.sender, key.nonce)
 	return cur, found, true
 }
 
+// poolKey is the sender and nonce the pool keys a tx by; the zero value means none.
 type poolKey struct {
 	sender string
 	nonce  uint64
 }
 
-// keyOf returns the sender and nonce the pool keys tx by.
-func (a *Manager) keyOf(tx sdk.Tx) (poolKey, bool) {
+func (k poolKey) valid() bool { return k.sender != "" }
+
+func (a *Manager) keyOf(tx sdk.Tx) poolKey {
 	sigs := a.signerData(tx)
 	if len(sigs) == 0 {
-		return poolKey{}, false
+		return poolKey{}
 	}
 	return poolKeyAt(tx, sigs[0].Sequence, sigs[0].Signer.String())
 }
 
-// keyAndSigners is keyOf plus signers, from one signer extraction.
-func (a *Manager) keyAndSigners(tx sdk.Tx) (keyedTx, []string) {
+// keyAndSigners returns tx's pool key and signers from one signer extraction.
+func (a *Manager) keyAndSigners(tx sdk.Tx) (poolKey, []string) {
 	sigs := a.signerData(tx)
 	signers := signerStrings(sigs)
 	if len(sigs) == 0 {
-		return keyedTx{}, signers
+		return poolKey{}, signers
 	}
-	key, ok := poolKeyAt(tx, sigs[0].Sequence, signers[0])
-	return keyedTx{key, ok}, signers
+	return poolKeyAt(tx, sigs[0].Sequence, signers[0]), signers
 }
 
 // signerData returns tx's signers, or nil when they can't be extracted.
@@ -733,17 +710,16 @@ func (a *Manager) signerData(tx sdk.Tx) []sdkmempool.SignerData {
 	return sigs
 }
 
-func poolKeyAt(tx sdk.Tx, sequence uint64, sender string) (poolKey, bool) {
+func poolKeyAt(tx sdk.Tx, sequence uint64, sender string) poolKey {
 	nonce, err := sdkmempool.ChooseNonce(sequence, tx)
 	if err != nil {
-		return poolKey{}, false
+		return poolKey{}
 	}
-	return poolKey{sender, nonce}, true
+	return poolKey{sender, nonce}
 }
 
-// stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects
-// multi-sender batches, but a proposer can include one whose later msg uses a nonce
-// that another pooled tx, keyed by that sender, also holds.
+// stagedSenders adds later eth msg senders: CheckTx rejects multi-sender batches, but a proposer
+// can include one that uses another pooled tx's nonce.
 func (a *Manager) stagedSenders(tx sdk.Tx) []string {
 	keys := a.signers(tx)
 	msgs := tx.GetMsgs()
