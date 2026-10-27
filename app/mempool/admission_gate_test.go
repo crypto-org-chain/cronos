@@ -3,19 +3,22 @@ package mempool
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/suite"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 const (
-	gateWait    = 5 * time.Second
-	pathInsert  = "insert"
-	pathCheckTx = "checktx"
+	gateWait      = 5 * time.Second
+	pathGossip    = "gossip"
+	pathRPCInsert = "rpc-insert"
+	pathCheckTx   = "checktx"
 )
 
 type AdmissionGateTestSuite struct {
@@ -34,7 +37,7 @@ type gateFixture struct {
 	release chan struct{}
 }
 
-func newGateFixture(maxInflight int) *gateFixture {
+func newGateFixture(rpcMaxInflight int) *gateFixture {
 	f := &gateFixture{release: make(chan struct{})}
 	var once sync.Once
 	f.runner = &stubRunner{runTx: func([]byte) error {
@@ -42,15 +45,18 @@ func newGateFixture(maxInflight int) *gateFixture {
 		return nil
 	}}
 	f.a = newManager(f.runner, nil, noopEncoder, nil)
-	f.a.SetAdmissionMaxInflight(maxInflight)
+	f.a.SetRPCMaxInflight(rpcMaxInflight)
 	return f
 }
 
-// admitVia runs one admission through the named path and returns its ABCI code.
+// admitVia runs one admission through the named entry point and returns its ABCI code.
 func (f *gateFixture) admitVia(path string, tx []byte) uint32 {
 	switch path {
-	case pathInsert:
+	case pathGossip:
 		resp, _ := f.a.InsertTxHandler()(&abci.RequestInsertTx{Tx: tx})
+		return resp.Code
+	case pathRPCInsert:
+		resp, _ := f.a.InsertTx(tx)
 		return resp.Code
 	case pathCheckTx:
 		runTx := func(bz []byte, _ sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -75,8 +81,8 @@ func (f *gateFixture) startAdmits(path string, n int) <-chan uint32 {
 	return codes
 }
 
-func (s *AdmissionGateTestSuite) waitInflight(f *gateFixture, n int) {
-	s.Require().Eventually(func() bool { return f.a.gate.inflight.Load() == int64(n) }, gateWait, time.Millisecond)
+func (s *AdmissionGateTestSuite) waitRPCInflight(f *gateFixture, n int) {
+	s.Require().Eventually(func() bool { return f.a.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
 }
 
 func (s *AdmissionGateTestSuite) collect(codes <-chan uint32, n int) []uint32 {
@@ -92,29 +98,61 @@ func (s *AdmissionGateTestSuite) collect(codes <-chan uint32, n int) []uint32 {
 	return got
 }
 
-func (s *AdmissionGateTestSuite) TestShedWhenQueueFull() {
+func (s *AdmissionGateTestSuite) TestInflightLimit() {
 	testCases := []struct {
-		name        string
-		path        string
-		maxInflight int
-		occupied    int
-		wantShed    bool
+		name     string
+		max      int64
+		held     int
+		wantMore bool
 	}{
-		{"insert shed at cap", pathInsert, 2, 2, true},
-		{"checktx shed at cap", pathCheckTx, 2, 2, true},
-		{"insert admitted below cap", pathInsert, 3, 2, false},
-		{"unbounded never sheds", pathInsert, 0, 16, false},
+		{"unlimited", 0, 100, true},
+		{"below limit", 3, 2, true},
+		{"at limit", 3, 3, false},
 	}
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			f := newGateFixture(tc.maxInflight)
-			occupied := f.startAdmits(tc.path, tc.occupied)
-			s.waitInflight(f, tc.occupied)
+			var l inflightLimit
+			l.max.Store(tc.max)
+			for range tc.held {
+				s.Require().True(l.tryAcquire())
+			}
+			s.Equal(tc.wantMore, l.tryAcquire())
+			if !tc.wantMore {
+				s.Equal(int64(tc.held), l.n.Load(), "a refused acquire must not hold a slot")
+				l.release()
+				s.True(l.tryAcquire(), "release frees a slot")
+			}
+		})
+	}
+}
+
+func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
+	testCases := []struct {
+		name           string
+		occupyPath     string
+		probePath      string
+		rpcMaxInflight int
+		occupied       int
+		wantShed       bool
+	}{
+		{"rpc insert shed at limit", pathRPCInsert, pathRPCInsert, 2, 2, true},
+		{"checktx shed at limit", pathCheckTx, pathCheckTx, 2, 2, true},
+		{"rpc paths share one limit", pathCheckTx, pathRPCInsert, 2, 2, true},
+		{"admitted below limit", pathRPCInsert, pathRPCInsert, 3, 2, false},
+		{"unlimited never sheds", pathCheckTx, pathCheckTx, 0, 16, false},
+		{"gossip not limited", pathRPCInsert, pathGossip, 2, 2, false},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			f := newGateFixture(tc.rpcMaxInflight)
+			occupied := f.startAdmits(tc.occupyPath, tc.occupied)
+			s.waitRPCInflight(f, tc.occupied)
 			callsBefore := f.runner.calls.Load()
 
 			probe := make(chan uint32, 1)
-			go func() { probe <- f.admitVia(tc.path, []byte("probe")) }()
+			go func() { probe <- f.admitVia(tc.probePath, []byte("probe")) }()
 
 			if tc.wantShed {
 				select {
@@ -124,18 +162,18 @@ func (s *AdmissionGateTestSuite) TestShedWhenQueueFull() {
 					s.FailNow("shed admission should return immediately")
 				}
 				s.Equal(callsBefore, f.runner.calls.Load(), "shed tx must not reach RunTx")
-				s.Equal(int64(tc.occupied), f.a.gate.inflight.Load(), "shed tx must not hold a slot")
+				s.Equal(int64(tc.occupied), f.a.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
 			}
 
 			close(f.release)
 			for _, code := range s.collect(occupied, tc.occupied) {
-				s.Equal(abci.CodeTypeOK, code, "queued admissions are never shed once admitted")
+				s.Equal(abci.CodeTypeOK, code, "admissions already holding a slot are never shed")
 			}
 			if !tc.wantShed {
 				s.Equal(abci.CodeTypeOK, <-probe)
 			}
-			s.waitInflight(f, 0)
-			s.Equal(abci.CodeTypeOK, f.admitVia(tc.path, []byte("after")), "slots are released once admissions finish")
+			s.waitRPCInflight(f, 0)
+			s.Equal(abci.CodeTypeOK, f.admitVia(tc.probePath, []byte("after")), "slots are released once admissions finish")
 		})
 	}
 }
@@ -146,8 +184,8 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 		name string
 		path string
 	}{
-		{"insert path yields to Commit", pathInsert},
-		{"checktx path yields to Commit", pathCheckTx},
+		{"rpc insert yields to Commit", pathRPCInsert},
+		{"checktx yields to Commit", pathCheckTx},
 	}
 
 	for _, tc := range testCases {
@@ -155,7 +193,7 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 			f := newGateFixture(0)
 			// One admission inside RunTx, the rest queued behind it on the mutex.
 			codes := f.startAdmits(tc.path, queued+1)
-			s.waitInflight(f, queued+1)
+			s.waitRPCInflight(f, queued+1)
 			s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
 
 			acquired := make(chan int64, 1)
@@ -188,14 +226,14 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 				s.Equal(abci.CodeTypeOK, code, "yielding to Commit must not reject the tx")
 			}
 			s.Equal(int64(queued+1), f.runner.calls.Load())
-			s.waitInflight(f, 0)
+			s.waitRPCInflight(f, 0)
 		})
 	}
 }
 
 func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 	f := newGateFixture(0)
-	// Recheck holds the mutex per RunTx; park it inside the first one.
+	// Recheck takes the mutex per RunTx; park it inside the first one.
 	txs := make([]sdk.Tx, 8)
 	for i := range txs {
 		txs[i] = &ptrTx{id: i}
@@ -228,4 +266,71 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 		s.FailNow("recheck did not finish after Commit released the mutex")
 	}
 	s.Equal(int64(len(txs)), f.runner.calls.Load())
+}
+
+// exclusiveRunner fails the test if two RunTx calls, or a RunTx and Commit, overlap.
+type exclusiveRunner struct {
+	holders atomic.Int32
+	overlap atomic.Bool
+}
+
+func (r *exclusiveRunner) enter() {
+	if r.holders.Add(1) != 1 {
+		r.overlap.Store(true)
+	}
+}
+
+func (r *exclusiveRunner) exit() { r.holders.Add(-1) }
+
+func (r *exclusiveRunner) RunTx(sdk.ExecMode, []byte, sdk.Tx, int, storetypes.MultiStore, map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	r.enter()
+	defer r.exit()
+	time.Sleep(time.Microsecond)
+	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
+	const (
+		admitters = 64
+		perAdmit  = 50
+		commits   = 200
+	)
+	runner := &exclusiveRunner{}
+	a := newManager(runner, nil, noopEncoder, nil)
+	insert := a.InsertTxHandler()
+
+	var wg sync.WaitGroup
+	for g := range admitters {
+		wg.Go(func() {
+			for i := range perAdmit {
+				tx := []byte(strconv.Itoa(g) + ":" + strconv.Itoa(i))
+				if g%2 == 0 {
+					insert(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
+				} else {
+					a.InsertTx(tx) //nolint:errcheck
+				}
+			}
+		})
+	}
+	wg.Go(func() {
+		for range commits {
+			unlock := a.LockForCommit()
+			runner.enter()
+			runner.exit()
+			unlock()
+		}
+	})
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		s.FailNow("admissions and commits deadlocked")
+	}
+	s.False(runner.overlap.Load(), "RunTx overlapped another RunTx or Commit")
+	s.Equal(int64(0), a.rpcTxLimit.n.Load())
 }
