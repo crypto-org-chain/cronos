@@ -404,8 +404,9 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
 
-	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
-	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
+	// Pass 1: evictions. Collect senders of every expired tx: an evicted tx's remaining pool txs
+	// (e.g. higher-nonce siblings) become invalid after the gap, and a replaced one stays a
+	// candidate so its replacement is rechecked.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	var timedOut, ttlExpired []sdk.Tx
 	now := time.Now()
@@ -430,19 +431,29 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	expired := make([]sdk.Tx, 0, len(timedOut)+len(ttlExpired))
 	expired = append(append(expired, timedOut...), ttlExpired...)
 	keys := make([]keyedTx, min(evictBatchSize, len(expired)))
+	// Keys freed here: a tx admitted at one since has its nonce applied, so a deferred tx at that
+	// key, whether evicted itself or replaced by an evicted tx, isn't redirected to it below.
+	var freedKeys map[poolKey]struct{}
 	for start := 0; start < len(expired); start += evictBatchSize {
 		batch := expired[start:min(start+evictBatchSize, len(expired))]
 		// Keys and signers come from the tx alone, so they're derived outside mu; only the
 		// lookup and the removal need it.
 		for j, tx := range batch {
-			keys[j].key, keys[j].ok = a.keyOf(tx)
-			recheckSenders = addSigners(recheckSenders, a.signers(tx))
+			var sigs []string
+			keys[j], sigs = a.keyAndSigners(tx)
+			recheckSenders = addSigners(recheckSenders, sigs)
 		}
 		a.mu.Lock()
 		for j, tx := range batch {
 			var evicted bool
 			if evictedSet, evicted = a.evictForRecheck(tx, keys[j], evictedSet); !evicted {
 				continue
+			}
+			if keys[j].ok {
+				if freedKeys == nil {
+					freedKeys = make(map[poolKey]struct{})
+				}
+				freedKeys[keys[j].key] = struct{}{}
 			}
 			if start+j < numTimedOut {
 				expiredEvicted++
@@ -487,17 +498,6 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	// Front-load surviving deferred ahead of fresh candidates: the snapshot is
 	// priority-ordered, so otherwise capRecheckTxs re-takes the same prefix and starves the tail.
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
-	// Keys freed in pass 1: a tx admitted at one since has its nonce applied, so a deferred tx at
-	// that key, whether evicted itself or replaced by an evicted tx, isn't redirected to it.
-	var evictedKeys map[poolKey]struct{}
-	if len(evictedSet) > 0 {
-		evictedKeys = make(map[poolKey]struct{}, len(evictedSet))
-		for tx := range evictedSet {
-			if key, ok := a.keyOf(tx); ok {
-				evictedKeys[key] = struct{}{}
-			}
-		}
-	}
 	for _, tx := range deferred {
 		if deferredLive[tx] {
 			ordered = append(ordered, tx)
@@ -507,7 +507,7 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		// later deferred nonces see the sequence replayed. Skip txs included/evicted since.
 		a.encCache.Evict(tx)
 		key, hasKey := a.keyOf(tx)
-		if _, freed := evictedKeys[key]; freed && hasKey {
+		if _, freed := freedKeys[key]; freed && hasKey {
 			continue
 		}
 		if cur, found, known := a.pooledAtKey(key, hasKey); known && found && cur != tx {
@@ -707,7 +707,31 @@ func (a *Manager) keyOf(tx sdk.Tx) (poolKey, bool) {
 		return poolKey{}, false
 	}
 	sigs, err := a.signer.GetSigners(tx)
-	if err != nil || len(sigs) == 0 {
+	if err != nil {
+		return poolKey{}, false
+	}
+	return poolKeyFrom(tx, sigs)
+}
+
+// keyAndSigners is keyOf plus signers, from one signer extraction.
+func (a *Manager) keyAndSigners(tx sdk.Tx) (keyedTx, []string) {
+	if a.signer == nil || tx == nil {
+		return keyedTx{}, nil
+	}
+	sigs, err := a.signer.GetSigners(tx)
+	if err != nil {
+		return keyedTx{}, nil
+	}
+	signers := make([]string, len(sigs))
+	for i, s := range sigs {
+		signers[i] = s.Signer.String()
+	}
+	key, ok := poolKeyFrom(tx, sigs)
+	return keyedTx{key, ok}, signers
+}
+
+func poolKeyFrom(tx sdk.Tx, sigs []sdkmempool.SignerData) (poolKey, bool) {
+	if len(sigs) == 0 {
 		return poolKey{}, false
 	}
 	nonce, err := sdkmempool.ChooseNonce(sigs[0].Sequence, tx)
