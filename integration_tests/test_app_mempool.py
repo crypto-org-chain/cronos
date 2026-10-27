@@ -333,8 +333,9 @@ def test_batch_later_msg_not_poolable(cronos_app_mempool):
     rsp = cli.broadcast_tx_json(batch, wait=False)
     assert rsp["code"] == 0, rsp["raw_log"]
     # The strict nonce check's text, not the pool lookup's "held by a pooled tx":
-    # the lookup must not match a batch's later msg. Holds even if the batch is mined.
-    with pytest.raises(Exception, match=f"got {nonce + 1}, expected {nonce + 2}"):
+    # the lookup must not match a batch's later msg. The expected nonce depends on
+    # whether a Commit reset checkState before the recheck replayed the batch.
+    with pytest.raises(Exception, match=f"got {nonce + 1}, expected"):
         w3.eth.send_raw_transaction(signed[1].raw_transaction)
 
     for h in hashes:
