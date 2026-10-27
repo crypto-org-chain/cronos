@@ -612,6 +612,28 @@ func BenchmarkRunRecheck(b *testing.B) {
 	}
 }
 
+// A pool without GetTx can't tell a replacement apart, so expiry and a failed recheck fall back to
+// removal by key rather than keeping the tx.
+func TestEvictionWithoutLookupRemovesByKey(t *testing.T) {
+	f := newRecheckFixture()
+	pool := &lockTrackingMempool{}
+	f.a.mpool = pool
+	expired := &ptrTx{id: 1, timeout: 5}
+	failing := &ptrTx{id: 2}
+	for tx, sender := range map[*ptrTx]string{expired: "alice", failing: "bob"} {
+		f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress(sender), 0)}
+		f.enc.Set(tx, []byte(sender+"-0"))
+		pool.txs = append(pool.txs, tx)
+	}
+	f.runner.failNoRemoveBytes = map[string]bool{"bob-0": true}
+
+	f.a.selectTxs([]sdk.Tx{expired, failing}, nil, 5, nil)
+	f.a.runRecheck([]sdk.Tx{failing})
+	if len(pool.txs) != 0 {
+		t.Fatalf("pool still holds %d txs, want the expired and the failing tx removed", len(pool.txs))
+	}
+}
+
 // More expired txs than one lock hold evicts are all evicted, each under mu.
 func TestEvictionBeyondOneBatch(t *testing.T) {
 	f := newRecheckFixture()

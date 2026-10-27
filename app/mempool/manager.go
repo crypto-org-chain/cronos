@@ -703,42 +703,48 @@ type poolKey struct {
 
 // keyOf returns the sender and nonce the pool keys tx by.
 func (a *Manager) keyOf(tx sdk.Tx) (poolKey, bool) {
-	if a.signer == nil || tx == nil {
+	sigs := a.signerData(tx)
+	if len(sigs) == 0 {
 		return poolKey{}, false
 	}
-	sigs, err := a.signer.GetSigners(tx)
-	if err != nil {
-		return poolKey{}, false
-	}
-	return poolKeyFrom(tx, sigs)
+	return poolKeyAt(tx, sigs[0].Sequence, sigs[0].Signer.String())
 }
 
 // keyAndSigners is keyOf plus signers, from one signer extraction.
 func (a *Manager) keyAndSigners(tx sdk.Tx) (keyedTx, []string) {
-	if a.signer == nil || tx == nil {
-		return keyedTx{}, nil
-	}
-	sigs, err := a.signer.GetSigners(tx)
-	if err != nil {
+	sigs := a.signerData(tx)
+	if sigs == nil {
 		return keyedTx{}, nil
 	}
 	signers := make([]string, len(sigs))
 	for i, s := range sigs {
 		signers[i] = s.Signer.String()
 	}
-	key, ok := poolKeyFrom(tx, sigs)
+	if len(sigs) == 0 {
+		return keyedTx{}, signers
+	}
+	key, ok := poolKeyAt(tx, sigs[0].Sequence, signers[0])
 	return keyedTx{key, ok}, signers
 }
 
-func poolKeyFrom(tx sdk.Tx, sigs []sdkmempool.SignerData) (poolKey, bool) {
-	if len(sigs) == 0 {
-		return poolKey{}, false
+// signerData returns tx's signers, or nil when they can't be extracted.
+func (a *Manager) signerData(tx sdk.Tx) []sdkmempool.SignerData {
+	if a.signer == nil || tx == nil {
+		return nil
 	}
-	nonce, err := sdkmempool.ChooseNonce(sigs[0].Sequence, tx)
+	sigs, err := a.signer.GetSigners(tx)
+	if err != nil {
+		return nil
+	}
+	return sigs
+}
+
+func poolKeyAt(tx sdk.Tx, sequence uint64, sender string) (poolKey, bool) {
+	nonce, err := sdkmempool.ChooseNonce(sequence, tx)
 	if err != nil {
 		return poolKey{}, false
 	}
-	return poolKey{sigs[0].Signer.String(), nonce}, true
+	return poolKey{sender, nonce}, true
 }
 
 // stagedSenders adds every later eth msg sender to tx's pool signer: CheckTx rejects

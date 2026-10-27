@@ -266,20 +266,32 @@ func newEthMsgsTx(msgs ...sdk.Msg) ethMsgsTx { return ethMsgsTx{msgs: msgs} }
 
 func (t ethMsgsTx) GetMsgs() []sdk.Msg { return t.msgs }
 
-// Measures the eth (sender, nonce) dedup per selected tx; each round reuses the cleared map.
+// The eth (sender, nonce) dedup's cost is the gap between the eth txs and the non-eth baseline,
+// which skips it; each round reuses the cleared map.
 func BenchmarkExtTxSelectorEthDedup(b *testing.B) {
 	const n = 10000
-	txs := make([]ethMsgsTx, n)
-	for i := range txs {
-		txs[i] = newEthMsgsTx(newEthMsg(common.BigToAddress(big.NewInt(int64(i))), 0))
+	ethTxs, baseline := make([]sdk.Tx, n), make([]sdk.Tx, n)
+	for i := range n {
+		ethTxs[i] = newEthMsgsTx(newEthMsg(common.BigToAddress(big.NewInt(int64(i))), 0))
+		baseline[i] = gasOnlyTx{}
 	}
-	ts := NewExtTxSelector(func(sdk.Tx, []byte) error { return nil }, nil)
-	bz := []byte("tx")
-	for b.Loop() {
-		for _, tx := range txs {
-			ts.SelectTxForProposal(context.Background(), 1<<30, 0, tx, bz)
-		}
-		ts.Clear()
+	for _, bc := range []struct {
+		name string
+		txs  []sdk.Tx
+	}{
+		{"eth", ethTxs},
+		{"non-eth baseline", baseline},
+	} {
+		b.Run(bc.name, func(b *testing.B) {
+			ts := NewExtTxSelector(func(sdk.Tx, []byte) error { return nil }, nil)
+			bz := []byte("tx")
+			for b.Loop() {
+				for _, tx := range bc.txs {
+					ts.SelectTxForProposal(context.Background(), 1<<30, 0, tx, bz)
+				}
+				ts.Clear()
+			}
+		})
 	}
 }
 
