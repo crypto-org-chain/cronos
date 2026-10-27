@@ -34,14 +34,14 @@ func (g *admissionGate) unlock() {
 }
 
 // lockForCommit acquires mu ahead of queued admissions and returns its release.
-// Calls must not overlap; consensus serializes Commit.
 func (g *admissionGate) lockForCommit() (unlock func()) {
 	ch := make(chan struct{})
 	g.commit.Store(&ch)
 	g.mu.Lock()
 	return func() {
-		// Must clear before releasing mu, or woken admissions park again.
-		g.commit.Store(nil)
+		// Clear before releasing mu so woken admissions don't spin on a stale marker;
+		// CAS keeps a newer Commit's marker if calls ever overlap.
+		g.commit.CompareAndSwap(&ch, nil)
 		close(ch)
 		g.mu.Unlock()
 	}

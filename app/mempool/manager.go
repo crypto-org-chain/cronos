@@ -157,8 +157,7 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// LockForCommit acquires the admission mutex ahead of queued admissions and
-// returns its release. Calls must not overlap.
+// LockForCommit acquires the admission mutex ahead of queued admissions and returns its release.
 func (a *Manager) LockForCommit() (unlock func()) {
 	return a.gate.lockForCommit()
 }

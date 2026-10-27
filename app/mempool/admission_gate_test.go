@@ -125,6 +125,38 @@ func (s *AdmissionGateTestSuite) TestInflightLimit() {
 	}
 }
 
+func (s *AdmissionGateTestSuite) TestInflightLimitConcurrentNeverExceedsMax() {
+	const (
+		limit   = 4
+		workers = 64
+		rounds  = 500
+	)
+	var (
+		l    inflightLimit
+		held atomic.Int64
+		peak atomic.Int64
+		wg   sync.WaitGroup
+	)
+	l.max.Store(limit)
+	for range workers {
+		wg.Go(func() {
+			for range rounds {
+				if !l.tryAcquire() {
+					continue
+				}
+				n := held.Add(1)
+				for p := peak.Load(); n > p && !peak.CompareAndSwap(p, n); p = peak.Load() {
+				}
+				held.Add(-1)
+				l.release()
+			}
+		})
+	}
+	wg.Wait()
+	s.LessOrEqual(peak.Load(), int64(limit))
+	s.Equal(int64(0), l.n.Load())
+}
+
 func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 	testCases := []struct {
 		name           string
@@ -168,7 +200,7 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 				s.Equal(abci.CodeTypeOK, code, "admissions already holding a slot are never shed")
 			}
 			if !tc.wantShed {
-				s.Equal(abci.CodeTypeOK, <-probe)
+				s.Equal(abci.CodeTypeOK, s.collect(probe, 1)[0])
 			}
 			s.waitRPCInflight(f, 0)
 			s.Equal(abci.CodeTypeOK, f.admitVia(tc.probePath, []byte("after")), "slots are released once admissions finish")

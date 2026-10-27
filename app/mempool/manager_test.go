@@ -471,7 +471,7 @@ func TestManagerInsertTx_RetryOnMempoolFull(t *testing.T) {
 	if resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry, got %d", resp.Code)
 	}
-	if resp.RawLog != "mempool is full" {
+	if resp.RawLog != mempoolFullLog {
 		t.Fatalf("expected back-pressure log, got %q", resp.RawLog)
 	}
 }
