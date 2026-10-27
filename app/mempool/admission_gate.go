@@ -40,7 +40,7 @@ func (g *admissionGate) lockForCommit() (unlock func()) {
 	g.commit.Store(&ch)
 	g.mu.Lock()
 	return func() {
-		// Clear before close so woken admissions take the lock instead of parking again.
+		// Must clear before releasing mu, or woken admissions park again.
 		g.commit.Store(nil)
 		close(ch)
 		g.mu.Unlock()

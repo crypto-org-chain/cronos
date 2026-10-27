@@ -49,7 +49,6 @@ func newGateFixture(rpcMaxInflight int) *gateFixture {
 	return f
 }
 
-// admitVia runs one admission through the named entry point and returns its ABCI code.
 func (f *gateFixture) admitVia(path string, tx []byte) uint32 {
 	switch path {
 	case pathGossip:
@@ -70,7 +69,6 @@ func (f *gateFixture) admitVia(path string, tx []byte) uint32 {
 	}
 }
 
-// startAdmits launches n concurrent admissions and returns a channel of their codes.
 func (f *gateFixture) startAdmits(path string, n int) <-chan uint32 {
 	codes := make(chan uint32, n)
 	for i := range n {

@@ -32,11 +32,11 @@ const (
 
 // Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
-	// gate guards BaseApp.checkState and lets App.Commit acquire ahead of queued
-	// admissions. AppMempool.Lock() is a no-op, so gate replaces the mempool lock
-	// BaseApp normally relies on. Held only around RunTx, never the lock-free pool scan.
+	// gate guards BaseApp.checkState, replacing the mempool lock BaseApp relies on
+	// (AppMempool.Lock() is a no-op). Never held across the lock-free pool scan.
 	gate admissionGate
-	// rpcTxLimit bounds RPC admissions only; gossip is already bounded by the p2p receive pool.
+	// rpcTxLimit is applied by the RPC entry points only; gossip is already
+	// bounded by the p2p receive pool.
 	rpcTxLimit inflightLimit
 
 	runner    txRunner
@@ -157,7 +157,8 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// LockForCommit acquires the admission mutex ahead of queued admissions.
+// LockForCommit acquires the admission mutex ahead of queued admissions and
+// returns its release. Calls must not overlap.
 func (a *Manager) LockForCommit() (unlock func()) {
 	return a.gate.lockForCommit()
 }
@@ -167,8 +168,12 @@ func (a *Manager) SetRPCMaxInflight(n int) {
 	a.rpcTxLimit.max.Store(int64(n))
 }
 
-// tryAcquireRPCSlot reserves an RPC admission slot; on false return
-// CodeTypeRetry with rpcTxLimitFullLog and don't release.
+func (a *Manager) RPCMaxInflight() int {
+	return int(a.rpcTxLimit.max.Load())
+}
+
+// tryAcquireRPCSlot takes an RPC admission slot, counting a shed when none is
+// free. Release only after a true result.
 func (a *Manager) tryAcquireRPCSlot() bool {
 	if a.rpcTxLimit.tryAcquire() {
 		return true
@@ -231,8 +236,8 @@ func (a *Manager) RecheckDisabled() bool {
 
 // admit is the shared admission path: preVerify + decode unlocked (bad txs skip
 // the mutex), then RunTx(ExecModeCheck) + cacheTx under it. Over-capacity maps to
-// CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
-// sdk.Tx (uses txBytes).
+// CodeTypeRetry. RPC callers must take an rpcTxLimit slot first. tx stays nil
+// when encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 	if a.preVerify != nil {
 		if err := a.preVerify(txBytes); err != nil {
