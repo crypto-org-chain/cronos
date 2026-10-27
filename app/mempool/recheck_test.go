@@ -583,6 +583,21 @@ func TestDeferredRedirectToDeferredReplacement(t *testing.T) {
 	}
 }
 
+// Pass 1 evicts expired txs in holds of evictBatchSize under mu; this measures one full hold's batch.
+func BenchmarkEvictExpiredBatch(b *testing.B) {
+	for b.Loop() {
+		b.StopTimer()
+		f := newRecheckFixture()
+		expired := make([]sdk.Tx, evictBatchSize)
+		for i := range expired {
+			s := "sender-" + strconv.Itoa(i)
+			expired[i] = f.addTimeout(i, s, 0, s, 5)
+		}
+		b.StartTimer()
+		f.a.selectTxs(expired, nil, 5, nil)
+	}
+}
+
 // Recheck holds mu per candidate; this measures a cycle whose candidates all pass.
 func BenchmarkRunRecheck(b *testing.B) {
 	const candidates = 5000

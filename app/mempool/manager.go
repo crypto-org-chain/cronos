@@ -429,14 +429,22 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	numTimedOut := len(timedOut)
 	expired := make([]sdk.Tx, 0, len(timedOut)+len(ttlExpired))
 	expired = append(append(expired, timedOut...), ttlExpired...)
+	keys := make([]keyedTx, min(evictBatchSize, len(expired)))
 	for start := 0; start < len(expired); start += evictBatchSize {
+		batch := expired[start:min(start+evictBatchSize, len(expired))]
+		// Keys and signers come from the tx alone, so they're derived outside mu; only the
+		// lookup and the removal need it.
+		for j, tx := range batch {
+			keys[j].key, keys[j].ok = a.keyOf(tx)
+			recheckSenders = addSigners(recheckSenders, a.signers(tx))
+		}
 		a.mu.Lock()
-		for i := start; i < min(start+evictBatchSize, len(expired)); i++ {
+		for j, tx := range batch {
 			var evicted bool
-			if evictedSet, recheckSenders, evicted = a.evictForRecheck(expired[i], evictedSet, recheckSenders); !evicted {
+			if evictedSet, evicted = a.evictForRecheck(tx, keys[j], evictedSet); !evicted {
 				continue
 			}
-			if i < numTimedOut {
+			if start+j < numTimedOut {
 				expiredEvicted++
 			} else {
 				ttlEvicted++
@@ -518,12 +526,14 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
-// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free. It reports whether
-// tx was pooled; a replaced tx stays a candidate so runRecheck rechecks its replacement.
+// evictForRecheck evicts tx, keyed by k, allocating evictedSet lazily so a no-eviction cycle
+// stays alloc-free. It reports whether tx was pooled; a replaced tx stays a candidate so
+// runRecheck rechecks its replacement.
 // Callers hold mu, as evict requires.
-func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}, bool) {
-	pooled := a.isPooled(tx)
+func (a *Manager) evictForRecheck(tx sdk.Tx, k keyedTx, evictedSet map[sdk.Tx]struct{}) (map[sdk.Tx]struct{}, bool) {
+	cur, found, known := a.pooledAtKey(k.key, k.ok)
+	// tx itself, not a replacement; true when the pool or tx type can't tell, keeping removal by key.
+	pooled := !known || (found && cur == tx)
 	a.evict(tx, pooled)
 	if pooled {
 		if evictedSet == nil {
@@ -531,14 +541,24 @@ func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, rec
 		}
 		evictedSet[tx] = struct{}{}
 	}
-	sigs := a.signers(tx)
-	if len(sigs) > 0 && recheckSenders == nil {
-		recheckSenders = make(map[string]struct{})
+	return evictedSet, pooled
+}
+
+// keyedTx is a tx's keyOf result.
+type keyedTx struct {
+	key poolKey
+	ok  bool
+}
+
+// addSigners folds sigs into senders, allocating it lazily.
+func addSigners(senders map[string]struct{}, sigs []string) map[string]struct{} {
+	if len(sigs) > 0 && senders == nil {
+		senders = make(map[string]struct{})
 	}
 	for _, s := range sigs {
-		recheckSenders[s] = struct{}{}
+		senders[s] = struct{}{}
 	}
-	return evictedSet, recheckSenders, pooled
+	return senders
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
@@ -662,13 +682,6 @@ func (a *Manager) evict(tx sdk.Tx, pooled bool) {
 		_ = a.mpool.Remove(tx)
 	}
 	a.encCache.Evict(tx)
-}
-
-// isPooled reports whether tx itself, not a replacement, is pooled at its sender and nonce.
-// It falls back to true when the pool or tx type can't tell, keeping removal by key.
-func (a *Manager) isPooled(tx sdk.Tx) bool {
-	cur, found, known := a.pooledAtKey(a.keyOf(tx))
-	return !known || (found && cur == tx)
 }
 
 // pooledAtKey returns the tx pooled at key, a result of keyOf (hasKey is its ok). Callers compare
