@@ -4,7 +4,7 @@
 
 ### State Machine Breaking
 
-* [#NNNN](https://github.com/crypto-org-chain/cronos/pull/NNNN) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache.
+* [#2239](https://github.com/crypto-org-chain/cronos/pull/2239) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache.
 
 ### Client Breaking
 
