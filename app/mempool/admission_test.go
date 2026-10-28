@@ -315,6 +315,7 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 	_, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
 	require.NoError(t, err)
 
+	// Overlapping Commit's own lock only costs it priority, which this test doesn't check.
 	unlock := f.app.MempoolManager().LockForCommit()
 	committed := make(chan error, 1)
 	go func() {

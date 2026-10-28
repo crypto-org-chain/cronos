@@ -157,7 +157,7 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// LockForCommit acquires the admission mutex before any queued admission runs RunTx and returns its release.
+// LockForCommit is for App.Commit only; see admissionGate.lockForCommit.
 func (a *Manager) LockForCommit() (unlock func()) {
 	return a.gate.lockForCommit()
 }

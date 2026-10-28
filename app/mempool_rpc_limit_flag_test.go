@@ -34,6 +34,8 @@ func (s *RPCMaxInflightFlagTestSuite) TestParseAndWire() {
 		{"zero disables the cap", 0, 0, false},
 		{"negative", -1, 0, true},
 		{"bool", true, 0, true},
+		{"float", 8192.9, 0, true},
+		{"fractional string", "8192.9", 0, true},
 		{"unparseable string", "abc", 0, true},
 	}
 

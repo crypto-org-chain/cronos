@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"filippo.io/age"
@@ -359,6 +361,25 @@ func parseBoolFlag(flag string, v interface{}) bool {
 	return parsed
 }
 
+func parseNonNegativeIntFlag(flag string, v any) int {
+	var (
+		parsed int
+		err    error
+	)
+	switch t := v.(type) {
+	case string:
+		parsed, err = strconv.Atoi(strings.TrimSpace(t))
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		parsed, err = cast.ToIntE(v)
+	default:
+		panic(fmt.Errorf("invalid %s %v: must be a non-negative integer, got %T", flag, v, v))
+	}
+	if err != nil || parsed < 0 {
+		panic(fmt.Errorf("invalid %s %v: must be a non-negative integer", flag, v))
+	}
+	return parsed
+}
+
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
@@ -504,8 +525,7 @@ func New(
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 	}
-	// recheckEnabled mirrors CometBFT's mempool.recheck (default true). It and
-	// rpcMaxInflight only matter for mempool.type=app, so parsed (and possibly panic) only then.
+	// Only meaningful for mempool.type=app, so parsed (and invalid values rejected) only then.
 	recheckEnabled := true
 	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
 	if mempoolType == cronosmempool.TypeApp {
@@ -513,11 +533,7 @@ func New(
 			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
 		}
 		if v := appOpts.Get(FlagMempoolRPCMaxInflight); v != nil {
-			parsed, err := cast.ToIntE(v)
-			if _, isBool := v.(bool); isBool || err != nil || parsed < 0 {
-				panic(fmt.Errorf("invalid %s %v: must be a non-negative integer", FlagMempoolRPCMaxInflight, v))
-			}
-			rpcMaxInflight = parsed
+			rpcMaxInflight = parseNonNegativeIntFlag(FlagMempoolRPCMaxInflight, v)
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
