@@ -35,7 +35,7 @@ type gateFixture struct {
 	a       *Manager
 	runner  *stubRunner
 	release chan struct{}
-	// admitted counts calls into admit; gossip has no RPC slot to observe instead.
+	// admitted counts admit calls that reached preVerify; gossip has no RPC slot to observe.
 	admitted atomic.Int64
 }
 
