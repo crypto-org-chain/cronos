@@ -30,15 +30,15 @@ func (g *admissionGate) unlock() {
 	g.mu.Unlock()
 }
 
-// lockForCommit acquires mu ahead of queued admissions and returns its release.
+// lockForCommit acquires mu before any queued admission runs RunTx and returns
+// its release. Calls must not overlap; ABCI serializes Commit.
 func (g *admissionGate) lockForCommit() (unlock func()) {
 	ch := make(chan struct{})
 	g.commit.Store(&ch)
 	g.mu.Lock()
 	return func() {
-		// Clear before releasing mu so woken admissions don't spin on a stale marker;
-		// CAS keeps a newer Commit's marker if calls ever overlap.
-		g.commit.CompareAndSwap(&ch, nil)
+		// Clear before releasing mu so woken admissions don't spin on a stale marker.
+		g.commit.Store(nil)
 		close(ch)
 		g.mu.Unlock()
 	}

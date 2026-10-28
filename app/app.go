@@ -463,14 +463,6 @@ func New(
 	if v := appOpts.Get(FlagMempoolPendingTxCacheEnabled); v != nil {
 		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
-	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
-	if v := appOpts.Get(FlagMempoolRPCMaxInflight); v != nil {
-		parsed, err := cast.ToIntE(v)
-		if _, isBool := v.(bool); isBool || err != nil || parsed < 0 {
-			panic(fmt.Errorf("invalid %s %v: must be a non-negative integer", FlagMempoolRPCMaxInflight, v))
-		}
-		rpcMaxInflight = parsed
-	}
 
 	anteCacheMaxTxs := mempoolMaxTxs
 	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
@@ -512,12 +504,20 @@ func New(
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 	}
-	// recheckEnabled mirrors CometBFT's mempool.recheck (default true); only
-	// meaningful for mempool.type=app, so parsed (and possibly panics) only then.
+	// recheckEnabled mirrors CometBFT's mempool.recheck (default true). It and
+	// rpcMaxInflight only matter for mempool.type=app, so parsed (and possibly panic) only then.
 	recheckEnabled := true
+	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
 	if mempoolType == cronosmempool.TypeApp {
 		if v := appOpts.Get(FlagMempoolRecheck); v != nil {
 			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
+		}
+		if v := appOpts.Get(FlagMempoolRPCMaxInflight); v != nil {
+			parsed, err := cast.ToIntE(v)
+			if _, isBool := v.(bool); isBool || err != nil || parsed < 0 {
+				panic(fmt.Errorf("invalid %s %v: must be a non-negative integer", FlagMempoolRPCMaxInflight, v))
+			}
+			rpcMaxInflight = parsed
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {

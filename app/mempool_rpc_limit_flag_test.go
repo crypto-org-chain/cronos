@@ -64,3 +64,12 @@ func (s *RPCMaxInflightFlagTestSuite) TestParseAndWire() {
 		})
 	}
 }
+
+func (s *RPCMaxInflightFlagTestSuite) TestInvalidIgnoredWithoutAppMempool() {
+	opts := baseTestAppOpts(0)
+	opts[FlagMempoolRPCMaxInflight] = "abc"
+	s.NotPanics(func() {
+		a := New(log.NewNopLogger(), dbm.NewMemDB(), true, opts, baseapp.SetChainID(TestAppChainID))
+		s.Require().NoError(a.Close())
+	})
+}

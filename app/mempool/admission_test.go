@@ -310,6 +310,33 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
+func TestAppCommitTakesAdmissionGate(t *testing.T) {
+	f := setupAdmissionApp(t, 1)
+	_, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
+	require.NoError(t, err)
+
+	unlock := f.app.MempoolManager().LockForCommit()
+	committed := make(chan error, 1)
+	go func() {
+		_, err := f.app.Commit()
+		committed <- err
+	}()
+
+	select {
+	case <-committed:
+		unlock()
+		t.Fatal("App.Commit ran while the admission gate was held")
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case err := <-committed:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("App.Commit did not finish after the gate was released")
+	}
+}
+
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
 	require.NotNil(t, appMempool.MempoolManager())

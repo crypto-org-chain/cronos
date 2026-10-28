@@ -50,20 +50,26 @@ func newGateFixture(rpcMaxInflight int) *gateFixture {
 }
 
 func (f *gateFixture) admitVia(path string, tx []byte) uint32 {
+	code, _ := f.admitWithLog(path, tx)
+	return code
+}
+
+// admitWithLog returns the ABCI code and log; gossip responses carry no log.
+func (f *gateFixture) admitWithLog(path string, tx []byte) (uint32, string) {
 	switch path {
 	case pathGossip:
 		resp, _ := f.a.InsertTxHandler()(&abci.RequestInsertTx{Tx: tx})
-		return resp.Code
+		return resp.Code, ""
 	case pathRPCInsert:
 		resp, _ := f.a.InsertTx(tx)
-		return resp.Code
+		return resp.Code, resp.RawLog
 	case pathCheckTx:
 		runTx := func(bz []byte, _ sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 			gas, _, events, err := f.runner.RunTx(sdk.ExecModeCheck, bz, nil, -1, nil, nil)
 			return gas, &sdk.Result{}, events, err
 		}
 		resp, _ := f.a.CheckTxHandler()(runTx, &abci.RequestCheckTx{Tx: tx})
-		return resp.Code
+		return resp.Code, resp.Log
 	default:
 		panic("unknown path " + path)
 	}
@@ -183,12 +189,18 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 			callsBefore := f.runner.calls.Load()
 
 			probe := make(chan uint32, 1)
-			go func() { probe <- f.admitVia(tc.probePath, []byte("probe")) }()
+			probeLog := make(chan string, 1)
+			go func() {
+				code, log := f.admitWithLog(tc.probePath, []byte("probe"))
+				probeLog <- log
+				probe <- code
+			}()
 
 			if tc.wantShed {
 				select {
 				case code := <-probe:
 					s.Equal(abci.CodeTypeRetry, code)
+					s.Equal(rpcTxLimitFullLog, <-probeLog)
 				case <-time.After(gateWait):
 					s.FailNow("shed admission should return immediately")
 				}

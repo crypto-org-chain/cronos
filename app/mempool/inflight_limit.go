@@ -2,7 +2,7 @@ package mempool
 
 import "sync/atomic"
 
-// inflightLimit caps concurrent holders; max <= 0 means unlimited.
+// inflightLimit caps concurrent holders; max <= 0 = unlimited.
 type inflightLimit struct {
 	n   atomic.Int64
 	max atomic.Int64
