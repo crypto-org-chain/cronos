@@ -388,8 +388,8 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// v0.39.x
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260729145603-14b7b93046e3
-	// release/v0.54.x
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20260924083050-23eef471a53c
+	// crypto-org-chain/cosmos-sdk#1891; re-pin to release/v0.54.x after merge
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.54.4-0.20261027203841-961cb047cf63
 	// v1.9.0
 	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260923061457-2d12c238d139
 	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260923061457-2d12c238d139
@@ -397,8 +397,8 @@ replace (
 	// release/v1.16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e
 
-	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.1-0.20261001054021-cdb246e9a1d2
+	// crypto-org-chain/ethermint#1130; re-pin to develop after merge
+	github.com/evmos/ethermint => github.com/JayT106/ethermint v0.0.0-20261027204843-2f593072e7fd
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

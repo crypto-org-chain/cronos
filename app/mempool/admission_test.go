@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math"
@@ -32,6 +33,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -65,19 +68,26 @@ type admissionFixture struct {
 // the From field to a different address post-sign so VerifyEthSig must reject.
 func (f *admissionFixture) signTransfer(tb testing.TB, acc *testAccount, tamperFrom *common.Address) []byte {
 	tb.Helper()
+	bz := f.signTransferAt(tb, acc, acc.Nonce, big.NewInt(100000000000), big.NewInt(0), tamperFrom)
+	acc.Nonce++
+	return bz
+}
+
+// signTransferAt is signTransfer at an explicit nonce, fee cap and tip, leaving acc.Nonce unchanged.
+func (f *admissionFixture) signTransferAt(tb testing.TB, acc *testAccount, nonce uint64, feeCap, tip *big.Int, tamperFrom *common.Address) []byte {
+	tb.Helper()
 	tx := evmtypes.NewTx(
 		cronos.TestEthChainID,
-		acc.Nonce,
-		&common.Address{0x1},     // to: arbitrary EOA
-		big.NewInt(0),            // value
-		21000,                    // gas limit
-		nil,                      // gas price
-		big.NewInt(100000000000), // gasFeeCap
-		big.NewInt(0),            // gasTipCap
-		nil,                      // data
-		nil,                      // access list
+		nonce,
+		&common.Address{0x1}, // to: arbitrary EOA
+		big.NewInt(0),        // value
+		21000,                // gas limit
+		nil,                  // gas price
+		feeCap,               // gasFeeCap
+		tip,                  // gasTipCap
+		nil,                  // data
+		nil,                  // access list
 	)
-	acc.Nonce++
 
 	msg := tx
 	msg.From = acc.Address.Bytes()
@@ -308,6 +318,93 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 	require.NoError(t, err, "admission failures map to a code, not a transport error")
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "tampered tx must be rejected")
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
+}
+
+func TestAppInsertTx_Replacement(t *testing.T) {
+	const (
+		ruleErr   = "replacement rule"
+		resendErr = "tx already in mempool"
+	)
+	disabled := minimalOptionsMap{cronos.FlagDisableTxReplacement: true}
+	for _, tc := range []struct {
+		name string
+		opts minimalOptionsMap
+		// commitBetween resets checkState to the pooled tx's nonce before the replacement arrives.
+		commitBetween bool
+		tip           int64
+		expReplaced   bool
+		expRawLog     string
+		// expResend expects ErrTxInMempoolCache, the code JSON-RPC reports as geth's "already known".
+		expResend bool
+	}{
+		{name: "fee bump replaces the pooled tx", tip: 12e9, expReplaced: true},
+		{name: "under-bump is rejected", tip: 10.5e9, expRawLog: ruleErr},
+		{name: "resend is already in mempool", tip: 10e9, expRawLog: resendErr, expResend: true},
+		{name: "resend after a reset is already in mempool", commitBetween: true, tip: 10e9, expRawLog: resendErr, expResend: true},
+		{name: "disabled replacement keeps the nonce check", opts: disabled, tip: 12e9, expRawLog: "invalid nonce"},
+		{name: "fee bump after a reset survives the recheck", commitBetween: true, tip: 12e9, expReplaced: true},
+		{name: "under-bump after a reset is rejected", commitBetween: true, tip: 10.5e9, expRawLog: ruleErr},
+		{name: "disabled replacement after a reset is an invalid nonce", opts: disabled, commitBetween: true, tip: 12e9, expRawLog: "replacement is disabled"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := minimalOptionsMap{cronos.FlagMempoolFeeBump: 10}
+			maps.Copy(opts, tc.opts)
+			f := setupAdmissionAppWithOpts(t, 1, opts)
+			acc := &f.accounts[0]
+
+			// Fee cap and tip move together, so the tip sets the bump.
+			signAt := func(tip int64) []byte {
+				return f.signTransferAt(t, acc, 0, big.NewInt(10*tip), big.NewInt(tip), nil)
+			}
+			resp, err := f.app.MempoolClient().InsertTx(signAt(10e9))
+			require.NoError(t, err)
+			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+
+			if tc.commitBetween {
+				_, err = f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
+				require.NoError(t, err)
+				_, err = f.app.Commit()
+				require.NoError(t, err)
+				f.app.MempoolManager().WaitForRecheck(context.Background())
+				require.Equal(t, 1, f.app.Mempool().CountTx(), "empty block must not evict")
+			}
+
+			replacement := signAt(tc.tip)
+			resp, err = f.app.MempoolClient().InsertTx(replacement)
+			require.NoError(t, err)
+			if tc.expReplaced {
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+			} else {
+				require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+				require.Contains(t, resp.RawLog, tc.expRawLog)
+				if tc.expResend {
+					require.Equal(t, errortypes.ErrTxInMempoolCache.Codespace(), resp.Codespace)
+					require.Equal(t, errortypes.ErrTxInMempoolCache.ABCICode(), resp.Code)
+				}
+			}
+
+			if tc.commitBetween {
+				// Recheck the sender: a sequence bumped past the pooled nonce would evict it here.
+				f.app.MempoolManager().StageRecheckSenders(2, [][]byte{replacement})
+				f.app.MempoolManager().RecheckTxs()
+			}
+
+			require.Equal(t, 1, f.app.Mempool().CountTx())
+			pooled, ok := f.app.Mempool().(sdkmempool.TxLookupMempool).GetTx(sdk.AccAddress(acc.Address.Bytes()).String(), 0)
+			require.True(t, ok)
+			expTip := big.NewInt(10e9)
+			if tc.expReplaced {
+				expTip = big.NewInt(tc.tip)
+			}
+			require.Equal(t, expTip, pooled.GetMsgs()[0].(*evmtypes.MsgEthereumTx).AsTransaction().GasTipCap())
+
+			// Accepted or rejected, the replacement leaves checkState consistent: the next nonce is admitted.
+			resp, err = f.app.MempoolClient().InsertTx(f.signTransferAt(t, acc, 1, big.NewInt(1e11), big.NewInt(1e10), nil))
+			require.NoError(t, err)
+			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
+			require.Equal(t, 2, f.app.Mempool().CountTx())
+		})
+	}
 }
 
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {

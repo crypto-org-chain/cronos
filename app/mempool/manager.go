@@ -6,7 +6,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	antecache "github.com/evmos/ethermint/ante/cache"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -19,6 +18,9 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
+// evictBatchSize bounds how many expired txs one admission-lock hold evicts.
+const evictBatchSize = 1024
+
 type txRunner interface {
 	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
 }
@@ -29,7 +31,8 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 type Manager struct {
 	// mu guards BaseApp.checkState
 	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
-	// normally relies on. Held only around RunTx, never the lock-free pool scan.
+	// normally relies on. Held around RunTx and evict, never the lock-free pool scan.
+	// Taken before the pool lock, never under it.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -38,10 +41,9 @@ type Manager struct {
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
-	mpool     sdkmempool.Mempool
-	signer    sdkmempool.SignerExtractionAdapter
-	decoder   sdk.TxDecoder
-	anteCache *antecache.AnteCache
+	mpool   sdkmempool.Mempool
+	signer  sdkmempool.SignerExtractionAdapter
+	decoder sdk.TxDecoder
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
@@ -76,6 +78,9 @@ func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEn
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
+	if _, ok := mpool.(sdkmempool.TxLookupMempool); !ok {
+		app.Logger().Warn("app mempool can't look up pooled txs; a stale tx failing recheck can remove its replacement")
+	}
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
 	a.ttlNumBlocks = ttlNumBlocks
@@ -158,12 +163,6 @@ func (a *Manager) AdmissionMutex() *sync.Mutex {
 // SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
 	a.preVerify = fn
-}
-
-// SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
-// entries.
-func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
-	a.anteCache = ac
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
@@ -305,7 +304,7 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 			if err != nil {
 				continue // non-sdk txs (e.g. vote extensions) have no mempool entry
 			}
-			for _, s := range a.signers(tx) {
+			for _, s := range a.stagedSenders(tx) {
 				senders[s] = struct{}{}
 			}
 		}
@@ -385,7 +384,7 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 // selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
 // only invokes this when recheck is enabled.
 func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
+	// deferredLive: carried-over tx -> still in pool, plus replacements scheduled in a carried tx's slot.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
 		deferredLive = make(map[sdk.Tx]bool, len(deferred))
@@ -404,27 +403,61 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
 
-	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
-	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
+	// Pass 1: evictions. Recheck every expired tx's senders: its later nonces now have a gap, and a
+	// replaced one's replacement still needs a recheck.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
+	var timedOut, ttlExpired []sdk.Tx
 	now := time.Now()
 	for _, tx := range snapshot {
 		if txTimedout(tx, height, now) {
-			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-			expiredEvicted++
+			timedOut = append(timedOut, tx)
 			continue
 		}
 		if a.ttlNumBlocks > 0 {
 			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
 			if expired {
-				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-				ttlEvicted++
+				ttlExpired = append(ttlExpired, tx)
 				continue
 			}
 			newArrival[tx] = arrived
 		}
 	}
 	a.arrival = newArrival
+	// Evict in batches: one mu hold per tx queues behind admissions; one for all stalls them.
+	numTimedOut := len(timedOut)
+	expired := make([]sdk.Tx, 0, len(timedOut)+len(ttlExpired))
+	expired = append(append(expired, timedOut...), ttlExpired...)
+	keys := make([]poolKey, min(evictBatchSize, len(expired)))
+	// A tx admitted at a freed key already applied its nonce, so deferred txs aren't redirected to it.
+	var freedKeys map[poolKey]struct{}
+	for start := 0; start < len(expired); start += evictBatchSize {
+		batch := expired[start:min(start+evictBatchSize, len(expired))]
+		// Keys depend only on the tx, so derive them outside mu.
+		for j, tx := range batch {
+			var sigs []string
+			keys[j], sigs = a.keyAndSigners(tx)
+			recheckSenders = addSigners(recheckSenders, sigs)
+		}
+		a.mu.Lock()
+		for j, tx := range batch {
+			var evicted bool
+			if evictedSet, evicted = a.evictForRecheck(tx, keys[j], evictedSet); !evicted {
+				continue
+			}
+			if keys[j].valid() {
+				if freedKeys == nil {
+					freedKeys = make(map[poolKey]struct{})
+				}
+				freedKeys[keys[j]] = struct{}{}
+			}
+			if start+j < numTimedOut {
+				expiredEvicted++
+			} else {
+				ttlEvicted++
+			}
+		}
+		a.mu.Unlock()
+	}
 	if expiredEvicted > 0 {
 		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
 	}
@@ -462,7 +495,20 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
 	for _, tx := range deferred {
 		if deferredLive[tx] {
-			ordered = append(ordered, tx) // skip txs included/evicted since carry
+			ordered = append(ordered, tx)
+			continue
+		}
+		// Recheck a replaced tx's replacement in its slot, so later deferred nonces see the sequence.
+		a.encCache.Evict(tx)
+		key := a.keyOf(tx)
+		if _, freed := freedKeys[key]; freed {
+			continue
+		}
+		if cur, found, known := a.pooledAtKey(key); known && found && cur != tx {
+			if _, dup := deferredLive[cur]; !dup {
+				deferredLive[cur] = true
+				ordered = append(ordered, cur)
+			}
 		}
 	}
 	for _, tx := range candidates {
@@ -474,22 +520,31 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	return ordered
 }
 
-// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
-func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
-	a.evict(tx)
-	if evictedSet == nil {
-		evictedSet = make(map[sdk.Tx]struct{})
+// evictForRecheck evicts tx and reports whether it was pooled; a replaced tx stays a candidate so its
+// replacement is rechecked. Callers hold mu.
+func (a *Manager) evictForRecheck(tx sdk.Tx, key poolKey, evictedSet map[sdk.Tx]struct{}) (map[sdk.Tx]struct{}, bool) {
+	cur, found, known := a.pooledAtKey(key)
+	// When the pool can't tell, fall back to removal by key.
+	pooled := !known || (found && cur == tx)
+	a.evict(tx, pooled)
+	if pooled {
+		if evictedSet == nil {
+			evictedSet = make(map[sdk.Tx]struct{})
+		}
+		evictedSet[tx] = struct{}{}
 	}
-	evictedSet[tx] = struct{}{}
-	sigs := a.signers(tx)
-	if len(sigs) > 0 && recheckSenders == nil {
-		recheckSenders = make(map[string]struct{})
+	return evictedSet, pooled
+}
+
+// addSigners folds sigs into senders, allocating it lazily.
+func addSigners(senders map[string]struct{}, sigs []string) map[string]struct{} {
+	if len(sigs) > 0 && senders == nil {
+		senders = make(map[string]struct{})
 	}
 	for _, s := range sigs {
-		recheckSenders[s] = struct{}{}
+		senders[s] = struct{}{}
 	}
-	return evictedSet, recheckSenders
+	return senders
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
@@ -508,18 +563,63 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 // runRecheck re-validates candidates via RunTx(ReCheck)
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
-	for _, tx := range candidates {
+	// A second recheck of one tx would fail its nonce and evict it. Only a redirect can cause that,
+	// so the set is built lazily from the earlier candidates.
+	var seen map[sdk.Tx]struct{}
+	// A stale tx at an evicted key must neither replay the sequence nor be redirected.
+	var evictedKeys map[poolKey]struct{}
+	for i, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 		if err != nil {
 			continue
 		}
+		key := a.keyOf(tx) // outside mu; a redirect keeps the key
 		a.mu.Lock()
-		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		a.mu.Unlock()
-		if err != nil {
-			a.evict(tx)
-			evicted++
+		// A tx replaced since the snapshot is rechecked as its replacement, since the pool removes by
+		// key; one removed since still replays the sequence but has nothing to evict.
+		pooled := true
+		cur, found, known := a.pooledAtKey(key)
+		if known && cur != tx {
+			a.encCache.Evict(tx)
+			pooled = found
+			if _, stale := evictedKeys[key]; stale {
+				a.mu.Unlock()
+				continue
+			}
+			if found {
+				if seen == nil {
+					seen = make(map[sdk.Tx]struct{}, i+1)
+					for _, prev := range candidates[:i] {
+						seen[prev] = struct{}{}
+					}
+				}
+				tx = cur
+				if bz, _, err = EncodeTx(a.encCache, a.txEncoder, tx); err != nil {
+					a.mu.Unlock()
+					continue
+				}
+			}
 		}
+		if seen != nil {
+			if _, dup := seen[tx]; dup {
+				a.mu.Unlock()
+				continue
+			}
+			seen[tx] = struct{}{}
+		}
+		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
+		if err != nil && pooled {
+			// baseapp removes tx only on an ante failure; mu still held, so the key is unchanged.
+			a.evict(tx, true)
+			evicted++
+			if key.valid() {
+				if evictedKeys == nil {
+					evictedKeys = make(map[poolKey]struct{})
+				}
+				evictedKeys[key] = struct{}{}
+			}
+		}
+		a.mu.Unlock()
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
@@ -552,39 +652,99 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool, encoder cache, and ante cache together, so
-// no cache outlives its pool entry.
-func (a *Manager) evict(tx sdk.Tx) {
-	_ = a.mpool.Remove(tx)
+// evict drops tx from the encoder cache, and from the pool only when pooled, since the pool removes
+// by key and a replacement must stay. Callers hold mu since computing pooled.
+func (a *Manager) evict(tx sdk.Tx, pooled bool) {
+	if pooled {
+		_ = a.mpool.Remove(tx)
+	}
 	a.encCache.Evict(tx)
-	a.evictAnteCache(tx)
 }
 
-func (a *Manager) evictAnteCache(tx sdk.Tx) {
-	if a.anteCache == nil || tx == nil {
-		return
+// pooledAtKey returns the tx pooled at key, compared by identity since pooled txs are decoded
+// pointers. known is false when the pool or key can't be queried.
+func (a *Manager) pooledAtKey(key poolKey) (cur sdk.Tx, found, known bool) {
+	pool, ok := a.mpool.(sdkmempool.TxLookupMempool)
+	if !ok || !key.valid() {
+		return nil, false, false
 	}
-	for _, msg := range tx.GetMsgs() {
-		ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
-		if !ok {
-			continue
-		}
-		asTx := ethTx.AsTransaction()
-		if asTx == nil {
-			continue
-		}
-		a.anteCache.Delete(ethTx.GetFrom().String(), asTx.Nonce())
-	}
+	cur, found = pool.GetTx(key.sender, key.nonce)
+	return cur, found, true
 }
 
-func (a *Manager) signers(tx sdk.Tx) []string {
+// poolKey is the sender and nonce the pool keys a tx by; the zero value means none.
+type poolKey struct {
+	sender string
+	nonce  uint64
+}
+
+func (k poolKey) valid() bool { return k.sender != "" }
+
+func (a *Manager) keyOf(tx sdk.Tx) poolKey {
+	sigs := a.signerData(tx)
+	if len(sigs) == 0 {
+		return poolKey{}
+	}
+	return poolKeyAt(tx, sigs[0].Sequence, sigs[0].Signer.String())
+}
+
+// keyAndSigners returns tx's pool key and signers from one signer extraction.
+func (a *Manager) keyAndSigners(tx sdk.Tx) (poolKey, []string) {
+	sigs := a.signerData(tx)
+	signers := signerStrings(sigs)
+	if len(sigs) == 0 {
+		return poolKey{}, signers
+	}
+	return poolKeyAt(tx, sigs[0].Sequence, signers[0]), signers
+}
+
+// signerData returns tx's signers, or nil when they can't be extracted.
+func (a *Manager) signerData(tx sdk.Tx) []sdkmempool.SignerData {
+	if a.signer == nil || tx == nil {
+		return nil
+	}
 	sigs, err := a.signer.GetSigners(tx)
 	if err != nil {
 		return nil
 	}
-	keys := make([]string, len(sigs))
-	for i, s := range sigs {
-		keys[i] = s.Signer.String()
+	return sigs
+}
+
+func poolKeyAt(tx sdk.Tx, sequence uint64, sender string) poolKey {
+	nonce, err := sdkmempool.ChooseNonce(sequence, tx)
+	if err != nil {
+		return poolKey{}
+	}
+	return poolKey{sender, nonce}
+}
+
+// stagedSenders adds later eth msg senders: CheckTx rejects multi-sender batches, but a proposer
+// can include one that uses another pooled tx's nonce.
+func (a *Manager) stagedSenders(tx sdk.Tx) []string {
+	keys := a.signers(tx)
+	msgs := tx.GetMsgs()
+	if len(msgs) < 2 {
+		return keys
+	}
+	for _, msg := range msgs[1:] {
+		if ethTx, ok := msg.(*evmtypes.MsgEthereumTx); ok {
+			keys = append(keys, ethTx.GetFrom().String())
+		}
 	}
 	return keys
+}
+
+func (a *Manager) signers(tx sdk.Tx) []string {
+	return signerStrings(a.signerData(tx))
+}
+
+func signerStrings(sigs []sdkmempool.SignerData) []string {
+	if sigs == nil {
+		return nil
+	}
+	strs := make([]string, len(sigs))
+	for i, s := range sigs {
+		strs[i] = s.Signer.String()
+	}
+	return strs
 }

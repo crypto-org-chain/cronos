@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#2239](https://github.com/crypto-org-chain/cronos/pull/2239) refactor(mempool): look up pooled txs for eth tx replacement instead of the ante nonce cache.
+
 ### Client Breaking
 
 * [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.

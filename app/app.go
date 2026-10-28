@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -51,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+	ethermintante "github.com/evmos/ethermint/ante"
 	"github.com/evmos/ethermint/ante/cache"
 	"github.com/evmos/ethermint/appmempool"
 	evmenc "github.com/evmos/ethermint/encoding"
@@ -339,8 +341,6 @@ type App struct {
 
 	senderCache *cache.SenderCache
 
-	anteCache *cache.AnteCache
-
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -356,6 +356,45 @@ func parseBoolFlag(flag string, v interface{}) bool {
 		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
 	}
 	return parsed
+}
+
+// txReplacement is ethermint's eth-only fee-bump rule, or one that refuses everything when disabled
+// (a nil rule would replace everything).
+func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk.Tx) bool {
+	if disabled {
+		return func(int64, int64, sdk.Tx, sdk.Tx) bool { return false }
+	}
+	return ethermintante.EthTxReplacement(feeBump)
+}
+
+// noTxReplacementMempool reports a tx at a pooled nonce as an invalid nonce, not underpriced, since
+// no fee bump would help.
+type noTxReplacementMempool struct {
+	*mempool.PriorityNonceMempool[int64]
+}
+
+// Losing any of these silently degrades the manager's fast paths.
+var (
+	_ mempool.ExtMempool       = noTxReplacementMempool{}
+	_ mempool.UnorderedMempool = noTxReplacementMempool{}
+	_ mempool.TxLookupMempool  = noTxReplacementMempool{}
+)
+
+func (m noTxReplacementMempool) Insert(ctx context.Context, tx sdk.Tx) error {
+	err := m.PriorityNonceMempool.Insert(ctx, tx)
+	if stderrors.Is(err, mempool.ErrTxReplacement) {
+		return sdkerrors.ErrInvalidSequence.Wrap("invalid nonce; a tx at this nonce is pooled and tx replacement is disabled")
+	}
+	return err
+}
+
+// ethTxPool returns mpool for the ante's lookup, or a nil interface when replacement is off.
+func ethTxPool(mpool mempool.Mempool, disabled bool) ethermintante.TxPool {
+	pool, ok := mpool.(mempool.TxLookupMempool)
+	if !ok || disabled {
+		return nil
+	}
+	return pool
 }
 
 // New returns a reference to an initialized chain.
@@ -463,38 +502,29 @@ func New(
 		pendingCacheEnabled = parseBoolFlag(FlagMempoolPendingTxCacheEnabled, v)
 	}
 
-	anteCacheMaxTxs := mempoolMaxTxs
-	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
-		anteCacheMaxTxs = -1
-		logger.Info("Tx replacement is disabled")
-	} else {
-		logger.Info("Tx replacement is enabled")
-		if anteCacheMaxTxs == 0 {
-			anteCacheMaxTxs = cmdcfg.DefaultMaxTxPerBlock
-		}
-	}
-	anteCache := cache.NewAnteCache(anteCacheMaxTxs)
+	disableTxReplacement := cast.ToBool(appOpts.Get(FlagDisableTxReplacement))
 
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		priorityPool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
-			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
-				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
-				// otherwise, the Insert will return error
-				threshold := 100 + feeBump
-				return np >= op*threshold/100
-			},
+			TxReplacement:   txReplacement(feeBump, disableTxReplacement),
 		})
+		mpool = priorityPool
+		if disableTxReplacement {
+			mpool = noTxReplacementMempool{priorityPool}
+		}
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
+	txPool := ethTxPool(mpool, disableTxReplacement)
+	logger.Info("Tx replacement", "enabled", txPool != nil)
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
@@ -545,14 +575,14 @@ func New(
 		if encCache != nil {
 			// mempool.type=app: reuse the SDK default handler. Cache verifier
 			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
-			// blocklist + baseFee gate.
+			// blocklist + baseFee gate + eth nonce dedup.
 			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
 			ppHandler = NewMempoolProposalHandler(h, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
 			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
-			// default handler. ExtTxSelector still applies the blocklist + gas/byte
-			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
+			// default handler. ExtTxSelector still applies the blocklist, gas/byte
+			// caps and eth nonce dedup (NoOp branch: over req.Txs, already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
 				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 			}
@@ -579,7 +609,6 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
-			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
@@ -634,7 +663,6 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		mempoolManager:       mempoolManager,
 		senderCache:          senderCache,
-		anteCache:            anteCache,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1120,7 +1148,7 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 
 	if err := app.setAnteHandler(txConfig,
-		anteCache,
+		txPool,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
@@ -1193,7 +1221,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCache, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, txPool ethermintante.TxPool, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1243,7 +1271,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, anteCache *cache.AnteCa
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		AnteCache:         anteCache,
+		TxPool:            txPool,
 		SenderCache:       app.senderCache,
 	}
 
@@ -1272,9 +1300,6 @@ func (app *App) MempoolManager() *cronosmempool.Manager { return app.mempoolMana
 // SenderCache returns the shared hash-keyed ecrecover sender cache consulted
 // by VerifyEthSig, or nil when mempool.max-txs is 0 or negative (disabled).
 func (app *App) SenderCache() *cache.SenderCache { return app.senderCache }
-
-// AnteCache returns the ante-layer nonce cache installed on the ante handler.
-func (app *App) AnteCache() *cache.AnteCache { return app.anteCache }
 
 // MempoolClient returns the client (the manager, not *App) to avoid colliding
 // with the promoted BaseApp.InsertTx; nil declines, leaving ethermint on BroadcastTx.

@@ -3,6 +3,7 @@ package mempool
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -36,6 +37,7 @@ type recheckRunner struct {
 	failNoRemoveBytes map[string]bool
 	modes             []sdk.ExecMode
 	seen              map[string]bool
+	ran               []string // tx bytes in RunTx order
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -43,6 +45,7 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	r.ran = append(r.ran, string(txBytes))
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -312,6 +315,365 @@ func TestRunRecheck_InvalidatesPendingCacheOnEviction(t *testing.T) {
 
 	if got := f.a.pendingTxCache.epoch.Load(); got == before {
 		t.Fatal("RecheckTxs must invalidate the pending cache after runRecheck evicts a tx via RunTx failure")
+	}
+}
+
+// A snapshot tx replaced or removed since must neither take a replacement out of the pool
+// (the pool removes by sender and nonce) nor skip replaying its sender's sequence.
+func TestStaleTxKeepsReplacement(t *testing.T) {
+	const staleBz, replBz, siblingBz = "alice-0-stale", "alice-0", "alice-1"
+	recheck := func(f *recheckFixture, stale, sibling sdk.Tx) { f.a.runRecheck([]sdk.Tx{stale, sibling}) }
+	// recheckDeferred rechecks stale and sibling as carried over from a capped cycle.
+	var selected []sdk.Tx
+	var admitted sdk.Tx // a tx an evict step admitted mid-recheck, which must stay pooled
+	recheckDeferred := func(senders map[string]struct{}) func(f *recheckFixture, stale, sibling sdk.Tx) {
+		return func(f *recheckFixture, stale, sibling sdk.Tx) {
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+			selected = f.a.selectTxs(snapshot, senders, 5, []sdk.Tx{stale, sibling})
+			f.a.runRecheck(selected)
+		}
+	}
+	for _, tc := range []struct {
+		name         string
+		replaced     bool // otherwise the stale tx is removed, as FinalizeBlock does for an included tx
+		staleTimeout uint64
+		failingRepl  bool
+		evict        func(f *recheckFixture, stale, sibling sdk.Tx)
+		expRan       []string
+	}{
+		{
+			// The replacement is rechecked in the stale tx's place, before the sibling at the next nonce.
+			name:     "recheck a replaced tx",
+			replaced: true,
+			evict:    recheck,
+			expRan:   []string{replBz, siblingBz},
+		},
+		{
+			// The stale tx and the replacement itself both resolve to the replacement.
+			name:     "replacement reached twice is rechecked once",
+			replaced: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{stale, cur, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			name:        "failing replacement is evicted",
+			replaced:    true,
+			failingRepl: true,
+			evict:       recheck,
+			expRan:      []string{replBz, siblingBz},
+		},
+		{
+			// Nothing holds the stale tx's nonce once its replacement is evicted, so it must not replay it.
+			name:        "stale tx after its failing replacement is skipped",
+			replaced:    true,
+			failingRepl: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			// A tx admitted at the evicted key already had its nonce applied by CheckTx; the stale tx
+			// must not be redirected to it, or the strict recheck would evict it.
+			name:        "stale tx after its failing replacement skips a tx admitted since",
+			replaced:    true,
+			failingRepl: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				// Admit it while encoding the stale tx, the one step runRecheck takes without mu.
+				encode := f.a.txEncoder
+				f.enc.Evict(stale)
+				f.a.txEncoder = func(tx sdk.Tx) ([]byte, error) {
+					if tx == stale && admitted == nil {
+						admitted = f.add(4, "alice", 0, "alice-0-new")
+					}
+					return encode(tx)
+				}
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			// The removed tx still replays the sequence; its failure has nothing to evict.
+			name:   "recheck a removed tx",
+			evict:  recheck,
+			expRan: []string{staleBz, siblingBz},
+		},
+		{
+			// A timed-out stale tx that was replaced stays a candidate, so its replacement is rechecked.
+			name:         "timed-out replaced tx",
+			replaced:     true,
+			staleTimeout: 5,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				f.a.runRecheck(f.a.selectTxs([]sdk.Tx{stale, sibling}, nil, 5, nil))
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			// Likewise for a TTL-expired stale tx.
+			name:     "TTL-expired replaced tx",
+			replaced: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				f.a.ttlNumBlocks = 5
+				f.a.arrival = map[sdk.Tx]int64{stale: 0}
+				f.a.runRecheck(f.a.selectTxs([]sdk.Tx{stale, sibling}, nil, 10, nil))
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			// A deferred tx replaced since the carry is rechecked as its replacement, in its slot.
+			name:     "deferred replaced tx",
+			replaced: true,
+			evict:    recheckDeferred(nil),
+			expRan:   []string{replBz, siblingBz},
+		},
+		{
+			name:     "deferred replaced tx with its sender staged is rechecked once",
+			replaced: true,
+			evict:    recheckDeferred(map[string]struct{}{sdk.AccAddress("alice").String(): {}}),
+			expRan:   []string{replBz, siblingBz},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture(staleBz)
+			if tc.failingRepl {
+				f.runner.failNoRemoveBytes = map[string]bool{replBz: true}
+			}
+			var stale, replacement sdk.Tx
+			if tc.staleTimeout > 0 {
+				stale = f.addTimeout(1, "alice", 0, staleBz, tc.staleTimeout)
+			} else {
+				stale = f.add(1, "alice", 0, staleBz)
+			}
+			if tc.replaced {
+				replacement = f.add(2, "alice", 0, replBz) // same key, replaces stale
+			} else if err := f.pool.Remove(stale); err != nil {
+				t.Fatal(err)
+			}
+			sibling := f.add(3, "alice", 1, siblingBz)
+
+			selected, admitted = nil, nil
+			tc.evict(f, stale, sibling)
+			if admitted != nil && !poolHas(f.pool, admitted) {
+				t.Fatal("the tx admitted since must stay pooled")
+			}
+
+			// A duplicate candidate would take a recheck batch slot.
+			if selected != nil && len(selected) != 2 {
+				t.Fatalf("selected %d candidates, want the replacement and sibling once each", len(selected))
+			}
+			if !poolHas(f.pool, sibling) {
+				t.Fatal("sibling must stay pooled")
+			}
+			if replacement != nil {
+				_, cached := f.enc.Get(replacement)
+				if pooled := poolHas(f.pool, replacement); pooled == tc.failingRepl || cached == tc.failingRepl {
+					t.Fatalf("replacement pooled=%t cached=%t, want both %t", pooled, cached, !tc.failingRepl)
+				}
+			}
+			if !slices.Equal(tc.expRan, f.runner.ran) {
+				t.Fatalf("rechecked %v, want %v", f.runner.ran, tc.expRan)
+			}
+			if _, ok := f.enc.Get(stale); ok {
+				t.Fatal("stale tx must leave the encoder cache")
+			}
+		})
+	}
+}
+
+// lockProbePool counts pool lookups made without the Manager's admission lock held.
+type lockProbePool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	mu              *sync.Mutex
+	calls, unlocked int
+}
+
+func (p *lockProbePool) GetTx(sender string, nonce uint64) (sdk.Tx, bool) {
+	p.calls++
+	if p.mu.TryLock() {
+		p.mu.Unlock()
+		p.unlocked++
+	}
+	return p.PriorityNonceMempool.GetTx(sender, nonce)
+}
+
+// afterRemovePool runs after on each removal, e.g. to admit a tx at the freed key.
+type afterRemovePool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	after func(sdk.Tx)
+}
+
+func (p *afterRemovePool) Remove(tx sdk.Tx) error {
+	err := p.PriorityNonceMempool.Remove(tx)
+	p.after(tx)
+	return err
+}
+
+// A tx admitted at a deferred tx's key after that tx expired already had its nonce applied by
+// CheckTx; rechecking it in the deferred slot would fail the nonce and evict it.
+func TestDeferredExpiredTxNotRedirected(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		// setup pools the deferred tx and returns it with the tx pass 1 evicts at its key.
+		setup func(f *recheckFixture) (deferred, expired sdk.Tx)
+	}{
+		{
+			name: "deferred tx expired",
+			setup: func(f *recheckFixture) (sdk.Tx, sdk.Tx) {
+				tx := f.addTimeout(1, "alice", 0, "alice-0-old", 5)
+				return tx, tx
+			},
+		},
+		{
+			name: "deferred tx replaced by a tx that expired",
+			setup: func(f *recheckFixture) (sdk.Tx, sdk.Tx) {
+				old := f.add(1, "alice", 0, "alice-0-old")
+				return old, f.addTimeout(4, "alice", 0, "alice-0-repl", 5)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			deferred, expired := tc.setup(f)
+			sibling := f.add(2, "alice", 1, "alice-1")
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+			var admitted sdk.Tx
+			f.a.mpool = &afterRemovePool{PriorityNonceMempool: f.pool, after: func(removed sdk.Tx) {
+				if removed == expired {
+					admitted = f.add(3, "alice", 0, "alice-0-new")
+				}
+			}}
+
+			selected := f.a.selectTxs(snapshot, nil, 5, []sdk.Tx{deferred})
+			if admitted == nil || !poolHas(f.pool, admitted) {
+				t.Fatal("the expired tx must be evicted and the new one pooled")
+			}
+			if !slices.Equal(selected, []sdk.Tx{sibling}) {
+				t.Fatalf("selected %v, want only the sibling", selected)
+			}
+		})
+	}
+}
+
+// A deferred tx and the deferred replacement it resolves to are rechecked once: a second strict
+// recheck of the replacement would fail its nonce and evict it.
+func TestDeferredRedirectToDeferredReplacement(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		order func(stale, repl sdk.Tx) []sdk.Tx
+	}{
+		{"stale first", func(stale, repl sdk.Tx) []sdk.Tx { return []sdk.Tx{stale, repl} }},
+		{"replacement first", func(stale, repl sdk.Tx) []sdk.Tx { return []sdk.Tx{repl, stale} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			stale := f.add(1, "alice", 0, "alice-0-stale")
+			repl := f.add(2, "alice", 0, "alice-0") // same key, replaces stale
+			snapshot := PoolSnapshot(context.Background(), f.pool)
+
+			selected := f.a.selectTxs(snapshot, nil, 5, tc.order(stale, repl))
+			if !slices.Equal(selected, []sdk.Tx{repl}) {
+				t.Fatalf("selected %v, want the replacement once", selected)
+			}
+		})
+	}
+}
+
+// Pass 1 evicts expired txs in holds of evictBatchSize under mu; this measures one full hold's batch.
+func BenchmarkEvictExpiredBatch(b *testing.B) {
+	for b.Loop() {
+		b.StopTimer()
+		f := newRecheckFixture()
+		expired := make([]sdk.Tx, evictBatchSize)
+		for i := range expired {
+			s := "sender-" + strconv.Itoa(i)
+			expired[i] = f.addTimeout(i, s, 0, s, 5)
+		}
+		b.StartTimer()
+		f.a.selectTxs(expired, nil, 5, nil)
+	}
+}
+
+// Recheck holds mu per candidate; this measures a cycle whose candidates all pass.
+func BenchmarkRunRecheck(b *testing.B) {
+	const candidates = 5000
+	f := newRecheckFixture()
+	txs := make([]sdk.Tx, candidates)
+	for i := range txs {
+		s := "sender-" + strconv.Itoa(i)
+		txs[i] = f.add(i, s, 0, s)
+	}
+	for b.Loop() {
+		f.a.runRecheck(txs)
+	}
+}
+
+// A pool without GetTx can't tell a replacement apart, so expiry and a failed recheck fall back to
+// removal by key rather than keeping the tx.
+func TestEvictionWithoutLookupRemovesByKey(t *testing.T) {
+	f := newRecheckFixture()
+	pool := &lockTrackingMempool{}
+	f.a.mpool = pool
+	expired := &ptrTx{id: 1, timeout: 5}
+	failing := &ptrTx{id: 2}
+	for tx, sender := range map[*ptrTx]string{expired: "alice", failing: "bob"} {
+		f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress(sender), 0)}
+		f.enc.Set(tx, []byte(sender+"-0"))
+		pool.txs = append(pool.txs, tx)
+	}
+	f.runner.failNoRemoveBytes = map[string]bool{"bob-0": true}
+
+	f.a.selectTxs([]sdk.Tx{expired, failing}, nil, 5, nil)
+	f.a.runRecheck([]sdk.Tx{failing})
+	if len(pool.txs) != 0 {
+		t.Fatalf("pool still holds %d txs, want the expired and the failing tx removed", len(pool.txs))
+	}
+}
+
+// More expired txs than one lock hold evicts are all evicted, each under mu.
+func TestEvictionBeyondOneBatch(t *testing.T) {
+	f := newRecheckFixture()
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	expired := make([]sdk.Tx, 0, evictBatchSize+1)
+	for i := range evictBatchSize + 1 {
+		s := "sender-" + strconv.Itoa(i)
+		expired = append(expired, f.addTimeout(i, s, 0, s, 5))
+	}
+	f.a.mpool = probe
+
+	f.a.selectTxs(expired, nil, 5, nil)
+
+	if n := f.pool.CountTx(); n != 0 {
+		t.Fatalf("%d expired txs left pooled", n)
+	}
+	if probe.calls == 0 || probe.unlocked != 0 {
+		t.Fatalf("pool lookups: %d, without the admission lock: %d", probe.calls, probe.unlocked)
+	}
+}
+
+// Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
+func TestEvictionHoldsAdmissionLock(t *testing.T) {
+	f := newRecheckFixture("bob-0") // the candidate fails recheck, so its eviction is probed too
+	timedOut := f.addTimeout(1, "alice", 0, "alice-0", 5)
+	aged := f.add(2, "carol", 0, "carol-0")
+	candidate := f.add(3, "bob", 0, "bob-0")
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	f.a.mpool = probe
+	f.a.ttlNumBlocks = 5
+	f.a.arrival = map[sdk.Tx]int64{aged: 0}
+
+	f.a.selectTxs([]sdk.Tx{timedOut, aged}, nil, 5, nil)
+	f.a.runRecheck([]sdk.Tx{candidate})
+	if poolHas(f.pool, timedOut) || poolHas(f.pool, aged) {
+		t.Fatal("timed-out and TTL-expired txs must be evicted")
+	}
+
+	if probe.calls == 0 || probe.unlocked != 0 {
+		t.Fatalf("pool lookups: %d, without the admission lock: %d", probe.calls, probe.unlocked)
 	}
 }
 

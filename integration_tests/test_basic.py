@@ -464,9 +464,9 @@ def test_transaction(cronos):
 
     # tx already in mempool
     if mempool_type(cronos) == "flood":
-        # Flood returns ErrTxInCache ("tx already in mempool") for a dup tx.
-        # The app mempool replaces same-nonce txs silently / via the RBF rule,
-        # so this CometBFT-cache-specific error doesn't apply there.
+        # Resending the mined tx hits CometBFT's cache in flood mode, reported
+        # over JSON-RPC as geth's "already known"; the app mempool rejects it
+        # as an invalid nonce.
         with pytest.raises(exceptions.Web3RPCError) as exc:
             send_transaction(
                 w3,
@@ -478,7 +478,7 @@ def test_transaction(cronos):
                 },
                 KEYS["validator"],
             )
-        assert "tx already in mempool" in str(exc)
+        assert "already known" in str(exc)
 
     # invalid sequence
     with pytest.raises(exceptions.Web3RPCError) as exc:
