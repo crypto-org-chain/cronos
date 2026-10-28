@@ -1,6 +1,6 @@
-import "hardhat-typechain";
+import { defineConfig } from "hardhat/config";
 
-module.exports = {
+export default defineConfig({
   solidity: {
     compilers: [
       {
@@ -39,9 +39,4 @@ module.exports = {
       },
     ],
   },
-  typechain: {
-    outDir: "typechain",
-    target: "ethers-v5",
-    runOnCompile: true
-  }
-};
+});
