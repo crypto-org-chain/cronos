@@ -5,11 +5,8 @@ import (
 	"sync/atomic"
 )
 
-// admissionGate is the RunTx mutex with Commit priority. sync.Mutex goes FIFO
-// once a waiter starves for 1ms, so under a burst Commit would wait behind every
-// queued admission. Here an admission that gets the mutex while Commit is pending
-// releases it and waits, so Commit waits for one in-flight RunTx plus a
-// wake-and-yield per queued admission.
+// admissionGate is the RunTx mutex with Commit priority: sync.Mutex goes FIFO
+// after 1ms of starvation, which made Commit wait out every queued admission.
 type admissionGate struct {
 	mu sync.Mutex
 	// commit is non-nil from lockForCommit until its unlock, which closes the channel.
