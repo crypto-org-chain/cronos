@@ -140,7 +140,7 @@ Overridable fields: `config_patch`, `app_patch`, `num_accounts`, `num_txs`, `tx_
 ```json
 {
   "node_overrides": {
-    "0": { "app_patch": { "evm": { "block-executor": "sequential" } } },
+    "0": { "app_patch": { "block-executor": "sequential" } },
     "1": { "num_accounts": 20000, "num_txs": 10, "send_batch_size": 1000 }
   }
 }
@@ -171,9 +171,9 @@ These defaults are applied by the benchmark framework. Values in `config_patch` 
 | Key | Default | Description |
 | --- | ------- | ----------- |
 | `memiavl.enable` | `true` | In-memory IAVL for faster state access |
-| `evm.block-executor` | `block-stm` | Parallel tx execution (`sequential` to disable) |
-| `evm.block-stm-workers` | `0` | Worker count (0 = auto-detect CPUs) |
-| `evm.block-stm-pre-estimate` | `true` | Pre-estimate write sets to reduce conflicts |
+| `block-executor` | `block-stm` | Parallel tx execution (`sequential` to disable) |
+| `block-stm-workers` | `0` | Worker count (0 = auto-detect CPUs) |
+| `block-stm-pre-estimate` | `true` | Pre-estimate write sets to reduce conflicts |
 | `mempool.max-txs` | `10000` | App-side mempool limit |
 | `telemetry.enabled` | `true` | Enable Cosmos SDK telemetry |
 | `telemetry.prometheus-retention-time` | `600` | Prometheus metric retention (seconds) |

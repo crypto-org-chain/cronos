@@ -2,6 +2,18 @@
 
 ## UNRELEASED
 
+### Client Breaking
+
+* [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.
+
+### Bug fixes
+
+* [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): fix flaky tx waits, expedited gov voting and EIP-7702 integration tests.
+
+*Sept 23, 2026*
+
+## v1.8.0
+
 ### Improvements
 
 * [#2156](https://github.com/crypto-org-chain/cronos/pull/2156) feat(mempool): cache PendingTxs for mempool rpc calls.
