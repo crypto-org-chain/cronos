@@ -525,7 +525,8 @@ func New(
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 	}
-	// Only meaningful for mempool.type=app, so parsed (and invalid values rejected) only then.
+	// recheckEnabled mirrors CometBFT's mempool.recheck (default true). Both flags
+	// only matter for mempool.type=app, so they are parsed (and rejected) only then.
 	recheckEnabled := true
 	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
 	if mempoolType == cronosmempool.TypeApp {

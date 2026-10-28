@@ -40,8 +40,9 @@ mempool-tx-ttl-enabled = {{ .Cronos.MempoolTxTTLEnabled }}
 mempool-pending-tx-cache-enabled = {{ .Cronos.MempoolPendingTxCacheEnabled }}
 
 # Caps RPC txs (CheckTx, eth_sendRawTransaction) being admitted at once for
-# mempool.type=app. Excess get a retryable error instead of queuing. Peer
-# gossip is not counted. 0 = unlimited. Default 8192.
+# mempool.type=app. Excess are rejected with a retryable error instead of
+# queuing; broadcast_tx_async callers never see it. Peer gossip is not
+# counted. 0 = unlimited. Default 8192.
 mempool-rpc-max-inflight = {{ .Cronos.MempoolRPCMaxInflight }}
 `
 

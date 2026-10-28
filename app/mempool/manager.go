@@ -30,6 +30,14 @@ const (
 	rpcTxLimitFullLog = "too many in-flight RPC txs"
 )
 
+// admitSource decides whether an admission counts against rpcTxLimit.
+type admitSource int
+
+const (
+	fromGossip admitSource = iota
+	fromRPC
+)
+
 // Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
 	// gate guards BaseApp.checkState, replacing the mempool lock BaseApp relies on
@@ -172,14 +180,14 @@ func (a *Manager) RPCMaxInflight() int {
 	return int(a.rpcTxLimit.max.Load())
 }
 
-// tryAcquireRPCSlot takes an RPC admission slot, counting a shed when none is
-// free. Release only after a true result.
-func (a *Manager) tryAcquireRPCSlot() bool {
-	if a.rpcTxLimit.tryAcquire() {
-		return true
+// acquireRPCSlot takes an RPC admission slot and returns its release; when none
+// is free it counts a shed and returns ok=false.
+func (a *Manager) acquireRPCSlot() (release func(), ok bool) {
+	if !a.rpcTxLimit.tryAcquire() {
+		telemetry.IncrCounter(1, "cronos", "mempool", "rpc", "shed")
+		return nil, false
 	}
-	telemetry.IncrCounter(1, "cronos", "mempool", "rpc", "shed")
-	return false
+	return a.rpcTxLimit.release, true
 }
 
 // SetPreVerify sets the pre-verification hook.
@@ -197,14 +205,14 @@ func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
 // admitting them.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		code, _, _ := a.admit(req.Tx, false)
+		code, _, _ := a.admit(req.Tx, fromGossip)
 		return &abci.ResponseInsertTx{Code: code}, nil
 	}
 }
 
 // InsertTx is the direct RPC insert; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, log := a.admit(txBytes, true)
+	code, codespace, log := a.admit(txBytes, fromRPC)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 
@@ -234,12 +242,13 @@ func (a *Manager) RecheckDisabled() bool {
 // the mutex), then RunTx(ExecModeCheck) + cacheTx under it. Over-capacity and,
 // for RPC txs, a full rpcTxLimit map to CodeTypeRetry. tx stays nil when
 // encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
-func (a *Manager) admit(txBytes []byte, fromRPC bool) (code uint32, codespace, log string) {
-	if fromRPC {
-		if !a.tryAcquireRPCSlot() {
+func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, log string) {
+	if source == fromRPC {
+		release, ok := a.acquireRPCSlot()
+		if !ok {
 			return abci.CodeTypeRetry, "", rpcTxLimitFullLog
 		}
-		defer a.rpcTxLimit.release()
+		defer release()
 	}
 
 	if a.preVerify != nil {
@@ -291,10 +300,11 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 // CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-		if !a.tryAcquireRPCSlot() {
+		release, ok := a.acquireRPCSlot()
+		if !ok {
 			return &abci.ResponseCheckTx{Code: abci.CodeTypeRetry, Log: rpcTxLimitFullLog}, nil
 		}
-		defer a.rpcTxLimit.release()
+		defer release()
 
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring the mutex.
