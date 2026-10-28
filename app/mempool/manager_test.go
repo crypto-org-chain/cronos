@@ -27,13 +27,17 @@ import (
 // receiver is needed. The id field gives it non-zero size so distinct
 // allocations get distinct addresses (zero-size structs share runtime.zerobase).
 type ptrTx struct {
-	id      int
-	timeout uint64 // GetTimeoutHeight; 0 = no timeout
+	id        int
+	timeout   uint64    // GetTimeoutHeight; 0 = no timeout
+	unordered bool      // GetUnordered; implements sdk.TxWithUnordered
+	timeoutTS time.Time // GetTimeoutTimeStamp; ChooseNonce keys unordered txs by this
 }
 
 func (*ptrTx) GetMsgs() []sdk.Msg                    { return nil }
 func (*ptrTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 func (t *ptrTx) GetTimeoutHeight() uint64            { return t.timeout }
+func (t *ptrTx) GetTimeoutTimeStamp() time.Time      { return t.timeoutTS }
+func (t *ptrTx) GetUnordered() bool                  { return t.unordered }
 
 // noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
 var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }
@@ -295,7 +299,7 @@ func TestCheckTxHandler_MapsSuccess(t *testing.T) {
 func TestCheckTxHandler_InvalidatesPendingCache(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
 	check := a.CheckTxHandler()
-	before := a.pendingTxCache.epoch.Load()
+	before := a.exec.pending.epoch.Load()
 
 	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
@@ -307,7 +311,7 @@ func TestCheckTxHandler_InvalidatesPendingCache(t *testing.T) {
 	if resp.Code != abci.CodeTypeOK {
 		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
 	}
-	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
+	if got := a.exec.pending.epoch.Load(); got != before+1 {
 		t.Fatalf("CheckTxHandler must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
 	}
 }
@@ -386,7 +390,7 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 	check := a.CheckTxHandler()
 
 	// CheckTx's runTx closure mirrors BaseApp: it drives the same lock-free
-	// runner/state that InsertTx writes through a.runner.
+	// runner/state that InsertTx writes through a.exec.runner.
 	runTx := func(txBytes []byte, _ sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 		return runner.RunTx(sdk.ExecModeCheck, txBytes, nil, -1, nil, nil)
 	}
@@ -518,12 +522,12 @@ func TestManagerInsertTx_RetryOnWrappedMempoolFull(t *testing.T) {
 
 func TestManagerInsertTx_InvalidatesPendingCache(t *testing.T) {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	before := a.pendingTxCache.epoch.Load()
+	before := a.exec.pending.epoch.Load()
 
 	if resp, _ := a.InsertTx([]byte("tx")); resp.Code != abci.CodeTypeOK {
 		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
 	}
-	if got := a.pendingTxCache.epoch.Load(); got != before+1 {
+	if got := a.exec.pending.epoch.Load(); got != before+1 {
 		t.Fatalf("admit must invalidate the pending cache without waiting for a block boundary; epoch %d -> %d", before, got)
 	}
 }
@@ -567,7 +571,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 
 // TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
 // gossip InsertTxHandler run the same admission body under one mutex: both drive
-// the lock-free raceRunner concurrently, which -race flags if a path skips a.mu.
+// the lock-free raceRunner concurrently, which -race flags if a path skips the admission mutex.
 func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
 	a := newManager(runner, nil, noopEncoder, nil)
@@ -633,7 +637,7 @@ func TestManagerPendingTxs(t *testing.T) {
 	}
 
 	tx1, tx2 := &ptrTx{}, &ptrTx{}
-	a.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{tx1, tx2}}
 
 	got := a.PendingTxs()
 	if len(got) != 2 || got[0] != tx1 || got[1] != tx2 {
@@ -643,8 +647,8 @@ func TestManagerPendingTxs(t *testing.T) {
 
 func newCachedManager(enabled bool, pool *fakePool) *Manager {
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.pendingTxCache.enabled = enabled
-	a.mpool = pool
+	a.exec.pending.enabled = enabled
+	a.sched.mpool = pool
 	return a
 }
 
@@ -653,7 +657,7 @@ func TestManagerPendingTxsCache(t *testing.T) {
 
 	t.Run("nil mpool ignores cache", func(t *testing.T) {
 		a := newCachedManager(true, nil)
-		a.mpool = nil
+		a.sched.mpool = nil
 		if got := a.PendingTxs(); got != nil {
 			t.Fatalf("nil mpool must report no pending txs regardless of cache, got %d", len(got))
 		}
@@ -702,7 +706,7 @@ func TestManagerPendingTxsCache(t *testing.T) {
 	t.Run("invalidation during load is not swallowed", func(t *testing.T) {
 		pool := &hookPool{fakePool: fakePool{txs: []sdk.Tx{tx1}}}
 		a := newCachedManager(true, nil)
-		a.mpool = pool
+		a.sched.mpool = pool
 		// A block committing while the walk is in flight: the snapshot it produces
 		// already predates the invalidation.
 		pool.onScan = func() { a.StageRecheckSenders(1, nil) }
@@ -734,7 +738,7 @@ func TestManagerPendingTxsSingleFlight(t *testing.T) {
 	var loads atomic.Int64
 	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}, &ptrTx{id: 2}}}, scans: &loads}
 	a := newCachedManager(true, nil)
-	a.mpool = pool
+	a.sched.mpool = pool
 
 	const goroutines = 16
 	var wg sync.WaitGroup
@@ -817,7 +821,7 @@ func TestManagerCountTx(t *testing.T) {
 		t.Fatalf("nil mpool must report 0, got %d", got)
 	}
 
-	a.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{&ptrTx{}, &ptrTx{}, &ptrTx{}}}
 	if got := a.CountTx(); got != 3 {
 		t.Fatalf("want 3, got %d", got)
 	}
