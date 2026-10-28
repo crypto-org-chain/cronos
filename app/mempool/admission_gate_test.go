@@ -179,6 +179,7 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 			f := newGateFixture(tc.rpcMaxInflight)
 			occupied := f.startAdmits(tc.occupyPath, tc.occupied)
 			s.waitRPCInflight(f, tc.occupied)
+			s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
 			callsBefore := f.runner.calls.Load()
 
 			probe := make(chan uint32, 1)
@@ -193,6 +194,13 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 				}
 				s.Equal(callsBefore, f.runner.calls.Load(), "shed tx must not reach RunTx")
 				s.Equal(int64(tc.occupied), f.a.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
+			} else {
+				// A shed returns at once; an admitted probe waits behind the blocked RunTx.
+				select {
+				case code := <-probe:
+					s.FailNow("probe returned while slots were full", "code %d", code)
+				case <-time.After(50 * time.Millisecond):
+				}
 			}
 
 			close(f.release)

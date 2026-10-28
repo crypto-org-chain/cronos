@@ -167,6 +167,7 @@ func (a *Manager) SetRPCMaxInflight(n int) {
 	a.rpcTxLimit.max.Store(int64(n))
 }
 
+// RPCMaxInflight returns the RPC admission cap; 0 = unlimited.
 func (a *Manager) RPCMaxInflight() int {
 	return int(a.rpcTxLimit.max.Load())
 }
