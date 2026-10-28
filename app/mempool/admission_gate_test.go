@@ -35,6 +35,8 @@ type gateFixture struct {
 	a       *Manager
 	runner  *stubRunner
 	release chan struct{}
+	// admitted counts calls into admit; gossip has no RPC slot to observe instead.
+	admitted atomic.Int64
 }
 
 func newGateFixture(rpcMaxInflight int) *gateFixture {
@@ -46,6 +48,10 @@ func newGateFixture(rpcMaxInflight int) *gateFixture {
 	}}
 	f.a = newManager(f.runner, nil, noopEncoder, nil)
 	f.a.SetRPCMaxInflight(rpcMaxInflight)
+	f.a.SetPreVerify(func([]byte) error {
+		f.admitted.Add(1)
+		return nil
+	})
 	return f
 }
 
@@ -87,6 +93,15 @@ func (f *gateFixture) startAdmits(path string, n int) <-chan uint32 {
 
 func (s *AdmissionGateTestSuite) waitRPCInflight(f *gateFixture, n int) {
 	s.Require().Eventually(func() bool { return f.a.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
+}
+
+// waitStarted waits until n admissions via path are past their entry checks.
+func (s *AdmissionGateTestSuite) waitStarted(f *gateFixture, path string, n int) {
+	if path == pathCheckTx {
+		s.waitRPCInflight(f, n)
+		return
+	}
+	s.Require().Eventually(func() bool { return f.admitted.Load() == int64(n) }, gateWait, time.Millisecond)
 }
 
 func (s *AdmissionGateTestSuite) collect(codes <-chan uint32, n int) []uint32 {
@@ -234,6 +249,7 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 		name string
 		path string
 	}{
+		{"gossip yields to Commit", pathGossip},
 		{"rpc insert yields to Commit", pathRPCInsert},
 		{"checktx yields to Commit", pathCheckTx},
 	}
@@ -243,7 +259,7 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 			f := newGateFixture(0)
 			// One admission inside RunTx, the rest queued behind it on the mutex.
 			codes := f.startAdmits(tc.path, queued+1)
-			s.waitRPCInflight(f, queued+1)
+			s.waitStarted(f, tc.path, queued+1)
 			s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
 
 			acquired := make(chan int64, 1)

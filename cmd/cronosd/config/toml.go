@@ -39,7 +39,7 @@ mempool-tx-ttl-enabled = {{ .Cronos.MempoolTxTTLEnabled }}
 # block completion. Default true. false always walks the pool.
 mempool-pending-tx-cache-enabled = {{ .Cronos.MempoolPendingTxCacheEnabled }}
 
-# Caps RPC txs (CheckTx, eth_sendRawTransaction) being admitted at once for
+# Caps RPC txs (broadcast_tx_*, check_tx, eth_send*) being admitted at once for
 # mempool.type=app. Excess are rejected with a retryable error instead of
 # queuing; broadcast_tx_async callers never see it. Peer gossip is not
 # counted. 0 = unlimited. Default 8192.
