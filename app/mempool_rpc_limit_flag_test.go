@@ -12,6 +12,7 @@ import (
 	"cosmossdk.io/log/v2"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 )
 
 type RPCMaxInflightFlagTestSuite struct {
@@ -23,29 +24,31 @@ func TestRPCMaxInflightFlagTestSuite(t *testing.T) {
 }
 
 func (s *RPCMaxInflightFlagTestSuite) TestParseAndWire() {
+	setFlag := func(v any) func(simtestutil.AppOptionsMap) {
+		return func(opts simtestutil.AppOptionsMap) { opts[FlagMempoolRPCMaxInflight] = v }
+	}
 	testCases := []struct {
 		name      string
-		value     any // nil leaves the flag unset
+		malleate  func(opts simtestutil.AppOptionsMap)
 		want      int
 		wantPanic bool
 	}{
-		{"unset uses default", nil, cmdcfg.DefaultMempoolRPCMaxInflight, false},
-		{"string integer", "100", 100, false},
-		{"zero disables the cap", 0, 0, false},
-		{"negative", -1, 0, true},
-		{"bool", true, 0, true},
-		{"float", 8192.9, 0, true},
-		{"fractional string", "8192.9", 0, true},
-		{"unparseable string", "abc", 0, true},
+		{"unset uses default", func(simtestutil.AppOptionsMap) {}, cmdcfg.DefaultMempoolRPCMaxInflight, false},
+		{"string integer", setFlag("100"), 100, false},
+		{"toml int64", setFlag(int64(100)), 100, false},
+		{"zero disables the cap", setFlag(0), 0, false},
+		{"negative", setFlag(-1), 0, true},
+		{"bool", setFlag(true), 0, true},
+		{"float", setFlag(8192.9), 0, true},
+		{"fractional string", setFlag("8192.9"), 0, true},
+		{"unparseable string", setFlag("abc"), 0, true},
 	}
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			opts := baseTestAppOpts(0)
 			opts[FlagMempoolType] = cronosmempool.TypeApp
-			if tc.value != nil {
-				opts[FlagMempoolRPCMaxInflight] = tc.value
-			}
+			tc.malleate(opts)
 			newApp := func() *App {
 				return New(log.NewNopLogger(), dbm.NewMemDB(), true, opts, baseapp.SetChainID(TestAppChainID))
 			}

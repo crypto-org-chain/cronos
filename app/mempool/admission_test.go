@@ -329,6 +329,8 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 		t.Fatal("App.Commit ran while the admission gate was held")
 	case <-time.After(50 * time.Millisecond):
 	}
+	// Catches a Commit that runs BaseApp.Commit first and only then blocks on the gate.
+	require.Equal(t, int64(1), f.app.LastBlockHeight(), "BaseApp.Commit ran before the gate was released")
 	unlock()
 	select {
 	case err := <-committed:
@@ -336,6 +338,7 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("App.Commit did not finish after the gate was released")
 	}
+	require.Equal(t, int64(2), f.app.LastBlockHeight())
 }
 
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
