@@ -36,6 +36,7 @@ func recoveredPanic(logger log.Logger, path string, r any) error {
 	return errorsmod.Wrap(sdkerrors.ErrPanic, fmt.Sprint(r))
 }
 
+// shouldLogStack lets one caller per stackLogInterval log a stack for path; CAS losers get false.
 func shouldLogStack(path string, now int64) bool {
 	v, _ := lastStackLog.LoadOrStore(path, new(atomic.Int64))
 	last, ok := v.(*atomic.Int64)

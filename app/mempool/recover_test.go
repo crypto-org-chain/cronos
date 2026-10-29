@@ -3,6 +3,8 @@ package mempool
 import (
 	"context"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -241,12 +243,38 @@ func reapedStrings(resp *abci.ResponseReapTxs) []string {
 	return out
 }
 
+// freshStackPath clears path's rate-limit state, which outlives a single test run.
+func freshStackPath(path string) string {
+	lastStackLog.Delete(path)
+	return path
+}
+
 func (s *RecoverTestSuite) TestStackLogIsRateLimitedPerPath() {
 	start := time.Now().UnixNano()
-	path, other := s.T().Name()+"/a", s.T().Name()+"/b"
+	path, other := freshStackPath(s.T().Name()+"/a"), freshStackPath(s.T().Name()+"/b")
 
 	s.Require().True(shouldLogStack(path, start), "first panic on a path logs its stack")
 	s.Require().False(shouldLogStack(path, start+int64(time.Second)), "a repeat within the interval doesn't")
 	s.Require().True(shouldLogStack(other, start+int64(time.Second)), "paths are limited independently")
 	s.Require().True(shouldLogStack(path, start+int64(stackLogInterval)), "the interval re-arms the stack")
+}
+
+func (s *RecoverTestSuite) TestStackLogConcurrentPanicsLogOnce() {
+	const callers = 64
+	path, now := freshStackPath(s.T().Name()), time.Now().UnixNano()
+	var logged atomic.Int64
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for range callers {
+		wg.Go(func() {
+			<-start
+			if shouldLogStack(path, now) {
+				logged.Add(1)
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	s.Require().Equal(int64(1), logged.Load(), "only the CAS winner logs the stack")
 }
