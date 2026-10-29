@@ -10,6 +10,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
@@ -35,6 +36,7 @@ type Manager struct {
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	trace     bool
+	logger    log.Logger
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
@@ -75,6 +77,7 @@ type Manager struct {
 func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
+	a.logger = app.Logger().With("module", "app-mempool")
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
@@ -105,6 +108,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 		encCache:  encCache,
 		txEncoder: txEncoder,
 		decoder:   decoder,
+		logger:    log.NewNopLogger(),
 	}
 }
 
@@ -208,6 +212,12 @@ func (a *Manager) RecheckDisabled() bool {
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
 // sdk.Tx (uses txBytes).
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
+	defer func() {
+		if r := recover(); r != nil {
+			codespace, code, log = errorsmod.ABCIInfo(recoveredPanic(a.logger, "admit", r), false)
+		}
+	}()
+
 	if a.preVerify != nil {
 		if err := a.preVerify(txBytes); err != nil {
 			cs, c, l := errorsmod.ABCIInfo(err, false)
@@ -256,7 +266,13 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 
 // CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
-	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (resp *abci.ResponseCheckTx, _ error) {
+		defer func() {
+			if r := recover(); r != nil {
+				resp = sdkerrors.ResponseCheckTxWithEvents(recoveredPanic(a.logger, "check_tx", r), 0, 0, nil, a.trace)
+			}
+		}()
+
 		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring mu.
 		var tx sdk.Tx

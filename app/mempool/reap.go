@@ -21,7 +21,14 @@ const TypeApp = "app"
 // leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl)
-	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
+	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				// Txs marked gossiped before the panic wait out the gossip TTL.
+				resp, err = &abci.ResponseReapTxs{}, recoveredPanic(logger, "reap", r)
+			}
+		}()
+
 		snapshot := PoolSnapshot(context.Background(), mpool)
 
 		now := time.Now().UnixNano()
