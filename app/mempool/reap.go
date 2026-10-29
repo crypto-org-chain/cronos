@@ -23,11 +23,14 @@ const TypeApp = "app"
 // leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl)
-	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, err error) {
+	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, _ error) {
+		var txs [][]byte
 		defer func() {
 			if r := recover(); r != nil {
-				// Catches the pool scan and per-tx code outside encodeForReap; this reap is discarded.
-				resp, err = &abci.ResponseReapTxs{}, recoveredPanic(logger, "reap", r)
+				// Return what was collected: those txs are already marked gossiped, and
+				// CometBFT drops the response when an error comes with it.
+				logRecoveredPanic(logger, "reap", r)
+				resp = &abci.ResponseReapTxs{Txs: txs}
 			}
 		}()
 
@@ -35,15 +38,15 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 
 		now := time.Now().UnixNano()
 		var (
-			txs        = make([][]byte, 0, len(snapshot))
 			totalBytes uint64
 			totalGas   uint64
 			cacheHits  float32
 			cacheMiss  float32
 			deduped    float32
 		)
+		txs = make([][]byte, 0, len(snapshot))
 		for _, tx := range snapshot {
-			bz, hash, hit, err := encodeForReap(encCache, txEncoder, tx, logger)
+			bz, hash, gas, hit, err := prepareForReap(encCache, txEncoder, tx, logger)
 			if hit {
 				cacheHits++
 			} else {
@@ -59,11 +62,6 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if req.MaxBytes > 0 && totalBytes+size > req.MaxBytes {
 				break
 			}
-			var gas uint64
-			if feeTx, ok := tx.(sdk.FeeTx); ok {
-				gas = feeTx.GetGas()
-			}
-
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
@@ -95,9 +93,9 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	}
 }
 
-// encodeForReap turns a panic into an error so one bad tx is skipped instead of
+// prepareForReap turns a panic into an error so one bad tx is skipped instead of
 // stalling gossip for the whole pool.
-func encodeForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, hit bool, err error) {
+func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			bz, err = nil, recoveredPanic(logger, "reap", r)
@@ -105,7 +103,10 @@ func encodeForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, l
 	}()
 	bz, hit, err = EncodeTx(encCache, txEncoder, tx)
 	if err != nil {
-		return nil, hash, hit, err
+		return nil, hash, 0, hit, err
 	}
-	return bz, encCache.HashTx(tx, bz), hit, nil
+	if feeTx, ok := tx.(sdk.FeeTx); ok {
+		gas = feeTx.GetGas()
+	}
+	return bz, encCache.HashTx(tx, bz), gas, hit, nil
 }

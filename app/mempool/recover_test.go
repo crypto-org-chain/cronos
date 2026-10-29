@@ -11,6 +11,7 @@ import (
 
 	"cosmossdk.io/log/v2"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -44,6 +45,29 @@ func withDecodeCache(m *Manager, decoder sdk.TxDecoder, encoder sdk.TxEncoder) {
 
 func decodePtrTx([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
+// storingPool keeps inserted txs so admitted cases can check the tx stays pooled.
+type storingPool struct{ fakePool }
+
+func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
+	p.txs = append(p.txs, tx)
+	return nil
+}
+
+// insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck) does on success.
+type insertingRunner struct{ pool sdkmempool.Mempool }
+
+func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
+}
+
+// withAdmittingPool makes admission pool the tx, then panics in cacheTx.
+func withAdmittingPool(m *Manager) {
+	pool := &storingPool{}
+	m.mpool = pool
+	m.runner = insertingRunner{pool: pool}
+	withDecodeCache(m, decodePtrTx, func(sdk.Tx) ([]byte, error) { panicking("encode"); return nil, nil })
+}
+
 func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 	insertViaPeer := func(m *Manager) (uint32, error) {
 		resp, err := m.InsertTxHandler()(&abci.RequestInsertTx{Tx: []byte("tx")})
@@ -60,14 +84,20 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		}
 	}
 
-	panickingEncoder := func(sdk.Tx) ([]byte, error) { panicking("encode"); return nil, nil }
+	// checkPooling runs CheckTx with a runTx that pools the tx like BaseApp does.
+	checkPooling := func(m *Manager) (uint32, error) {
+		runTx := func(_ []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+			return sdk.GasInfo{}, &sdk.Result{}, nil, m.mpool.Insert(context.Background(), tx)
+		}
+		return checkWith(runTx)(m)
+	}
 
 	testCases := []struct {
 		name     string
 		malleate func(m *Manager)
 		call     func(m *Manager) (uint32, error)
-		// admitted cases panic after RunTx pooled the tx: the response must stay OK
-		// and the pending cache must still see the tx.
+		// admitted cases panic after RunTx pooled the tx: the response must stay OK,
+		// the pool must still hold the tx and the pending cache must be invalidated.
 		admitted bool
 	}{
 		{
@@ -86,13 +116,13 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		},
 		{
 			name:     "RPC InsertTx, panic in cacheTx after the tx was admitted",
-			malleate: func(m *Manager) { withDecodeCache(m, decodePtrTx, panickingEncoder) },
+			malleate: withAdmittingPool,
 			call:     insertViaRPC,
 			admitted: true,
 		},
 		{
 			name:     "peer InsertTx, panic in cacheTx after the tx was admitted",
-			malleate: func(m *Manager) { withDecodeCache(m, decodePtrTx, panickingEncoder) },
+			malleate: withAdmittingPool,
 			call:     insertViaPeer,
 			admitted: true,
 		},
@@ -110,8 +140,8 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		},
 		{
 			name:     "CheckTx, panic in cacheTx after runTx succeeded",
-			malleate: func(m *Manager) { withDecodeCache(m, decodePtrTx, panickingEncoder) },
-			call:     checkWith(okRunTx),
+			malleate: withAdmittingPool,
+			call:     checkPooling,
 			admitted: true,
 		},
 	}
@@ -128,6 +158,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			if tc.admitted {
 				s.Require().Equal(abci.CodeTypeOK, code)
 				s.Require().Equal(epoch+1, m.pendingTxCache.epoch.Load(), "pending cache must be invalidated for a pooled tx")
+				s.Require().Len(m.PendingTxs(), 1, "the admitted tx must stay in the pool")
 			} else {
 				s.Require().Equal(sdkerrors.ErrPanic.ABCICode(), code)
 			}
@@ -142,33 +173,51 @@ type panickingPool struct{ fakePool }
 
 func (*panickingPool) SelectBy(context.Context, [][]byte, func(sdk.Tx) bool) { panicking("scan") }
 
+// panicGasTx is a FeeTx whose GetGas panics, reached after the earlier txs are marked gossiped.
+type panicGasTx struct{ ptrTx }
+
+func (*panicGasTx) GetGas() uint64     { panicking("GetGas"); return 0 }
+func (*panicGasTx) GetFee() sdk.Coins  { return nil }
+func (*panicGasTx) FeePayer() []byte   { return nil }
+func (*panicGasTx) FeeGranter() []byte { return nil }
+
 func (s *RecoverTestSuite) TestReapRecoversPanics() {
-	good1, poison, good2 := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
+	good1, encPoison, gasPoison, good2 := &ptrTx{id: 1}, &ptrTx{id: 2}, &panicGasTx{ptrTx{id: 4}}, &ptrTx{id: 3}
 	encodeByID := func(tx sdk.Tx) ([]byte, error) {
-		if tx == poison {
-			panicking("encode")
+		switch tx := tx.(type) {
+		case *panicGasTx:
+			return []byte(strconv.Itoa(tx.id)), nil
+		case *ptrTx:
+			if tx == encPoison {
+				panicking("encode")
+			}
+			return []byte(strconv.Itoa(tx.id)), nil
 		}
-		return []byte(strconv.Itoa(tx.(*ptrTx).id)), nil
+		return nil, nil
 	}
 
 	testCases := []struct {
 		name    string
 		pool    sdkmempool.Mempool
 		expTxs  []string
-		expErr  error
 		expNext []string // txs reaped by a second call on the same handler
 	}{
 		{
-			name:    "poison tx is skipped and the rest are gossiped",
-			pool:    &fakePool{txs: []sdk.Tx{good1, poison, good2}},
+			name:    "tx whose encode panics is skipped and the rest are gossiped",
+			pool:    &fakePool{txs: []sdk.Tx{good1, encPoison, good2}},
 			expTxs:  []string{"1", "3"},
 			expNext: []string{},
 		},
 		{
-			name:    "panic in the pool scan returns an empty reap and the error",
+			name:    "tx whose GetGas panics after earlier txs were marked is skipped",
+			pool:    &fakePool{txs: []sdk.Tx{good1, gasPoison, good2}},
+			expTxs:  []string{"1", "3"},
+			expNext: []string{},
+		},
+		{
+			name:    "panic in the pool scan returns an empty reap",
 			pool:    &panickingPool{},
 			expTxs:  []string{},
-			expErr:  sdkerrors.ErrPanic,
 			expNext: []string{},
 		},
 	}
@@ -178,20 +227,12 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			reap := NewReapTxsHandler(tc.pool, encodeByID, nil, time.Minute, 0, log.NewNopLogger())
 
 			resp, err := reap(&abci.RequestReapTxs{})
-			if tc.expErr != nil {
-				s.Require().ErrorIs(err, tc.expErr)
-			} else {
-				s.Require().NoError(err)
-			}
+			s.Require().NoError(err, "CometBFT drops the response when an error comes with it")
 			s.Require().Equal(tc.expTxs, reapedStrings(resp))
 
-			// Gossiped txs are deduped and the poison tx keeps being skipped without failing the reap.
+			// Gossiped txs are deduped and poison txs keep being skipped without failing the reap.
 			resp, err = reap(&abci.RequestReapTxs{})
-			if tc.expErr != nil {
-				s.Require().ErrorIs(err, tc.expErr)
-			} else {
-				s.Require().NoError(err)
-			}
+			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))
 		})
 	}
