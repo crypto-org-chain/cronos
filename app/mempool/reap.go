@@ -20,7 +20,7 @@ const TypeApp = "app"
 // NewReapTxsHandler scans the app mempool to gather txs to be gossiped to other peers,
 // stopping at MaxBytes/MaxGas (0 = no cap, per CometBFT convention). Prefix scan: breaks
 // at the first tx over a cap (not best-fit), so a large high-priority tx may
-// leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
+// leave budget unused. Encode errors and per-tx panics skip the tx; encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl)
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, _ error) {
@@ -93,8 +93,8 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	}
 }
 
-// prepareForReap turns a panic into an error so one bad tx is skipped instead of
-// stalling gossip for the whole pool.
+// prepareForReap encodes a tx and reads its gas and hash, turning a panic in any
+// of them into an error so one bad tx is skipped instead of stalling gossip for the pool.
 func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
