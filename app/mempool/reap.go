@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -24,7 +26,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				// Per-tx panics are skipped below; this only catches the pool scan and tracker.
+				// Catches the pool scan and per-tx code outside encodeForReap; this reap is discarded.
 				resp, err = &abci.ResponseReapTxs{}, recoveredPanic(logger, "reap", r)
 			}
 		}()
@@ -48,7 +50,9 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 				cacheMiss++
 			}
 			if err != nil {
-				logger.Error("reap encode failed; skipping tx", "err", err)
+				if !errors.Is(err, sdkerrors.ErrPanic) { // a recovered panic is already logged
+					logger.Error("reap encode failed; skipping tx", "err", err)
+				}
 				continue
 			}
 			size := uint64(ProtoSizeForTx(bz))
