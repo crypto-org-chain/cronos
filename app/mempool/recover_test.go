@@ -261,20 +261,39 @@ func (s *RecoverTestSuite) TestStackLogIsRateLimitedPerPath() {
 
 func (s *RecoverTestSuite) TestStackLogConcurrentPanicsLogOnce() {
 	const callers = 64
-	path, now := freshStackPath(s.T().Name()), time.Now().UnixNano()
-	var logged atomic.Int64
-	var wg sync.WaitGroup
-	start := make(chan struct{})
-	for range callers {
-		wg.Go(func() {
-			<-start
-			if shouldLogStack(path, now) {
-				logged.Add(1)
+
+	testCases := []struct {
+		name     string
+		lastSeen func(now int64) int64 // 0 = no stack logged yet
+	}{
+		{name: "first panic on the path", lastSeen: func(int64) int64 { return 0 }},
+		{name: "last stack older than the interval", lastSeen: func(now int64) int64 { return now - int64(stackLogInterval) }},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			path, now := freshStackPath(s.T().Name()), time.Now().UnixNano()
+			if seen := tc.lastSeen(now); seen != 0 {
+				last := new(atomic.Int64)
+				last.Store(seen)
+				lastStackLog.Store(path, last)
 			}
+
+			var logged atomic.Int64
+			var wg sync.WaitGroup
+			start := make(chan struct{})
+			for range callers {
+				wg.Go(func() {
+					<-start
+					if shouldLogStack(path, now) {
+						logged.Add(1)
+					}
+				})
+			}
+			close(start)
+			wg.Wait()
+
+			s.Require().Equal(int64(1), logged.Load(), "only the CAS winner logs the stack")
 		})
 	}
-	close(start)
-	wg.Wait()
-
-	s.Require().Equal(int64(1), logged.Load(), "only the CAS winner logs the stack")
 }
