@@ -246,8 +246,8 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 		return c, cs, l
 	}
 
-	a.cacheTx(tx, txBytes)
 	a.pendingTxCache.invalidate()
+	a.cacheTx(tx, txBytes)
 	return abci.CodeTypeOK, "", ""
 }
 
@@ -257,6 +257,12 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	if a.encCache == nil {
 		return
 	}
+	// The tx is already pooled, so a failed cache fill must not report it as rejected.
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(a.logger, "cache_tx", r)
+		}
+	}()
 	bz := raw
 	if canonical, err := a.txEncoder(tx); err == nil {
 		bz = canonical
@@ -291,8 +297,8 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		a.cacheTx(tx, req.Tx)
 		a.pendingTxCache.invalidate()
+		a.cacheTx(tx, req.Tx)
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.

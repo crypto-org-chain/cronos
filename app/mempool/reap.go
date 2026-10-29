@@ -24,7 +24,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				// Txs marked gossiped before the panic wait out the gossip TTL.
+				// Per-tx panics are skipped below; this only catches the pool scan and tracker.
 				resp, err = &abci.ResponseReapTxs{}, recoveredPanic(logger, "reap", r)
 			}
 		}()
@@ -41,7 +41,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			deduped    float32
 		)
 		for _, tx := range snapshot {
-			bz, hit, err := EncodeTx(encCache, txEncoder, tx)
+			bz, hash, hit, err := encodeForReap(encCache, txEncoder, tx, logger)
 			if hit {
 				cacheHits++
 			} else {
@@ -63,7 +63,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
-			if !tracker.gossiped(encCache.HashTx(tx, bz), now) {
+			if !tracker.gossiped(hash, now) {
 				deduped++
 				continue
 			}
@@ -89,4 +89,19 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 		}
 		return &abci.ResponseReapTxs{Txs: txs}, nil
 	}
+}
+
+// encodeForReap turns a panic into an error so one bad tx is skipped instead of
+// stalling gossip for the whole pool.
+func encodeForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, hit bool, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			bz, err = nil, recoveredPanic(logger, "reap", r)
+		}
+	}()
+	bz, hit, err = EncodeTx(encCache, txEncoder, tx)
+	if err != nil {
+		return nil, hash, hit, err
+	}
+	return bz, encCache.HashTx(tx, bz), hit, nil
 }
