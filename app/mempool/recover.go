@@ -14,17 +14,13 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// stackLogInterval bounds full stack traces per path, so a panic an attacker
-// can repeat with crafted txs can't flood the log.
+// stackLogInterval caps stack traces per path so a repeatable panic can't flood the log.
 const stackLogInterval = time.Minute
 
-// lastStackLog maps a recovery path to the unix nanos of its last logged stack.
+// lastStackLog maps a path to the unix nanos of its last logged stack.
 var lastStackLog sync.Map
 
-// logRecoveredPanic logs and counts a panic recovered on an app-mempool path.
-// CometBFT's own recovers on these paths only log: a CheckTx panic leaves the
-// RPC caller waiting, a ReapTxs panic ends gossip until restart, and a peer
-// InsertTx panic drops the peer.
+// logRecoveredPanic records a panic that CometBFT would turn into a hung RPC, stopped gossip or dropped peer.
 func logRecoveredPanic(logger log.Logger, path string, r any) {
 	keyvals := []any{"path", path, "panic", r}
 	if shouldLogStack(path, time.Now().UnixNano()) {

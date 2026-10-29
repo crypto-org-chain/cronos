@@ -257,7 +257,7 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
 	if a.encCache == nil {
 		return
 	}
-	// The tx is already pooled, so a failed cache fill must not report it as rejected.
+	// The tx is already pooled; a failed cache fill must not reject it.
 	defer func() {
 		if r := recover(); r != nil {
 			logRecoveredPanic(a.logger, "cache_tx", r)

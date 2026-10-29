@@ -45,7 +45,6 @@ func withDecodeCache(m *Manager, decoder sdk.TxDecoder, encoder sdk.TxEncoder) {
 
 func decodePtrTx([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
-// storingPool keeps inserted txs so admitted cases can check the tx stays pooled.
 type storingPool struct{ fakePool }
 
 func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
@@ -53,7 +52,7 @@ func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
 	return nil
 }
 
-// insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck) does on success.
+// insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck).
 type insertingRunner struct{ pool sdkmempool.Mempool }
 
 func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -84,7 +83,6 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		}
 	}
 
-	// checkPooling runs CheckTx with a runTx that pools the tx like BaseApp does.
 	checkPooling := func(m *Manager) (uint32, error) {
 		runTx := func(_ []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 			return sdk.GasInfo{}, &sdk.Result{}, nil, m.mpool.Insert(context.Background(), tx)
@@ -96,9 +94,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		name     string
 		malleate func(m *Manager)
 		call     func(m *Manager) (uint32, error)
-		// admitted cases panic after RunTx pooled the tx: the response must stay OK,
-		// the pool must still hold the tx and the pending cache must be invalidated.
-		admitted bool
+		admitted bool // panics after RunTx pooled the tx, so the response stays OK
 	}{
 		{
 			name: "peer InsertTx, panic in preVerify before the admission mutex",
@@ -168,12 +164,11 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 	}
 }
 
-// panickingPool panics while the reap scans it.
 type panickingPool struct{ fakePool }
 
 func (*panickingPool) SelectBy(context.Context, [][]byte, func(sdk.Tx) bool) { panicking("scan") }
 
-// panicGasTx is a FeeTx whose GetGas panics, reached after the earlier txs are marked gossiped.
+// panicGasTx's GetGas runs after earlier txs are marked gossiped.
 type panicGasTx struct{ ptrTx }
 
 func (*panicGasTx) GetGas() uint64     { panicking("GetGas"); return 0 }
@@ -230,7 +225,7 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			s.Require().NoError(err, "CometBFT drops the response when an error comes with it")
 			s.Require().Equal(tc.expTxs, reapedStrings(resp))
 
-			// Gossiped txs are deduped and poison txs keep being skipped without failing the reap.
+			// Gossiped txs are deduped; poison txs stay skipped.
 			resp, err = reap(&abci.RequestReapTxs{})
 			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))

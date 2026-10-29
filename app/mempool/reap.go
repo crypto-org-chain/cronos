@@ -27,8 +27,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 		var txs [][]byte
 		defer func() {
 			if r := recover(); r != nil {
-				// Return what was collected: those txs are already marked gossiped, and
-				// CometBFT drops the response when an error comes with it.
+				// Collected txs are already marked gossiped; returning an error would make CometBFT drop them.
 				logRecoveredPanic(logger, "reap", r)
 				resp = &abci.ResponseReapTxs{Txs: txs}
 			}
@@ -93,8 +92,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	}
 }
 
-// prepareForReap encodes a tx and reads its gas and hash, turning a panic in any
-// of them into an error so one bad tx is skipped instead of stalling gossip for the pool.
+// prepareForReap recovers per tx so one bad tx can't stall gossip for the pool.
 func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
