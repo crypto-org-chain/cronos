@@ -801,7 +801,7 @@ func TestNewManagerWiresPendingCache(t *testing.T) {
 	pool := &countingPool{fakePool: fakePool{txs: []sdk.Tx{&ptrTx{id: 1}}}, scans: &scans}
 	app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
 
-	a := NewManager(app, nil, noopEncoder, pool, nil, nil, 0, 0, true, true)
+	a := NewManager(app, log.NewNopLogger(), nil, noopEncoder, pool, nil, nil, 0, 0, true, true)
 	defer a.Close()
 
 	a.PendingTxs()

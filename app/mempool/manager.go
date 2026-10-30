@@ -10,6 +10,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
@@ -35,6 +36,7 @@ type Manager struct {
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
 	trace     bool
+	logger    log.Logger
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
@@ -72,9 +74,10 @@ type Manager struct {
 }
 
 // NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
+func NewManager(app *baseapp.BaseApp, logger log.Logger, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
+	a.logger = logger
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
@@ -105,6 +108,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 		encCache:  encCache,
 		txEncoder: txEncoder,
 		decoder:   decoder,
+		logger:    log.NewNopLogger(),
 	}
 }
 
@@ -177,8 +181,8 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 
 // InsertTx returns the sync ABCI result; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, log := a.admit(txBytes)
-	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
+	code, codespace, rawLog := a.admit(txBytes)
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: rawLog}, nil
 }
 
 // PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
@@ -203,11 +207,17 @@ func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
 
-// admit is the shared admission path: preVerify + decode unlocked (bad txs skip
+// admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
 // mu), then RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
 // sdk.Tx (uses txBytes).
-func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
+func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) {
+	defer func() {
+		if r := recover(); r != nil {
+			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, panicPathAdmit, r, "tx", txHash(txBytes)), false)
+		}
+	}()
+
 	if a.preVerify != nil {
 		if err := a.preVerify(txBytes); err != nil {
 			cs, c, l := errorsmod.ABCIInfo(err, false)
@@ -215,20 +225,16 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 		}
 	}
 
-	var tx sdk.Tx
-	if a.encCache != nil {
-		var err error
-		if tx, err = a.decoder(txBytes); err != nil {
-			cs, c, l := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode.Wrap(err.Error()), false)
-			return c, cs, l
-		}
+	tx, canonical, err := a.decodeAndEncode(txBytes)
+	if err != nil {
+		cs, c, l := errorsmod.ABCIInfo(err, false)
+		return c, cs, l
 	}
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	_, _, _, err := a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil)
-	if err != nil {
+	if _, _, _, err = a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil); err != nil {
 		if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 			return abci.CodeTypeRetry, "", "mempool is full"
 		}
@@ -236,35 +242,49 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 		return c, cs, l
 	}
 
-	a.cacheTx(tx, txBytes)
+	a.cacheTx(tx, canonical)
 	a.pendingTxCache.invalidate()
 	return abci.CodeTypeOK, "", ""
 }
 
-// cacheTx registers the already-decoded tx under its canonical bytes (raw
-// req.Tx bytes on encode error). No-op without a cache.
-func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
+// Encode before RunTx so, with a cache, a tx whose encoding panics never reaches ante or the
+// pool; without one it returns nils. canonical falls back to raw on encode error.
+// Unlocked encode is safe: the SDK encoder only writes to a shared decoded tx whose body or
+// auth-info bytes are empty; direct RPC inserts never build those, and CometBFT's seen-cache dedups the rest.
+func (a *Manager) decodeAndEncode(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
 	if a.encCache == nil {
-		return
+		return nil, nil, nil
 	}
-	bz := raw
-	if canonical, err := a.txEncoder(tx); err == nil {
-		bz = canonical
+	if tx, err = a.decoder(raw); err != nil {
+		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
 	}
-	a.encCache.Set(tx, bz)
+	canonical = raw
+	if bz, encErr := a.txEncoder(tx); encErr == nil {
+		canonical = bz
+	}
+	return tx, canonical, nil
+}
+
+func (a *Manager) cacheTx(tx sdk.Tx, canonical []byte) {
+	if a.encCache != nil {
+		a.encCache.Set(tx, canonical)
+	}
 }
 
 // CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
-	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
-		// DecodeCache have their own locks. Bad txs return without acquiring mu.
-		var tx sdk.Tx
-		if a.encCache != nil {
-			var err error
-			if tx, err = a.decoder(req.Tx); err != nil {
-				return sdkerrors.ResponseCheckTxWithEvents(sdkerrors.ErrTxDecode.Wrap(err.Error()), 0, 0, nil, a.trace), nil
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (resp *abci.ResponseCheckTx, _ error) {
+		defer func() {
+			if r := recover(); r != nil {
+				resp = sdkerrors.ResponseCheckTxWithEvents(recoveredPanic(a.logger, panicPathCheckTx, r, "tx", txHash(req.Tx)), 0, 0, nil, a.trace)
 			}
+		}()
+
+		// Decode and encode before locking: proto work is CPU-intensive; decoder and
+		// DecodeCache have their own locks. Bad txs return without acquiring mu.
+		tx, canonical, err := a.decodeAndEncode(req.Tx)
+		if err != nil {
+			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}
 
 		a.mu.Lock()
@@ -275,7 +295,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		a.cacheTx(tx, req.Tx)
+		a.cacheTx(tx, canonical)
 		a.pendingTxCache.invalidate()
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
