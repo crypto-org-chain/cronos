@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, macos-14]
+        os: [ubuntu-latest, macos-latest, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -44,7 +44,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v9
         # magic-nix-cache v0.2.0 is archived/unmaintained and its arm64-darwin
-        # binary crashes on the macos-14 runner (missing libc++ symbol), which
+        # binary crashed on the arm64 macOS runner (missing libc++ symbol), which
         # hangs the step forever. Restrict it to Linux; macOS relies on cachix.
         if: runner.os == 'Linux' && steps.changed-files.outputs.any_changed == 'true'
       - name: Run build
