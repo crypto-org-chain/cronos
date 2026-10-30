@@ -2,7 +2,6 @@ package mempool
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -49,9 +48,6 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 				cacheMiss++
 			}
 			if err != nil {
-				if !errors.Is(err, errRecoveredPanic) { // a recovered panic is already logged
-					logger.Error("reap encode failed; skipping tx", "err", err)
-				}
 				continue
 			}
 			size := uint64(ProtoSizeForTx(bz))
@@ -98,6 +94,7 @@ func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, 
 	}()
 	bz, hit, err = EncodeTx(encCache, txEncoder, tx)
 	if err != nil {
+		logger.Error("reap encode failed; skipping tx", "err", err)
 		return nil, hash, 0, hit, err
 	}
 	if feeTx, ok := tx.(sdk.FeeTx); ok {

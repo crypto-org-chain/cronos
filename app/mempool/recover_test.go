@@ -10,6 +10,8 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/ethereum/go-ethereum/common"
+	antecache "github.com/evmos/ethermint/ante/cache"
 	"github.com/stretchr/testify/suite"
 
 	errorsmod "cosmossdk.io/errors"
@@ -17,6 +19,7 @@ import (
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -46,8 +49,6 @@ func withDecodeCache(m *Manager, decoder sdk.TxDecoder, encoder sdk.TxEncoder) {
 	m.txEncoder = encoder
 }
 
-func decodePtrTx([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
-
 type storingPool struct{ fakePool }
 
 func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
@@ -60,18 +61,26 @@ func (p *storingPool) Remove(tx sdk.Tx) error {
 	return nil
 }
 
-// insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck).
-type insertingRunner struct{ pool sdkmempool.Mempool }
+// insertingRunner caches the nonce and pools the tx like BaseApp.RunTx(ExecModeCheck).
+type insertingRunner struct {
+	pool sdkmempool.Mempool
+	ante *antecache.AnteCache
+}
 
 func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	if eth, ok := tx.(*ethTx); ok {
+		r.ante.Set(anteKey(eth))
+	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
 }
 
 func withPoolingThenEncodePanic(m *Manager) {
-	pool := &storingPool{}
+	pool, ante := &storingPool{}, antecache.NewAnteCache(0)
 	m.mpool = pool
-	m.runner = insertingRunner{pool: pool}
-	withDecodeCache(m, decodePtrTx, func(sdk.Tx) ([]byte, error) { panicking("encode"); return nil, nil })
+	m.runner = insertingRunner{pool: pool, ante: ante}
+	m.SetAnteCache(ante)
+	tx := newEthTx(common.Address{0x1}, 7)
+	withDecodeCache(m, func([]byte) (sdk.Tx, error) { return tx, nil }, func(sdk.Tx) ([]byte, error) { panicking("encode"); return nil, nil })
 }
 
 func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
@@ -91,8 +100,8 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 	}
 
 	checkPooling := func(m *Manager) (uint32, string, error) {
-		runTx := func(_ []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-			return sdk.GasInfo{}, &sdk.Result{}, nil, m.mpool.Insert(context.Background(), tx)
+		runTx := func(bz []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+			return m.runner.RunTx(sdk.ExecModeCheck, bz, tx, -1, nil, nil)
 		}
 		return checkWith(runTx)(m)
 	}
@@ -166,6 +175,10 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			if tc.pooled {
 				s.Require().Equal(epoch+1, m.pendingTxCache.epoch.Load(), "pending cache must be invalidated after the eviction")
 				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must be evicted")
+				tx, _ := m.decoder(nil)
+				eth, ok := tx.(*ethTx)
+				s.Require().True(ok)
+				s.Require().False(m.anteCache.Exists(anteKey(eth)), "eviction must clear the tx's ante-cache nonce")
 			}
 			s.Require().True(m.mu.TryLock(), "admission mutex must be released after a panic")
 			m.mu.Unlock()
@@ -187,13 +200,17 @@ func (*panicGasTx) FeeGranter() []byte { return nil }
 
 func (s *RecoverTestSuite) TestReapRecoversPanics() {
 	good1, encPoison, gasPoison, good2 := &ptrTx{id: 1}, &ptrTx{id: 2}, &panicGasTx{ptrTx{id: 4}}, &ptrTx{id: 3}
+	encFails := &ptrTx{id: 5}
 	encodeByID := func(tx sdk.Tx) ([]byte, error) {
 		switch tx := tx.(type) {
 		case *panicGasTx:
 			return []byte(strconv.Itoa(tx.id)), nil
 		case *ptrTx:
-			if tx == encPoison {
+			switch tx {
+			case encPoison:
 				panicking("encode")
+			case encFails:
+				return nil, sdkerrors.ErrInvalidRequest.Wrap("unencodable")
 			}
 			return []byte(strconv.Itoa(tx.id)), nil
 		}
@@ -209,6 +226,13 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 		{
 			name:    "tx whose encode panics is skipped and the rest are gossiped",
 			pool:    &fakePool{txs: []sdk.Tx{good1, encPoison, good2}},
+			expTxs:  []string{"1", "3"},
+			expNext: []string{},
+		},
+		{
+			// Same SDK code as errRecoveredPanic, so it must still be logged.
+			name:    "tx whose encode errors is logged and skipped",
+			pool:    &fakePool{txs: []sdk.Tx{good1, encFails, good2}},
 			expTxs:  []string{"1", "3"},
 			expNext: []string{},
 		},
@@ -239,7 +263,7 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			resp, err = reap(&abci.RequestReapTxs{})
 			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))
-			s.Require().Equal(int64(2), logger.errors.Load(), "each reap logs its one panic once")
+			s.Require().Equal(int64(2), logger.errors.Load(), "each reap logs its one bad tx once")
 		})
 	}
 }
