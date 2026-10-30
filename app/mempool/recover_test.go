@@ -112,6 +112,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		name     string
 		malleate func(m *Manager)
 		call     func(m *Manager) (uint32, string, error)
+		path     string
 		pooled   bool // RunTx pooled the tx before the panic, so it must be evicted
 	}{
 		{
@@ -120,6 +121,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 				m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
 			},
 			call: insertViaPeer,
+			path: panicPathAdmit,
 		},
 		{
 			name: "RPC InsertTx, panic in RunTx under the admission mutex",
@@ -127,17 +129,20 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 				m.runner = &stubRunner{runTx: func([]byte) error { panicking("RunTx"); return nil }}
 			},
 			call: insertViaRPC,
+			path: panicPathAdmit,
 		},
 		{
 			name:     "RPC InsertTx, panic in cacheTx after RunTx pooled the tx",
 			malleate: withPoolingThenEncodePanic,
 			call:     insertViaRPC,
+			path:     panicPathCacheTx,
 			pooled:   true,
 		},
 		{
 			name:     "peer InsertTx, panic in cacheTx after RunTx pooled the tx",
 			malleate: withPoolingThenEncodePanic,
 			call:     insertViaPeer,
+			path:     panicPathCacheTx,
 			pooled:   true,
 		},
 		{
@@ -146,16 +151,19 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking("decode"); return nil, nil }, noopEncoder)
 			},
 			call: checkWith(okRunTx),
+			path: panicPathCheckTx,
 		},
 		{
 			name:     "CheckTx, panic in runTx under the admission mutex",
 			malleate: func(*Manager) {},
 			call:     checkWith(panicRunTx),
+			path:     panicPathCheckTx,
 		},
 		{
 			name:     "CheckTx, panic in cacheTx after runTx pooled the tx",
 			malleate: withPoolingThenEncodePanic,
 			call:     checkPooling,
+			path:     panicPathCacheTx,
 			pooled:   true,
 		},
 	}
@@ -163,12 +171,17 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			m := newManager(&stubRunner{}, nil, noopEncoder, nil)
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			m.logger = logger
 			tc.malleate(m)
 			epoch := m.pendingTxCache.epoch.Load()
 
 			code, rawLog, err := tc.call(m)
 
 			s.Require().NoError(err, "a panic must surface as a response code, never a Go error")
+			s.Require().Len(logger.errors, 1, "a panic is logged once")
+			s.Require().Equal(tc.path, keyval(logger.errors[0], "path"))
+			s.Require().Equal(txHash([]byte("tx")), keyval(logger.errors[0], "tx"))
 			s.Require().Equal(panicCode, code)
 			s.Require().Less(code, abci.CodeTypeRetry, "CometBFT must not soon retry a panicking tx")
 			s.Require().NotContains(rawLog, "boom", "the panic value must not reach clients")
@@ -252,7 +265,7 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			logger := &errorCountingLogger{Logger: log.NewNopLogger()}
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
 			reap := NewReapTxsHandler(tc.pool, encodeByID, nil, time.Minute, 0, logger)
 
 			resp, err := reap(&abci.RequestReapTxs{})
@@ -263,17 +276,26 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			resp, err = reap(&abci.RequestReapTxs{})
 			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))
-			s.Require().Equal(int64(2), logger.errors.Load(), "each reap logs its one bad tx once")
+			s.Require().Len(logger.errors, 2, "each reap logs its one bad tx once")
 		})
 	}
 }
 
-type errorCountingLogger struct {
+type recordingLogger struct {
 	log.Logger
-	errors atomic.Int64
+	errors [][]any // keyvals of each Error call
 }
 
-func (l *errorCountingLogger) Error(string, ...any) { l.errors.Add(1) }
+func (l *recordingLogger) Error(_ string, keyvals ...any) { l.errors = append(l.errors, keyvals) }
+
+func keyval(keyvals []any, key string) any {
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		if keyvals[i] == key {
+			return keyvals[i+1]
+		}
+	}
+	return nil
+}
 
 func reapedStrings(resp *abci.ResponseReapTxs) []string {
 	out := make([]string, 0, len(resp.Txs))
@@ -297,6 +319,18 @@ func (s *RecoverTestSuite) TestStackLogIsRateLimitedPerPath() {
 	s.Require().False(shouldLogStack(path, start+int64(time.Second)), "a repeat within the interval doesn't")
 	s.Require().True(shouldLogStack(other, start+int64(time.Second)), "paths are limited independently")
 	s.Require().True(shouldLogStack(path, start+int64(stackLogInterval)), "the interval re-arms the stack")
+}
+
+func (s *RecoverTestSuite) TestRecoveredPanicLogsStackOncePerInterval() {
+	path := freshStackPath(s.T().Name())
+	logger := &recordingLogger{Logger: log.NewNopLogger()}
+
+	logRecoveredPanic(logger, path, "boom")
+	logRecoveredPanic(logger, path, "boom")
+
+	s.Require().Len(logger.errors, 2, "every panic is logged")
+	s.Require().NotNil(keyval(logger.errors[0], "stack"), "the first panic logs its stack")
+	s.Require().Nil(keyval(logger.errors[1], "stack"), "a repeat within the interval doesn't")
 }
 
 func (s *RecoverTestSuite) TestStackLogConcurrentPanicsLogOnce() {

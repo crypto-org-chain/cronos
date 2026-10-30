@@ -1,15 +1,26 @@
 package mempool
 
 import (
+	"fmt"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	tmtypes "github.com/cometbft/cometbft/types"
+
 	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+)
+
+// Panic paths name the log field and the cronos_mempool_panic_<path> counter.
+const (
+	panicPathAdmit   = "admit"
+	panicPathCheckTx = "check_tx"
+	panicPathCacheTx = "cache_tx"
+	panicPathReap    = "reap"
 )
 
 // stackLogInterval caps stack traces per path; the one-line error still logs every panic.
@@ -26,8 +37,8 @@ var (
 )
 
 // logRecoveredPanic records a panic that CometBFT would turn into a hung RPC, stopped gossip or dropped peer.
-func logRecoveredPanic(logger log.Logger, path string, r any) {
-	keyvals := []any{"path", path, "panic", r}
+func logRecoveredPanic(logger log.Logger, path string, r any, keyvals ...any) {
+	keyvals = append([]any{"path", path, "panic", r}, keyvals...)
 	if shouldLogStack(path, int64(time.Since(stackLogStart))) {
 		keyvals = append(keyvals, "stack", string(debug.Stack()))
 	}
@@ -36,9 +47,14 @@ func logRecoveredPanic(logger log.Logger, path string, r any) {
 }
 
 // recoveredPanic logs a recovered panic and returns errRecoveredPanic.
-func recoveredPanic(logger log.Logger, path string, r any) error {
-	logRecoveredPanic(logger, path, r)
+func recoveredPanic(logger log.Logger, path string, r any, keyvals ...any) error {
+	logRecoveredPanic(logger, path, r, keyvals...)
 	return errRecoveredPanic
+}
+
+// txHash matches the hash CometBFT logs for a tx, so operators can trace the panicking tx.
+func txHash(bz []byte) string {
+	return fmt.Sprintf("%X", tmtypes.Tx(bz).Hash())
 }
 
 // shouldLogStack lets one caller per stackLogInterval log a stack for path; CAS losers get false.

@@ -214,7 +214,7 @@ func (a *Manager) RecheckDisabled() bool {
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {
-			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, "admit", r), false)
+			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, panicPathAdmit, r, "tx", txHash(txBytes)), false)
 		}
 	}()
 
@@ -265,7 +265,7 @@ func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			a.evict(tx)
-			err = recoveredPanic(a.logger, "cache_tx", r)
+			err = recoveredPanic(a.logger, panicPathCacheTx, r, "tx", txHash(raw))
 		}
 	}()
 	bz := raw
@@ -281,7 +281,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (resp *abci.ResponseCheckTx, _ error) {
 		defer func() {
 			if r := recover(); r != nil {
-				resp = sdkerrors.ResponseCheckTxWithEvents(recoveredPanic(a.logger, "check_tx", r), 0, 0, nil, a.trace)
+				resp = sdkerrors.ResponseCheckTxWithEvents(recoveredPanic(a.logger, panicPathCheckTx, r, "tx", txHash(req.Tx)), 0, 0, nil, a.trace)
 			}
 		}()
 

@@ -24,7 +24,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, _ error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logRecoveredPanic(logger, "reap", r)
+				logRecoveredPanic(logger, panicPathReap, r)
 				resp = &abci.ResponseReapTxs{}
 			}
 		}()
@@ -89,7 +89,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			bz, err = nil, recoveredPanic(logger, "reap", r)
+			bz, err = nil, recoveredPanic(logger, panicPathReap, r)
 		}
 	}()
 	bz, hit, err = EncodeTx(encCache, txEncoder, tx)
