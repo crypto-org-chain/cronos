@@ -247,10 +247,10 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 	return abci.CodeTypeOK, "", ""
 }
 
-// decodeAndEncode encodes before RunTx so, with a cache, a tx whose encoding panics never reaches
-// ante or the pool; without one it returns nils. canonical falls back to raw on encode error.
+// Encode before RunTx so, with a cache, a tx whose encoding panics never reaches ante or the
+// pool; without one it returns nils. canonical falls back to raw on encode error.
 // Unlocked encode is safe: the SDK encoder only writes to a shared decoded tx whose body or
-// auth-info bytes are empty, and CometBFT's seen-cache stops identical bytes being admitted at once.
+// auth-info bytes are empty; direct RPC inserts never build those, and CometBFT's seen-cache dedups the rest.
 func (a *Manager) decodeAndEncode(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
 	if a.encCache == nil {
 		return nil, nil, nil
