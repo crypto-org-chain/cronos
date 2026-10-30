@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2245](https://github.com/crypto-org-chain/cronos/pull/2245) fix(test): read upgrade proposal events from the top level when logs are empty.
 * [#2226](https://github.com/crypto-org-chain/cronos/pull/2226) fix(test): fix flaky tx waits, expedited gov voting and EIP-7702 integration tests.
 
 *Sept 23, 2026*
