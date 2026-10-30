@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -11,11 +12,11 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/suite"
 
+	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log/v2"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -54,6 +55,11 @@ func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
 	return nil
 }
 
+func (p *storingPool) Remove(tx sdk.Tx) error {
+	p.txs = slices.DeleteFunc(p.txs, func(pooled sdk.Tx) bool { return pooled == tx })
+	return nil
+}
+
 // insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck).
 type insertingRunner struct{ pool sdkmempool.Mempool }
 
@@ -61,8 +67,7 @@ func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ sto
 	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
 }
 
-// withAdmittingPool makes admission pool the tx, then panics in cacheTx.
-func withAdmittingPool(m *Manager) {
+func withPoolingThenEncodePanic(m *Manager) {
 	pool := &storingPool{}
 	m.mpool = pool
 	m.runner = insertingRunner{pool: pool}
@@ -70,33 +75,35 @@ func withAdmittingPool(m *Manager) {
 }
 
 func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
-	insertViaPeer := func(m *Manager) (uint32, error) {
+	insertViaPeer := func(m *Manager) (uint32, string, error) {
 		resp, err := m.InsertTxHandler()(&abci.RequestInsertTx{Tx: []byte("tx")})
-		return resp.Code, err
+		return resp.Code, "", err
 	}
-	insertViaRPC := func(m *Manager) (uint32, error) {
+	insertViaRPC := func(m *Manager) (uint32, string, error) {
 		resp, err := m.InsertTx([]byte("tx"))
-		return resp.Code, err
+		return resp.Code, resp.RawLog, err
 	}
-	checkWith := func(runTx sdk.RunTx) func(m *Manager) (uint32, error) {
-		return func(m *Manager) (uint32, error) {
+	checkWith := func(runTx sdk.RunTx) func(m *Manager) (uint32, string, error) {
+		return func(m *Manager) (uint32, string, error) {
 			resp, err := m.CheckTxHandler()(runTx, &abci.RequestCheckTx{Tx: []byte("tx")})
-			return resp.Code, err
+			return resp.Code, resp.Log, err
 		}
 	}
 
-	checkPooling := func(m *Manager) (uint32, error) {
+	checkPooling := func(m *Manager) (uint32, string, error) {
 		runTx := func(_ []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 			return sdk.GasInfo{}, &sdk.Result{}, nil, m.mpool.Insert(context.Background(), tx)
 		}
 		return checkWith(runTx)(m)
 	}
 
+	_, panicCode, _ := errorsmod.ABCIInfo(errRecoveredPanic, false)
+
 	testCases := []struct {
 		name     string
 		malleate func(m *Manager)
-		call     func(m *Manager) (uint32, error)
-		admitted bool // panics after RunTx pooled the tx, so the response stays OK
+		call     func(m *Manager) (uint32, string, error)
+		pooled   bool // RunTx pooled the tx before the panic, so it must be evicted
 	}{
 		{
 			name: "peer InsertTx, panic in preVerify before the admission mutex",
@@ -113,16 +120,16 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			call: insertViaRPC,
 		},
 		{
-			name:     "RPC InsertTx, panic in cacheTx after the tx was admitted",
-			malleate: withAdmittingPool,
+			name:     "RPC InsertTx, panic in cacheTx after RunTx pooled the tx",
+			malleate: withPoolingThenEncodePanic,
 			call:     insertViaRPC,
-			admitted: true,
+			pooled:   true,
 		},
 		{
-			name:     "peer InsertTx, panic in cacheTx after the tx was admitted",
-			malleate: withAdmittingPool,
+			name:     "peer InsertTx, panic in cacheTx after RunTx pooled the tx",
+			malleate: withPoolingThenEncodePanic,
 			call:     insertViaPeer,
-			admitted: true,
+			pooled:   true,
 		},
 		{
 			name: "CheckTx, panic in the decoder before the admission mutex",
@@ -137,10 +144,10 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			call:     checkWith(panicRunTx),
 		},
 		{
-			name:     "CheckTx, panic in cacheTx after runTx succeeded",
-			malleate: withAdmittingPool,
+			name:     "CheckTx, panic in cacheTx after runTx pooled the tx",
+			malleate: withPoolingThenEncodePanic,
 			call:     checkPooling,
-			admitted: true,
+			pooled:   true,
 		},
 	}
 
@@ -150,15 +157,15 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			tc.malleate(m)
 			epoch := m.pendingTxCache.epoch.Load()
 
-			code, err := tc.call(m)
+			code, rawLog, err := tc.call(m)
 
 			s.Require().NoError(err, "a panic must surface as a response code, never a Go error")
-			if tc.admitted {
-				s.Require().Equal(abci.CodeTypeOK, code)
-				s.Require().Equal(epoch+1, m.pendingTxCache.epoch.Load(), "pending cache must be invalidated for a pooled tx")
-				s.Require().Len(m.PendingTxs(), 1, "the admitted tx must stay in the pool")
-			} else {
-				s.Require().Equal(sdkerrors.ErrPanic.ABCICode(), code)
+			s.Require().Equal(panicCode, code)
+			s.Require().Less(code, abci.CodeTypeRetry, "CometBFT must not soon retry a panicking tx")
+			s.Require().NotContains(rawLog, "boom", "the panic value must not reach clients")
+			if tc.pooled {
+				s.Require().Equal(epoch+1, m.pendingTxCache.epoch.Load(), "pending cache must be invalidated after the eviction")
+				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must be evicted")
 			}
 			s.Require().True(m.mu.TryLock(), "admission mutex must be released after a panic")
 			m.mu.Unlock()
@@ -221,7 +228,8 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			reap := NewReapTxsHandler(tc.pool, encodeByID, nil, time.Minute, 0, log.NewNopLogger())
+			logger := &errorCountingLogger{Logger: log.NewNopLogger()}
+			reap := NewReapTxsHandler(tc.pool, encodeByID, nil, time.Minute, 0, logger)
 
 			resp, err := reap(&abci.RequestReapTxs{})
 			s.Require().NoError(err, "CometBFT drops the response when an error comes with it")
@@ -231,9 +239,17 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			resp, err = reap(&abci.RequestReapTxs{})
 			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))
+			s.Require().Equal(int64(2), logger.errors.Load(), "each reap logs its one panic once")
 		})
 	}
 }
+
+type errorCountingLogger struct {
+	log.Logger
+	errors atomic.Int64
+}
+
+func (l *errorCountingLogger) Error(string, ...any) { l.errors.Add(1) }
 
 func reapedStrings(resp *abci.ResponseReapTxs) []string {
 	out := make([]string, 0, len(resp.Txs))

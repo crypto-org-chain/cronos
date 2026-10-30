@@ -11,7 +11,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -24,12 +23,10 @@ const TypeApp = "app"
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl)
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, _ error) {
-		var txs [][]byte
 		defer func() {
 			if r := recover(); r != nil {
-				// Collected txs are already marked gossiped; returning an error would make CometBFT drop them.
 				logRecoveredPanic(logger, "reap", r)
-				resp = &abci.ResponseReapTxs{Txs: txs}
+				resp = &abci.ResponseReapTxs{}
 			}
 		}()
 
@@ -43,7 +40,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			cacheMiss  float32
 			deduped    float32
 		)
-		txs = make([][]byte, 0, len(snapshot))
+		txs := make([][]byte, 0, len(snapshot))
 		for _, tx := range snapshot {
 			bz, hash, gas, hit, err := prepareForReap(encCache, txEncoder, tx, logger)
 			if hit {
@@ -52,7 +49,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 				cacheMiss++
 			}
 			if err != nil {
-				if !errors.Is(err, sdkerrors.ErrPanic) { // a recovered panic is already logged
+				if !errors.Is(err, errRecoveredPanic) { // a recovered panic is already logged
 					logger.Error("reap encode failed; skipping tx", "err", err)
 				}
 				continue

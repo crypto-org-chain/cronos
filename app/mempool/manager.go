@@ -181,8 +181,8 @@ func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 
 // InsertTx returns the sync ABCI result; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, log := a.admit(txBytes)
-	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
+	code, codespace, rawLog := a.admit(txBytes)
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: rawLog}, nil
 }
 
 // PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
@@ -211,10 +211,10 @@ func (a *Manager) RecheckDisabled() bool {
 // mu), then RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
 // sdk.Tx (uses txBytes).
-func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
+func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {
-			codespace, code, log = errorsmod.ABCIInfo(recoveredPanic(a.logger, "admit", r), false)
+			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, "admit", r), false)
 		}
 	}()
 
@@ -246,28 +246,34 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, log string) {
 		return c, cs, l
 	}
 
+	err = a.cacheTx(tx, txBytes)
 	a.pendingTxCache.invalidate()
-	a.cacheTx(tx, txBytes)
+	if err != nil {
+		cs, c, l := errorsmod.ABCIInfo(err, false)
+		return c, cs, l
+	}
 	return abci.CodeTypeOK, "", ""
 }
 
 // cacheTx registers the already-decoded tx under its canonical bytes (raw
 // req.Tx bytes on encode error). No-op without a cache.
-func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) {
+func (a *Manager) cacheTx(tx sdk.Tx, raw []byte) (err error) {
 	if a.encCache == nil {
-		return
+		return nil
 	}
-	// The tx is already pooled; a failed cache fill must not reject it.
+	// A tx whose encoding panics would panic again in reap, recheck and proposals, so evict it.
 	defer func() {
 		if r := recover(); r != nil {
-			logRecoveredPanic(a.logger, "cache_tx", r)
+			a.evict(tx)
+			err = recoveredPanic(a.logger, "cache_tx", r)
 		}
 	}()
 	bz := raw
-	if canonical, err := a.txEncoder(tx); err == nil {
+	if canonical, encErr := a.txEncoder(tx); encErr == nil {
 		bz = canonical
 	}
 	a.encCache.Set(tx, bz)
+	return nil
 }
 
 // CheckTxHandler runs RPC CheckTx.
@@ -297,8 +303,11 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
+		err = a.cacheTx(tx, req.Tx)
 		a.pendingTxCache.invalidate()
-		a.cacheTx(tx, req.Tx)
+		if err != nil {
+			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
+		}
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.
