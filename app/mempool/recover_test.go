@@ -235,12 +235,14 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 		pool    sdkmempool.Mempool
 		expTxs  []string
 		expNext []string // txs reaped by a second call on the same handler
+		expPath any      // path field of each error line; nil for a plain encode error
 	}{
 		{
 			name:    "tx whose encode panics is skipped and the rest are gossiped",
 			pool:    &fakePool{txs: []sdk.Tx{good1, encPoison, good2}},
 			expTxs:  []string{"1", "3"},
 			expNext: []string{},
+			expPath: panicPathReap,
 		},
 		{
 			// Same SDK code as errRecoveredPanic, so it must still be logged.
@@ -254,12 +256,14 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			pool:    &fakePool{txs: []sdk.Tx{good1, gasPoison, good2}},
 			expTxs:  []string{"1", "3"},
 			expNext: []string{},
+			expPath: panicPathReap,
 		},
 		{
 			name:    "panic in the pool scan returns an empty reap",
 			pool:    &panickingPool{},
 			expTxs:  []string{},
 			expNext: []string{},
+			expPath: panicPathReap,
 		},
 	}
 
@@ -277,6 +281,9 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			s.Require().NoError(err)
 			s.Require().Equal(tc.expNext, reapedStrings(resp))
 			s.Require().Len(logger.errors, 2, "each reap logs its one bad tx once")
+			for _, keyvals := range logger.errors {
+				s.Require().Equal(tc.expPath, keyval(keyvals, "path"))
+			}
 		})
 	}
 }
