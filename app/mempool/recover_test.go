@@ -74,13 +74,14 @@ func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ sto
 	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
 }
 
+var encodePanicTx = newEthTx(common.Address{0x1}, 7)
+
 func withEncodePanic(m *Manager) {
 	pool, ante := &storingPool{}, antecache.NewAnteCache(0)
 	m.mpool = pool
 	m.runner = insertingRunner{pool: pool, ante: ante}
 	m.SetAnteCache(ante)
-	tx := newEthTx(common.Address{0x1}, 7)
-	withDecodeCache(m, func([]byte) (sdk.Tx, error) { return tx, nil }, func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil })
+	withDecodeCache(m, func([]byte) (sdk.Tx, error) { return encodePanicTx, nil }, func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil })
 }
 
 func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
@@ -198,10 +199,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			s.Require().Equal(epoch, m.pendingTxCache.epoch.Load(), "a rejected tx must not invalidate the pending cache")
 			if tc.encodePanics {
 				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must never be pooled")
-				tx, _ := m.decoder(nil)
-				eth, ok := tx.(*ethTx)
-				s.Require().True(ok)
-				s.Require().False(m.anteCache.Exists(anteKey(eth)), "ante must not run for a tx whose encoding panics")
+				s.Require().False(m.anteCache.Exists(anteKey(encodePanicTx)), "ante must not run for a tx whose encoding panics")
 			}
 			s.Require().True(m.mu.TryLock(), "admission mutex must be released after a panic")
 			m.mu.Unlock()

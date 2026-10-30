@@ -207,7 +207,7 @@ func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
 
-// admit is the shared admission path: preVerify + decodeTx unlocked (bad txs skip
+// admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
 // mu), then RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
 // sdk.Tx (uses txBytes).
@@ -225,7 +225,7 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 		}
 	}
 
-	tx, canonical, err := a.decodeTx(txBytes)
+	tx, canonical, err := a.decodeAndEncode(txBytes)
 	if err != nil {
 		cs, c, l := errorsmod.ABCIInfo(err, false)
 		return c, cs, l
@@ -247,10 +247,11 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 	return abci.CodeTypeOK, "", ""
 }
 
-// decodeTx also encodes before RunTx, so a tx whose encoding panics is rejected before it
-// touches ante state or the pool. canonical falls back to raw on encode error; both are nil
-// without a cache.
-func (a *Manager) decodeTx(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
+// decodeAndEncode encodes before RunTx so, with a cache, a tx whose encoding panics never reaches
+// ante or the pool; without one it returns nils. canonical falls back to raw on encode error.
+// Unlocked encode is safe: the SDK encoder only writes to a shared decoded tx whose body or
+// auth-info bytes are empty, and CometBFT's seen-cache stops identical bytes being admitted at once.
+func (a *Manager) decodeAndEncode(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
 	if a.encCache == nil {
 		return nil, nil, nil
 	}
@@ -279,9 +280,9 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			}
 		}()
 
-		// Decode before locking: proto unmarshal is CPU-intensive; decoder and
+		// Decode and encode before locking: proto work is CPU-intensive; decoder and
 		// DecodeCache have their own locks. Bad txs return without acquiring mu.
-		tx, canonical, err := a.decodeTx(req.Tx)
+		tx, canonical, err := a.decodeAndEncode(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}
