@@ -61,7 +61,7 @@ $ nix-shell integration_tests/shell.nix
 ```shell
 $ cd integration_tests/contracts
 $ HUSKY_SKIP_INSTALL=1 npm install
-$ npm run typechain
+$ npm run build
 $ cd ../../
 ```
 
