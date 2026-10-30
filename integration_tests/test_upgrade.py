@@ -203,9 +203,11 @@ def exec(c, tmp_path_factory):
                 mode=mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
+            # event_query_tx_for (mode=None) returns events at top level, not in logs.
+            events = rsp["logs"][0]["events"] if rsp.get("logs") else rsp["events"]
             approve_proposal(
                 c,
-                rsp["logs"][0]["events"],
+                events,
                 msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
                 wait_tx=False,
             )
