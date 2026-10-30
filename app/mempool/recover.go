@@ -19,7 +19,6 @@ import (
 const (
 	panicPathAdmit   = "admit"
 	panicPathCheckTx = "check_tx"
-	panicPathCacheTx = "cache_tx"
 	panicPathReap    = "reap"
 )
 
@@ -46,7 +45,6 @@ func logRecoveredPanic(logger log.Logger, path string, r any, keyvals ...any) {
 	telemetry.IncrCounter(1, "cronos", "mempool", "panic", path)
 }
 
-// recoveredPanic logs a recovered panic and returns errRecoveredPanic.
 func recoveredPanic(logger log.Logger, path string, r any, keyvals ...any) error {
 	logRecoveredPanic(logger, path, r, keyvals...)
 	return errRecoveredPanic
