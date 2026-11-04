@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -358,6 +359,30 @@ func (s *RecoverTestSuite) TestRecoveredPanicLogsStackOncePerInterval() {
 	s.Require().Len(logger.errors, 2, "every panic is logged")
 	s.Require().NotNil(keyval(logger.errors[0], "stack"), "the first panic logs its stack")
 	s.Require().Nil(keyval(logger.errors[1], "stack"), "a repeat within the interval doesn't")
+}
+
+func (s *RecoverTestSuite) TestRecoveredPanicTruncatesValue() {
+	long := strings.Repeat("x", maxPanicLogLen+1)
+
+	testCases := []struct {
+		name     string
+		value    any
+		expValue string
+	}{
+		{name: "short value is logged as is", value: "boom", expValue: "boom"},
+		{name: "non-string value is formatted", value: 42, expValue: "42"},
+		{name: "long value is truncated", value: long, expValue: long[:maxPanicLogLen] + "...(truncated)"},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+
+			logRecoveredPanic(logger, freshStackPath(s.T().Name()), tc.value)
+
+			s.Require().Equal(tc.expValue, keyval(logger.errors[0], "panic"))
+		})
+	}
 }
 
 func (s *RecoverTestSuite) TestStackLogConcurrentPanicsLogOnce() {

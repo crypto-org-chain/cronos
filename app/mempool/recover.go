@@ -26,6 +26,9 @@ const (
 // stackLogInterval caps stack traces per path; the one-line error still logs every panic.
 const stackLogInterval = time.Minute
 
+// maxPanicLogLen bounds each log line when a panic value embeds tx contents.
+const maxPanicLogLen = 1024
+
 // errRecoveredPanic stays below abci.CodeTypeRetry so CometBFT doesn't soon re-admit the tx, and hides the panic value from clients.
 var errRecoveredPanic = sdkerrors.ErrInvalidRequest.Wrap("recovered panic")
 
@@ -38,7 +41,11 @@ var (
 
 // logRecoveredPanic records a panic that CometBFT would turn into a hung RPC, stopped gossip or dropped peer.
 func logRecoveredPanic(logger log.Logger, path string, r any, keyvals ...any) {
-	keyvals = append([]any{"path", path, "panic", r}, keyvals...)
+	value := fmt.Sprint(r)
+	if len(value) > maxPanicLogLen {
+		value = value[:maxPanicLogLen] + "...(truncated)"
+	}
+	keyvals = append([]any{"path", path, "panic", value}, keyvals...)
 	if shouldLogStack(path, int64(time.Since(stackLogStart))) {
 		keyvals = append(keyvals, "stack", string(debug.Stack()))
 	}
