@@ -19,7 +19,8 @@ import (
 const (
 	panicPathAdmit   = "admit"
 	panicPathCheckTx = "check_tx"
-	panicPathReap    = "reap"
+	panicPathReap    = "reap"    // whole reap dropped: gossip sends nothing this tick
+	panicPathReapTx  = "reap_tx" // one tx skipped: the rest still gossip
 )
 
 // stackLogInterval caps stack traces per path; the one-line error still logs every panic.

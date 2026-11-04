@@ -77,7 +77,9 @@ type Manager struct {
 func NewManager(app *baseapp.BaseApp, logger log.Logger, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
-	a.logger = logger
+	if logger != nil { // a nil logger would re-panic inside the recover handlers
+		a.logger = logger
+	}
 	a.mpool = mpool
 	a.signer = signer
 	a.maxRecheckBatch = recheckBatchSize
@@ -249,8 +251,8 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 
 // Encode before RunTx so, with a cache, a tx whose encoding panics never reaches ante or the
 // pool; without one it returns nils. canonical falls back to raw on encode error.
-// Unlocked encode is safe: the SDK encoder only writes to a shared decoded tx whose body or
-// auth-info bytes are empty; direct RPC inserts never build those, and CometBFT's seen-cache dedups the rest.
+// Unlocked encode can only race on a shared decoded tx whose body or auth-info bytes are empty,
+// which ante always rejects, and both writers store identical bytes.
 func (a *Manager) decodeAndEncode(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
 	if a.encCache == nil {
 		return nil, nil, nil

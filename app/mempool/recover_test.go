@@ -208,16 +208,32 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 }
 
 func (s *RecoverTestSuite) TestNewManagerLogsRecoveredPanics() {
-	logger := &recordingLogger{Logger: log.NewNopLogger()}
-	app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
-	m := NewManager(app, logger, nil, noopEncoder, &fakePool{}, nil, nil, 0, 0, true, false)
-	defer m.Close()
-	m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
+	recording := &recordingLogger{Logger: log.NewNopLogger()}
 
-	_, err := m.InsertTx([]byte("tx"))
+	testCases := []struct {
+		name      string
+		logger    log.Logger
+		expErrors int
+	}{
+		{name: "given logger receives recovered panics", logger: recording, expErrors: 1},
+		{name: "nil logger still recovers", logger: nil, expErrors: 0},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Len(logger.errors, 1, "NewManager must log recovered panics to the given logger")
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			recording.errors = nil
+			app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
+			m := NewManager(app, tc.logger, nil, noopEncoder, &fakePool{}, nil, nil, 0, 0, true, false)
+			defer m.Close()
+			m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
+
+			resp, err := m.InsertTx([]byte("tx"))
+
+			s.Require().NoError(err)
+			s.Require().NotZero(resp.Code)
+			s.Require().Len(recording.errors, tc.expErrors)
+		})
+	}
 }
 
 type panickingPool struct{ fakePool }
@@ -258,13 +274,14 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 		expNext  []string // txs reaped by a second call on the same handler
 		expPath  any      // path field of each error line; nil for a plain encode error
 		expPanic any      // panic field of each error line
+		expTx    any      // tx field of each error line; nil when the tx has no bytes yet
 	}{
 		{
 			name:     "tx whose encode panics is skipped and the rest are gossiped",
 			pool:     &fakePool{txs: []sdk.Tx{good1, encPoison, good2}},
 			expTxs:   []string{"1", "3"},
 			expNext:  []string{},
-			expPath:  panicPathReap,
+			expPath:  panicPathReapTx,
 			expPanic: "boom in " + encodeSite,
 		},
 		{
@@ -279,8 +296,9 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			pool:     &fakePool{txs: []sdk.Tx{good1, gasPoison, good2}},
 			expTxs:   []string{"1", "3"},
 			expNext:  []string{},
-			expPath:  panicPathReap,
+			expPath:  panicPathReapTx,
 			expPanic: "boom in GetGas",
+			expTx:    fmt.Sprintf("%X", sha256.Sum256([]byte("4"))),
 		},
 		{
 			name:     "panic in the pool scan returns an empty reap",
@@ -309,6 +327,7 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 			for _, keyvals := range logger.errors {
 				s.Require().Equal(tc.expPath, keyval(keyvals, "path"))
 				s.Require().Equal(tc.expPanic, keyval(keyvals, "panic"))
+				s.Require().Equal(tc.expTx, keyval(keyvals, "tx"))
 			}
 		})
 	}

@@ -89,7 +89,11 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			bz, err = nil, recoveredPanic(logger, panicPathReap, r)
+			var keyvals []any
+			if bz != nil {
+				keyvals = []any{"tx", txHash(bz)}
+			}
+			bz, err = nil, recoveredPanic(logger, panicPathReapTx, r, keyvals...)
 		}
 	}()
 	bz, hit, err = EncodeTx(encCache, txEncoder, tx)
