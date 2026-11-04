@@ -387,32 +387,32 @@ jobs:
     if: always() && github.event_name == 'issue_comment' && needs.member.outputs.valid == 'true'
     steps: 
       - name: Download artifact pass_status_build
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_build
       - name: Download artifact pass_status_install
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_install
       - name: Download artifact pass_status_sim1
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_sim1
       - name: Download artifact pass_status_sim2
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_sim2
       - name: Download artifact pass_status_sim3
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_sim3
       - name: Download artifact pass_status_sim4
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         continue-on-error: true
         with:
           name: pass_status_sim4
