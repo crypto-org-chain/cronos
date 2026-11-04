@@ -73,7 +73,7 @@ type Manager struct {
 	pendingTxCache pendingTxCache
 }
 
-// NewManager builds the Manager for mempool.type=app;
+// NewManager builds the Manager for mempool.type=app.
 func NewManager(app *baseapp.BaseApp, logger log.Logger, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()

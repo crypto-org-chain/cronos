@@ -18,7 +18,8 @@ const TypeApp = "app"
 // NewReapTxsHandler scans the app mempool to gather txs to be gossiped to other peers,
 // stopping at MaxBytes/MaxGas (0 = no cap, per CometBFT convention). Prefix scan: breaks
 // at the first tx over a cap (not best-fit), so a large high-priority tx may
-// leave budget unused. Encode errors and per-tx panics skip the tx; encCache hits skip proto.Marshal.
+// leave budget unused. Encode errors and per-tx panics skip the tx; a pool-scan panic returns
+// an empty reap. encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl)
 	return func(req *abci.RequestReapTxs) (resp *abci.ResponseReapTxs, _ error) {
