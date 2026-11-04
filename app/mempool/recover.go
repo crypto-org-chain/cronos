@@ -15,31 +15,30 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Panic paths name the log field and the cronos_mempool_panic_<path> counter.
+// Each path also names its cronos_mempool_panic_<path> counter.
 const (
 	panicPathAdmit   = "admit"
 	panicPathCheckTx = "check_tx"
-	panicPathReap    = "reap"    // whole reap dropped: gossip sends nothing this tick
-	panicPathReapTx  = "reap_tx" // one tx skipped: the rest still gossip
+	panicPathReap    = "reap"    // whole reap dropped
+	panicPathReapTx  = "reap_tx" // one tx skipped
 )
 
-// stackLogInterval caps stack traces per path; the one-line error still logs every panic.
+// Only stacks are rate-limited; every panic still logs a line.
 const stackLogInterval = time.Minute
 
-// maxPanicLogLen bounds the logged panic value, which can embed tx contents.
+// Panic values can embed tx contents.
 const maxPanicLogLen = 1024
 
-// errRecoveredPanic stays below abci.CodeTypeRetry so CometBFT doesn't soon re-admit the tx, and hides the panic value from clients.
+// Below abci.CodeTypeRetry so CometBFT won't soon re-admit the tx; hides the panic value from clients.
 var errRecoveredPanic = sdkerrors.ErrInvalidRequest.Wrap("recovered panic")
 
 var (
-	// stackLogStart makes stack timestamps monotonic, so a wall-clock step can't suppress them.
+	// Monotonic base, so a wall-clock step can't suppress stacks.
 	stackLogStart = time.Now()
-	// lastStackLog maps a path to its last logged stack, in nanos since stackLogStart.
+	// path -> last stack time, in nanos since stackLogStart.
 	lastStackLog sync.Map
 )
 
-// logRecoveredPanic records a panic that CometBFT would turn into a hung RPC, stopped gossip or dropped peer.
 func logRecoveredPanic(logger log.Logger, path string, r any, keyvals ...any) {
 	value := fmt.Sprint(r)
 	if len(value) > maxPanicLogLen {
@@ -58,12 +57,12 @@ func recoveredPanic(logger log.Logger, path string, r any, keyvals ...any) error
 	return errRecoveredPanic
 }
 
-// txHash matches the hash CometBFT logs for a tx, so operators can trace the panicking tx.
+// Same format CometBFT logs, so operators can trace the tx.
 func txHash(bz []byte) string {
 	return fmt.Sprintf("%X", tmtypes.Tx(bz).Hash())
 }
 
-// shouldLogStack lets one caller per stackLogInterval log a stack for path; CAS losers get false.
+// Only the CAS winner logs, so concurrent panics log one stack per interval.
 func shouldLogStack(path string, now int64) bool {
 	v, _ := lastStackLog.LoadOrStore(path, new(atomic.Int64))
 	last := v.(*atomic.Int64)
