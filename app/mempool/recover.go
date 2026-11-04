@@ -59,10 +59,7 @@ func txHash(bz []byte) string {
 // shouldLogStack lets one caller per stackLogInterval log a stack for path; CAS losers get false.
 func shouldLogStack(path string, now int64) bool {
 	v, _ := lastStackLog.LoadOrStore(path, new(atomic.Int64))
-	last, ok := v.(*atomic.Int64)
-	if !ok {
-		return true
-	}
+	last := v.(*atomic.Int64)
 	prev := last.Load()
 	if prev != 0 && now-prev < int64(stackLogInterval) {
 		return false

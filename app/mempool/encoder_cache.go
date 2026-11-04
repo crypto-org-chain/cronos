@@ -48,7 +48,7 @@ func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
 // error). Concurrency-safe. Evicts the LRU entry when at capacity. Bytes above
 // maxTxBytes aren't cached: EncodeTx re-encodes them on miss (rare; bounds heap).
 func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
-	if tx == nil || len(bz) > e.maxTxBytes {
+	if e == nil || tx == nil || len(bz) > e.maxTxBytes {
 		return
 	}
 	e.mu.Lock()

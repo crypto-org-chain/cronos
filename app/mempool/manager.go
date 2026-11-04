@@ -210,7 +210,7 @@ func (a *Manager) RecheckDisabled() bool {
 }
 
 // admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
-// mu), then RunTx(ExecModeCheck) + cacheTx under mu. Over-capacity maps to
+// mu), then RunTx(ExecModeCheck) + encCache.Set under mu. Over-capacity maps to
 // CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
 // sdk.Tx (uses txBytes).
 func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) {
@@ -244,33 +244,27 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 		return c, cs, l
 	}
 
-	a.cacheTx(tx, canonical)
+	a.encCache.Set(tx, canonical)
 	a.pendingTxCache.invalidate()
 	return abci.CodeTypeOK, "", ""
 }
 
 // Encode before RunTx so, with a cache, a tx whose encoding panics never reaches ante or the
-// pool; without one it returns nils. canonical falls back to raw on encode error.
+// pool. The encoded bytes fall back to raw on encode error.
 // Unlocked encode can only race on a shared decoded tx whose body or auth-info bytes are empty,
 // which ante always rejects, and both writers store identical bytes.
-func (a *Manager) decodeAndEncode(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
+func (a *Manager) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
 	if a.encCache == nil {
 		return nil, nil, nil
 	}
-	if tx, err = a.decoder(raw); err != nil {
+	tx, err := a.decoder(raw)
+	if err != nil {
 		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
 	}
-	canonical = raw
-	if bz, encErr := a.txEncoder(tx); encErr == nil {
-		canonical = bz
+	if bz, err := a.txEncoder(tx); err == nil {
+		return tx, bz, nil
 	}
-	return tx, canonical, nil
-}
-
-func (a *Manager) cacheTx(tx sdk.Tx, canonical []byte) {
-	if a.encCache != nil {
-		a.encCache.Set(tx, canonical)
-	}
+	return tx, raw, nil
 }
 
 // CheckTxHandler runs RPC CheckTx.
@@ -297,7 +291,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		a.cacheTx(tx, canonical)
+		a.encCache.Set(tx, canonical)
 		a.pendingTxCache.invalidate()
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
