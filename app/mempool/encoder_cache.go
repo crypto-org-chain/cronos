@@ -44,10 +44,8 @@ func NewEncoderCache(size, maxTxBytes uint) *EncoderCache {
 	}
 }
 
-// Set stores canonical proto bytes for a tx (raw req.Tx bytes on encode error).
-// Concurrency-safe and a no-op on a nil receiver. Evicts the LRU entry when at
-// capacity. Bytes above maxTxBytes aren't cached: EncodeTx re-encodes them on
-// miss (rare; bounds heap).
+// Set is a no-op on a nil receiver; at capacity it evicts the LRU entry, and bytes over
+// maxTxBytes aren't cached (EncodeTx re-encodes them on miss).
 func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
 	if e == nil || tx == nil || len(bz) > e.maxTxBytes {
 		return

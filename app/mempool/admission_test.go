@@ -112,15 +112,7 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })
 
-	testAccounts := make([]testAccount, accounts)
-	for i := range testAccounts {
-		priv, err := ethsecp256k1.GenerateKey()
-		require.NoError(tb, err)
-		testAccounts[i] = testAccount{
-			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
-			Priv:    priv,
-		}
-	}
+	testAccounts := newTestAccounts(tb, accounts)
 
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
@@ -165,6 +157,20 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 		consAddress: consAddress,
 		ethSigner:   ethtypes.LatestSignerForChainID(cronos.TestEthChainID),
 	}
+}
+
+func newTestAccounts(tb testing.TB, n int) []testAccount {
+	tb.Helper()
+	accounts := make([]testAccount, n)
+	for i := range accounts {
+		priv, err := ethsecp256k1.GenerateKey()
+		require.NoError(tb, err)
+		accounts[i] = testAccount{
+			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
+			Priv:    priv,
+		}
+	}
+	return accounts
 }
 
 // TestPreVerifyRejectsTamperedSig: tampered From rejected lock-free before RunTx.
@@ -324,42 +330,63 @@ func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	require.Nil(t, flood.MempoolClient())
 }
 
-// BenchmarkAdmission measures admitted tx/s through InsertTx at the current
-// single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
-// RunTx is serialized by the admission mutex.
+// BenchmarkAdmission measures InsertTx throughput at the current single-mutex
+// ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free; RunTx is
+// serialized by the admission mutex.
 func BenchmarkAdmission(b *testing.B) {
 	const goroutines = 16
-	f := setupAdmissionApp(b, goroutines)
 
-	// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
-	txs := make([][][]byte, goroutines)
-	for g := range goroutines {
-		txs[g] = make([][]byte, b.N)
-		for i := range b.N {
-			txs[g][i] = f.signTransfer(b, &f.accounts[g], nil)
-		}
+	testCases := []struct {
+		name     string
+		unfunded bool // senders aren't in genesis: txs pass pre-verify and decode, then ante rejects them
+	}{
+		{name: "valid"},
+		{name: "rejected", unfunded: true},
 	}
 
-	var admitted atomic.Int64
-	b.ResetTimer()
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-	for g := range goroutines {
-		go func(g int) {
-			defer wg.Done()
-			for i := range b.N {
-				resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
-				if err == nil && resp.Code == abci.CodeTypeOK {
-					admitted.Add(1)
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			f := setupAdmissionApp(b, goroutines)
+			senders := f.accounts
+			if tc.unfunded {
+				senders = newTestAccounts(b, goroutines)
+			}
+
+			// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
+			txs := make([][][]byte, goroutines)
+			for g := range goroutines {
+				txs[g] = make([][]byte, b.N)
+				for i := range b.N {
+					txs[g][i] = f.signTransfer(b, &senders[g], nil)
 				}
 			}
-		}(g)
-	}
-	wg.Wait()
-	b.StopTimer()
 
-	secs := b.Elapsed().Seconds()
-	if secs > 0 {
-		b.ReportMetric(float64(admitted.Load())/secs, "admit-tx/s")
+			var admitted atomic.Int64
+			b.ResetTimer()
+			var wg sync.WaitGroup
+			wg.Add(goroutines)
+			for g := range goroutines {
+				go func(g int) {
+					defer wg.Done()
+					for i := range b.N {
+						resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
+						if err == nil && resp.Code == abci.CodeTypeOK {
+							admitted.Add(1)
+						}
+					}
+				}(g)
+			}
+			wg.Wait()
+			b.StopTimer()
+
+			wantAdmitted := int64(goroutines * b.N)
+			if tc.unfunded {
+				wantAdmitted = 0
+			}
+			require.Equal(b, wantAdmitted, admitted.Load())
+			if secs := b.Elapsed().Seconds(); secs > 0 {
+				b.ReportMetric(float64(goroutines*b.N)/secs, "tx/s")
+			}
+		})
 	}
 }

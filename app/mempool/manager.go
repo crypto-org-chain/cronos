@@ -249,10 +249,8 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 	return abci.CodeTypeOK, "", ""
 }
 
-// Encode before RunTx so a tx whose encoding panics never reaches ante or the pool. Without a
-// cache it returns nils; encoded bytes fall back to raw on encode error.
-// Unlocked encode can only race on a shared decoded tx whose body or auth-info bytes are empty,
-// which ante always rejects, and both writers store identical bytes.
+// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nils without a cache.
+// Unlocked encode only writes to a shared tx with empty body/auth-info bytes, which ante rejects; concurrent writes are identical.
 func (a *Manager) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
 	if a.encCache == nil {
 		return nil, nil, nil
