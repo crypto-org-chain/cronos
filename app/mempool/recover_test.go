@@ -362,7 +362,8 @@ func (s *RecoverTestSuite) TestRecoveredPanicLogsStackOncePerInterval() {
 }
 
 func (s *RecoverTestSuite) TestRecoveredPanicTruncatesValue() {
-	long := strings.Repeat("x", maxPanicLogLen+1)
+	atLimit := strings.Repeat("x", maxPanicLogLen)
+	long := atLimit + "x"
 
 	testCases := []struct {
 		name     string
@@ -371,7 +372,8 @@ func (s *RecoverTestSuite) TestRecoveredPanicTruncatesValue() {
 	}{
 		{name: "short value is logged as is", value: "boom", expValue: "boom"},
 		{name: "non-string value is formatted", value: 42, expValue: "42"},
-		{name: "long value is truncated", value: long, expValue: long[:maxPanicLogLen] + "...(truncated)"},
+		{name: "value at the limit is not truncated", value: atLimit, expValue: atLimit},
+		{name: "long value is truncated", value: long, expValue: atLimit + "...(truncated)"},
 	}
 
 	for _, tc := range testCases {

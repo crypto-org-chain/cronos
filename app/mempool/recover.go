@@ -26,7 +26,7 @@ const (
 // stackLogInterval caps stack traces per path; the one-line error still logs every panic.
 const stackLogInterval = time.Minute
 
-// maxPanicLogLen bounds each log line when a panic value embeds tx contents.
+// maxPanicLogLen bounds the logged panic value, which can embed tx contents.
 const maxPanicLogLen = 1024
 
 // errRecoveredPanic stays below abci.CodeTypeRetry so CometBFT doesn't soon re-admit the tx, and hides the panic value from clients.
