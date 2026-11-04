@@ -274,8 +274,7 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			}
 		}()
 
-		// Decode and encode before locking: proto work is CPU-intensive; decoder and
-		// DecodeCache have their own locks. Bad txs return without acquiring mu.
+		// Decode and encode before locking
 		tx, canonical, err := a.decodeAndEncode(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
