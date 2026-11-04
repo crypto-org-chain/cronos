@@ -346,7 +346,9 @@ func BenchmarkAdmission(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			f := setupAdmissionApp(b, goroutines)
+			// Room for every tx, so a long -benchtime can't fill the pool and fail the admitted count.
+			total := goroutines * b.N
+			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{"mempool.max-txs": max(total, 100000)})
 			senders := f.accounts
 			if tc.unfunded {
 				senders = newTestAccounts(b, goroutines)
@@ -379,13 +381,13 @@ func BenchmarkAdmission(b *testing.B) {
 			wg.Wait()
 			b.StopTimer()
 
-			wantAdmitted := int64(goroutines * b.N)
+			wantAdmitted := int64(total)
 			if tc.unfunded {
 				wantAdmitted = 0
 			}
 			require.Equal(b, wantAdmitted, admitted.Load())
 			if secs := b.Elapsed().Seconds(); secs > 0 {
-				b.ReportMetric(float64(goroutines*b.N)/secs, "tx/s")
+				b.ReportMetric(float64(total)/secs, "tx/s")
 			}
 		})
 	}
