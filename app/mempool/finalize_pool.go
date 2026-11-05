@@ -10,7 +10,10 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-var _ sdkmempool.ExtMempool = FinalizeNeutralMempool{}
+var (
+	_ sdkmempool.ExtMempool       = FinalizeNeutralMempool{}
+	_ sdkmempool.UnorderedMempool = FinalizeNeutralMempool{}
+)
 
 // FinalizeNeutralMempool keeps a block tx's result independent of the local pool. runTx fails the
 // tx on any finalize-mode removal error but ErrTxNotFound, and NoOp-mempool nodes never fail, so

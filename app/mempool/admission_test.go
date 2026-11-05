@@ -568,11 +568,27 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockRemovalErrorKeepsResult() {
 				opts := minimalOptionsMap{server.FlagBlockExecutor: executor}
 				maps.Copy(opts, mp.opts)
 				f := setupAdmissionAppWithOpts(s.T(), 1, opts)
-				// Unordered without a timeout timestamp, so the pool can't derive its removal key.
-				bz := withUnordered(s.T(), f.signTransfer(s.T(), &f.accounts[0], nil))
+				pooled := f.signTransfer(s.T(), &f.accounts[0], nil)
+				checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
+				s.Require().NoError(err)
+				s.Require().Equal(abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 
-				res := f.finalizeTx(s.T(), bz)
+				// Unordered without a timeout timestamp, so the pool can't derive its removal key.
+				res := f.finalizeTx(s.T(), withUnordered(s.T(), pooled))
 				s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
+				_, err = f.app.Commit()
+				s.Require().NoError(err)
+				if !mp.pooled {
+					return
+				}
+				// The pooled original's nonce is now spent, so recheck must evict it.
+				if m := f.app.MempoolManager(); m != nil {
+					m.WaitForRecheck(context.Background())
+				} else {
+					_, err = f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled, Type: abci.CheckTxType_Recheck})
+					s.Require().NoError(err)
+				}
+				s.Require().Zero(f.app.Mempool().CountTx())
 			})
 		}
 	}
