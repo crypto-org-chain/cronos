@@ -554,13 +554,16 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 		name      string
 		tx        sdk.Tx
 		reason    sdkmempool.RemoveReason
+		nilLogger bool
 		expErr    bool
-		expPanic  bool
+		expLogged bool // the panic is logged under panicPathFinalizeRemove
 		expPooled bool
 	}{
 		{name: "finalize removes the pooled tx", tx: pooled, reason: finalize},
-		{name: "finalize ignores a signer extraction panic", tx: poison, reason: finalize, expPanic: true, expPooled: true},
+		{name: "finalize ignores a signer extraction panic", tx: poison, reason: finalize, expLogged: true, expPooled: true},
 		{name: "finalize ignores a removal error", tx: unkeyed, reason: finalize, expPooled: true},
+		{name: "finalize with a nil logger ignores a panic", tx: poison, reason: finalize, nilLogger: true, expPooled: true},
+		{name: "finalize with a nil logger ignores a removal error", tx: unkeyed, reason: finalize, nilLogger: true, expPooled: true},
 		{name: "other callers still get the removal error", tx: unkeyed, reason: recheck, expErr: true, expPooled: true},
 	}
 
@@ -574,7 +577,11 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 				SignerExtractor: poisonSigner{signer, poison},
 			})
 			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
-			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			recorder := &recordingLogger{Logger: log.NewNopLogger()}
+			var logger log.Logger = recorder
+			if tc.nilLogger {
+				logger = nil
+			}
 
 			var err error
 			s.Require().NotPanics(func() {
@@ -582,12 +589,12 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 			})
 			s.Require().Equal(tc.expErr, err != nil, err)
 			s.Require().Equal(tc.expPooled, poolHas(pool, pooled))
-			if !tc.expPanic {
-				s.Require().Empty(logger.errors)
+			if !tc.expLogged {
+				s.Require().Empty(recorder.errors)
 				return
 			}
-			s.Require().Len(logger.errors, 1)
-			s.Require().Equal(panicPathFinalizeRemove, keyval(logger.errors[0], "path"))
+			s.Require().Len(recorder.errors, 1)
+			s.Require().Equal(panicPathFinalizeRemove, keyval(recorder.errors[0], "path"))
 		})
 	}
 }
