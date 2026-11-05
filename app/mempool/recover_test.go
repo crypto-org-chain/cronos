@@ -120,7 +120,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		encodePanics bool   // the tx must be rejected before RunTx touches ante state or the pool
 	}{
 		{
-			name: "peer InsertTx, panic in preVerify before the admission mutex",
+			name: "peer InsertTx, panic in preVerify before the admission gate",
 			malleate: func(m *Manager) {
 				m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
 			},
@@ -129,7 +129,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			where: "preVerify",
 		},
 		{
-			name: "RPC InsertTx, panic in RunTx under the admission mutex",
+			name: "RPC InsertTx, panic in RunTx under the admission gate",
 			malleate: func(m *Manager) {
 				m.runner = &stubRunner{runTx: func([]byte) error { panicking("RunTx"); return nil }}
 			},
@@ -146,7 +146,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			encodePanics: true,
 		},
 		{
-			name: "CheckTx, panic in the decoder before the admission mutex",
+			name: "CheckTx, panic in the decoder before the admission gate",
 			malleate: func(m *Manager) {
 				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking("decode"); return nil, nil }, noopEncoder)
 			},
@@ -155,7 +155,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			where: "decode",
 		},
 		{
-			name:     "CheckTx, panic in runTx under the admission mutex",
+			name:     "CheckTx, panic in runTx under the admission gate",
 			malleate: func(*Manager) {},
 			call:     checkWith(panicRunTx),
 			path:     panicPathCheckTx,
