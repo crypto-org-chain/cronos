@@ -456,8 +456,8 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 		{
 			name:     "validly signed without a public key",
 			malleate: func(*txtypes.TxRaw) {},
-			// Ante commits the fee and nonce, then the pool's SDK adapter panics in Remove;
-			// changing that adapter changes consensus results.
+			// Today's result, not a contract: ante commits the fee and nonce, then the pool's SDK
+			// adapter panics in Remove. A NoOpMempool node runs the msgs instead (pre-existing split).
 			expErr:          sdkerrors.ErrPanic,
 			expStaleEvicted: true,
 		},
@@ -513,10 +513,13 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 		name     string
 		malleate func(raw *txtypes.TxRaw)
 		expErr   bool
+		// expSDKParity: recheck matches pooled txs, keyed by the SDK adapter, against these signers.
+		expSDKParity bool
 	}{
 		{
-			name:     "public key present",
-			malleate: func(raw *txtypes.TxRaw) { withSignerPubKey(s.T(), raw, acc.Priv.PubKey()) },
+			name:         "public key present",
+			malleate:     func(raw *txtypes.TxRaw) { withSignerPubKey(s.T(), raw, acc.Priv.PubKey()) },
+			expSDKParity: true,
 		},
 		{
 			name:     "no public key",
@@ -559,6 +562,11 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 			}
 			s.Require().NoError(err)
 			s.Require().Equal([]sdkmempool.SignerData{sdkmempool.NewSignerData(from, 0)}, signers)
+			if tc.expSDKParity {
+				sdkSigners, err := sdkmempool.NewDefaultSignerExtractionAdapter().GetSigners(tx)
+				s.Require().NoError(err)
+				s.Require().Equal(sdkSigners, signers)
+			}
 		})
 	}
 }

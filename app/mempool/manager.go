@@ -59,7 +59,8 @@ type Manager struct {
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
-	mpool     sdkmempool.Mempool
+	mpool sdkmempool.Mempool
+	// signer must key every pooled tx by the same address strings as the pool's adapter.
 	signer    sdkmempool.SignerExtractionAdapter
 	decoder   sdk.TxDecoder
 	anteCache *antecache.AnteCache
@@ -153,7 +154,7 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// Block txs are unvalidated and staging runs outside any recover, so a panicking tx is
+// FinalizeBlock stages unvalidated block txs outside any recover, so a panicking tx is
 // skipped rather than panicking FinalizeBlock.
 func (a *Manager) txSenders(txs [][]byte) map[string]struct{} {
 	senders := make(map[string]struct{}, len(txs))

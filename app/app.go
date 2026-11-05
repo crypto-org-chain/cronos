@@ -571,8 +571,8 @@ func New(
 
 			mempoolLogger := logger.With("module", "app-mempool")
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, mempoolLogger))
-			// The manager reads unvalidated block txs, so it can't use the pool's adapter; the pool
-			// keeps it because its Remove outcome is part of FinalizeBlock tx results (consensus).
+			// The manager's adapter also stages senders of block txs that omit their pubkey; the pool
+			// keeps the SDK one because its Remove outcome is part of FinalizeBlock tx results (consensus).
 			managerSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter())
 			manager := cronosmempool.NewManager(app, mempoolLogger, encCache, txConfig.TxEncoder(), mpool, managerSigner, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			manager.SetAnteCache(anteCache)

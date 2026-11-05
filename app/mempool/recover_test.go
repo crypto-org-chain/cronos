@@ -433,7 +433,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 	}
 }
 
-// Proposal txs are unvalidated and staging runs outside any recover, so staging must not panic.
+// FinalizeBlock stages unvalidated block txs outside any recover, so staging must not panic.
 func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 	good, poison := &ptrTx{id: 1}, &ptrTx{id: 2}
 	alice, bob := sdk.AccAddress("alice").String(), sdk.AccAddress("bob").String()
