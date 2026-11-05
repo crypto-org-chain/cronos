@@ -26,23 +26,20 @@ const (
 	fromRPC
 )
 
-// admitter is the admission half of the app mempool: peer-relayed InsertTx and
-// RPC CheckTx, both validated by RunTx under the shared gate.
+// admitter admits peer InsertTx and RPC CheckTx via RunTx under the gate.
 type admitter struct {
 	exec *txExec
-	// encodeMu serializes the pre-RunTx encode, which writes empty body/auth-info bytes into a
-	// shared decoded tx. Pooled txs passed ante, so other encodes only read. Never held with gate.
+	// encodeMu serializes the pre-RunTx encode, which fills empty body/auth-info
+	// bytes in a shared decoded tx. Never held with gate.
 	encodeMu sync.Mutex
 	trace    bool
-	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
+	// preVerify runs cheap checks before the gate; nil skips.
 	preVerify func([]byte) error
-	// rpcTxLimit is applied to RPC admissions only; gossip is already bounded by
-	// p2p receive concurrency.
+	// rpcTxLimit caps RPC admissions only; gossip is bounded by p2p concurrency.
 	rpcTxLimit inflightLimit
 }
 
-// acquireRPCSlot takes an RPC admission slot and returns its release; when none
-// is free it counts a shed and returns ok=false.
+// acquireRPCSlot returns ok=false, counting a shed, when no slot is free.
 func (a *admitter) acquireRPCSlot() (release func(), ok bool) {
 	if !a.rpcTxLimit.tryAcquire() {
 		telemetry.IncrCounter(1, "cronos", "mempool", "rpc", "shed")
@@ -51,10 +48,8 @@ func (a *admitter) acquireRPCSlot() (release func(), ok bool) {
 	return a.rpcTxLimit.release, true
 }
 
-// admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
-// the gate), then RunTx(ExecModeCheck) + encCache.Set under it. Over-capacity and,
-// for RPC txs, a full rpcTxLimit map to CodeTypeRetry. tx stays nil when
-// encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
+// admit runs preVerify and decoding before the gate, so bad txs never take it.
+// A full pool or rpcTxLimit maps to CodeTypeRetry.
 func (a *admitter) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -99,7 +94,8 @@ func (a *admitter) admit(txBytes []byte, source admitSource) (code uint32, codes
 	return abci.CodeTypeOK, "", ""
 }
 
-// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nils without a cache, raw bytes on encode error.
+// decodeAndEncode encodes before RunTx so a tx whose encode panics never reaches
+// the pool. Returns nils without a cache (RunTx then decodes), raw bytes on an encode error.
 func (a *admitter) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
 	if a.exec.encCache == nil {
 		return nil, nil, nil
@@ -121,8 +117,6 @@ func (a *admitter) encode(tx sdk.Tx) ([]byte, error) {
 	return a.exec.txEncoder(tx)
 }
 
-// insertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
-// admitting them.
 func (a *admitter) insertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		code, _, _ := a.admit(req.Tx, fromGossip)
@@ -146,7 +140,6 @@ func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
 		}
 		defer release()
 
-		// Decode and encode before locking
 		tx, canonical, err := a.decodeAndEncode(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
@@ -163,8 +156,6 @@ func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
 		a.exec.encCache.Set(tx, canonical)
 		a.exec.pending.invalidate()
 
-		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
-		// the tx indexer on FinalizeBlock results, not CheckTx.
 		return &abci.ResponseCheckTx{
 			GasWanted: int64(gasInfo.GasWanted),
 			GasUsed:   int64(gasInfo.GasUsed),

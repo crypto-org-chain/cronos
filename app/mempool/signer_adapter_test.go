@@ -9,11 +9,6 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// TestEthSignerExtractionAdapter_SequenceIsEvmNonce pins the mapping the
-// recheck cascade's seq arithmetic depends on: for a MsgEthereumTx, the
-// adapter wired in app.go (evmd.NewEthSignerExtractionAdapter) puts the EVM
-// tx's nonce into SignerData.Sequence, not the signer's cosmos account
-// sequence.
 func TestEthSignerExtractionAdapter_SequenceIsEvmNonce(t *testing.T) {
 	f := setupAdmissionApp(t, 1)
 	acc := &f.accounts[0]

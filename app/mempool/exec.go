@@ -16,23 +16,16 @@ type txRunner interface {
 
 var (
 	_ txRunner = (*baseapp.BaseApp)(nil)
-	// committedHeight relies on this to detect a Commit between recheck chunks.
+	// committedHeight relies on this to detect a Commit during recheck.
 	_ interface{ LastBlockHeight() int64 } = (*baseapp.BaseApp)(nil)
 )
 
-// txExec is what admission and recheck share: the RunTx entry point, the
-// codecs both need, the PendingTxs snapshot cache both invalidate, and the
-// logger for recovered panics.
+// txExec is what admission and recheck share.
 type txExec struct {
-	// gate serializes every RunTx against baseapp's checkState, the pending-nonce
-	// view admission and recheck share: a CheckTx/ReCheckTx ante write-back is
-	// what lets a later higher-nonce sibling pass. AppMempool.Lock() is a no-op,
-	// so gate also replaces the mempool lock BaseApp normally relies on, and
-	// App.Commit holds it across BaseApp.Commit() so the checkState reset never
-	// races a RunTx; a pending Commit goes ahead of every queued admission and
-	// recheck chunk. Held around one recheck chunk (its RunTx calls plus the
-	// cascade eviction that follows a nonce gap proven in that chunk) so eviction
-	// stays atomic with admission; never held across the lock-free pool scan.
+	// gate serializes every RunTx on checkState, the pending-nonce view admission
+	// and recheck share, and replaces the no-op AppMempool.Lock(). App.Commit
+	// holds it across BaseApp.Commit() and goes ahead of queued holders. Recheck
+	// holds it per chunk, cascade eviction included, never across the pool scan.
 	gate      admissionGate
 	runner    txRunner
 	encCache  *EncoderCache
@@ -48,8 +41,8 @@ func (e *txExec) runTxLocked(mode sdk.ExecMode, bz []byte, tx sdk.Tx) (sdk.GasIn
 	return e.runner.RunTx(mode, bz, tx, -1, nil, nil)
 }
 
-// committedHeight is the height of the last Commit, or 0 if the runner can't
-// report it. Stable while gate is held, since Commit resets checkState under it.
+// committedHeight is the last committed height, or 0 if the runner can't report
+// it. Stable while gate is held.
 func (e *txExec) committedHeight() int64 {
 	if h, ok := e.runner.(interface{ LastBlockHeight() int64 }); ok {
 		return h.LastBlockHeight()

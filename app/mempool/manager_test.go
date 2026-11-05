@@ -541,9 +541,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 	}
 }
 
-// TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
-// gossip InsertTxHandler run the same admission body under one mutex: both drive
-// the lock-free raceRunner concurrently, which -race flags if a path skips the gate.
+// Both paths drive the lock-free raceRunner concurrently; -race flags one that skips the gate.
 func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
 	a := newManager(runner, nil, noopEncoder, nil)

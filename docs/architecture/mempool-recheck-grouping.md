@@ -1,135 +1,91 @@
 # App-mempool recheck: per-signer groups, chunked lock holds, gap-proof cascade
 
-Tracks the remaining items of [#2109](https://github.com/crypto-org-chain/cronos/issues/2109)
-for `mempool.type=app`: timing-dependent recheck evictions (item 3), nonce-gap orphans
-(item 4), and the admission/recheck split (item 5).
+Covers items 3–5 of [#2109](https://github.com/crypto-org-chain/cronos/issues/2109) for
+`mempool.type=app`.
 
 ## Problem
 
-Post-Commit recheck re-validates pending txs with `RunTx(ExecModeReCheck)`. Before this
-change it released the admission mutex between candidates, so peer `InsertTx` and RPC
-`CheckTx` for the same sender could land in the middle of that sender's nonce chain. A
-candidate then failed wrong-sequence or passed depending on scheduling, and was evicted or
-kept accordingly. Not a data race (every `RunTx` is serialized), but node-local and
-non-deterministic.
-
-Separately, an eviction in the middle of a sender's chain (timeout, TTL, ante failure)
-left the higher-nonce siblings pooled with no way to become valid. Recheck only picks
-senders touched by a block, and the fast `PrepareProposal` path skips the ante, so those
-orphans could sit in the pool until TTL, or be proposed and fail at `FinalizeBlock`.
+- Recheck released the admission lock between candidates. A same-sender `InsertTx` or
+  `CheckTx` could land mid-chain, so a candidate passed or failed depending on timing.
+- Evicting a tx mid-chain left its higher-nonce siblings pooled with no way to become
+  valid. They sat there until TTL, or got proposed and failed at `FinalizeBlock`.
 
 ## Why not a branched store
 
-An earlier draft gave the mempool its own `CacheMultiStore` branched off the committed
-store and passed it as `RunTx`'s `txMultiStore` for admission and recheck. It was dropped:
+An earlier draft ran admission and recheck on a mempool-owned `CacheMultiStore`. It was
+dropped:
 
-- It does not change what recheck interleaves with. Admission and recheck still share one
-  pending-nonce view under one mutex; only the object holding it moved.
-- `BaseApp.Simulate` runs on `checkState`, and the cosmos sequence check is not gated on
-  simulate. With nonce bumps redirected into a private branch, `checkState` stays at the
-  committed nonce and a `Simulate` of a pipelined cosmos tx fails wrong-sequence. Default
-  SDK behavior (and the previous app-mempool behavior) is for `Simulate` to see pending
-  nonces.
-- It forced `CheckTxHandler` to bypass the `runTx` closure baseapp passes in and
-  re-derive the exec mode from `req.Type`.
+- Admission and recheck still shared one nonce view under one lock, so nothing changed.
+- `BaseApp.Simulate` runs on `checkState`, and its sequence check isn't skipped for
+  simulate. With nonces in a private branch, simulating a pipelined cosmos tx failed.
 
-`checkState` therefore remains the single pending-nonce view. `App.Commit` holds the
-admission mutex across `BaseApp.Commit()` so the `checkState` reset never races a
-`RunTx`.
+`checkState` stays the single pending-nonce view. `App.Commit` holds the gate across
+`BaseApp.Commit()`, so the reset never races a `RunTx`.
 
 ## Design
 
-### Per-signer groups
+### Groups
 
-`groupCandidates` buckets candidates by first signer — the one `PriorityNonceMempool`
-orders by — in first-appearance order, and sorts each group ascending by sequence (the
-deferred carry can hand candidates out of nonce order). Encoding happens here, outside
-the mutex.
+`groupCandidates` buckets candidates by first signer and sorts each group by nonce.
+`maxRecheckBatch` caps work per cycle, but only between groups. Overflow groups carry
+whole into `deferred`, and their senders are re-staged, because a fee bump changes tx
+identity and would drop out of the carry.
 
-`maxRecheckBatch` (`cronos.mempool-txs-per-block`) is a soft cap applied at group
-boundaries only: once the running total would exceed it, the remaining whole groups carry
-into `deferred` for the next cycle and their senders are merged back into staging. A
-sender's chain is never split across cycles. The sender re-staging matters because
-`deferred` is keyed on tx identity: a fee bump replacing a carried tx at the same nonce
-would otherwise vanish from the carry and its live tail would fail as a false gap.
+### Chunks
 
-### Chunked lock holds
+A group runs in chunks of 256 under one gate hold each. A pending Commit goes ahead of
+queued holders, so it waits for at most one chunk.
 
-A group runs in chunks of `recheckChunkSize` (256) candidates, each under one hold of the
-admission gate. A pending `App.Commit` goes ahead of every queued admission and chunk, so
-it waits for at most the chunk in flight; without chunks it would wait out one sender's
-whole queue. Between chunks, a same-sender admission can land; that is the same
-residual interleaving accepted between groups. A Commit can land there too; see
-Residuals.
+### Commit during a cycle
+
+The committed height is pinned when the cycle drains staging. Once a Commit moves past
+it, the cycle stops and re-stages every sender it has not reached. Running them on the
+reset `checkState` would re-apply their nonces, and the recheck that Commit triggers
+would then reject the same valid txs as stale. Counter: `cronos.mempool.recheck.restaged`.
 
 ### Cascade eviction
 
-Within a chunk, a candidate that fails is evicted. If the failure is a nonce error
-(`ErrWrongSequence` from cosmos sig verification, `ErrInvalidSequence` from the EVM ante)
-*and* an earlier candidate in the **same lock hold** was accepted *and* the failing nonce
-is strictly above `lastOK+1`, the account's next expected nonce is provably `lastOK+1`
-and every remaining candidate in the chunk is above a hole nothing can fill while the
-mutex is held. They are evicted without a `RunTx` each.
+A failing candidate is evicted. If it failed with a nonce error, an earlier candidate in
+the **same chunk** passed, and its nonce is above `lastOK+1`, the gap is proven: nothing
+can fill it while the gate is held. The rest of the chunk is evicted without a `RunTx`
+each.
 
-Nothing carries across chunks. Once the mutex is released, admissions can move the
-account's nonce past the next chunk's head, so a nonce error there means *stale*, not
-*gap* — the two are indistinguishable from the error alone. An earlier draft carried the
-cursor and blind-evicted on a head nonce error; with two or more same-sender admissions
-between chunks that evicted valid replacements. The next chunk therefore starts with no
-accepted nonce and must re-prove any gap. Cost: after a gap, each later chunk of that
-sender spends one `RunTx` per candidate instead of none.
+Nothing carries across chunks. Once the gate is released, an admission can move the
+nonce, so a nonce error at the next chunk's head may mean stale, not gap.
 
-Cascade is disabled for a group that is not the signer's clean ascending view: unknown
-signer, any signer named by a multi-signer tx (that tx is grouped under its first signer
-and can fill a nonce this group cannot see), any sender of a batch eth tx with more than
-one `MsgEthereumTx` (the EVM signer adapter reports only the first msg's nonce, so after
-the batch the account expects more than `lastOK+1` and a stale sibling would look like a
-gap; for the same reason staging and selection treat every batch sender as a signer, so a
-committed batch rechecks each co-sender's pooled txs), an unordered tx (keyed by timeout, not
-sequence), a duplicate sequence, or a tx dropped on an encode error or a panic while
-grouping. A non-nonce failure (e.g. insufficient funds) evicts only that tx, and a tx whose
-`RunTx` or eviction panics is evicted if possible; neither starts a cascade. The next
-sibling then fails as a proven gap if it really is one.
+Cascade is off for a group that isn't the signer's whole ascending-nonce view:
+
+- unknown signer;
+- a co-signer of a multi-signer tx (that tx can fill a nonce from another group);
+- a sender of a batch eth tx (the EVM signer adapter reports only the first nonce);
+- an unordered tx, or a duplicate nonce;
+- a tx dropped while grouping (encode error or panic).
+
+A non-nonce failure, or a panic in `RunTx` or eviction, never starts a cascade.
 
 ### Ante cache
 
-ethermint's EVM ante caches one `(from, nonce)` per `MsgEthereumTx` at CheckTx so a
-replacement can skip nonce verification. A cascade or TTL eviction never runs the ante on
-the evicted tx, so `evict` also drops those entries via `SetAnteCache`; otherwise a stale
-entry lets a resubmit of the evicted nonce bypass the check.
+`evict` drops ethermint's `(from, nonce)` ante-cache entries. A cascade or TTL eviction
+never runs the ante, so a stale entry would let a resubmit skip nonce verification.
 
 ### Split
 
-- `exec.go` — `txExec`: the admission gate (`admission_gate.go`, a mutex with Commit
-  priority), `RunTx` entry point, codecs, the `PendingTxs` snapshot cache both halves
-  invalidate, and the logger both use for recovered panics (`recover.go`).
-- `admitter.go` — peer `InsertTx` and RPC `CheckTx`, with the RPC in-flight cap
-  (`inflight_limit.go`).
-- `scheduler.go` — staging, selection/TTL, grouping, chunked recheck, eviction.
+- `exec.go`: the gate, `RunTx`, codecs, the pending cache, and the panic logger.
+- `admitter.go`: `InsertTx` and `CheckTx`, with the RPC in-flight cap.
+- `scheduler.go`: staging, selection, grouping, chunked recheck, eviction.
 
-`Manager` is a facade so `app.go` and the proposal handler call sites do not churn. Lock
-order: `recheckMu > exec.gate > stagingMu`.
+Lock order: `recheckMu > exec.gate > stagingMu`.
 
 ## Residuals
 
-- `PriorityNonceMempool.Remove` resolves by `(sender, nonce)`, not tx identity. Evicting a
-  stale candidate whose slot was replaced by a fee bump between snapshot and eviction
-  drops the replacement. `BaseApp.RunTx` does the same on a ReCheck ante failure; the
-  client's resubmit resolves it.
-- A Commit landing between groups is harmless: each group starts from its signer's
-  lowest pooled nonce against the newer `checkState`. Inside a multi-chunk group it is
-  not, since the reset drops the nonces earlier chunks re-applied, so the group stops
-  and its sender is re-staged for the recheck that Commit triggers. Counter:
-  `cronos.mempool.recheck.restaged` (candidates left unchecked this pass).
-- The admission mutex is still held across the whole `BaseApp.Commit()` (item 1 of
-  #2109) until memiavl reads are safe during commit.
+- `PriorityNonceMempool.Remove` matches by `(sender, nonce)`. Evicting a stale candidate
+  whose slot a fee bump just replaced drops the replacement, as `BaseApp` does on a
+  recheck failure. The client resubmits.
+- The gate is held across all of `BaseApp.Commit()` (item 1 of #2109).
 
 ## Differential tests
 
-`app/proposal_diff_test.go` seeds two identical pools and runs the fast `PrepareProposal`
-path against the default full-ante handler. Same-sender gaps produce identical
-selections (the per-signer sequence guard is shared). Stale nonce, recheck backlog, and
-timeout height diverge as expected: the fast path proposes what the ante would reject and
-leaves it pooled for recheck; the default path drops and evicts during the proposal. In
-every divergent case the real `ProcessProposalHandler` still accepts the block, so an
-ante-invalid tx only becomes a failed tx result at `FinalizeBlock`.
+`app/proposal_diff_test.go` runs the fast `PrepareProposal` path against the default
+full-ante handler on identical pools. They agree on same-sender gaps. They diverge on
+stale nonces, recheck backlog, and timeout height, and `ProcessProposal` still accepts
+every divergent block.

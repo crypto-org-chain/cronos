@@ -327,7 +327,7 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 			}
 			done := make(chan struct{})
 			go func() {
-				f.a.sched.runRecheck(groups)
+				f.a.sched.runRecheck(groups, 0)
 				close(done)
 			}()
 			// Park recheck inside its first RunTx, holding the gate.

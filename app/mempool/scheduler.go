@@ -26,40 +26,30 @@ type recheckScheduler struct {
 	exec   *txExec
 	mpool  sdkmempool.Mempool
 	signer sdkmempool.SignerExtractionAdapter
-	// maxRecheckBatch softly caps RunTx(ReCheck) calls per Commit cycle: it splits
-	// only at group boundaries, so a signer's whole nonce chain always runs
-	// together even if that group alone exceeds the cap. 0 = unlimited.
+	// maxRecheckBatch softly caps RunTx(ReCheck) calls per cycle, splitting only
+	// between signer groups. 0 = unlimited.
 	maxRecheckBatch int
-	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
-	// Separate from the admission mutex so FinalizeBlock staging never blocks behind a recheck batch.
+	// stagingMu guards the staging fields, apart from the gate so FinalizeBlock
+	// staging never waits on a recheck chunk.
 	stagingMu sync.Mutex
-	// recheckSenders accumulates senders of committed blocks awaiting recheck; merged
-	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
+	// recheckSenders accumulates senders awaiting recheck across blocks until drained.
 	recheckSenders map[string]struct{}
-	// deferred is an ordering hint only: it front-loads capRecheckGroups'
-	// overflow ahead of fresh candidates next cycle. The actual guarantee that
-	// those senders get re-picked comes from capRecheckGroups also merging
-	// their senders into recheckSenders — deferred alone would miss a carried
-	// tx whose pool identity changed, e.g. a fee bump replacing it at the same
-	// nonce.
+	// deferred front-loads capRecheckGroups' overflow next cycle. Ordering hint
+	// only: re-staging those senders is what guarantees a re-pick after a fee bump.
 	deferred            []sdk.Tx
 	lastCommittedHeight int64
-	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
-	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle; recheckMu keeps it single-writer.
+	// arrival is the height each pooled tx was first seen, for TTL eviction; guarded by recheckMu.
 	arrival map[sdk.Tx]int64
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
 
-	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before the admission mutex and stagingMu, never after
-	// Zero-value (trigger nil) when built via the newManager() test constructor;
-	// TriggerRecheck then runs RecheckTxs inline instead of async.
+	recheckMu sync.Mutex // serializes RecheckTxs; lock order recheckMu > exec.gate > stagingMu
+	// worker is zero in tests (newManager), so triggerRecheck runs inline.
 	worker recheckWorker
-	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
-	// including TTL/expiry eviction
+	// recheckDisabled mirrors mempool.recheck=false, TTL and expiry eviction included.
 	recheckDisabled bool
-	// anteCache is ethermint's per-(sender, nonce) admission cache; evict drops
-	// a tx's entries so a cascade/TTL eviction that never spends a RunTx cannot
-	// leave a stale entry that lets a resubmit skip nonce verification.
+	// anteCache is ethermint's (sender, nonce) cache. evict drops a tx's entries so
+	// a resubmit after a cascade or TTL eviction can't skip nonce verification.
 	anteCache *antecache.AnteCache
 }
 
@@ -68,8 +58,7 @@ func (s *recheckScheduler) recheckDecodingEnabled() bool {
 	return !s.recheckDisabled && s.signer != nil && s.exec.decoder != nil
 }
 
-// stageSkippedSenders merges the senders of proposal-gate-rejected txs into
-// recheckSenders without touching lastCommittedHeight
+// stageSkippedSenders stages the senders of proposal-gate-rejected txs, leaving the height.
 func (s *recheckScheduler) stageSkippedSenders(txs [][]byte) {
 	if !s.recheckDecodingEnabled() || len(txs) == 0 {
 		return
@@ -92,9 +81,8 @@ func (s *recheckScheduler) stageSkippedSenders(txs [][]byte) {
 	s.stagingMu.Unlock()
 }
 
+// mergeRecheckSenders merges rather than overwrites, so undrained senders survive. Caller holds stagingMu.
 func (s *recheckScheduler) mergeRecheckSenders(senders map[string]struct{}) {
-	// mergeRecheckSenders folds senders into recheckSenders without overwriting, so a
-	// block whose Commit skipped RecheckTxs doesn't lose its staged senders.
 	if s.recheckSenders == nil {
 		s.recheckSenders = senders
 	} else {
@@ -102,14 +90,11 @@ func (s *recheckScheduler) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// stageRecheckSenders records the senders of the just-committed block's txs so
-// RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height.
+// stageRecheckSenders stages the block's height and senders for the next recheck.
 func (s *recheckScheduler) stageRecheckSenders(height int64, txs [][]byte) {
 	s.exec.pending.invalidate()
 
-	// Decode + extract signers unlocked (the expensive part), then publish height
-	// and recheckSenders in one critical section so a reader never sees a torn update.
+	// Decode unlocked; publish height and senders together.
 	var senders map[string]struct{}
 	if s.recheckDecodingEnabled() {
 		senders = make(map[string]struct{}, len(txs))
@@ -130,8 +115,7 @@ func (s *recheckScheduler) stageRecheckSenders(height int64, txs [][]byte) {
 	s.stagingMu.Unlock()
 }
 
-// triggerRecheck schedules an async recheck.
-// Call only from the consensus path (App.Commit).
+// triggerRecheck schedules an async recheck. Call only from App.Commit.
 func (s *recheckScheduler) triggerRecheck() {
 	if s.worker.trigger == nil {
 		s.RecheckTxs()
@@ -140,17 +124,19 @@ func (s *recheckScheduler) triggerRecheck() {
 	s.worker.recheck()
 }
 
-// RecheckTxs evicts pool txs invalidated by the last block. A Commit landing
-// mid-pass is harmless between groups: each group starts from its signer's
-// lowest pooled nonce. Inside a multi-chunk group runGroup stops and re-stages.
+// RecheckTxs evicts pool txs invalidated by the last block.
 func (s *recheckScheduler) RecheckTxs() {
 	if s.mpool == nil || s.recheckDisabled {
 		return
 	}
 	s.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer s.recheckMu.Unlock()
+	// Pin the height atomically with the drain; see runRecheck.
+	s.exec.gate.lock()
+	committed := s.exec.committedHeight()
 	recheckSenders, height, deferred := s.drainStaging()
-	// Before the first block (height 0) with no senders/carry there's nothing to scan.
+	s.exec.gate.unlock()
+	// Nothing to scan before the first block.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
@@ -165,7 +151,7 @@ func (s *recheckScheduler) RecheckTxs() {
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
 	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
-	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)))
+	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)), committed)
 
 	s.exec.pending.invalidate()
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
@@ -191,8 +177,7 @@ func (s *recheckScheduler) restoreStaging(recheckSenders map[string]struct{}, de
 	}
 }
 
-// selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
-// only invokes this when recheck is enabled.
+// selectTxs evicts expired txs and returns the candidates to recheck.
 func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
@@ -210,8 +195,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 		newArrival = make(map[sdk.Tx]int64, len(snapshot))
 	}
 
-	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
-	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
+	// Pass 1: evictions. An evicted tx's sender is rechecked, since its higher nonces are now gapped.
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	// Wall clock is fine here: eviction is node-local, and the ante re-checks a
 	// tx's timeout against block time before it can land in a block.
@@ -275,8 +259,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	if len(deferred) == 0 {
 		return candidates
 	}
-	// Front-load surviving deferred ahead of fresh candidates: the snapshot is
-	// priority-ordered, so otherwise capRecheckGroups re-takes the same prefix and starves the tail.
+	// Front-load the carry, or capRecheckGroups re-takes the same priority prefix and starves the tail.
 	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
 	for _, tx := range deferred {
 		if deferredLive[tx] {
@@ -292,8 +275,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	return ordered
 }
 
-// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
+// evictForRecheck evicts tx and stages its signers; maps are allocated lazily.
 func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	s.evict(tx)
 	evictedSet = markEvicted(evictedSet, tx)
@@ -315,8 +297,7 @@ func markEvicted(evictedSet map[sdk.Tx]struct{}, tx sdk.Tx) map[sdk.Tx]struct{} 
 	return evictedSet
 }
 
-// guardRecheckTx runs step and evicts tx if step panics, so one poison tx can't stall
-// every cycle's eviction. Reports whether step panicked.
+// guardRecheckTx evicts tx if step panics, so one poison tx can't stall every cycle.
 func (s *recheckScheduler) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -329,8 +310,7 @@ func (s *recheckScheduler) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool
 	return false
 }
 
-// Eviction calls the same tx methods that may have panicked; if it panics too, the tx
-// stays pooled and is guarded again next cycle.
+// evictPoisonTx may panic on the same tx methods; the tx then stays pooled and is guarded next cycle.
 func (s *recheckScheduler) evictPoisonTx(tx sdk.Tx) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -340,15 +320,10 @@ func (s *recheckScheduler) evictPoisonTx(tx sdk.Tx) {
 	s.evict(tx)
 }
 
-// capRecheckGroups bounds RunTx(ReCheck) calls per cycle without ever
-// splitting a signer's group: the first group always runs in full regardless
-// of size, and once the running total would exceed maxRecheckBatch the
-// remaining groups carry forward whole into deferred. Their senders are also
-// merged into recheckSenders (the recoverSenders path), because deferred is
-// keyed on tx identity: a fee bump replacing a carried tx at the same nonce
-// would otherwise vanish from deferredLive next cycle and take its whole live
-// tail down as a false wrong-sequence failure. Re-selecting by sender instead
-// picks up whatever the pool holds for that (sender, nonce) key now.
+// capRecheckGroups carries whole groups past maxRecheckBatch into deferred; the
+// first group always runs. The carried senders are re-staged too: deferred is
+// keyed on tx identity, so a fee bump would drop out of it and its tail would
+// fail as a false gap.
 func (s *recheckScheduler) capRecheckGroups(groups []recheckGroup) []recheckGroup {
 	if s.maxRecheckBatch <= 0 {
 		return groups
@@ -368,38 +343,36 @@ func (s *recheckScheduler) capRecheckGroups(groups []recheckGroup) []recheckGrou
 	return groups
 }
 
-// recheckCandidate carries the signer nonce alongside the tx: telling a nonce
-// gap from a merely stale nonce is what makes cascade eviction safe.
+// recheckCandidate keeps the signer nonce, which tells a gap from a stale nonce.
 type recheckCandidate struct {
 	tx  sdk.Tx
 	bz  []byte
 	seq uint64
 }
 
-// recheckGroup holds one signer's candidates sorted ascending by seq.
-// cascadable is false when the group is not that signer's contiguous
-// ascending-nonce view — an unknown signer, a signer named by a multi-signer tx
-// (that tx is grouped elsewhere, so it can fill a nonce this group can't see),
-// a sender of a batch eth tx (its seq shows only the first msg's nonce), a
-// duplicate seq, an unordered tx (keyed by timeout, not sequence), or a tx
-// dropped on an encode error or a panic while grouping — because the cascade
-// rule reasons about the next expected nonce.
+// recheckGroup holds one signer's candidates sorted by seq. cascadable is false
+// unless they are that signer's whole ascending-nonce view (see groupCandidates).
 type recheckGroup struct {
 	key        string
 	txs        []recheckCandidate
 	cascadable bool
 }
 
-// runRecheck re-validates candidates via RunTx(ReCheck), one signer group at a
-// time so a sender's nonce chain runs contiguously; see runGroup for what may
-// land between its chunks.
-func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
+// runRecheck runs the groups one at a time. Once a Commit moves past height it
+// re-stages the rest: run on the reset checkState, they would re-apply nonces
+// that the Commit's own recheck then rejects as stale.
+func (s *recheckScheduler) runRecheck(groups []recheckGroup, height int64) {
 	var evicted, cascaded, restaged int
-	for _, g := range groups {
-		e, c, r := s.runGroup(g)
+	for i, g := range groups {
+		e, c, r := s.runGroup(g, height)
 		evicted += e
 		cascaded += c
-		restaged += r
+		if r > 0 {
+			rest := unreachedTxs(groups[i+1:])
+			s.recoverSenders(rest)
+			restaged = r + len(rest)
+			break
+		}
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(float32(evicted), "cronos", "mempool", "recheck", "evicted")
@@ -412,22 +385,14 @@ func (s *recheckScheduler) runRecheck(groups []recheckGroup) {
 	}
 }
 
-// groupCandidates buckets candidates by first signer — the one the mempool
-// orders by — keeping first-appearance order across groups. Encoding happens
-// here, outside the admission mutex, to keep the per-group hold to RunTx.
-// Within a group, candidates are sorted ascending by seq: deferred front-
-// loading can hand candidates out of nonce order, and running them out of
-// order would fail wrong-sequence against a nonce that a later candidate in
-// the same group would have satisfied.
+// groupCandidates buckets candidates by first signer, the one the pool orders
+// by, and sorts each group by seq since the carry can arrive out of order.
+// Encoding happens here, outside the gate.
 func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	var groups []recheckGroup
 	index := make(map[string]int)
-	// Every signer named by a multi-signer tx: that tx is grouped under its first
-	// signer only, so it can advance a co-signer's nonce from outside that
-	// co-signer's group, making a gap there unprovable. A batch eth tx counts
-	// too, even from a single sender: the EVM signer adapter reports only the
-	// first MsgEthereumTx's nonce, so after the batch the account expects a
-	// higher nonce than lastOK+1, and a stale sibling would pass the gap rule.
+	// coSigned: a multi-signer tx can fill a co-signer's nonce from another group,
+	// and a batch eth tx reports only its first nonce, so neither gap is provable.
 	var coSigned map[string]struct{}
 	markCoSigned := func(signers []string) {
 		if len(signers) == 0 {
@@ -456,17 +421,17 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 			}
 			markCoSigned(batchEthSenders(tx))
 			if unordered, ok := tx.(sdk.TxWithUnordered); ok && unordered.GetUnordered() {
-				g.cascadable = false // unordered txs key by timeout, not sequence: seq here is meaningless for the gap rule
+				g.cascadable = false // keyed by timeout, not sequence
 			}
 			bz, _, err := EncodeTx(s.exec.encCache, s.exec.txEncoder, tx)
 			if err != nil {
-				g.cascadable = false
+				g.cascadable = false // a dropped tx may fill a gap
 				return
 			}
 			g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
 		})
 		if evictedPoison && g != nil {
-			g.cascadable = false
+			g.cascadable = false // a dropped tx may fill a gap
 		}
 	}
 	for i := range groups {
@@ -477,8 +442,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		slices.SortStableFunc(g.txs, func(a, b recheckCandidate) int {
 			return cmp.Compare(a.seq, b.seq)
 		})
-		// A duplicate seq can only appear as adjacent equal entries once sorted;
-		// it still means the group isn't a clean ascending-nonce view.
+		// A duplicate seq sorts adjacent.
 		for j := 1; j < len(g.txs); j++ {
 			if g.txs[j].seq <= g.txs[j-1].seq {
 				g.cascadable = false
@@ -489,8 +453,7 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	return groups
 }
 
-// batchEthSenders returns the sender of every MsgEthereumTx in tx when it
-// carries more than one, nil otherwise, so a single-msg tx stays alloc-free.
+// batchEthSenders returns each MsgEthereumTx sender of a batch eth tx, nil otherwise.
 func batchEthSenders(tx sdk.Tx) []string {
 	msgs := tx.GetMsgs()
 	if len(msgs) < 2 {
@@ -508,24 +471,16 @@ func batchEthSenders(tx sdk.Tx) []string {
 	return senders
 }
 
-// recheckChunkSize bounds how many candidates one signer group runs under a
-// single hold of exec.gate. Without this, a group's size is bounded only by one
-// sender's pool depth, and App.Commit — which waits out the gate's current
-// holder — would stall behind an arbitrarily deep queue.
+// recheckChunkSize bounds one gate hold, so Commit never waits out a sender's whole queue.
 const recheckChunkSize = 256
 
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
-// queue for one sender can't hold the admission mutex indefinitely. An
-// admission of the same sender landing between chunks is the same residual
-// interleaving the design doc already accepts between groups. A Commit landing
-// between chunks is not: its checkState reset drops the nonces earlier chunks
-// re-applied, so every later candidate would fail wrong-sequence. The rest of
-// the group is re-staged for the recheck that Commit triggers instead;
-// restaged counts the candidates left unchecked.
-func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded, restaged int) {
-	height := int64(-1)
+// queue can't hold the gate indefinitely. A same-sender admission may land
+// between chunks; a Commit stops the group, re-staging the candidates left
+// (counted by restaged).
+func (s *recheckScheduler) runGroup(g recheckGroup, height int64) (evicted, cascaded, restaged int) {
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), &height)
+		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), height)
 		evicted += e
 		cascaded += c
 		if !ok {
@@ -536,25 +491,16 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded, restaged
 	return evicted, cascaded, 0
 }
 
-// runChunkLocked runs g.txs[start:end] under one hold of exec.gate, evicting each
-// candidate that fails. On a proven nonce gap the rest of the chunk is
-// cascade-evicted without a RunTx each: siblings above a gap can't become
-// valid until the gap is filled, and nothing can fill it while the mutex is
-// held. A gap is only provable against a nonce this same lock hold accepted
-// (so lastOK+1 is the account's next expected nonce), and only when the
-// failing nonce is strictly above that. Nothing carries across chunks: once
-// the mutex is released, a same-sender admission can move the account's
-// nonce, so a nonce error at the next chunk's head may mean stale rather than
-// gap, and cascading on it would evict valid siblings. Without an
-// accepted nonce a failure may also be a stale nonce, whose successor is valid.
-// height pins the committed height seen by the group's first chunk; ok is
-// false, with nothing run, when a Commit has landed since.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height *int64) (evicted, cascaded int, ok bool) {
+// runChunkLocked runs g.txs[start:end] under one gate hold, evicting each
+// failure. A nonce error strictly above a nonce accepted in this same hold is a
+// proven gap, so the rest of the chunk is cascade-evicted without a RunTx each.
+// Nothing carries across chunks: once the gate is released an admission can
+// move the nonce, making a nonce error stale rather than a gap. ok is false,
+// with nothing run, when the committed height is no longer height.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height int64) (evicted, cascaded int, ok bool) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
-	if h := s.exec.committedHeight(); *height < 0 {
-		*height = h
-	} else if h != *height {
+	if s.exec.committedHeight() != height {
 		return 0, 0, false
 	}
 	var lastOK uint64
@@ -608,10 +554,8 @@ func candidateTxs(cs []recheckCandidate) []sdk.Tx {
 	return txs
 }
 
-// recoverSenders folds txs' senders back into staged recheckSenders without
-// touching deferred, which capRecheckGroups may have already set this cycle. A
-// candidate whose signer can't be extracted is silently dropped here, so it
-// waits for TTL eviction instead of being re-covered.
+// recoverSenders re-stages txs' senders, leaving deferred alone. A tx with no
+// extractable signer is dropped and waits for TTL.
 func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
 	if len(txs) == 0 {
 		return
@@ -630,7 +574,7 @@ func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
 	s.stagingMu.Unlock()
 }
 
-// txTimedout reports whether tx should be evicted by its own declared timeout:
+// txTimedout reports whether tx's own timeout height or timestamp has passed.
 func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
 	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
 		th := t.GetTimeoutHeight()
@@ -656,16 +600,14 @@ func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int6
 	return arrived, height-arrived >= ttlNumBlocks
 }
 
-// evict removes tx from the pool, encoder cache, and ante cache together, so
-// no cache outlives its pool entry.
+// evict removes tx from the pool and both caches, so no cache outlives the pool entry.
 func (s *recheckScheduler) evict(tx sdk.Tx) {
 	_ = s.mpool.Remove(tx)
 	s.exec.encCache.Evict(tx)
 	s.evictAnteCache(tx)
 }
 
-// evictAnteCache mirrors the ante's own staging: ethermint caches one
-// (from, nonce) entry per MsgEthereumTx, so a multi-msg tx drops one per msg.
+// evictAnteCache drops one (from, nonce) entry per MsgEthereumTx, as the ante cached them.
 func (s *recheckScheduler) evictAnteCache(tx sdk.Tx) {
 	if s.anteCache == nil || tx == nil {
 		return
@@ -683,12 +625,7 @@ func (s *recheckScheduler) evictAnteCache(tx sdk.Tx) {
 	}
 }
 
-// firstSigner returns the signer the mempool orders by, with its nonce, and
-// whether tx has more than one signer. An unknown signer only costs the
-// cascade optimization, not the recheck itself. A multi-signer tx must also
-// disable the cascade: a secondary signer's nonce isn't visible to the group
-// keyed on the first signer, so a gap in that group may really be filled by
-// a multi-signer tx grouped elsewhere.
+// firstSigner returns the signer the pool orders by, its nonce, and whether tx has co-signers.
 func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known, multiSigner bool) {
 	sigs := s.allSigners(tx)
 	if len(sigs) == 0 {
@@ -697,10 +634,8 @@ func (s *recheckScheduler) firstSigner(tx sdk.Tx) (key string, seq uint64, known
 	return sigs[0].Signer.String(), sigs[0].Sequence, true, len(sigs) > 1
 }
 
-// signers returns every sender tx advances a nonce for: GetSigners' entries
-// plus, for a batch eth tx, each MsgEthereumTx sender the EVM signer adapter
-// leaves out. Staging and selection key on these, so a block that commits a
-// batch rechecks every co-sender's pooled txs, not just the first sender's.
+// signers returns every account tx advances a nonce for, including the batch
+// eth senders the EVM signer adapter leaves out.
 func (s *recheckScheduler) signers(tx sdk.Tx) []string {
 	sigs := s.allSigners(tx)
 	if len(sigs) == 0 {
@@ -718,8 +653,7 @@ func (s *recheckScheduler) signers(tx sdk.Tx) []string {
 	return keys
 }
 
-// allSigners returns every signer GetSigners names for tx, nil-safe on both a
-// nil signer extractor and a lookup error.
+// allSigners is nil on a missing extractor or a lookup error.
 func (s *recheckScheduler) allSigners(tx sdk.Tx) []sdkmempool.SignerData {
 	if s.signer == nil {
 		return nil

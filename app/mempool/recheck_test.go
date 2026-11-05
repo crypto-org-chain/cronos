@@ -561,11 +561,6 @@ func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 	}
 }
 
-// Reproduces the batch cap splitting a signer's nonce chain (pre-fix, the flat
-// cap sliced the candidate list before grouping by signer). bob's one-tx group
-// fills the cap; alice's five-tx chain must carry forward whole rather than
-// being split mid-chain, so it revalidates cleanly from her real nonce (8)
-// once a Commit lands between cycles and no valid tx is evicted.
 func TestRecheckTxs_BatchCapCarriesOverflowWithoutSplittingGroup(t *testing.T) {
 	const batch = 3
 	f := newRecheckFixture()
@@ -1116,7 +1111,7 @@ func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
 	bob := f.add(2, "bob", 0, "bob-0")
 	aliceHigh := f.add(3, "alice", 1, "alice-1")
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}))
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}), f.runner.lastHeight)
 
 	want := []string{aliceSeq0Bytes, "alice-1", "bob-0"}
 	if !slices.Equal(f.runner.calls, want) {
@@ -1131,7 +1126,7 @@ func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}))
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), f.runner.lastHeight)
 
 	if f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
@@ -1152,7 +1147,7 @@ func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
 	next := f.add(2, "carl", 6, carlSeq6Bytes)
 	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}))
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}), f.runner.lastHeight)
 
 	if !f.runner.seen[carlSeq6Bytes] {
 		t.Fatal("the successor of a stale nonce must still be rechecked")
@@ -1172,7 +1167,7 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}))
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), f.runner.lastHeight)
 
 	if !f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
@@ -1243,7 +1238,7 @@ func TestRunRecheck_PanicSkipsOnlyThatTx(t *testing.T) {
 			candidates = append(candidates, f.add(10, "dave", 0, "dave-0"))
 			tc.malleate(f, txs)
 
-			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates))
+			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates), f.runner.lastHeight)
 
 			for _, bz := range carl {
 				if got := poolHas(f.pool, txs[bz]); got != slices.Contains(tc.expPooled, bz) {
@@ -1260,10 +1255,6 @@ func TestRunRecheck_PanicSkipsOnlyThatTx(t *testing.T) {
 	}
 }
 
-// groupCandidates sorts a group ascending by seq before it runs, so a
-// non-ascending pool/deferred order (5, 9, 7) no longer disables the cascade —
-// the group becomes the signer's clean ascending view (5, 7, 9), and every
-// candidate still gets its own RunTx up to the real gap.
 func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 	f := newRecheckFixture()
 	valid := f.add(1, "carl", 5, carlSeq5Bytes)
@@ -1276,7 +1267,7 @@ func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
 	}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}))
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}), f.runner.lastHeight)
 
 	if !f.runner.seen[carlSeq7Bytes] {
 		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
@@ -1307,9 +1298,6 @@ func ethBatch(from []common.Address, nonces []uint64) *multiMsgTx {
 	return &multiMsgTx{msgs: msgs}
 }
 
-// Cascade is only safe on a signer's clean ascending-nonce view. Each case
-// builds a candidate set that hides part of some signer's nonce view (or, for
-// the control, doesn't) and checks every resulting group's cascadable flag.
 func TestGroupCandidates_CascadeGuards(t *testing.T) {
 	alice, bob := sdk.AccAddress("alice"), sdk.AccAddress("bob")
 	ethAlice, ethBob := common.Address{0xa1}, common.Address{0xb0}
@@ -1444,10 +1432,6 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 	}
 }
 
-// The EVM signer adapter names only the first MsgEthereumTx's sender, so
-// staging and selection would otherwise skip a batch's co-senders: their
-// pooled txs would go stale unnoticed when the batch commits, and the batch
-// itself would never be rechecked when a co-sender lands in a block.
 func TestSigners_BatchEthTxIncludesCoSenders(t *testing.T) {
 	alice, bob := common.Address{0xa1}, common.Address{0xb0}
 	aliceKey := sdk.AccAddress(alice.Bytes()).String()
@@ -1495,10 +1479,8 @@ func TestRecheckTxs_BatchEthTxRecheckedWhenCoSenderStaged(t *testing.T) {
 	}
 }
 
-// Batch A consumes alice 5, 6, 7 but is keyed on 5, so after A the account
-// expects 8. B (a separate tx at 7, admitted through the ante cache's
-// replacement skip) is stale, and 7 > 5+1 would read as a gap without the
-// batch guard, cascade-evicting C, which is exactly the next expected nonce.
+// Batch A uses nonces 5-7 but is keyed on 5. Stale B at 7 must not read as a
+// gap after 5, or C at 8, the next valid nonce, would be cascade-evicted.
 func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	alice := common.Address{0xa1}
 	f := newRecheckFixture()
@@ -1516,7 +1498,7 @@ func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
 
 	if cascaded != 0 {
 		t.Fatalf("a stale sibling after a batch must not cascade, got %v", cascaded)
@@ -1529,9 +1511,6 @@ func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	}
 }
 
-// Deferred front-loading can hand groupCandidates an out-of-nonce-order group
-// (e.g. alice-5 ahead of alice-3 and alice-4). Without sorting, alice-5 would
-// run first and fail wrong-sequence even though it becomes valid two txs later.
 func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 	f := newRecheckFixture()
 	seq5 := f.add(1, "alice", 5, "alice-5")
@@ -1549,9 +1528,6 @@ func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 	}
 }
 
-// A group larger than recheckChunkSize must still run every candidate: the
-// chunking in runGroup bounds one mutex hold, not how much of the group
-// eventually gets rechecked.
 func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	const total = recheckChunkSize + 50
 	f := newRecheckFixture()
@@ -1565,7 +1541,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
 
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
 	}
@@ -1579,8 +1555,6 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	}
 }
 
-// Cascade soundness needs every RunTx of a chunk under one admission-mutex
-// hold; bounding Commit's wait needs that hold released after each chunk.
 func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 	const total = recheckChunkSize + 3
 	f := newRecheckFixture()
@@ -1600,10 +1574,9 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	height := int64(-1)
 	for start := 0; start < total; start += recheckChunkSize {
 		end := min(start+recheckChunkSize, total)
-		if _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, &height); !ok {
+		if _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, f.runner.lastHeight); !ok {
 			t.Fatalf("chunk at %d aborted without a Commit", start)
 		}
 		if !f.a.exec.gate.mu.TryLock() {
@@ -1619,12 +1592,8 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 	}
 }
 
-// Nothing carries across a chunk boundary: the mutex is released between
-// chunks, so a same-sender admission can move the account's nonce, and a
-// nonce error at the next chunk's head may mean stale rather than gap. Each case lays out one signer's group spanning two chunks, moves the
-// expected nonce as chunk 2's head runs (admissions landing in the gap between
-// the lock holds), and checks that chunk 2 never blind-evicts a candidate that
-// is valid by then.
+// Each case moves the expected nonce as chunk 2's head runs, as admissions
+// between gate holds would, and checks chunk 2 never blind-evicts a valid candidate.
 func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 	const n = recheckChunkSize
 	const total = n + 3 // chunk 1 = [0, n); chunk 2 = [n, n+3)
@@ -1705,7 +1674,7 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 				t.Fatalf("expected 1 cascadable group, got %+v", groups)
 			}
 
-			evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
+			evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
 			if evicted != tc.wantEvicted {
 				t.Fatalf("expected %v direct evictions, got %v", tc.wantEvicted, evicted)
 			}
@@ -1729,9 +1698,6 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 	}
 }
 
-// A Commit between chunks resets checkState to the committed nonce, so the
-// next chunk would fail every candidate wrong-sequence. The group must stop
-// instead and re-stage its sender for the recheck that Commit triggers.
 func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	const total = recheckChunkSize + 3
 	f := newRecheckFixture()
@@ -1755,7 +1721,7 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded, restaged := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, restaged := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("a Commit between chunks must not evict anything, got evicted=%v cascaded=%v", evicted, cascaded)
 	}
@@ -1775,10 +1741,45 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	}
 }
 
-// A nonce gap proven inside a chunk cascade-evicts the rest of that chunk
-// only. The next chunk runs every candidate with its own RunTx again: they are
-// still gapped here (nothing filled the gap), so each is evicted, but none is
-// evicted blind.
+func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
+	f := newRecheckFixture()
+	f.runner.signer = f.signer
+	bob, carl := sdk.AccAddress("bob").String(), sdk.AccAddress("carl").String()
+	f.runner.expectedNonce = map[string]uint64{bob: 0, carl: 5}
+	f.runner.lastHeight = 10
+
+	f.add(1, "bob", 0, "bob-0") // bob's group runs first
+	f.add(2, "bob", 1, "bob-1")
+	c5 := f.add(3, "carl", 5, "carl-5")
+	c6 := f.add(4, "carl", 6, carlSeq6Bytes)
+	c7 := f.add(5, "carl", 7, "carl-7")
+	f.a.sched.lastCommittedHeight = 10
+	f.a.sched.recheckSenders = map[string]struct{}{bob: {}, carl: {}}
+
+	// Block 11 commits carl-5 right after bob's group: checkState resets and carl is staged.
+	f.runner.onCall = func(b []byte) {
+		if string(b) != "bob-1" {
+			return
+		}
+		_ = f.pool.Remove(c5)
+		f.runner.expectedNonce = map[string]uint64{carl: 6}
+		f.runner.lastHeight = 11
+		f.a.sched.stagingMu.Lock()
+		f.a.sched.lastCommittedHeight = 11
+		f.a.sched.mergeRecheckSenders(map[string]struct{}{carl: {}})
+		f.a.sched.stagingMu.Unlock()
+	}
+
+	f.a.sched.RecheckTxs()
+	if f.runner.seen[carlSeq6Bytes] {
+		t.Fatalf("carl's group must not run after the Commit: calls=%v", f.runner.calls)
+	}
+	f.a.sched.RecheckTxs() // the cycle that Commit triggers
+	if !poolHas(f.pool, c6) || !poolHas(f.pool, c7) {
+		t.Fatalf("valid carl txs evicted by a second recheck on the same checkState: calls=%v", f.runner.calls)
+	}
+}
+
 func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 	const total = 3*recheckChunkSize - 88 // spans 3 chunks; boundaries at 256, 512
 	const gapIndex = 400                  // inside chunk 2 ([256, 512))
@@ -1803,7 +1804,7 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 		t.Fatalf("expected 1 cascadable group, got %+v", groups)
 	}
 
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0])
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
 	// Direct evictions: the gapped candidate, plus every chunk-3 candidate,
 	// each of which fails its own RunTx.
 	if want := 1 + total - chunk3Head; evicted != want {
@@ -1832,9 +1833,6 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 	}
 }
 
-// firstSigner has a nil guard on s.signer; signers() must agree so an abort
-// path (recoverSenders -> signers) can't panic when the scheduler was never
-// wired with a signer extractor.
 func TestSigners_NilSignerNoPanic(t *testing.T) {
 	s := &recheckScheduler{}
 	if got := s.signers(&ptrTx{id: 1}); got != nil {
@@ -1842,14 +1840,6 @@ func TestSigners_NilSignerNoPanic(t *testing.T) {
 	}
 }
 
-// The deferred carry from capRecheckGroups is tx-identity-keyed
-// (deferredLive), so it alone cannot survive a fee bump replacing the head of
-// a deferred group at the same (sender, nonce) key. capRecheckGroups must
-// also merge the deferred groups' senders into recheckSenders, so the next
-// cycle's selectTxs re-picks alice's whole live queue by sender instead of
-// relying on the stale deferred pointer. Without that, the surviving tail
-// (seq 6-9) would be regrouped alone, fail wrong-sequence against checkState
-// still expecting nonce 5, and be evicted in full.
 func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) {
 	const batch = 3
 	f := newRecheckFixture()
@@ -1901,12 +1891,8 @@ func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) 
 	}
 }
 
-// Documented residual, not fixed in code: PriorityNonceMempool.Remove
-// resolves by (sender, nonce) key, not tx identity, so evicting a stale
-// recheck candidate drops whatever currently occupies that key. If an
-// admission lands between the snapshot and the eviction and replaces the slot
-// (e.g. a fee bump), the freshly admitted replacement is what gets dropped,
-// not the stale tx the pass was actually rechecking.
+// Documented residual: Remove matches by (sender, nonce), so evicting a stale
+// candidate drops a fee bump that replaced it after the snapshot.
 func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
 	f := newRecheckFixture()
 	stale := f.add(1, "alice", 0, "alice-0")
