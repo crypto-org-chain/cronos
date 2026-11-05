@@ -235,6 +235,25 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 	wg.Wait()
 }
 
+// The decode cache shares one wrapper for identical bytes, and encoding a wrapper with empty
+// body/auth-info bytes writes them, so concurrent admissions race without encodeMu. Run with -race.
+func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
+	const goroutines = 16
+	f := setupAdmissionApp(t, 1)
+	bz, err := f.app.TxConfig().TxEncoder()(f.app.TxConfig().NewTxBuilder().GetTx())
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() {
+			resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+			require.NoError(t, err)
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code, "a tx with no msgs must be rejected")
+		})
+	}
+	wg.Wait()
+}
+
 // TestReapVsRecheckConcurrentRealTxs races the reap path (EncodeTx marshal +
 // HashTx) against the recheck path (signers() + RunTx(ExecModeReCheck)) on the
 // SAME pooled tx pointers, with real ethermint wrappers. reap_test.go races
