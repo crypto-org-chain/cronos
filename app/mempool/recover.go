@@ -57,7 +57,6 @@ func recoveredPanic(logger log.Logger, path string, r any, keyvals ...any) error
 	return errRecoveredPanic
 }
 
-// Same format CometBFT logs, so operators can trace the tx.
 func txHash(bz []byte) string {
 	return fmt.Sprintf("%X", tmtypes.Tx(bz).Hash())
 }
