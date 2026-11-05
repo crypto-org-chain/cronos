@@ -37,6 +37,7 @@ func TestRecoverTestSuite(t *testing.T) {
 
 const (
 	encodeSite     = "encode"
+	decodeSite     = "decode"
 	getSignersSite = "GetSigners"
 )
 
@@ -151,11 +152,11 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		{
 			name: "CheckTx, panic in the decoder before the admission gate",
 			malleate: func(m *Manager) {
-				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking("decode"); return nil, nil }, noopEncoder)
+				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking(decodeSite); return nil, nil }, noopEncoder)
 			},
 			call:  checkWith(okRunTx),
 			path:  panicPathCheckTx,
-			where: "decode",
+			where: decodeSite,
 		},
 		{
 			name:     "CheckTx, panic in runTx under the admission gate",
@@ -437,38 +438,78 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 	good, poison := &ptrTx{id: 1}, &ptrTx{id: 2}
 	alice, bob := sdk.AccAddress("alice").String(), sdk.AccAddress("bob").String()
+	signerPanics := func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} }
+	decoderPanics := func(m *Manager) {
+		decode := m.decoder
+		m.decoder = func(bz []byte) (sdk.Tx, error) {
+			if string(bz) == "poison" {
+				panicking(decodeSite)
+			}
+			return decode(bz)
+		}
+	}
+	finalize := func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) }
+	skip := func(m *Manager, txs [][]byte) { m.StageSkippedSenders(txs) }
+	poisonFirst := [][]byte{[]byte("poison"), []byte("good")}
+	poisonOnly := [][]byte{[]byte("poison")}
 
 	testCases := []struct {
-		name     string
-		malleate func(m *Manager)
-		where    string
-		stage    func(m *Manager, txs [][]byte)
+		name      string
+		malleate  func(m *Manager)
+		where     string
+		stage     func(m *Manager, txs [][]byte)
+		txs       [][]byte // poison first
+		expStaged bool     // alice, the good tx's sender, is staged
+		expHeight int64
 	}{
 		{
-			name:     "FinalizeBlock, signer extraction panics",
-			malleate: func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} },
-			where:    getSignersSite,
-			stage:    func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) },
+			name:      "FinalizeBlock, signer extraction panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     finalize,
+			txs:       poisonFirst,
+			expStaged: true,
+			expHeight: 7,
 		},
 		{
-			name: "FinalizeBlock, decoder panics",
-			malleate: func(m *Manager) {
-				decode := m.decoder
-				m.decoder = func(bz []byte) (sdk.Tx, error) {
-					if string(bz) == "poison" {
-						panicking("decode")
-					}
-					return decode(bz)
-				}
-			},
-			where: "decode",
-			stage: func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) },
+			name:      "FinalizeBlock, decoder panics",
+			malleate:  decoderPanics,
+			where:     decodeSite,
+			stage:     finalize,
+			txs:       poisonFirst,
+			expStaged: true,
+			expHeight: 7,
 		},
 		{
-			name:     "PrepareProposal gate skip, signer extraction panics",
-			malleate: func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} },
+			name:      "FinalizeBlock, every tx panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     finalize,
+			txs:       poisonOnly,
+			expHeight: 7,
+		},
+		{
+			name:      "PrepareProposal gate skip, signer extraction panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     skip,
+			txs:       poisonFirst,
+			expStaged: true,
+		},
+		{
+			name:      "PrepareProposal gate skip, decoder panics",
+			malleate:  decoderPanics,
+			where:     decodeSite,
+			stage:     skip,
+			txs:       poisonFirst,
+			expStaged: true,
+		},
+		{
+			name:     "PrepareProposal gate skip, every tx panics",
+			malleate: signerPanics,
 			where:    getSignersSite,
-			stage:    func(m *Manager, txs [][]byte) { m.StageSkippedSenders(txs) },
+			stage:    skip,
+			txs:      poisonOnly,
 		},
 	}
 
@@ -489,9 +530,13 @@ func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 			m.logger = logger
 			tc.malleate(m)
 
-			s.Require().NotPanics(func() { tc.stage(m, [][]byte{[]byte("poison"), []byte("good")}) })
-			s.Require().Contains(m.recheckSenders, alice, "txs after the poison must still be staged")
+			s.Require().NotPanics(func() { tc.stage(m, tc.txs) })
+			_, staged := m.recheckSenders[alice]
+			s.Require().Equal(tc.expStaged, staged, "txs after the poison must still be staged")
 			s.Require().NotContains(m.recheckSenders, bob)
+			s.Require().Equal(tc.expHeight, m.lastCommittedHeight)
+			s.Require().True(m.stagingMu.TryLock(), "stagingMu must be released")
+			m.stagingMu.Unlock()
 			s.Require().Len(logger.errors, 1)
 			s.Require().Equal(panicPathStageTx, keyval(logger.errors[0], "path"))
 			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
