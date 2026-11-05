@@ -101,6 +101,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 // NOT mutate them. Safe today because only EVM txs are cached (warmForSharing),
 // their lazily filled fields are filled before set, and the EVM ante's VerifyEthSig
 // only compares against MsgEthereumTx.From (set at proto-decode), never writes it.
+// Encoding writes only empty body/auth-info bytes, which a shared EVM tx never has.
 // A future EVM ante that mutates a decoded tx would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
