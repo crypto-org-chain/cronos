@@ -131,11 +131,7 @@ func (s *recheckScheduler) RecheckTxs() {
 	}
 	s.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer s.recheckMu.Unlock()
-	// Pin the height atomically with the drain; see runRecheck.
-	s.exec.gate.lock()
-	committed := s.exec.committedHeight()
-	recheckSenders, height, deferred := s.drainStaging()
-	s.exec.gate.unlock()
+	committed, recheckSenders, height, deferred := s.pinAndDrain()
 	// Nothing to scan before the first block.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
@@ -155,6 +151,15 @@ func (s *recheckScheduler) RecheckTxs() {
 
 	s.exec.pending.invalidate()
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
+}
+
+// pinAndDrain reads the committed height and drains staging under one gate
+// hold, or a Commit between them goes undetected.
+func (s *recheckScheduler) pinAndDrain() (committed int64, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+	s.exec.gate.lock()
+	defer s.exec.gate.unlock()
+	recheckSenders, height, deferred = s.drainStaging()
+	return s.exec.committedHeight(), recheckSenders, height, deferred
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
@@ -351,20 +356,21 @@ type recheckCandidate struct {
 }
 
 // recheckGroup holds one signer's candidates sorted by seq. cascadable is false
-// unless they are that signer's whole ascending-nonce view (see groupCandidates).
+// unless they are that signer's whole ascending-nonce view, since the cascade
+// rule assumes the next expected nonce is lastOK+1.
 type recheckGroup struct {
 	key        string
 	txs        []recheckCandidate
 	cascadable bool
 }
 
-// runRecheck runs the groups one at a time. Once a Commit moves past height it
-// re-stages the rest: run on the reset checkState, they would re-apply nonces
-// that the Commit's own recheck then rejects as stale.
-func (s *recheckScheduler) runRecheck(groups []recheckGroup, height int64) {
+// runRecheck runs the groups one at a time. Once a Commit moves past
+// committedHeight it re-stages the rest: run on the reset checkState, they
+// would re-apply nonces that the Commit's own recheck then rejects as stale.
+func (s *recheckScheduler) runRecheck(groups []recheckGroup, committedHeight int64) {
 	var evicted, cascaded, restaged int
 	for i, g := range groups {
-		e, c, r := s.runGroup(g, height)
+		e, c, r := s.runGroup(g, committedHeight)
 		evicted += e
 		cascaded += c
 		if r > 0 {
@@ -386,8 +392,9 @@ func (s *recheckScheduler) runRecheck(groups []recheckGroup, height int64) {
 }
 
 // groupCandidates buckets candidates by first signer, the one the pool orders
-// by, and sorts each group by seq since the carry can arrive out of order.
-// Encoding happens here, outside the gate.
+// by, keeping first-appearance (priority) order across groups for
+// capRecheckGroups. Each group is sorted by seq since the carry can arrive out
+// of order. Encoding happens here, outside the gate.
 func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 	var groups []recheckGroup
 	index := make(map[string]int)
@@ -478,9 +485,9 @@ const recheckChunkSize = 256
 // queue can't hold the gate indefinitely. A same-sender admission may land
 // between chunks; a Commit stops the group, re-staging the candidates left
 // (counted by restaged).
-func (s *recheckScheduler) runGroup(g recheckGroup, height int64) (evicted, cascaded, restaged int) {
+func (s *recheckScheduler) runGroup(g recheckGroup, committedHeight int64) (evicted, cascaded, restaged int) {
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), height)
+		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), committedHeight)
 		evicted += e
 		cascaded += c
 		if !ok {
@@ -493,14 +500,15 @@ func (s *recheckScheduler) runGroup(g recheckGroup, height int64) (evicted, casc
 
 // runChunkLocked runs g.txs[start:end] under one gate hold, evicting each
 // failure. A nonce error strictly above a nonce accepted in this same hold is a
-// proven gap, so the rest of the chunk is cascade-evicted without a RunTx each.
-// Nothing carries across chunks: once the gate is released an admission can
-// move the nonce, making a nonce error stale rather than a gap. ok is false,
-// with nothing run, when the committed height is no longer height.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height int64) (evicted, cascaded int, ok bool) {
+// proven gap, since nothing can fill it while the gate is held, so the rest of
+// the chunk is cascade-evicted without a RunTx each. Nothing carries across
+// chunks: once the gate is released an admission can move the nonce, making a
+// nonce error stale rather than a gap. ok is false, with nothing run, once a
+// Commit has moved past committedHeight.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, committedHeight int64) (evicted, cascaded int, ok bool) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
-	if s.exec.committedHeight() != height {
+	if s.exec.committedHeight() != committedHeight {
 		return 0, 0, false
 	}
 	var lastOK uint64
@@ -554,8 +562,9 @@ func candidateTxs(cs []recheckCandidate) []sdk.Tx {
 	return txs
 }
 
-// recoverSenders re-stages txs' senders, leaving deferred alone. A tx with no
-// extractable signer is dropped and waits for TTL.
+// recoverSenders re-stages txs' senders, leaving deferred alone since
+// capRecheckGroups may have set it this cycle. A tx with no extractable signer
+// is dropped and waits for TTL.
 func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
 	if len(txs) == 0 {
 		return

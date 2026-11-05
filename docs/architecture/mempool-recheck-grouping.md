@@ -38,7 +38,8 @@ queued holders, so it waits for at most one chunk.
 
 ### Commit during a cycle
 
-The committed height is pinned when the cycle drains staging. Once a Commit moves past
+The committed height is pinned when the cycle drains staging, under the same gate hold,
+so the pin is never newer than the drained senders. Once a Commit moves past
 it, the cycle stops and re-stages every sender it has not reached. Running them on the
 reset `checkState` would re-apply their nonces, and the recheck that Commit triggers
 would then reject the same valid txs as stale. Counter: `cronos.mempool.recheck.restaged`.
@@ -78,6 +79,9 @@ Lock order: `recheckMu > exec.gate > stagingMu`.
 
 ## Residuals
 
+- A same-sender admission can still land between chunks or groups, so recheck stays
+  node-local and timing-dependent there. After a gap, each later chunk spends one `RunTx`
+  per candidate instead of none.
 - `PriorityNonceMempool.Remove` matches by `(sender, nonce)`. Evicting a stale candidate
   whose slot a fee bump just replaced drops the replacement, as `BaseApp` does on a
   recheck failure. The client resubmits.

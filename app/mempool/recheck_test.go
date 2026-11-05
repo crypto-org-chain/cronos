@@ -50,7 +50,7 @@ type recheckRunner struct {
 	calls []string
 	// onCall, if set, runs after recording the call but before returning, letting
 	// a test move a sender's expected nonce mid-pass (an admission or Commit
-	// landing between chunks).
+	// landing between chunks or groups).
 	onCall func(txBytes []byte)
 	// signer + expectedNonce implement per-sender expected-nonce ante
 	// semantics: a tx whose seq is above its sender's expected nonce fails
@@ -62,7 +62,7 @@ type recheckRunner struct {
 	// (a batch eth tx); absent means 1.
 	nonceSpan map[string]uint64
 	// lastHeight is what LastBlockHeight reports; a test bumps it in onCall
-	// to simulate a Commit landing between chunks.
+	// to simulate a Commit landing mid-cycle.
 	lastHeight int64
 }
 
@@ -1555,7 +1555,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	}
 }
 
-func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
+func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 	const total = recheckChunkSize + 3
 	f := newRecheckFixture()
 	txs := make([]sdk.Tx, total)
@@ -1580,12 +1580,12 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 			t.Fatalf("chunk at %d aborted without a Commit", start)
 		}
 		if !f.a.exec.gate.mu.TryLock() {
-			t.Fatalf("chunk at %d returned still holding the admission mutex", start)
+			t.Fatalf("chunk at %d returned still holding the gate", start)
 		}
 		f.a.exec.gate.mu.Unlock()
 	}
 	if unlockedRuns != 0 {
-		t.Fatalf("%d recheck RunTx calls ran without the admission mutex", unlockedRuns)
+		t.Fatalf("%d recheck RunTx calls ran without the gate", unlockedRuns)
 	}
 	if got := len(f.runner.calls); got != total {
 		t.Fatalf("expected %d RunTx calls, got %d", total, got)
@@ -1756,7 +1756,8 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 	f.a.sched.lastCommittedHeight = 10
 	f.a.sched.recheckSenders = map[string]struct{}{bob: {}, carl: {}}
 
-	// Block 11 commits carl-5 right after bob's group: checkState resets and carl is staged.
+	// Block 11 commits carl-5 right after bob's group and resets checkState. It
+	// stages no sender, so only the stop's re-stage brings carl back.
 	f.runner.onCall = func(b []byte) {
 		if string(b) != "bob-1" {
 			return
@@ -1766,7 +1767,6 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 		f.runner.lastHeight = 11
 		f.a.sched.stagingMu.Lock()
 		f.a.sched.lastCommittedHeight = 11
-		f.a.sched.mergeRecheckSenders(map[string]struct{}{carl: {}})
 		f.a.sched.stagingMu.Unlock()
 	}
 
@@ -1775,8 +1775,29 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 		t.Fatalf("carl's group must not run after the Commit: calls=%v", f.runner.calls)
 	}
 	f.a.sched.RecheckTxs() // the cycle that Commit triggers
+	if !f.runner.seen[carlSeq6Bytes] {
+		t.Fatalf("carl must be re-staged and rechecked: calls=%v", f.runner.calls)
+	}
 	if !poolHas(f.pool, c6) || !poolHas(f.pool, c7) {
 		t.Fatalf("valid carl txs evicted by a second recheck on the same checkState: calls=%v", f.runner.calls)
+	}
+}
+
+func TestRunRecheck_CommitBeforeFirstChunkRunsNothing(t *testing.T) {
+	f := newRecheckFixture()
+	f.add(1, "bob", 0, "bob-0")
+	f.add(2, "carl", 0, "carl-0")
+	f.runner.lastHeight = 11 // a Commit landed after the cycle pinned height 10
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates(PoolSnapshot(t.Context(), f.pool)), 10)
+
+	if len(f.runner.calls) != 0 {
+		t.Fatalf("no candidate may run past the pinned height: calls=%v", f.runner.calls)
+	}
+	for _, sender := range []string{"bob", "carl"} {
+		if _, ok := f.a.sched.recheckSenders[sdk.AccAddress(sender).String()]; !ok {
+			t.Fatalf("%s must be re-staged", sender)
+		}
 	}
 }
 
