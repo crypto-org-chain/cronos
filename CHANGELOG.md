@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2251](https://github.com/crypto-org-chain/cronos/pull/2251) fix(mempool): share only warmed EVM txs through the decode cache.
 * [#2216](https://github.com/crypto-org-chain/cronos/pull/2216) fix(mempool): give Commit priority over queued admissions and cap in-flight RPC txs.
 * [#2245](https://github.com/crypto-org-chain/cronos/pull/2245) fix(test): read upgrade proposal events from the top level when logs are empty.
 * [#2246](https://github.com/crypto-org-chain/cronos/pull/2246) fix(ci): replace retired macos-14 runner with macos-15.
