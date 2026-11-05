@@ -1536,6 +1536,9 @@ func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 	if got[0] != 3 || got[1] != 4 || got[2] != 5 {
 		t.Fatalf("group must be sorted ascending by seq, got %v", got)
 	}
+	if !groups[0].cascadable {
+		t.Fatal("an out-of-order group must stay cascadable once sorted")
+	}
 }
 
 func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
