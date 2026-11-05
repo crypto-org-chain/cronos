@@ -153,7 +153,10 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		cache.set(bz, tx)
+		// Fill the wrapper's lazy signers/msgsV2 before sharing; txs where that can't stick stay private.
+		if msgs, err := tx.GetMsgsV2(); err == nil && len(msgs) > 0 {
+			cache.set(bz, tx)
+		}
 		return tx, nil
 	}
 }

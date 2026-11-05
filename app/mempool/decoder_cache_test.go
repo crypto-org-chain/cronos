@@ -20,7 +20,7 @@ import (
 type cacheTx struct{ id uint64 }
 
 func (c *cacheTx) GetMsgs() []sdk.Msg                    { return nil }
-func (c *cacheTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (c *cacheTx) GetMsgsV2() ([]protov2.Message, error) { return make([]protov2.Message, 1), nil }
 
 func makeRaw(id uint64) []byte {
 	b := make([]byte, 8)
@@ -89,6 +89,61 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	}
 	if got := calls.Load(); got != 2 {
 		t.Fatalf("base calls = %d, want 2 (errors must not be cached)", got)
+	}
+}
+
+// lazyTx counts GetMsgsV2 calls, standing in for the SDK wrapper's lazy signer init.
+type lazyTx struct {
+	msgs  []protov2.Message
+	err   error
+	warms atomic.Int64
+}
+
+func (l *lazyTx) GetMsgs() []sdk.Msg { return nil }
+func (l *lazyTx) GetMsgsV2() ([]protov2.Message, error) {
+	l.warms.Add(1)
+	return l.msgs, l.err
+}
+
+func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
+	testCases := []struct {
+		name       string
+		tx         *lazyTx
+		wantShared bool
+	}{
+		{"warmed tx is shared", &lazyTx{msgs: make([]protov2.Message, 1)}, true},
+		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, false},
+		{"no msgs stays private", &lazyTx{}, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls atomic.Int64
+			base := func([]byte) (sdk.Tx, error) {
+				calls.Add(1)
+				return tc.tx, nil
+			}
+			dec := NewCachingDecoder(base, NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes))
+
+			for range 2 {
+				tx, err := dec(makeRaw(1))
+				if err != nil {
+					t.Fatalf("unexpected err: %v", err)
+				}
+				if tx != tc.tx {
+					t.Fatal("decoder must return the base tx")
+				}
+			}
+			wantCalls := int64(2)
+			if tc.wantShared {
+				wantCalls = 1
+			}
+			if got := calls.Load(); got != wantCalls {
+				t.Fatalf("base calls = %d, want %d", got, wantCalls)
+			}
+			if got := tc.tx.warms.Load(); got != wantCalls {
+				t.Fatalf("GetMsgsV2 calls = %d, want %d (once per base decode)", got, wantCalls)
+			}
+		})
 	}
 }
 

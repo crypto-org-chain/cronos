@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"maps"
 	"math"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
@@ -21,7 +23,9 @@ import (
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
@@ -29,9 +33,12 @@ import (
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -289,6 +296,112 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 
 	// Survival confirms recheck passed and the shared pointers stayed live.
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
+}
+
+type SharedTxRaceTestSuite struct {
+	suite.Suite
+}
+
+func TestSharedTxRaceTestSuite(t *testing.T) {
+	suite.Run(t, new(SharedTxRaceTestSuite))
+}
+
+// TestFirstUseOfSharedWrapper races first-time users of one decode-cached wrapper; run with -race.
+func (s *SharedTxRaceTestSuite) TestFirstUseOfSharedWrapper() {
+	blockSTM := minimalOptionsMap{
+		server.FlagBlockExecutor:   config.BlockExecutorBlockSTM,
+		server.FlagBlockSTMWorkers: 4,
+	}
+	testCases := []struct {
+		name      string
+		overrides minimalOptionsMap
+		race      func(t *testing.T, f *admissionFixture, bz []byte) []func()
+	}{
+		{
+			name: "gossip admission vs ProcessProposal blocklist check",
+			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
+				t.Helper()
+				processProposal := newBlocklistProposalHandler(t, f).ProcessProposalHandler()
+				return []func(){
+					func() {
+						resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+						if assert.NoError(t, err) {
+							assert.Equal(t, abci.CodeTypeOK, resp.Code)
+						}
+					},
+					func() {
+						resp, err := processProposal(sdk.Context{}, &abci.RequestProcessProposal{Txs: [][]byte{bz}})
+						if assert.NoError(t, err) {
+							assert.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+						}
+					},
+				}
+			},
+		},
+		{
+			name:      "duplicate tx bytes in one block-stm block",
+			overrides: blockSTM,
+			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
+				t.Helper()
+				return []func(){func() { finalizeTxs(t, f, bz, bz) }}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			f := setupAdmissionAppWithOpts(t, 1, tc.overrides)
+			bz := f.signTransfer(t, &f.accounts[0], nil)
+			// Seed the decode cache so every racer gets the same wrapper.
+			_, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+
+			fns := tc.race(t, f, bz)
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			for _, fn := range fns {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					fn()
+				}()
+			}
+			close(start)
+			wg.Wait()
+		})
+	}
+}
+
+// A non-empty blocklist makes ProcessProposal decode and check signers instead of fast-accepting.
+func newBlocklistProposalHandler(t *testing.T, f *admissionFixture) *cronos.ProposalHandler {
+	t.Helper()
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	h := cronos.NewProposalHandler(f.app.TxDecode, identity, addressCodec)
+
+	blocked, err := addressCodec.BytesToString(bytes.Repeat([]byte{0xb1}, 20))
+	require.NoError(t, err)
+	body, err := json.Marshal(cronos.BlockList{Addresses: []string{blocked}})
+	require.NoError(t, err)
+	var blob bytes.Buffer
+	w, err := age.Encrypt(&blob, identity.Recipient())
+	require.NoError(t, err)
+	_, err = w.Write(body)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	require.NoError(t, h.SetBlockList(blob.Bytes()))
+	return h
+}
+
+func finalizeTxs(t *testing.T, f *admissionFixture, txs ...[]byte) {
+	t.Helper()
+	resp, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: txs})
+	if assert.NoError(t, err) {
+		assert.Equal(t, abci.CodeTypeOK, resp.TxResults[0].Code, resp.TxResults[0].Log)
+	}
 }
 
 func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
