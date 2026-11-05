@@ -243,8 +243,7 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 	wg.Wait()
 }
 
-// The decode cache shares one wrapper for identical bytes, and encoding a wrapper with empty
-// body/auth-info bytes writes them, so concurrent admissions race without encodeMu. Run with -race.
+// Encoding a wrapper with empty body/auth-info bytes writes them; the decode cache keeps such txs private. Run with -race.
 func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
 	const goroutines = 16
 	f := setupAdmissionApp(t, 1)
