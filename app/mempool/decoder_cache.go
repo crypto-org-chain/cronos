@@ -139,9 +139,6 @@ func (c *DecodeCache) get(bz []byte) (sdk.Tx, bool) {
 }
 
 func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
-	if len(bz) > c.maxTxBytes {
-		return
-	}
 	h := xxhash.Sum64(bz) ^ xxhashSeed
 	c.shards[h&shardMask].set(h, bz, tx)
 }
@@ -157,7 +154,8 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		if warmForSharing(tx) {
+		// Oversized txs are never cached, so skip their warm-up.
+		if len(bz) <= cache.maxTxBytes && warmForSharing(tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil

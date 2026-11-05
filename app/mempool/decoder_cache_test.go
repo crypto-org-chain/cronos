@@ -33,7 +33,7 @@ type fakeTx struct {
 
 func newFakeEthTx() *fakeTx {
 	return &fakeTx{
-		typeURL: "/ethermint.evm.v1.ExtensionOptionsEthereumTx",
+		typeURL: ethTxTypeURL,
 		msgs:    []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg},
 		msgsV2:  make([]protov2.Message, 1),
 		signers: [][]byte{{1}},
@@ -356,14 +356,17 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	const customMax = 32
 	calls := atomic.Int64{}
+	warms := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
-		return newCacheTx(uint64(len(bz))), nil
+		tx := newCacheTx(uint64(len(bz)))
+		tx.onWarm = func() { warms.Add(1) }
+		return tx, nil
 	}
 	c := NewDecodeCache(defaultCacheSize, customMax)
 	dec := NewCachingDecoder(base, c)
 
-	// Above cap: each call must miss.
+	// Above cap: each call must miss, without paying the warm-up.
 	above := make([]byte, customMax+1)
 	for i := 0; i < 3; i++ {
 		if _, err := dec(above); err != nil {
@@ -372,6 +375,9 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	}
 	if got := calls.Load(); got != 3 {
 		t.Fatalf("above-cap was cached: calls=%d, want 3", got)
+	}
+	if got := warms.Load(); got != 0 {
+		t.Fatalf("above-cap was warmed: warms=%d, want 0", got)
 	}
 
 	// Default const would cache this; with a custom cap of 32 even 33-byte
