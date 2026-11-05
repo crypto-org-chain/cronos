@@ -92,7 +92,7 @@ func (f *gateFixture) startAdmits(path string, n int) <-chan uint32 {
 }
 
 func (s *AdmissionGateTestSuite) waitRPCInflight(f *gateFixture, n int) {
-	s.Require().Eventually(func() bool { return f.a.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
+	s.Require().Eventually(func() bool { return f.a.adm.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
 }
 
 // waitStarted waits until n admissions via path are past their entry checks.
@@ -220,7 +220,7 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 					s.FailNow("shed admission should return immediately")
 				}
 				s.Equal(callsBefore, f.runner.calls.Load(), "shed tx must not reach RunTx")
-				s.Equal(int64(tc.occupied), f.a.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
+				s.Equal(int64(tc.occupied), f.a.adm.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
 			} else {
 				// A shed returns at once; an admitted probe waits behind the blocked RunTx.
 				select {
@@ -270,7 +270,7 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 				<-unlocked
 				unlock()
 			}()
-			s.Require().Eventually(func() bool { return f.a.gate.commit.Load() != nil }, gateWait, time.Millisecond)
+			s.Require().Eventually(func() bool { return f.a.exec.gate.commit.Load() != nil }, gateWait, time.Millisecond)
 
 			select {
 			case <-acquired:
@@ -306,7 +306,7 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 	}
 	done := make(chan struct{})
 	go func() {
-		f.a.runRecheck(txs)
+		f.a.sched.runRecheck(txs)
 		close(done)
 	}()
 	s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
@@ -317,7 +317,7 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 		acquired <- f.runner.calls.Load()
 		unlock()
 	}()
-	s.Require().Eventually(func() bool { return f.a.gate.commit.Load() != nil }, gateWait, time.Millisecond)
+	s.Require().Eventually(func() bool { return f.a.exec.gate.commit.Load() != nil }, gateWait, time.Millisecond)
 
 	close(f.release)
 	select {
@@ -398,5 +398,5 @@ func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
 		s.FailNow("admissions and commits deadlocked")
 	}
 	s.False(runner.overlap.Load(), "RunTx overlapped another RunTx or Commit")
-	s.Equal(int64(0), a.rpcTxLimit.n.Load())
+	s.Equal(int64(0), a.adm.rpcTxLimit.n.Load())
 }

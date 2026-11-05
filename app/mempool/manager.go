@@ -2,116 +2,46 @@ package mempool
 
 import (
 	"context"
-	"sync"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	antecache "github.com/evmos/ethermint/ante/cache"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
-	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-type txRunner interface {
-	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
-}
-
-var _ txRunner = (*baseapp.BaseApp)(nil)
-
-const (
-	mempoolFullLog    = "mempool is full"
-	rpcTxLimitFullLog = "too many in-flight RPC txs"
-)
-
-// admitSource decides whether an admission counts against rpcTxLimit.
-type admitSource int
-
-const (
-	fromGossip admitSource = iota
-	fromRPC
-)
-
-// Manager owns the app-side mempool for mempool.type=app
+// Manager owns the app-side mempool for mempool.type=app. It is a facade over
+// the two halves — admission and recheck — which share only txExec.
 type Manager struct {
-	// gate guards BaseApp.checkState, replacing the mempool lock BaseApp relies on
-	// (AppMempool.Lock() is a no-op). Never held across the lock-free pool scan.
-	gate admissionGate
-	// rpcTxLimit is applied to RPC admissions only; gossip is already bounded by
-	// p2p receive concurrency.
-	rpcTxLimit inflightLimit
-
-	runner    txRunner
-	encCache  *EncoderCache
-	txEncoder sdk.TxEncoder
-	// encodeMu serializes the pre-RunTx encode, which writes empty body/auth-info bytes into a
-	// shared decoded tx. Pooled txs passed ante, so other encodes only read. Never held with gate.
-	encodeMu sync.Mutex
-	trace    bool
-	logger   log.Logger
-	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
-	preVerify func([]byte) error
-
-	mpool     sdkmempool.Mempool
-	signer    sdkmempool.SignerExtractionAdapter
-	decoder   sdk.TxDecoder
-	anteCache *antecache.AnteCache
-	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
-	maxRecheckBatch int
-	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
-	// Separate from gate so FinalizeBlock staging never blocks behind its RunTx batches.
-	stagingMu sync.Mutex
-	// recheckSenders accumulates senders of committed blocks awaiting recheck; merged
-	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
-	recheckSenders map[string]struct{}
-	// deferred carries candidates past maxRecheckBatch to the next cycle, so a
-	// deep per-sender queue eventually drains instead of being silently dropped.
-	deferred            []sdk.Tx
-	lastCommittedHeight int64
-	// arrival maps each pooled tx to the height RecheckTxs first observed it, for
-	// ttlNumBlocks eviction. Rebuilt from the snapshot each cycle; recheckMu keeps it single-writer.
-	arrival map[sdk.Tx]int64
-	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
-	ttlNumBlocks int64
-
-	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before gate and stagingMu, never after
-	// Zero-value (trigger nil) when built via the newManager() test constructor;
-	// TriggerRecheck then runs RecheckTxs inline instead of async.
-	worker recheckWorker
-	// recheckDisabled mirrors mempool.recheck=false: skips all rechecking,
-	// including TTL/expiry eviction
-	recheckDisabled bool
-	// pendingTxCache avoids re-walking the pool on every PendingTxs() call.
-	pendingTxCache pendingTxCache
+	exec  *txExec
+	adm   *admitter
+	sched *recheckScheduler
 }
 
 // NewManager builds the Manager for mempool.type=app.
 func NewManager(app *baseapp.BaseApp, logger log.Logger, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
-	a.trace = app.Trace()
+	a.adm.trace = app.Trace()
 	if logger != nil { // a nil logger would re-panic inside the recover handlers
-		a.logger = logger
+		a.exec.logger = logger
 	}
-	a.mpool = mpool
-	a.signer = signer
-	a.maxRecheckBatch = recheckBatchSize
-	a.ttlNumBlocks = ttlNumBlocks
-	a.recheckDisabled = recheckDisabled
-	a.pendingTxCache.enabled = pendingCacheEnabled
+	a.sched.mpool = mpool
+	a.sched.signer = signer
+	a.sched.maxRecheckBatch = recheckBatchSize
+	a.sched.ttlNumBlocks = ttlNumBlocks
+	a.sched.recheckDisabled = recheckDisabled
+	a.exec.pending.enabled = pendingCacheEnabled
 	recheckEnabledGauge := float32(0)
 	if !recheckDisabled {
 		recheckEnabledGauge = 1
 	}
 	telemetry.SetGauge(recheckEnabledGauge, "cronos", "mempool", "recheck", "enabled")
-	a.worker = newRecheckWorker(a.RecheckTxs)
-	a.worker.start()
+	a.sched.worker = newRecheckWorker(a.sched.RecheckTxs)
+	a.sched.worker.start()
 	return a
 }
 
@@ -124,603 +54,128 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 			panic("mempool: encCache requires txEncoder != nil for canonical bytes")
 		}
 	}
-	return &Manager{
+	exec := &txExec{
 		runner:    runner,
 		encCache:  encCache,
 		txEncoder: txEncoder,
 		decoder:   decoder,
 		logger:    log.NewNopLogger(),
 	}
-}
-
-// recheckDecodingEnabled reports whether sender decoding/bookkeeping should run.
-func (a *Manager) recheckDecodingEnabled() bool {
-	return !a.recheckDisabled && a.signer != nil && a.decoder != nil
+	return &Manager{
+		exec:  exec,
+		adm:   &admitter{exec: exec},
+		sched: &recheckScheduler{exec: exec},
+	}
 }
 
 // StageSkippedSenders merges the senders of proposal-gate-rejected txs into
 // recheckSenders without touching lastCommittedHeight
 func (a *Manager) StageSkippedSenders(txs [][]byte) {
-	if !a.recheckDecodingEnabled() || len(txs) == 0 {
-		return
-	}
-	senders := make(map[string]struct{}, len(txs))
-	for _, bz := range txs {
-		tx, err := a.decoder(bz)
-		if err != nil {
-			continue
-		}
-		for _, s := range a.signers(tx) {
-			senders[s] = struct{}{}
-		}
-	}
-	if len(senders) == 0 {
-		return
-	}
-	a.stagingMu.Lock()
-	a.mergeRecheckSenders(senders)
-	a.stagingMu.Unlock()
-}
-
-func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
-	// mergeRecheckSenders folds senders into a.recheckSenders without overwriting, so a
-	// block whose Commit skipped RecheckTxs doesn't lose its staged senders.
-	if a.recheckSenders == nil {
-		a.recheckSenders = senders
-	} else {
-		for s := range senders {
-			a.recheckSenders[s] = struct{}{}
-		}
-	}
+	a.sched.stageSkippedSenders(txs)
 }
 
 // LockForCommit is for App.Commit only; see admissionGate.lockForCommit.
 func (a *Manager) LockForCommit() (unlock func()) {
-	return a.gate.lockForCommit()
+	return a.exec.gate.lockForCommit()
 }
 
 // SetRPCMaxInflight caps RPC txs being admitted at once; excess get CodeTypeRetry. <= 0 = unlimited.
 func (a *Manager) SetRPCMaxInflight(n int) {
-	a.rpcTxLimit.max.Store(int64(n))
+	a.adm.rpcTxLimit.max.Store(int64(n))
 }
 
 // RPCMaxInflight returns the RPC admission cap; <= 0 = unlimited.
 func (a *Manager) RPCMaxInflight() int {
-	return int(a.rpcTxLimit.max.Load())
-}
-
-// acquireRPCSlot takes an RPC admission slot and returns its release; when none
-// is free it counts a shed and returns ok=false.
-func (a *Manager) acquireRPCSlot() (release func(), ok bool) {
-	if !a.rpcTxLimit.tryAcquire() {
-		telemetry.IncrCounter(1, "cronos", "mempool", "rpc", "shed")
-		return nil, false
-	}
-	return a.rpcTxLimit.release, true
+	return int(a.adm.rpcTxLimit.max.Load())
 }
 
 // SetPreVerify sets the pre-verification hook.
 func (a *Manager) SetPreVerify(fn func([]byte) error) {
-	a.preVerify = fn
+	a.adm.preVerify = fn
 }
 
 // SetAnteCache wires the ante-layer nonce cache so evict can clear a tx's
 // entries.
 func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
-	a.anteCache = ac
+	a.sched.anteCache = ac
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
 // admitting them.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
-	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		code, _, _ := a.admit(req.Tx, fromGossip)
-		return &abci.ResponseInsertTx{Code: code}, nil
-	}
+	return a.adm.insertTxHandler()
 }
 
 // InsertTx is the direct RPC insert; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, rawLog := a.admit(txBytes, fromRPC)
+	code, codespace, rawLog := a.adm.admit(txBytes, fromRPC)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: rawLog}, nil
 }
 
 // PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.
 func (a *Manager) PendingTxs() []sdk.Tx {
-	if a.mpool == nil {
+	if a.sched.mpool == nil {
 		return nil
 	}
-	return a.pendingTxCache.get(func() []sdk.Tx {
-		return UnorderedPoolSnapshot(context.Background(), a.mpool)
+	return a.exec.pending.get(func() []sdk.Tx {
+		return UnorderedPoolSnapshot(context.Background(), a.sched.mpool)
 	})
 }
 
 func (a *Manager) CountTx() int {
-	if a.mpool == nil {
+	if a.sched.mpool == nil {
 		return 0
 	}
-	return a.mpool.CountTx()
+	return a.sched.mpool.CountTx()
 }
 
 // RecheckDisabled reports whether mempool recheck is disabled
 func (a *Manager) RecheckDisabled() bool {
-	return a.recheckDisabled
-}
-
-// admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
-// the gate), then RunTx(ExecModeCheck) + encCache.Set under it. Over-capacity and,
-// for RPC txs, a full rpcTxLimit map to CodeTypeRetry. tx stays nil when
-// encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
-func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
-	defer func() {
-		if r := recover(); r != nil {
-			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, panicPathAdmit, r, "tx", txHash(txBytes)), false)
-		}
-	}()
-
-	if source == fromRPC {
-		release, ok := a.acquireRPCSlot()
-		if !ok {
-			return abci.CodeTypeRetry, "", rpcTxLimitFullLog
-		}
-		defer release()
-	}
-
-	if a.preVerify != nil {
-		if err := a.preVerify(txBytes); err != nil {
-			cs, c, l := errorsmod.ABCIInfo(err, false)
-			return c, cs, l
-		}
-	}
-
-	tx, canonical, err := a.decodeAndEncode(txBytes)
-	if err != nil {
-		cs, c, l := errorsmod.ABCIInfo(err, false)
-		return c, cs, l
-	}
-
-	a.gate.lock()
-	defer a.gate.unlock()
-
-	if _, _, _, err = a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil); err != nil {
-		if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
-			return abci.CodeTypeRetry, "", mempoolFullLog
-		}
-		cs, c, l := errorsmod.ABCIInfo(err, false)
-		return c, cs, l
-	}
-
-	a.encCache.Set(tx, canonical)
-	a.pendingTxCache.invalidate()
-	return abci.CodeTypeOK, "", ""
-}
-
-// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nils without a cache, raw bytes on encode error.
-func (a *Manager) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
-	if a.encCache == nil {
-		return nil, nil, nil
-	}
-	tx, err := a.decoder(raw)
-	if err != nil {
-		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
-	}
-	if bz, err := a.encode(tx); err == nil {
-		return tx, bz, nil
-	}
-	return tx, raw, nil
-}
-
-// Deferred unlock: a recovered encoder panic must not leave encodeMu held.
-func (a *Manager) encode(tx sdk.Tx) ([]byte, error) {
-	a.encodeMu.Lock()
-	defer a.encodeMu.Unlock()
-	return a.txEncoder(tx)
+	return a.sched.recheckDisabled
 }
 
 // CheckTxHandler runs RPC CheckTx.
 func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
-	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (resp *abci.ResponseCheckTx, _ error) {
-		defer func() {
-			if r := recover(); r != nil {
-				resp = sdkerrors.ResponseCheckTxWithEvents(recoveredPanic(a.logger, panicPathCheckTx, r, "tx", txHash(req.Tx)), 0, 0, nil, a.trace)
-			}
-		}()
-
-		release, ok := a.acquireRPCSlot()
-		if !ok {
-			return &abci.ResponseCheckTx{Code: abci.CodeTypeRetry, Log: rpcTxLimitFullLog}, nil
-		}
-		defer release()
-
-		// Decode and encode before locking
-		tx, canonical, err := a.decodeAndEncode(req.Tx)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
-		}
-
-		a.gate.lock()
-		defer a.gate.unlock()
-
-		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
-		}
-
-		a.encCache.Set(tx, canonical)
-		a.pendingTxCache.invalidate()
-
-		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
-		// the tx indexer on FinalizeBlock results, not CheckTx.
-		return &abci.ResponseCheckTx{
-			GasWanted: int64(gasInfo.GasWanted),
-			GasUsed:   int64(gasInfo.GasUsed),
-			Log:       result.Log,
-			Data:      result.Data,
-			Events:    result.Events,
-		}, nil
-	}
+	return a.adm.checkTxHandler()
 }
 
 // StageRecheckSenders records committed-block senders for RecheckTxs and stages
 // the committed height.
 func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
-	a.pendingTxCache.invalidate()
-
-	// Decode + extract signers unlocked (the expensive part), then publish height
-	// and recheckSenders in one critical section so a reader never sees a torn update.
-	var senders map[string]struct{}
-	if a.recheckDecodingEnabled() {
-		senders = make(map[string]struct{}, len(txs))
-		for _, bz := range txs {
-			tx, err := a.decoder(bz)
-			if err != nil {
-				continue // non-sdk txs (e.g. vote extensions) have no mempool entry
-			}
-			for _, s := range a.signers(tx) {
-				senders[s] = struct{}{}
-			}
-		}
-	}
-
-	a.stagingMu.Lock()
-	a.lastCommittedHeight = height
-	a.mergeRecheckSenders(senders)
-	a.stagingMu.Unlock()
+	a.sched.stageRecheckSenders(height, txs)
 }
 
 // TriggerRecheck schedules an async recheck.
 // Call only from the consensus path (App.Commit).
 func (a *Manager) TriggerRecheck() {
-	if a.worker.trigger == nil {
-		a.RecheckTxs()
-		return
-	}
-	a.worker.recheck()
+	a.sched.triggerRecheck()
 }
 
 // Close stops the recheck worker.
 func (a *Manager) Close() {
-	a.worker.stop()
+	a.sched.worker.stop()
 }
 
 // WaitForRecheck blocks until the pending recheck finishes;
 func (a *Manager) WaitForRecheck(ctx context.Context) {
-	if a.worker.trigger == nil {
+	if a.sched.worker.trigger == nil {
 		return
 	}
-	a.worker.wait(ctx)
+	a.sched.worker.wait(ctx)
 }
 
 // WaitForRecheckTimedOut is WaitForRecheck bounded by timeout, reporting whether the
 // timeout was hit.
 func (a *Manager) WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool {
-	if a.worker.trigger == nil {
+	if a.sched.worker.trigger == nil {
 		return false
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	return a.worker.wait(waitCtx)
+	return a.sched.worker.wait(waitCtx)
 }
 
 // RecheckTxs evicts pool txs invalidated by the last block.
 func (a *Manager) RecheckTxs() {
-	if a.mpool == nil || a.recheckDisabled {
-		return
-	}
-	a.recheckMu.Lock() // lock order: see the recheckMu field comment
-	defer a.recheckMu.Unlock()
-	recheckSenders, height, deferred := a.drainStaging()
-	// Before the first block (height 0) with no senders/carry there's nothing to scan.
-	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
-		return
-	}
-	// A panic here would crash the node and, on the worker, skip close(ready).
-	defer func() {
-		if r := recover(); r != nil {
-			a.restoreStaging(recheckSenders, deferred)
-			a.pendingTxCache.invalidate() // evictions before the panic must reach pending queries
-			logRecoveredPanic(a.logger, panicPathRecheck, r)
-		}
-	}()
-
-	snapshot := PoolSnapshot(context.Background(), a.mpool)
-	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
-	a.runRecheck(candidates)
-
-	a.pendingTxCache.invalidate()
-	telemetry.SetGauge(float32(a.mpool.CountTx()), "cronos", "mempool", "pool", "size")
-}
-
-// drainStaging atomically takes and clears the staged senders, height, and carry.
-func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
-	a.stagingMu.Lock()
-	defer a.stagingMu.Unlock()
-	recheckSenders, height, deferred = a.recheckSenders, a.lastCommittedHeight, a.deferred
-	a.recheckSenders = nil
-	a.deferred = nil
-	return recheckSenders, height, deferred
-}
-
-// restoreStaging puts drained work back after an aborted cycle so the next cycle retries it.
-func (a *Manager) restoreStaging(recheckSenders map[string]struct{}, deferred []sdk.Tx) {
-	a.stagingMu.Lock()
-	defer a.stagingMu.Unlock()
-	a.mergeRecheckSenders(recheckSenders)
-	if a.deferred == nil {
-		a.deferred = deferred
-	}
-}
-
-// selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
-// only invokes this when recheck is enabled.
-func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
-	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
-	var deferredLive map[sdk.Tx]bool
-	if len(deferred) > 0 {
-		deferredLive = make(map[sdk.Tx]bool, len(deferred))
-		for _, tx := range deferred {
-			deferredLive[tx] = false
-		}
-	}
-
-	var (
-		expiredEvicted float32
-		ttlEvicted     float32
-	)
-	// Rebuild arrival from this cycle's snapshot so txs gone from the pool fall out.
-	var newArrival map[sdk.Tx]int64
-	if a.ttlNumBlocks > 0 {
-		newArrival = make(map[sdk.Tx]int64, len(snapshot))
-	}
-
-	// Pass 1: evictions. Collect senders of evicted txs so their remaining pool txs
-	// (e.g. higher-nonce siblings) are rechecked — they become invalid after the gap.
-	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
-	now := time.Now()
-	for _, tx := range snapshot {
-		evictedPoison := a.guardRecheckTx(tx, func() {
-			if txTimedout(tx, height, now) {
-				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-				expiredEvicted++
-				return
-			}
-			if a.ttlNumBlocks > 0 {
-				arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
-				if expired {
-					evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-					ttlEvicted++
-					return
-				}
-				newArrival[tx] = arrived
-			}
-		})
-		if evictedPoison {
-			evictedSet = markEvicted(evictedSet, tx)
-		}
-	}
-	a.arrival = newArrival
-	if expiredEvicted > 0 {
-		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired")
-	}
-	if ttlEvicted > 0 {
-		telemetry.IncrCounter(ttlEvicted, "cronos", "mempool", "recheck", "ttl_expired")
-	}
-
-	// Pass 2: candidate selection over surviving (non-evicted) txs.
-	var candidates []sdk.Tx
-	for _, tx := range snapshot {
-		if _, wasEvicted := evictedSet[tx]; wasEvicted {
-			continue
-		}
-		if deferredLive != nil {
-			if _, isDeferred := deferredLive[tx]; isDeferred {
-				deferredLive[tx] = true
-			}
-		}
-		if len(recheckSenders) == 0 {
-			continue
-		}
-		var sigs []string
-		if a.guardRecheckTx(tx, func() { sigs = a.signers(tx) }) {
-			delete(deferredLive, tx) // evicted, so don't recheck it as carry
-			continue
-		}
-		for _, s := range sigs {
-			if _, ok := recheckSenders[s]; ok {
-				candidates = append(candidates, tx)
-				break
-			}
-		}
-	}
-
-	if len(deferred) == 0 {
-		return candidates
-	}
-	// Front-load surviving deferred ahead of fresh candidates: the snapshot is
-	// priority-ordered, so otherwise capRecheckTxs re-takes the same prefix and starves the tail.
-	ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
-	for _, tx := range deferred {
-		if deferredLive[tx] {
-			ordered = append(ordered, tx) // skip txs included/evicted since carry
-		}
-	}
-	for _, tx := range candidates {
-		if _, isDeferred := deferredLive[tx]; isDeferred {
-			continue // sender re-touched this cycle; avoid double recheck
-		}
-		ordered = append(ordered, tx)
-	}
-	return ordered
-}
-
-// evictForRecheck evicts tx and folds its signers into recheckSenders, allocating
-// evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
-func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
-	a.evict(tx)
-	evictedSet = markEvicted(evictedSet, tx)
-	sigs := a.signers(tx)
-	if len(sigs) > 0 && recheckSenders == nil {
-		recheckSenders = make(map[string]struct{})
-	}
-	for _, s := range sigs {
-		recheckSenders[s] = struct{}{}
-	}
-	return evictedSet, recheckSenders
-}
-
-func markEvicted(evictedSet map[sdk.Tx]struct{}, tx sdk.Tx) map[sdk.Tx]struct{} {
-	if evictedSet == nil {
-		evictedSet = make(map[sdk.Tx]struct{})
-	}
-	evictedSet[tx] = struct{}{}
-	return evictedSet
-}
-
-// guardRecheckTx runs step and evicts tx if step panics, so one poison tx can't stall
-// every cycle's eviction. Reports whether step panicked.
-func (a *Manager) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			logRecoveredPanic(a.logger, panicPathRecheckTx, r)
-			a.evictPoisonTx(tx)
-			panicked = true
-		}
-	}()
-	step()
-	return false
-}
-
-// Eviction calls the same tx methods that may have panicked; if it panics too, the tx
-// stays pooled and is guarded again next cycle.
-func (a *Manager) evictPoisonTx(tx sdk.Tx) {
-	defer func() {
-		if r := recover(); r != nil {
-			logRecoveredPanic(a.logger, panicPathRecheckTx, r, "evict_failed", true)
-		}
-	}()
-	a.evict(tx)
-}
-
-// capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
-func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
-	if a.maxRecheckBatch <= 0 || len(candidates) <= a.maxRecheckBatch {
-		return candidates
-	}
-	carried := make([]sdk.Tx, len(candidates)-a.maxRecheckBatch)
-	copy(carried, candidates[a.maxRecheckBatch:])
-	a.stagingMu.Lock()
-	a.deferred = carried
-	a.stagingMu.Unlock()
-	return candidates[:a.maxRecheckBatch]
-}
-
-// runRecheck re-validates candidates via RunTx(ReCheck)
-func (a *Manager) runRecheck(candidates []sdk.Tx) {
-	var evicted float32
-	for _, tx := range candidates {
-		a.guardRecheckTx(tx, func() {
-			bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
-			if err != nil {
-				return
-			}
-			if err = a.recheckTx(bz, tx); err != nil {
-				a.evict(tx)
-				evicted++
-			}
-		})
-	}
-	if evicted > 0 {
-		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
-	}
-}
-
-// Deferred unlock: a recovered RunTx panic must not leave the gate held.
-func (a *Manager) recheckTx(bz []byte, tx sdk.Tx) error {
-	a.gate.lock()
-	defer a.gate.unlock()
-	_, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-	return err
-}
-
-// txTimedout reports whether tx should be evicted by its own declared timeout:
-func txTimedout(tx sdk.Tx, height int64, now time.Time) bool {
-	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
-		th := t.GetTimeoutHeight()
-		if th > 0 && uint64(height) >= th {
-			return true
-		}
-	}
-	if t, ok := tx.(sdk.TxWithTimeoutTimeStamp); ok {
-		ts := t.GetTimeoutTimeStamp()
-		if !ts.IsZero() && !now.Before(ts) {
-			return true
-		}
-	}
-	return false
-}
-
-// txTTLExpired reports whether tx has aged past ttlNumBlocks since first seen.
-func txTTLExpired(arrival map[sdk.Tx]int64, tx sdk.Tx, height, ttlNumBlocks int64) (int64, bool) {
-	arrived, ok := arrival[tx]
-	if !ok {
-		arrived = height
-	}
-	return arrived, height-arrived >= ttlNumBlocks
-}
-
-// evict removes tx from the pool, encoder cache, and ante cache together, so
-// no cache outlives its pool entry.
-func (a *Manager) evict(tx sdk.Tx) {
-	_ = a.mpool.Remove(tx)
-	a.encCache.Evict(tx)
-	a.evictAnteCache(tx)
-}
-
-func (a *Manager) evictAnteCache(tx sdk.Tx) {
-	if a.anteCache == nil || tx == nil {
-		return
-	}
-	for _, msg := range tx.GetMsgs() {
-		ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
-		if !ok {
-			continue
-		}
-		asTx := ethTx.AsTransaction()
-		if asTx == nil {
-			continue
-		}
-		a.anteCache.Delete(ethTx.GetFrom().String(), asTx.Nonce())
-	}
-}
-
-func (a *Manager) signers(tx sdk.Tx) []string {
-	sigs, err := a.signer.GetSigners(tx)
-	if err != nil {
-		return nil
-	}
-	keys := make([]string, len(sigs))
-	for i, s := range sigs {
-		keys[i] = s.Signer.String()
-	}
-	return keys
+	a.sched.RecheckTxs()
 }

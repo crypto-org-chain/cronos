@@ -20,8 +20,8 @@ func newAsyncRecheckFixture(t *testing.T, failBytes ...string) *recheckFixture {
 
 // startAsyncWorker does NOT register a Cleanup — caller owns Close().
 func startAsyncWorker(f *recheckFixture) {
-	f.a.worker = newRecheckWorker(f.a.RecheckTxs)
-	f.a.worker.start()
+	f.a.sched.worker = newRecheckWorker(f.a.RecheckTxs)
+	f.a.sched.worker.start()
 }
 
 func waitUntil(t *testing.T, cond func() bool, timeout time.Duration, msg string) {
@@ -40,7 +40,7 @@ func TestTriggerRecheck_WakesWorker(t *testing.T) {
 	f := newAsyncRecheckFixture(t, "alice-0")
 	stale := f.add(1, "alice", 0, "alice-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	waitUntil(t, func() bool { return !poolHas(f.pool, stale) }, 2*time.Second,
@@ -52,8 +52,8 @@ func TestTriggerRecheck_CoalescedPreservesSenders(t *testing.T) {
 	stale := f.add(1, "alice", 0, "alice-0")
 	survivor := f.add(2, "alice", 1, "alice-1")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.lastCommittedHeight = 2
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.lastCommittedHeight = 2
 	// many triggers coalesce to one run; staging merges so no senders are lost.
 	for i := 0; i < 10; i++ {
 		f.a.TriggerRecheck()
@@ -98,7 +98,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	}
 
 	f := newRecheckFixture()
-	f.a.runner = runner
+	f.a.exec.runner = runner
 	startAsyncWorker(f)
 	// unblock before Close so a failed assertion can't hang the cleanup.
 	t.Cleanup(func() {
@@ -107,7 +107,7 @@ func TestClose_WaitsForInFlight(t *testing.T) {
 	})
 
 	f.add(1, "alice", 0, "alice-0")
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
@@ -147,7 +147,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	}
 
 	f := newRecheckFixture()
-	f.a.runner = runner
+	f.a.exec.runner = runner
 	startAsyncWorker(f)
 	// unblock before Close so a failed assertion can't hang the cleanup.
 	defer func() {
@@ -156,7 +156,7 @@ func TestWaitForRecheck_BlocksUntilWorkerDone(t *testing.T) {
 	}()
 
 	f.add(1, "alice", 0, "alice-0")
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
@@ -197,7 +197,7 @@ func TestWaitForRecheck_CtxTimeoutUnblocks(t *testing.T) {
 	}
 
 	f := newRecheckFixture()
-	f.a.runner = runner
+	f.a.exec.runner = runner
 	startAsyncWorker(f)
 	t.Cleanup(func() {
 		unblockRunner()
@@ -205,7 +205,7 @@ func TestWaitForRecheck_CtxTimeoutUnblocks(t *testing.T) {
 	})
 
 	f.add(1, "alice", 0, "alice-0")
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
@@ -229,7 +229,7 @@ func TestWaitForRecheckTimedOut_ReturnsFalseWhenCompletedInTime(t *testing.T) {
 	f := newAsyncRecheckFixture(t, "alice-0")
 	stale := f.add(1, "alice", 0, "alice-0")
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	if f.a.WaitForRecheckTimedOut(context.Background(), 2*time.Second) {
@@ -254,7 +254,7 @@ func TestWaitForRecheckTimedOut_ReturnsTrueWhenStuck(t *testing.T) {
 	}
 
 	f := newRecheckFixture()
-	f.a.runner = runner
+	f.a.exec.runner = runner
 	startAsyncWorker(f)
 	t.Cleanup(func() {
 		unblockRunner()
@@ -262,7 +262,7 @@ func TestWaitForRecheckTimedOut_ReturnsTrueWhenStuck(t *testing.T) {
 	})
 
 	f.add(1, "alice", 0, "alice-0")
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.TriggerRecheck()
 
 	waitUntil(t, inFlight.Load, 2*time.Second, "timeout: worker never entered RunTx")
