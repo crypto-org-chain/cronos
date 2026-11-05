@@ -30,8 +30,8 @@ const (
 type admitter struct {
 	exec *txExec
 	// encodeMu serializes the pre-RunTx encode, which fills empty body/auth-info
-	// bytes in a shared decoded tx. Pooled txs passed ante, so recheck's encode
-	// only reads. Never held with gate.
+	// bytes in a shared decoded tx. Pooled txs were encoded at admission, so
+	// recheck's encode only reads. Never held with gate.
 	encodeMu sync.Mutex
 	trace    bool
 	// preVerify runs cheap checks before the gate; nil skips.

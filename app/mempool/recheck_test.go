@@ -1763,7 +1763,7 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 			return
 		}
 		_ = f.pool.Remove(c5)
-		f.runner.expectedNonce = map[string]uint64{carl: 6}
+		f.runner.expectedNonce[carl] = 6
 		f.runner.lastHeight = 11
 		f.a.sched.stagingMu.Lock()
 		f.a.sched.lastCommittedHeight = 11

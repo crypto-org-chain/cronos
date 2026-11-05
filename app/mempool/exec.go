@@ -24,10 +24,9 @@ var (
 type txExec struct {
 	// gate serializes every RunTx on checkState, whose ante write-back is what
 	// lets a later higher-nonce sibling pass, and replaces the no-op
-	// AppMempool.Lock(). App.Commit
-	// holds it across BaseApp.Commit() and goes ahead of queued holders. Recheck
-	// holds it per chunk, cascade eviction included, and to pin the height at drain,
-	// never across the pool scan.
+	// AppMempool.Lock(). App.Commit holds it across BaseApp.Commit() and goes
+	// ahead of queued holders. Recheck holds it per chunk, cascade eviction
+	// included, and to pin the height at drain, never across the pool scan.
 	gate      admissionGate
 	runner    txRunner
 	encCache  *EncoderCache

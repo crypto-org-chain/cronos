@@ -365,12 +365,12 @@ type recheckGroup struct {
 }
 
 // runRecheck runs the groups one at a time. Once a Commit moves past
-// committedHeight it re-stages the rest: run on the reset checkState, they
+// pinnedHeight it re-stages the rest: run on the reset checkState, they
 // would re-apply nonces that the Commit's own recheck then rejects as stale.
-func (s *recheckScheduler) runRecheck(groups []recheckGroup, committedHeight int64) {
+func (s *recheckScheduler) runRecheck(groups []recheckGroup, pinnedHeight int64) {
 	var evicted, cascaded, restaged int
 	for i, g := range groups {
-		e, c, r := s.runGroup(g, committedHeight)
+		e, c, r := s.runGroup(g, pinnedHeight)
 		evicted += e
 		cascaded += c
 		if r > 0 {
@@ -485,9 +485,9 @@ const recheckChunkSize = 256
 // queue can't hold the gate indefinitely. A same-sender admission may land
 // between chunks; a Commit stops the group, re-staging the candidates left
 // (counted by restaged).
-func (s *recheckScheduler) runGroup(g recheckGroup, committedHeight int64) (evicted, cascaded, restaged int) {
+func (s *recheckScheduler) runGroup(g recheckGroup, pinnedHeight int64) (evicted, cascaded, restaged int) {
 	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), committedHeight)
+		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), pinnedHeight)
 		evicted += e
 		cascaded += c
 		if !ok {
@@ -504,11 +504,11 @@ func (s *recheckScheduler) runGroup(g recheckGroup, committedHeight int64) (evic
 // the chunk is cascade-evicted without a RunTx each. Nothing carries across
 // chunks: once the gate is released an admission can move the nonce, making a
 // nonce error stale rather than a gap. ok is false, with nothing run, once a
-// Commit has moved past committedHeight.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, committedHeight int64) (evicted, cascaded int, ok bool) {
+// Commit has moved past pinnedHeight.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, pinnedHeight int64) (evicted, cascaded int, ok bool) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
-	if s.exec.committedHeight() != committedHeight {
+	if s.exec.committedHeight() != pinnedHeight {
 		return 0, 0, false
 	}
 	var lastOK uint64
