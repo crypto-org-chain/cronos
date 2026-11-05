@@ -2,7 +2,6 @@ package mempool
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	antecache "github.com/evmos/ethermint/ante/cache"
@@ -63,10 +62,19 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 	}
 }
 
-// AdmissionMutex exposes the admission mutex so App.Commit can serialize
-// BaseApp.Commit() (which resets checkState) against admission and recheck.
-func (a *Manager) AdmissionMutex() *sync.Mutex {
-	return &a.exec.mu
+// LockForCommit is for App.Commit only; see admissionGate.lockForCommit.
+func (a *Manager) LockForCommit() (unlock func()) {
+	return a.exec.gate.lockForCommit()
+}
+
+// SetRPCMaxInflight caps RPC txs being admitted at once; excess get CodeTypeRetry. <= 0 = unlimited.
+func (a *Manager) SetRPCMaxInflight(n int) {
+	a.adm.rpcTxLimit.max.Store(int64(n))
+}
+
+// RPCMaxInflight returns the RPC admission cap; <= 0 = unlimited.
+func (a *Manager) RPCMaxInflight() int {
+	return int(a.adm.rpcTxLimit.max.Load())
 }
 
 // SetPreVerify sets the pre-verification hook.
@@ -88,9 +96,9 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 	return a.adm.checkTxHandler()
 }
 
-// InsertTx returns the sync ABCI result; error is always nil (failures surface as ABCI codes).
+// InsertTx is the direct RPC insert; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, log := a.adm.admit(txBytes)
+	code, codespace, log := a.adm.admit(txBytes, fromRPC)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
 }
 

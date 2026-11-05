@@ -56,8 +56,9 @@ would otherwise vanish from the carry and its live tail would fail as a false ga
 ### Chunked lock holds
 
 A group runs in chunks of `recheckChunkSize` (256) candidates, each under one hold of the
-admission mutex. Without this, one sender's queue depth bounds how long `App.Commit`
-waits on the mutex. Between chunks, a same-sender admission can land; that is the same
+admission gate. A pending `App.Commit` goes ahead of every queued admission and chunk, so
+it waits for at most the chunk in flight; without chunks it would wait out one sender's
+whole queue. Between chunks, a same-sender admission can land; that is the same
 residual interleaving accepted between groups. A Commit can land there too; see
 Residuals.
 
@@ -98,13 +99,15 @@ entry lets a resubmit of the evicted nonce bypass the check.
 
 ### Split
 
-- `exec.go` — `txExec`: the mutex, `RunTx` entry point, codecs, and the `PendingTxs`
-  snapshot cache both halves invalidate.
-- `admitter.go` — peer `InsertTx` and RPC `CheckTx`.
+- `exec.go` — `txExec`: the admission gate (`admission_gate.go`, a mutex with Commit
+  priority), `RunTx` entry point, codecs, and the `PendingTxs` snapshot cache both halves
+  invalidate.
+- `admitter.go` — peer `InsertTx` and RPC `CheckTx`, with the RPC in-flight cap
+  (`inflight_limit.go`).
 - `scheduler.go` — staging, selection/TTL, grouping, chunked recheck, eviction.
 
 `Manager` is a facade so `app.go` and the proposal handler call sites do not churn. Lock
-order: `recheckMu > exec.mu > stagingMu`.
+order: `recheckMu > exec.gate > stagingMu`.
 
 ## Residuals
 

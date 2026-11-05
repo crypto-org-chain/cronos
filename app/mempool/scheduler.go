@@ -445,9 +445,9 @@ func batchEthSenders(tx sdk.Tx) []string {
 }
 
 // recheckChunkSize bounds how many candidates one signer group runs under a
-// single hold of exec.mu. Without this, a group's size is bounded only by one
-// sender's pool depth, and App.Commit — which blocks on the same mutex — would
-// stall behind an arbitrarily deep queue.
+// single hold of exec.gate. Without this, a group's size is bounded only by one
+// sender's pool depth, and App.Commit — which waits out the gate's current
+// holder — would stall behind an arbitrarily deep queue.
 const recheckChunkSize = 256
 
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
@@ -472,7 +472,7 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded, restaged
 	return evicted, cascaded, 0
 }
 
-// runChunkLocked runs g.txs[start:end] under one hold of exec.mu, evicting each
+// runChunkLocked runs g.txs[start:end] under one hold of exec.gate, evicting each
 // candidate that fails. On a proven nonce gap the rest of the chunk is
 // cascade-evicted without a RunTx each: siblings above a gap can't become
 // valid until the gap is filled, and nothing can fill it while the mutex is
@@ -486,8 +486,8 @@ func (s *recheckScheduler) runGroup(g recheckGroup) (evicted, cascaded, restaged
 // height pins the committed height seen by the group's first chunk; ok is
 // false, with nothing run, when a Commit has landed since.
 func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height *int64) (evicted, cascaded int, ok bool) {
-	s.exec.mu.Lock()
-	defer s.exec.mu.Unlock()
+	s.exec.gate.lock()
+	defer s.exec.gate.unlock()
 	if h := s.exec.committedHeight(); *height < 0 {
 		*height = h
 	} else if h != *height {

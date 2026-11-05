@@ -1486,8 +1486,8 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 	}
 	var unlockedRuns int
 	f.runner.onCall = func([]byte) {
-		if f.a.exec.mu.TryLock() {
-			f.a.exec.mu.Unlock()
+		if f.a.exec.gate.mu.TryLock() {
+			f.a.exec.gate.mu.Unlock()
 			unlockedRuns++
 		}
 	}
@@ -1502,10 +1502,10 @@ func TestRunChunkLocked_HoldsMutexOnlyForTheChunk(t *testing.T) {
 		if _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, &height); !ok {
 			t.Fatalf("chunk at %d aborted without a Commit", start)
 		}
-		if !f.a.exec.mu.TryLock() {
+		if !f.a.exec.gate.mu.TryLock() {
 			t.Fatalf("chunk at %d returned still holding the admission mutex", start)
 		}
-		f.a.exec.mu.Unlock()
+		f.a.exec.gate.mu.Unlock()
 	}
 	if unlockedRuns != 0 {
 		t.Fatalf("%d recheck RunTx calls ran without the admission mutex", unlockedRuns)

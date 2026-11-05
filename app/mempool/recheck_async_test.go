@@ -87,7 +87,7 @@ func TestTriggerRecheck_ConcurrentCommits(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			f.a.adm.admit([]byte("concurrent-" + strconv.Itoa(i)))
+			f.a.adm.admit([]byte("concurrent-"+strconv.Itoa(i)), fromGossip)
 		}(i)
 	}
 	wg.Wait()
