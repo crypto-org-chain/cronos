@@ -542,6 +542,7 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		}
 		var sigs []string
 		if a.guardRecheckTx(tx, func() { sigs = a.signers(tx) }) {
+			delete(deferredLive, tx) // evicted, so don't recheck it as carry
 			continue
 		}
 		for _, s := range sigs {
@@ -610,9 +611,13 @@ func (a *Manager) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool) {
 }
 
 // Eviction calls the same tx methods that may have panicked; if it panics too, the tx
-// stays pooled and its step is skipped again next cycle.
+// stays pooled and is guarded again next cycle.
 func (a *Manager) evictPoisonTx(tx sdk.Tx) {
-	defer func() { _ = recover() }()
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(a.logger, panicPathRecheckTx, r, "evict_failed", true)
+		}
+	}()
 	a.evict(tx)
 }
 
@@ -633,20 +638,16 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
-		var failed bool
-		evictedPoison := a.guardRecheckTx(tx, func() {
+		a.guardRecheckTx(tx, func() {
 			bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
 			if err != nil {
 				return
 			}
 			if err = a.recheckTx(bz, tx); err != nil {
 				a.evict(tx)
-				failed = true
+				evicted++
 			}
 		})
-		if failed || evictedPoison {
-			evicted++
-		}
 	}
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")

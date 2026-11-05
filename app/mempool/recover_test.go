@@ -346,6 +346,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 		path       string
 		where      string
 		expEvicted bool // poison is evicted and its sibling still rechecked
+		expRunTx   bool // poison reached RunTx
 	}{
 		{
 			name:     "panic in the pool scan aborts the cycle and keeps its senders",
@@ -383,6 +384,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			path:       panicPathRecheckTx,
 			where:      "RunTx",
 			expEvicted: true,
+			expRunTx:   true,
 		},
 	}
 
@@ -397,6 +399,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			f.enc.Set(poison, []byte("alice-0"))
 			sibling := f.add(2, "alice", 1, "alice-1")
 			f.a.recheckSenders = map[string]struct{}{alice: {}}
+			f.a.deferred = []sdk.Tx{poison}
 			tc.malleate(f, poison)
 			startAsyncWorker(f)
 			defer f.a.Close()
@@ -410,8 +413,10 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
 			s.Require().Equal(!tc.expEvicted, poolHas(f.pool, poison))
 			s.Require().Equal(!tc.expEvicted, poolHas(f.pool, sibling))
+			s.Require().Equal(tc.expRunTx, f.runner.seen["alice-0"], "an evicted poison tx must not be rechecked")
 			if !tc.expEvicted {
 				s.Require().Contains(f.a.recheckSenders, alice, "an aborted cycle's senders must be retried")
+				s.Require().Equal([]sdk.Tx{poison}, f.a.deferred, "an aborted cycle's carry must be retried")
 			}
 			s.Require().NotEqual(epoch, f.a.pendingTxCache.epoch.Load(), "the pending cache must be invalidated")
 			s.Require().True(f.a.gate.mu.TryLock(), "admission gate must be released after a panic")
