@@ -467,7 +467,9 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
+		// The SDK default adapter panics on a SignerInfo without a public key; in FinalizeBlock's Remove
+		// that becomes an ErrPanic tx result that NoOp-mempool nodes don't produce.
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter())
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
@@ -571,10 +573,7 @@ func New(
 
 			mempoolLogger := logger.With("module", "app-mempool")
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, mempoolLogger))
-			// The manager's adapter also stages senders of block txs that omit their pubkey; the pool
-			// keeps the SDK one because its Remove outcome is part of FinalizeBlock tx results (consensus).
-			managerSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter())
-			manager := cronosmempool.NewManager(app, mempoolLogger, encCache, txConfig.TxEncoder(), mpool, managerSigner, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
+			manager := cronosmempool.NewManager(app, mempoolLogger, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			manager.SetAnteCache(anteCache)
 			manager.SetRPCMaxInflight(rpcMaxInflight)
 			var preVerifiers cronosmempool.PreVerifierRegistry

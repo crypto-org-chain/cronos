@@ -116,8 +116,8 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 
 	appOpts := minimalOptionsMap{
 		flags.FlagHome:                 tb.TempDir(),
-		"mempool.type":                 "app",
-		"mempool.max-txs":              100000,
+		cronos.FlagMempoolType:         "app",
+		server.FlagMempoolMaxTxs:       100000,
 		"cronos.mempool-tx-cache-size": 200000,
 	}
 	maps.Copy(appOpts, overrides)
@@ -386,7 +386,7 @@ func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAcc
 	txCfg := f.app.TxConfig()
 	from := sdk.AccAddress(acc.Address.Bytes())
 	builder := txCfg.NewTxBuilder()
-	require.NoError(tb, builder.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins())))
+	require.NoError(tb, builder.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
 	builder.SetGasLimit(200000)
 	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(1, 16))))
 	sig := signing.SignatureV2{
@@ -444,21 +444,19 @@ func TestSignerInfoTxTestSuite(t *testing.T) {
 	suite.Run(t, new(SignerInfoTxTestSuite))
 }
 
-// A block can carry any decodable tx, so staging its senders must not panic.
+// A block can carry any decodable tx; FinalizeBlock must not panic, and the result must not
+// depend on the node's mempool config.
 func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 	testCases := []struct {
 		name     string
 		malleate func(raw *txtypes.TxRaw)
-		expErr   *errorsmod.Error
-		// expStaleEvicted: the block tx used the pooled tx's nonce, so recheck of its staged sender evicts it.
+		expErr   *errorsmod.Error // nil means the msgs ran
+		// expStaleEvicted: the block tx used the pooled tx's nonce, so the pool drops the pooled tx.
 		expStaleEvicted bool
 	}{
 		{
-			name:     "validly signed without a public key",
-			malleate: func(*txtypes.TxRaw) {},
-			// Today's result, not a contract: ante commits the fee and nonce, then the pool's SDK
-			// adapter panics in Remove. A NoOpMempool node runs the msgs instead (pre-existing split).
-			expErr:          sdkerrors.ErrPanic,
+			name:            "validly signed without a public key",
+			malleate:        func(*txtypes.TxRaw) {},
 			expStaleEvicted: true,
 		},
 		{
@@ -475,31 +473,52 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 		},
 	}
 	executors := []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
+	mempools := []struct {
+		name   string
+		opts   minimalOptionsMap
+		pooled bool
+	}{
+		{name: "app", pooled: true},
+		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
+		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
+	}
 
 	for _, executor := range executors {
-		for _, tc := range testCases {
-			s.Run(executor+"/"+tc.name, func() {
-				f := setupAdmissionAppWithOpts(s.T(), 1, minimalOptionsMap{server.FlagBlockExecutor: executor})
-				acc := &f.accounts[0]
-				raw := f.signBankSendWithoutPubKey(s.T(), acc)
-				tc.malleate(raw)
-				acc.Nonce = 0
-				insertResp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: f.signTransfer(s.T(), acc, nil)})
-				s.Require().NoError(err)
-				s.Require().Equal(abci.CodeTypeOK, insertResp.Code)
-				req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{encodeRaw(s.T(), raw)}}
+		for _, mp := range mempools {
+			for _, tc := range testCases {
+				s.Run(executor+"/"+mp.name+"/"+tc.name, func() {
+					opts := minimalOptionsMap{server.FlagBlockExecutor: executor}
+					maps.Copy(opts, mp.opts)
+					f := setupAdmissionAppWithOpts(s.T(), 1, opts)
+					acc := &f.accounts[0]
+					raw := f.signBankSendWithoutPubKey(s.T(), acc)
+					tc.malleate(raw)
+					acc.Nonce = 0
+					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: f.signTransfer(s.T(), acc, nil)})
+					s.Require().NoError(err)
+					s.Require().Equal(abci.CodeTypeOK, checkResp.Code)
+					req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{encodeRaw(s.T(), raw)}}
 
-				var resp *abci.ResponseFinalizeBlock
-				s.Require().NotPanics(func() { resp, err = f.app.FinalizeBlock(req) })
-				s.Require().NoError(err)
-				s.Require().Len(resp.TxResults, 1)
-				s.Require().Equal(tc.expErr.ABCICode(), resp.TxResults[0].Code)
-				s.Require().Equal(tc.expErr.Codespace(), resp.TxResults[0].Codespace)
-				_, err = f.app.Commit()
-				s.Require().NoError(err)
-				f.app.MempoolManager().WaitForRecheck(context.Background())
-				s.Require().Equal(tc.expStaleEvicted, f.app.Mempool().CountTx() == 0)
-			})
+					var resp *abci.ResponseFinalizeBlock
+					s.Require().NotPanics(func() { resp, err = f.app.FinalizeBlock(req) })
+					s.Require().NoError(err)
+					s.Require().Len(resp.TxResults, 1)
+					expCode, expCodespace := abci.CodeTypeOK, ""
+					if tc.expErr != nil {
+						expCode, expCodespace = tc.expErr.ABCICode(), tc.expErr.Codespace()
+					}
+					s.Require().Equal(expCode, resp.TxResults[0].Code, resp.TxResults[0].Log)
+					s.Require().Equal(expCodespace, resp.TxResults[0].Codespace)
+					_, err = f.app.Commit()
+					s.Require().NoError(err)
+					if m := f.app.MempoolManager(); m != nil {
+						m.WaitForRecheck(context.Background())
+					}
+					if mp.pooled {
+						s.Require().Equal(tc.expStaleEvicted, f.app.Mempool().CountTx() == 0)
+					}
+				})
+			}
 		}
 	}
 }
@@ -576,7 +595,7 @@ func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	require.NotNil(t, appMempool.MempoolManager())
 	require.NotNil(t, appMempool.MempoolClient(), "app mempool exposes a client")
 
-	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
+	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), cronos.FlagMempoolType: "flood"}
 	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	t.Cleanup(func() { _ = flood.Close() })
 	require.Nil(t, flood.MempoolManager())
@@ -603,7 +622,7 @@ func BenchmarkAdmission(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			// Room for every tx, so a long -benchtime can't fill the pool and fail the admitted count.
 			total := goroutines * b.N
-			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{"mempool.max-txs": max(total, 100000)})
+			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{server.FlagMempoolMaxTxs: max(total, 100000)})
 			senders := f.accounts
 			if tc.unfunded {
 				senders = newTestAccounts(b, goroutines)
