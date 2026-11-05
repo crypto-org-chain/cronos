@@ -469,6 +469,17 @@ func (f *admissionFixture) finalizeTx(tb testing.TB, bz []byte) *abci.ExecTxResu
 	return resp.TxResults[0]
 }
 
+// Only the app mempool rechecks itself; under flood, CometBFT rechecks each pooled tx.
+func (f *admissionFixture) recheck(tb testing.TB, pooled []byte) {
+	tb.Helper()
+	if m := f.app.MempoolManager(); m != nil {
+		m.WaitForRecheck(context.Background())
+		return
+	}
+	_, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled, Type: abci.CheckTxType_Recheck})
+	require.NoError(tb, err)
+}
+
 var (
 	blockExecutors = []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
 	// Validators may run any of these, so a block tx's result must not depend on which.
@@ -535,7 +546,8 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 					raw := f.signBankSendWithoutPubKey(s.T(), acc)
 					tc.malleate(raw)
 					acc.Nonce = 0
-					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: f.signTransfer(s.T(), acc, nil)})
+					pooled := f.signTransfer(s.T(), acc, nil)
+					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
 					s.Require().NoError(err)
 					s.Require().Equal(abci.CodeTypeOK, checkResp.Code)
 
@@ -548,12 +560,11 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 					s.Require().Equal(expCodespace, res.Codespace)
 					_, err = f.app.Commit()
 					s.Require().NoError(err)
-					if m := f.app.MempoolManager(); m != nil {
-						m.WaitForRecheck(context.Background())
+					if !mp.pooled {
+						return
 					}
-					if mp.pooled {
-						s.Require().Equal(tc.expStaleEvicted, f.app.Mempool().CountTx() == 0)
-					}
+					f.recheck(s.T(), pooled)
+					s.Require().Equal(tc.expStaleEvicted, f.app.Mempool().CountTx() == 0)
 				})
 			}
 		}
@@ -582,20 +593,16 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockRemovalErrorKeepsResult() {
 					return
 				}
 				// The pooled original's nonce is now spent, so recheck must evict it.
-				if m := f.app.MempoolManager(); m != nil {
-					m.WaitForRecheck(context.Background())
-				} else {
-					_, err = f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled, Type: abci.CheckTxType_Recheck})
-					s.Require().NoError(err)
-				}
+				f.recheck(s.T(), pooled)
 				s.Require().Zero(f.app.Mempool().CountTx())
 			})
 		}
 	}
 }
 
-// Valid without a public key, so a pooling node must admit it and remove it by the same key.
-func (s *SignerInfoTxTestSuite) TestNoPubKeyTxPoolRoundTrip() {
+// Transitional: a pooling node must not admit, and so never proposes, a tx without a public key;
+// a block that carries one still runs it.
+func (s *SignerInfoTxTestSuite) TestNoPubKeyTxNotAdmitted() {
 	for _, mp := range resultParityMempools {
 		if !mp.pooled {
 			continue
@@ -605,12 +612,11 @@ func (s *SignerInfoTxTestSuite) TestNoPubKeyTxPoolRoundTrip() {
 			bz := encodeRaw(s.T(), f.signBankSendWithoutPubKey(s.T(), &f.accounts[0]))
 			checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: bz})
 			s.Require().NoError(err)
-			s.Require().Equal(abci.CodeTypeOK, checkResp.Code, checkResp.Log)
-			s.Require().Equal(1, f.app.Mempool().CountTx())
+			s.Require().NotEqual(abci.CodeTypeOK, checkResp.Code)
+			s.Require().Zero(f.app.Mempool().CountTx())
 
 			res := f.finalizeTx(s.T(), bz)
 			s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
-			s.Require().Zero(f.app.Mempool().CountTx())
 		})
 	}
 }

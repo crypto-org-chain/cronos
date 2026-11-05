@@ -469,9 +469,12 @@ func New(
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
 		// The SDK default adapter panics on a SignerInfo without a public key, which is valid once the key is on chain.
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter())
+		// Transitional: the pool keeps the SDK adapter so admission still rejects such txs, and this node
+		// won't propose one before all validators run this version.
+		poolSigner := evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: signerExtractor,
+			SignerExtractor: poolSigner,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
 				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
