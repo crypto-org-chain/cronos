@@ -33,14 +33,15 @@ identity and would drop out of the carry.
 
 ### Chunks
 
-A group runs in chunks of 256 under one gate hold each. A pending Commit goes ahead of
-queued holders, so it waits for at most one chunk.
+A group runs in chunks of up to 256 under one gate hold each. A pending Commit goes
+ahead of queued holders, and a chunk ends early once a Commit is waiting, so Commit
+waits out at most one `RunTx`.
 
 ### Commit during a cycle
 
-The committed height is pinned when the cycle drains staging, under the same gate hold,
-so the pin is never newer than the drained senders. Once a Commit moves past
-it, the cycle stops and re-stages every sender it has not reached. Running them on the
+The gate counts Commits. The cycle reads that count when it drains staging, under the
+same gate hold, so the pin is never newer than the drained senders. Once a Commit runs
+after it, the cycle stops and re-stages every sender it has not reached. Running them on the
 reset `checkState` would re-apply their nonces, and the recheck that Commit triggers
 would then reject the same valid txs as stale. Counter: `cronos.mempool.recheck.restaged`.
 
@@ -64,14 +65,9 @@ Cascade is off for a group that isn't the signer's whole ascending-nonce view:
 
 A non-nonce failure, or a panic in `RunTx` or eviction, never starts a cascade.
 
-### Ante cache
-
-`evict` drops ethermint's `(from, nonce)` ante-cache entries. A cascade or TTL eviction
-never runs the ante, so a stale entry would let a resubmit skip nonce verification.
-
 ### Split
 
-- `exec.go`: the gate, `RunTx`, codecs, the pending cache, and the panic logger.
+- `exec.go`: the gate, `RunTx`, codecs, the pending cache, and the logger.
 - `admitter.go`: `InsertTx` and `CheckTx`, with the RPC in-flight cap.
 - `scheduler.go`: staging, selection, grouping, chunked recheck, eviction.
 

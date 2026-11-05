@@ -14,11 +14,7 @@ type txRunner interface {
 	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
 }
 
-var (
-	_ txRunner = (*baseapp.BaseApp)(nil)
-	// committedHeight relies on this to detect a Commit during recheck.
-	_ interface{ LastBlockHeight() int64 } = (*baseapp.BaseApp)(nil)
-)
+var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // txExec is what admission and recheck share.
 type txExec struct {
@@ -26,7 +22,7 @@ type txExec struct {
 	// lets a later higher-nonce sibling pass, and replaces the no-op
 	// AppMempool.Lock(). App.Commit holds it across BaseApp.Commit() and goes
 	// ahead of queued holders. Recheck holds it per chunk, cascade eviction
-	// included, and to pin the height at drain, never across the pool scan.
+	// included, and to pin the commit count at drain, never across the pool scan.
 	gate      admissionGate
 	runner    txRunner
 	encCache  *EncoderCache
@@ -40,13 +36,4 @@ type txExec struct {
 // runTxLocked runs tx against checkState. Precondition: the caller holds gate.
 func (e *txExec) runTxLocked(mode sdk.ExecMode, bz []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 	return e.runner.RunTx(mode, bz, tx, -1, nil, nil)
-}
-
-// committedHeight is the last committed height, or 0 if the runner can't report
-// it. Stable while gate is held.
-func (e *txExec) committedHeight() int64 {
-	if h, ok := e.runner.(interface{ LastBlockHeight() int64 }); ok {
-		return h.LastBlockHeight()
-	}
-	return 0
 }

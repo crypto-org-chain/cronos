@@ -61,15 +61,6 @@ type recheckRunner struct {
 	// nonceSpan maps tx bytes to how many consecutive nonces the tx consumes
 	// (a batch eth tx); absent means 1.
 	nonceSpan map[string]uint64
-	// lastHeight is what LastBlockHeight reports; a test bumps it in onCall
-	// to simulate a Commit landing mid-cycle.
-	lastHeight int64
-}
-
-func (r *recheckRunner) LastBlockHeight() int64 {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.lastHeight
 }
 
 func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -1111,7 +1102,7 @@ func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
 	bob := f.add(2, "bob", 0, "bob-0")
 	aliceHigh := f.add(3, "alice", 1, "alice-1")
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}), f.runner.lastHeight)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{aliceLow, bob, aliceHigh}), 0)
 
 	want := []string{aliceSeq0Bytes, "alice-1", "bob-0"}
 	if !slices.Equal(f.runner.calls, want) {
@@ -1126,7 +1117,7 @@ func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), f.runner.lastHeight)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), 0)
 
 	if f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
@@ -1147,7 +1138,7 @@ func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
 	next := f.add(2, "carl", 6, carlSeq6Bytes)
 	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}), f.runner.lastHeight)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}), 0)
 
 	if !f.runner.seen[carlSeq6Bytes] {
 		t.Fatal("the successor of a stale nonce must still be rechecked")
@@ -1167,10 +1158,25 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	higher := f.add(3, "carl", 8, carlSeq8Bytes)
 	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), f.runner.lastHeight)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), 0)
 
 	if !f.runner.seen[carlSeq8Bytes] {
 		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
+	}
+}
+
+// A nonce error at exactly lastOK+1 is no gap, e.g. the nonce was taken by another tx.
+func TestRunRecheck_NonceErrAtNextNonceDoesNotCascade(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	failing := f.add(2, "carl", 6, carlSeq6Bytes)
+	higher := f.add(3, "carl", 7, carlSeq7Bytes)
+	f.runner.failErrs = map[string]error{carlSeq6Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "taken")}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), 0)
+
+	if !f.runner.seen[carlSeq7Bytes] {
+		t.Fatal("a nonce error at lastOK+1 must not cascade")
 	}
 }
 
@@ -1238,7 +1244,7 @@ func TestRunRecheck_PanicSkipsOnlyThatTx(t *testing.T) {
 			candidates = append(candidates, f.add(10, "dave", 0, "dave-0"))
 			tc.malleate(f, txs)
 
-			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates), f.runner.lastHeight)
+			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates), 0)
 
 			for _, bz := range carl {
 				if got := poolHas(f.pool, txs[bz]); got != slices.Contains(tc.expPooled, bz) {
@@ -1267,7 +1273,7 @@ func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
 		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
 	}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}), f.runner.lastHeight)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}), 0)
 
 	if !f.runner.seen[carlSeq7Bytes] {
 		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
@@ -1398,6 +1404,14 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 			},
 		},
 		{
+			name: "tx whose encode fails is dropped and disables its group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				f.a.exec.txEncoder = func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode") }
+				return []sdk.Tx{f.insert(1, alice, 5), f.add(2, "alice", 6, "alice-6")}
+			},
+			wantCascadable: map[string]bool{alice.String(): false},
+		},
+		{
 			name: "duplicate seq disables its group and keeps pool order",
 			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
 				return []sdk.Tx{f.add(1, "alice", 5, "alice-5a"), f.add(2, "alice", 5, "alice-5b")}
@@ -1498,7 +1512,7 @@ func TestRunGroup_BatchEthTxStaleSiblingDoesNotCascade(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], 0)
 
 	if cascaded != 0 {
 		t.Fatalf("a stale sibling after a batch must not cascade, got %v", cascaded)
@@ -1541,7 +1555,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
 
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], 0)
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
 	}
@@ -1576,7 +1590,7 @@ func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 	}
 	for start := 0; start < total; start += recheckChunkSize {
 		end := min(start+recheckChunkSize, total)
-		if _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, f.runner.lastHeight); !ok {
+		if _, _, _, ok := f.a.sched.runChunkLocked(groups[0], start, end, 0); !ok {
 			t.Fatalf("chunk at %d aborted without a Commit", start)
 		}
 		if !f.a.exec.gate.mu.TryLock() {
@@ -1674,7 +1688,7 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 				t.Fatalf("expected 1 cascadable group, got %+v", groups)
 			}
 
-			evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
+			evicted, cascaded, _ := f.a.sched.runGroup(groups[0], 0)
 			if evicted != tc.wantEvicted {
 				t.Fatalf("expected %v direct evictions, got %v", tc.wantEvicted, evicted)
 			}
@@ -1713,7 +1727,7 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	}
 	f.runner.onCall = func(b []byte) {
 		if string(b) == bz(recheckChunkSize-1) {
-			f.runner.lastHeight++
+			f.a.exec.gate.commits++ // a Commit ran; recheck holds the gate here
 		}
 	}
 
@@ -1721,7 +1735,7 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	evicted, cascaded, restaged := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
+	evicted, cascaded, restaged := f.a.sched.runGroup(groups[0], 0)
 	if evicted != 0 || cascaded != 0 {
 		t.Fatalf("a Commit between chunks must not evict anything, got evicted=%v cascaded=%v", evicted, cascaded)
 	}
@@ -1746,7 +1760,6 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 	f.runner.signer = f.signer
 	bob, carl := sdk.AccAddress("bob").String(), sdk.AccAddress("carl").String()
 	f.runner.expectedNonce = map[string]uint64{bob: 0, carl: 5}
-	f.runner.lastHeight = 10
 
 	f.add(1, "bob", 0, "bob-0") // bob's group runs first
 	f.add(2, "bob", 1, "bob-1")
@@ -1764,7 +1777,7 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 		}
 		_ = f.pool.Remove(c5)
 		f.runner.expectedNonce[carl] = 6
-		f.runner.lastHeight = 11
+		f.a.exec.gate.commits++
 		f.a.sched.stagingMu.Lock()
 		f.a.sched.lastCommittedHeight = 11
 		f.a.sched.stagingMu.Unlock()
@@ -1787,7 +1800,7 @@ func TestRunRecheck_CommitBeforeFirstChunkRunsNothing(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "bob", 0, "bob-0")
 	f.add(2, "carl", 0, "carl-0")
-	f.runner.lastHeight = 11 // a Commit landed after the cycle pinned height 10
+	f.a.exec.gate.commits++ // a Commit ran after the cycle pinned 0
 
 	f.a.sched.runRecheck(f.a.sched.groupCandidates(PoolSnapshot(t.Context(), f.pool)), 10)
 
@@ -1825,7 +1838,7 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 		t.Fatalf("expected 1 cascadable group, got %+v", groups)
 	}
 
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], f.runner.lastHeight)
+	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], 0)
 	// Direct evictions: the gapped candidate, plus every chunk-3 candidate,
 	// each of which fails its own RunTx.
 	if want := 1 + total - chunk3Head; evicted != want {

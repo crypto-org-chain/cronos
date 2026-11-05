@@ -131,7 +131,7 @@ func (s *recheckScheduler) RecheckTxs() {
 	}
 	s.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer s.recheckMu.Unlock()
-	committed, recheckSenders, height, deferred := s.pinAndDrain()
+	commitSeq, recheckSenders, height, deferred := s.pinAndDrain()
 	// Nothing to scan before the first block.
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
@@ -147,19 +147,19 @@ func (s *recheckScheduler) RecheckTxs() {
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
 	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
-	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)), committed)
+	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)), commitSeq)
 
 	s.exec.pending.invalidate()
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
-// pinAndDrain reads the committed height and drains staging under one gate
+// pinAndDrain reads the gate's commit count and drains staging under one gate
 // hold, or a Commit between them goes undetected.
-func (s *recheckScheduler) pinAndDrain() (committed int64, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+func (s *recheckScheduler) pinAndDrain() (commitSeq uint64, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
 	recheckSenders, height, deferred = s.drainStaging()
-	return s.exec.committedHeight(), recheckSenders, height, deferred
+	return s.exec.gate.commits, recheckSenders, height, deferred
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
@@ -364,13 +364,13 @@ type recheckGroup struct {
 	cascadable bool
 }
 
-// runRecheck runs the groups one at a time. Once a Commit moves past
-// pinnedHeight it re-stages the rest: run on the reset checkState, they
-// would re-apply nonces that the Commit's own recheck then rejects as stale.
-func (s *recheckScheduler) runRecheck(groups []recheckGroup, pinnedHeight int64) {
+// runRecheck runs the groups one at a time. Once a Commit runs after commitSeq
+// it re-stages the rest: run on the reset checkState, they would re-apply
+// nonces that the Commit's own recheck then rejects as stale.
+func (s *recheckScheduler) runRecheck(groups []recheckGroup, commitSeq uint64) {
 	var evicted, cascaded, restaged int
 	for i, g := range groups {
-		e, c, r := s.runGroup(g, pinnedHeight)
+		e, c, r := s.runGroup(g, commitSeq)
 		evicted += e
 		cascaded += c
 		if r > 0 {
@@ -485,35 +485,41 @@ const recheckChunkSize = 256
 // queue can't hold the gate indefinitely. A same-sender admission may land
 // between chunks; a Commit stops the group, re-staging the candidates left
 // (counted by restaged).
-func (s *recheckScheduler) runGroup(g recheckGroup, pinnedHeight int64) (evicted, cascaded, restaged int) {
-	for start := 0; start < len(g.txs); start += recheckChunkSize {
-		e, c, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), pinnedHeight)
+func (s *recheckScheduler) runGroup(g recheckGroup, commitSeq uint64) (evicted, cascaded, restaged int) {
+	for start := 0; start < len(g.txs); {
+		e, c, next, ok := s.runChunkLocked(g, start, min(start+recheckChunkSize, len(g.txs)), commitSeq)
 		evicted += e
 		cascaded += c
 		if !ok {
 			s.recoverSenders(candidateTxs(g.txs[start:]))
 			return evicted, cascaded, len(g.txs) - start
 		}
+		start = next
 	}
 	return evicted, cascaded, 0
 }
 
 // runChunkLocked runs g.txs[start:end] under one gate hold, evicting each
-// failure. A nonce error strictly above a nonce accepted in this same hold is a
-// proven gap, since nothing can fill it while the gate is held, so the rest of
-// the chunk is cascade-evicted without a RunTx each. Nothing carries across
-// chunks: once the gate is released an admission can move the nonce, making a
-// nonce error stale rather than a gap. ok is false, with nothing run, once a
-// Commit has moved past pinnedHeight.
-func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, pinnedHeight int64) (evicted, cascaded int, ok bool) {
+// failure, and returns where the next chunk starts. A nonce error above
+// lastOK+1, where lastOK was accepted in this same hold, is a proven gap, since
+// nothing can fill it while the gate is held, so the rest of the chunk is
+// cascade-evicted without a RunTx each. Nothing carries across chunks: once the
+// gate is released an admission can move the nonce, making a nonce error stale
+// rather than a gap. The chunk ends early when a Commit is waiting, so Commit
+// waits out one RunTx, not a whole chunk. ok is false, with nothing run, once a
+// Commit has run since commitSeq.
+func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, commitSeq uint64) (evicted, cascaded, next int, ok bool) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
-	if s.exec.committedHeight() != pinnedHeight {
-		return 0, 0, false
+	if s.exec.gate.commits != commitSeq {
+		return 0, 0, start, false
 	}
 	var lastOK uint64
 	accepted := false
 	for i := start; i < end; i++ {
+		if i > start && s.exec.gate.commitPending() {
+			return evicted, cascaded, i, true
+		}
 		c := g.txs[i]
 		var err error
 		if s.guardRecheckTx(c.tx, func() {
@@ -534,10 +540,10 @@ func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, pinned
 					cascaded++
 				}
 			}
-			return evicted, cascaded, true
+			return evicted, cascaded, end, true
 		}
 	}
-	return evicted, cascaded, true
+	return evicted, cascaded, end, true
 }
 
 // isNonceErr matches both ante paths: cosmos sig verification reports

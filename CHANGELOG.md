@@ -8,7 +8,7 @@
 
 ### Bug fixes
 
-* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group with atomic nonce-gap cascade eviction.
+* [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group and cascade-evict only behind a proven nonce gap.
 * [#2244](https://github.com/crypto-org-chain/cronos/pull/2244) fix(mempool): recover panics in app-mempool CheckTx, InsertTx and ReapTxs.
 * [#2216](https://github.com/crypto-org-chain/cronos/pull/2216) fix(mempool): give Commit priority over queued admissions and cap in-flight RPC txs.
 * [#2245](https://github.com/crypto-org-chain/cronos/pull/2245) fix(test): read upgrade proposal events from the top level when logs are empty.

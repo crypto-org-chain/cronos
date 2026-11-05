@@ -11,6 +11,14 @@ type admissionGate struct {
 	mu sync.Mutex
 	// commit is non-nil from lockForCommit until its unlock, which closes the channel.
 	commit atomic.Pointer[chan struct{}]
+	// commits counts released Commits, so a holder can tell whether one ran since
+	// it last held mu. Guarded by mu.
+	commits uint64
+}
+
+// commitPending reports whether a Commit is waiting for mu.
+func (g *admissionGate) commitPending() bool {
+	return g.commit.Load() != nil
 }
 
 // lock acquires mu unless a Commit is pending, in which case it waits for that Commit first.
@@ -37,6 +45,7 @@ func (g *admissionGate) lockForCommit() (unlock func()) {
 	g.commit.Store(&ch)
 	g.mu.Lock()
 	return func() {
+		g.commits++
 		// Clear before releasing mu so woken admissions don't spin on a stale marker.
 		g.commit.Store(nil)
 		close(ch)

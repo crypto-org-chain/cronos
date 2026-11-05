@@ -302,12 +302,9 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 		name string
 		// groupSizes is each signer group's candidate count.
 		groupSizes []int
-		// wantBeforeCommit is the recheck RunTx count when Commit takes the gate:
-		// the chunk in flight finishes, the next one waits.
-		wantBeforeCommit int64
 	}{
-		{"between groups", []int{1, 1, 1, 1, 1, 1, 1, 1}, 1},
-		{"between chunks of one group", []int{recheckChunkSize + 8}, recheckChunkSize},
+		{"between groups", []int{1, 1, 1, 1, 1, 1, 1, 1}},
+		{"inside a chunk", []int{recheckChunkSize + 8}},
 	}
 
 	for _, tc := range testCases {
@@ -344,7 +341,7 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 			close(f.release)
 			select {
 			case calls := <-acquired:
-				s.Equal(tc.wantBeforeCommit, calls, "recheck re-took the gate ahead of Commit")
+				s.Equal(int64(1), calls, "Commit must wait out only the RunTx in flight")
 			case <-time.After(gateWait):
 				s.FailNow("Commit did not acquire the gate")
 			}
@@ -353,8 +350,7 @@ func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
 			case <-time.After(gateWait):
 				s.FailNow("recheck did not finish after Commit released the gate")
 			}
-			// stubRunner reports no committed height, so a split group resumes instead of re-staging.
-			s.Equal(int64(total), f.runner.calls.Load())
+			s.Equal(int64(1), f.runner.calls.Load(), "the Commit stops the cycle; the rest is re-staged")
 		})
 	}
 }
