@@ -595,7 +595,7 @@ func TestRecheckTxs_BatchCapCarriesWholeGroup(t *testing.T) {
 			f.runner.signer = f.signer
 			aliceKey := sdk.AccAddress("alice").String()
 			f.runner.expectedNonce = map[string]uint64{aliceKey: 0}
-			bob := f.add(1, "bob", 0, "bob-0")
+			bob := f.add(100, "bob", 0, "bob-0")
 			_, alice := f.addChain("alice", 5, nil)
 			f.a.sched.maxRecheckBatch = 3
 			f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("bob").String(): {}, aliceKey: {}}
@@ -628,6 +628,9 @@ func TestRecheckTxs_BatchCapCarriesWholeGroup(t *testing.T) {
 				t.Fatal("bob's tx and alice's head must stay pooled")
 			}
 			for i, tx := range alice[1:] {
+				if !f.runner.seen[chainBytes("alice", i+1)] {
+					t.Fatalf("alice-%d must be rechecked in cycle 2", i+1)
+				}
 				if !poolHas(f.pool, tx) {
 					t.Fatalf("alice-%d must not be evicted: the cap must not split her chain", i+1)
 				}
@@ -1570,8 +1573,6 @@ func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 	}
 }
 
-// Each case moves the expected nonce as chunk 2's head runs, as admissions
-// between gate holds would, and checks chunk 2 never blind-evicts a valid candidate.
 func TestRunGroup_QueuedAdmissionRunsBetweenChunks(t *testing.T) {
 	f := newRecheckFixture()
 	txs, _ := f.addChain("gail", recheckChunkSize+1, nil)
@@ -1599,6 +1600,8 @@ func TestRunGroup_QueuedAdmissionRunsBetweenChunks(t *testing.T) {
 	}
 }
 
+// Each case moves the expected nonce as chunk 2's head runs, as admissions
+// between gate holds would, and checks chunk 2 never blind-evicts a valid candidate.
 func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 	const n = recheckChunkSize
 	const total = n + 3 // chunk 1 = [0, n); chunk 2 = [n, n+3)

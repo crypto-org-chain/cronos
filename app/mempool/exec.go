@@ -18,8 +18,9 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // txExec is what admission and recheck share.
 type txExec struct {
-	// gate serializes every RunTx on checkState, whose ante write-back lets a
-	// higher-nonce sibling pass, and the checkState reset at Commit, which has priority.
+	// gate serializes every RunTx on checkState (whose ante write-back lets a
+	// higher-nonce sibling pass) against the reset in Commit, which goes first. It
+	// replaces the no-op AppMempool.Lock().
 	gate      admissionGate
 	runner    txRunner
 	encCache  *EncoderCache

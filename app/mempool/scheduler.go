@@ -518,7 +518,8 @@ func (s *recheckScheduler) runGroup(g recheckGroup, commitSeq uint64) (evicted, 
 // runChunkLocked runs g.txs[start:end] under one gate hold and returns where the
 // next chunk starts. A nonce error above lastOK+1, with lastOK accepted in this
 // hold, is a proven gap, so the rest of the chunk is evicted without a RunTx
-// each; nothing carries across chunks. The chunk ends early once a Commit is
+// each. Nothing carries across chunks, since an admission between holds can move
+// the nonce and turn a nonce error stale. The chunk ends early once a Commit is
 // waiting; ok is false, with nothing run, once a Commit has run since commitSeq.
 func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, commitSeq uint64) (evicted, cascaded, next int, ok bool) {
 	s.exec.gate.lockAfterWaiters(recheckYieldBudget)
