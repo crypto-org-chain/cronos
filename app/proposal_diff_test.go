@@ -86,8 +86,8 @@ func (diffSignerExtractor) GetSigners(tx sdk.Tx) ([]mempool.SignerData, error) {
 }
 
 // diffVerifier is the codec half of baseapp.ProposalTxVerifier for diffTx. ante
-// stands in for the default path's RunTx(PrepareProposal); nil means encode-only,
-// which is what the cached fast path does.
+// stands in for the default path's RunTx(PrepareProposal); the cached fast path
+// never reaches it.
 type diffVerifier struct {
 	byName map[string]*diffTx
 	ante   func(*diffTx) error
@@ -183,8 +183,9 @@ func poolNames(t *testing.T, ctx sdk.Context, pool mempool.Mempool) []string {
 
 func acceptAllTxs(_ sdk.Tx, _ []byte) error { return nil }
 
-// runFastPath drives the production fast path: CacheProposalTxVerifier over a
-// pre-warmed encoder cache (so no tx re-runs the ante) plus the cronos wrapper.
+// runFastPath drives the production fast path: CacheProposalTxVerifier plus the
+// cronos wrapper. The cache is pre-warmed so the hit branch runs, as after
+// admission; the verifier never runs the ante, even on a miss.
 func runFastPath(t *testing.T, ctx sdk.Context, txs []*diffTx, feeGate func(sdk.Context) (*big.Int, string)) ([]string, []string) {
 	t.Helper()
 	pool := newDiffPool(t, ctx, txs)
@@ -213,9 +214,14 @@ func runAntePath(t *testing.T, ctx sdk.Context, txs []*diffTx, ante func(*diffTx
 	return rawNames(resp.Txs), poolNames(t, ctx, pool)
 }
 
-// requireProcessProposalAccepts runs the real cronos ProcessProposal over a
-// proposal, with a non-empty blocklist so the per-tx validation actually runs.
 func requireProcessProposalAccepts(t *testing.T, ctx sdk.Context, txs []*diffTx, proposal []string) {
+	t.Helper()
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, ctx, txs, proposal))
+}
+
+// processProposalStatus runs the real cronos ProcessProposal over a proposal,
+// with mallory blocklisted so the per-tx validation actually runs.
+func processProposalStatus(t *testing.T, ctx sdk.Context, txs []*diffTx, proposal []string) abci.ResponseProcessProposal_ProposalStatus {
 	t.Helper()
 	base := &diffVerifier{byName: diffNames(txs)}
 	codec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
@@ -230,13 +236,19 @@ func requireProcessProposalAccepts(t *testing.T, ctx sdk.Context, txs []*diffTx,
 	}
 	resp, err := ph.ProcessProposalHandler()(ctx, &abci.RequestProcessProposal{Txs: raw, Height: ctx.BlockHeight()})
 	require.NoError(t, err)
-	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+	return resp.Status
 }
 
 func TestProposalPathsDiff(t *testing.T) {
 	alice, bob := diffAddr("alice"), diffAddr("bob")
 	ctx := diffCtx(10)
 	acceptAllAnte := func(*diffTx) error { return nil }
+
+	t.Run("process proposal rejects a blocklisted signer", func(t *testing.T) {
+		// Control: the accept checks below mean something only if this path can reject.
+		txs := []*diffTx{{name: "mallory-0", signer: diffAddr("mallory"), gas: 21_000, fee: 21_000}}
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, ctx, txs, []string{"mallory-0"}))
+	})
 
 	t.Run("all pooled txs valid: paths agree on selection and pool", func(t *testing.T) {
 		txs := []*diffTx{
