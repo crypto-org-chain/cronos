@@ -60,19 +60,32 @@ func (s *recheckScheduler) recheckDecodingEnabled() bool {
 
 // stageSkippedSenders stages the senders of proposal-gate-rejected txs, leaving the height.
 func (s *recheckScheduler) stageSkippedSenders(txs [][]byte) {
-	if !s.recheckDecodingEnabled() || len(txs) == 0 {
+	if !s.recheckDecodingEnabled() {
 		return
 	}
+	s.stageSenders(s.decodedSignerSet(txs))
+}
+
+// decodedSignerSet decodes txs and collects their signers, skipping non-sdk txs
+// (e.g. vote extensions), which have no mempool entry.
+func (s *recheckScheduler) decodedSignerSet(txs [][]byte) map[string]struct{} {
 	senders := make(map[string]struct{}, len(txs))
 	for _, bz := range txs {
-		tx, err := s.exec.decoder(bz)
-		if err != nil {
-			continue
-		}
-		for _, sg := range s.signers(tx) {
-			senders[sg] = struct{}{}
+		if tx, err := s.exec.decoder(bz); err == nil {
+			s.addSigners(senders, tx)
 		}
 	}
+	return senders
+}
+
+func (s *recheckScheduler) addSigners(senders map[string]struct{}, tx sdk.Tx) {
+	for _, sg := range s.signers(tx) {
+		senders[sg] = struct{}{}
+	}
+}
+
+// stageSenders merges senders into staging, leaving height and deferred alone.
+func (s *recheckScheduler) stageSenders(senders map[string]struct{}) {
 	if len(senders) == 0 {
 		return
 	}
@@ -97,16 +110,7 @@ func (s *recheckScheduler) stageRecheckSenders(height int64, txs [][]byte) {
 	// Decode unlocked; publish height and senders together.
 	var senders map[string]struct{}
 	if s.recheckDecodingEnabled() {
-		senders = make(map[string]struct{}, len(txs))
-		for _, bz := range txs {
-			tx, err := s.exec.decoder(bz)
-			if err != nil {
-				continue // non-sdk txs (e.g. vote extensions) have no mempool entry
-			}
-			for _, sg := range s.signers(tx) {
-				senders[sg] = struct{}{}
-			}
-		}
+		senders = s.decodedSignerSet(txs)
 	}
 
 	s.stagingMu.Lock()
@@ -131,59 +135,66 @@ func (s *recheckScheduler) RecheckTxs() {
 	}
 	s.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer s.recheckMu.Unlock()
-	commitSeq, recheckSenders, height, deferred := s.pinAndDrain()
+	commitSeq, work := s.pinAndDrain()
 	// Nothing to scan before the first block.
-	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
+	if len(work.senders) == 0 && len(work.deferred) == 0 && work.height == 0 {
 		return
 	}
 	// A panic here would crash the node and, on the worker, skip close(ready).
 	defer func() {
 		if r := recover(); r != nil {
-			s.restoreStaging(recheckSenders, deferred)
+			s.restoreStaging(work)
 			s.exec.pending.invalidate() // evictions before the panic must reach pending queries
 			logRecoveredPanic(s.exec.logger, panicPathRecheck, r)
 		}
 	}()
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
-	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
+	candidates := s.selectTxs(snapshot, work)
 	s.runRecheck(s.capRecheckGroups(s.groupCandidates(candidates)), commitSeq)
 
 	s.exec.pending.invalidate()
 	telemetry.SetGauge(float32(s.mpool.CountTx()), "cronos", "mempool", "pool", "size")
 }
 
+// stagedWork is one drain of the staging fields.
+type stagedWork struct {
+	senders  map[string]struct{}
+	height   int64
+	deferred []sdk.Tx
+}
+
 // pinAndDrain reads the gate's commit count and drains staging under one gate
 // hold, or a Commit between them goes undetected.
-func (s *recheckScheduler) pinAndDrain() (commitSeq uint64, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+func (s *recheckScheduler) pinAndDrain() (commitSeq uint64, work stagedWork) {
 	s.exec.gate.lock()
 	defer s.exec.gate.unlock()
-	recheckSenders, height, deferred = s.drainStaging()
-	return s.exec.gate.commits, recheckSenders, height, deferred
+	return s.exec.gate.commits, s.drainStaging()
 }
 
 // drainStaging atomically takes and clears the staged senders, height, and carry.
-func (s *recheckScheduler) drainStaging() (recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) {
+func (s *recheckScheduler) drainStaging() stagedWork {
 	s.stagingMu.Lock()
 	defer s.stagingMu.Unlock()
-	recheckSenders, height, deferred = s.recheckSenders, s.lastCommittedHeight, s.deferred
+	work := stagedWork{senders: s.recheckSenders, height: s.lastCommittedHeight, deferred: s.deferred}
 	s.recheckSenders = nil
 	s.deferred = nil
-	return recheckSenders, height, deferred
+	return work
 }
 
 // restoreStaging puts drained work back after an aborted cycle so the next cycle retries it.
-func (s *recheckScheduler) restoreStaging(recheckSenders map[string]struct{}, deferred []sdk.Tx) {
+func (s *recheckScheduler) restoreStaging(work stagedWork) {
 	s.stagingMu.Lock()
 	defer s.stagingMu.Unlock()
-	s.mergeRecheckSenders(recheckSenders)
+	s.mergeRecheckSenders(work.senders)
 	if s.deferred == nil {
-		s.deferred = deferred
+		s.deferred = work.deferred
 	}
 }
 
 // selectTxs evicts expired txs and returns the candidates to recheck.
-func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{}, height int64, deferred []sdk.Tx) []sdk.Tx {
+func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, work stagedWork) []sdk.Tx {
+	recheckSenders, height, deferred := work.senders, work.height, work.deferred
 	// deferredLive: carried-over tx -> still in pool. Sized to the small carry; nil if none.
 	var deferredLive map[sdk.Tx]bool
 	if len(deferred) > 0 {
@@ -340,7 +351,7 @@ func (s *recheckScheduler) capRecheckGroups(groups []recheckGroup) []recheckGrou
 			s.stagingMu.Lock()
 			s.deferred = carry
 			s.stagingMu.Unlock()
-			s.recoverSenders(carry)
+			s.restageSenders(carry)
 			return groups[:i]
 		}
 		count += len(g.txs)
@@ -375,7 +386,7 @@ func (s *recheckScheduler) runRecheck(groups []recheckGroup, commitSeq uint64) {
 		cascaded += c
 		if r > 0 {
 			rest := unreachedTxs(groups[i+1:])
-			s.recoverSenders(rest)
+			s.restageSenders(rest)
 			restaged = r + len(rest)
 			break
 		}
@@ -493,7 +504,7 @@ func (s *recheckScheduler) runGroup(g recheckGroup, commitSeq uint64) (evicted, 
 		evicted += e
 		cascaded += c
 		if !ok {
-			s.recoverSenders(candidateTxs(g.txs[start:]))
+			s.restageSenders(candidateTxs(g.txs[start:]))
 			return evicted, cascaded, len(g.txs) - start
 		}
 		start = next
@@ -570,25 +581,15 @@ func candidateTxs(cs []recheckCandidate) []sdk.Tx {
 	return txs
 }
 
-// recoverSenders re-stages txs' senders, leaving deferred alone since
+// restageSenders re-stages txs' senders, leaving deferred alone since
 // capRecheckGroups may have set it this cycle. A tx with no extractable signer
 // is dropped and waits for TTL.
-func (s *recheckScheduler) recoverSenders(txs []sdk.Tx) {
-	if len(txs) == 0 {
-		return
-	}
+func (s *recheckScheduler) restageSenders(txs []sdk.Tx) {
 	senders := make(map[string]struct{})
 	for _, tx := range txs {
-		for _, sg := range s.signers(tx) {
-			senders[sg] = struct{}{}
-		}
+		s.addSigners(senders, tx)
 	}
-	if len(senders) == 0 {
-		return
-	}
-	s.stagingMu.Lock()
-	s.mergeRecheckSenders(senders)
-	s.stagingMu.Unlock()
+	s.stageSenders(senders)
 }
 
 // txTimedout reports whether tx's own timeout height or timestamp has passed.

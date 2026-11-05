@@ -152,6 +152,23 @@ func (f *recheckFixture) add(id int, sender string, seq uint64, bz string) *ptrT
 	return tx
 }
 
+// addChain pools n txs from sender, the i-th at nonce seqOf(i) (i when nil),
+// encoded as chainBytes(sender, i).
+func (f *recheckFixture) addChain(sender string, n int, seqOf func(int) uint64) ([]sdk.Tx, []*ptrTx) {
+	txs, ptrs := make([]sdk.Tx, n), make([]*ptrTx, n)
+	for i := range n {
+		seq := uint64(i)
+		if seqOf != nil {
+			seq = seqOf(i)
+		}
+		ptrs[i] = f.add(i+1, sender, seq, chainBytes(sender, i))
+		txs[i] = ptrs[i]
+	}
+	return txs, ptrs
+}
+
+func chainBytes(sender string, i int) string { return sender + "-" + strconv.Itoa(i) }
+
 // insert adds a tx with the given signers but no encCache entry, so RecheckTxs
 // falls back to the encoder. The first signer keys the pool.
 func (f *recheckFixture) insert(id int, first sdk.AccAddress, seq uint64, rest ...sdk.AccAddress) *ptrTx {
@@ -1110,73 +1127,77 @@ func TestRunRecheck_GroupsCandidatesBySigner(t *testing.T) {
 	}
 }
 
-func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	gapped := f.add(2, "carl", 7, carlSeq7Bytes)
-	higher := f.add(3, "carl", 8, carlSeq8Bytes)
-	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, higher}), 0)
-
-	if f.runner.seen[carlSeq8Bytes] {
-		t.Fatal("a sibling behind a proven nonce gap must be evicted without spending a RunTx")
+func TestRunRecheck_CascadeRule(t *testing.T) {
+	wrongSeq := errorsmod.Wrap(sdkerrors.ErrWrongSequence, "nonce")
+	testCases := []struct {
+		name string
+		// seqs is carl's candidate order, which needn't be ascending.
+		seqs    []uint64
+		failSeq uint64
+		failErr error
+		// wantRun / wantSkipped are seqs that must / must not spend a RunTx.
+		wantRun, wantSkipped []uint64
+		wantPooled           []uint64
+	}{
+		{
+			name: "nonce gap cascades to higher siblings",
+			seqs: []uint64{5, 7, 8}, failSeq: 7, failErr: wrongSeq,
+			wantRun: []uint64{5, 7}, wantSkipped: []uint64{8}, wantPooled: []uint64{5},
+		},
+		{
+			// With no accepted nonce before it, the failure may be stale, and its successor valid.
+			name: "stale nonce does not cascade",
+			seqs: []uint64{5, 6}, failSeq: 5, failErr: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale"),
+			wantRun: []uint64{5, 6}, wantPooled: []uint64{6},
+		},
+		{
+			name: "non-nonce failure does not cascade",
+			seqs: []uint64{5, 7, 8}, failSeq: 7, failErr: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds"),
+			wantRun: []uint64{5, 7, 8}, wantPooled: []uint64{5, 8},
+		},
+		{
+			// e.g. the nonce was taken by another tx.
+			name: "nonce error at lastOK+1 does not cascade",
+			seqs: []uint64{5, 6, 7}, failSeq: 6, failErr: wrongSeq,
+			wantRun: []uint64{5, 6, 7}, wantPooled: []uint64{5, 7},
+		},
+		{
+			name: "non-ascending candidate order is sorted before the gap rule",
+			seqs: []uint64{5, 9, 7}, failSeq: 9, failErr: wrongSeq,
+			wantRun: []uint64{5, 7, 9}, wantPooled: []uint64{5, 7},
+		},
 	}
-	if poolHas(f.pool, gapped) || poolHas(f.pool, higher) {
-		t.Fatal("the gapped tx and its higher-nonce siblings must be evicted")
-	}
-	if !poolHas(f.pool, valid) {
-		t.Fatal("the tx that passed recheck must stay in the pool")
-	}
-}
 
-// A wrong-sequence failure with no accepted nonce before it may be a stale nonce
-// (already committed), in which case the successor is the account's expected one.
-func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
-	f := newRecheckFixture()
-	stale := f.add(1, "carl", 5, carlSeq5Bytes)
-	next := f.add(2, "carl", 6, carlSeq6Bytes)
-	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			bz := func(seq uint64) string { return "carl-" + strconv.FormatUint(seq, 10) }
+			bySeq := make(map[uint64]sdk.Tx, len(tc.seqs))
+			candidates := make([]sdk.Tx, len(tc.seqs))
+			for i, seq := range tc.seqs {
+				candidates[i] = f.add(i+1, "carl", seq, bz(seq))
+				bySeq[seq] = candidates[i]
+			}
+			f.runner.failErrs = map[string]error{bz(tc.failSeq): tc.failErr}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}), 0)
+			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates), 0)
 
-	if !f.runner.seen[carlSeq6Bytes] {
-		t.Fatal("the successor of a stale nonce must still be rechecked")
-	}
-	if poolHas(f.pool, stale) {
-		t.Fatal("the stale tx must be evicted")
-	}
-	if !poolHas(f.pool, next) {
-		t.Fatal("the successor must stay in the pool after passing recheck")
-	}
-}
-
-func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	failing := f.add(2, "carl", 7, carlSeq7Bytes)
-	higher := f.add(3, "carl", 8, carlSeq8Bytes)
-	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")}
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), 0)
-
-	if !f.runner.seen[carlSeq8Bytes] {
-		t.Fatal("only a nonce gap justifies skipping a sibling's RunTx")
-	}
-}
-
-// A nonce error at exactly lastOK+1 is no gap, e.g. the nonce was taken by another tx.
-func TestRunRecheck_NonceErrAtNextNonceDoesNotCascade(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	failing := f.add(2, "carl", 6, carlSeq6Bytes)
-	higher := f.add(3, "carl", 7, carlSeq7Bytes)
-	f.runner.failErrs = map[string]error{carlSeq6Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "taken")}
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, failing, higher}), 0)
-
-	if !f.runner.seen[carlSeq7Bytes] {
-		t.Fatal("a nonce error at lastOK+1 must not cascade")
+			for _, seq := range tc.wantRun {
+				if !f.runner.seen[bz(seq)] {
+					t.Errorf("carl-%d must run", seq)
+				}
+			}
+			for _, seq := range tc.wantSkipped {
+				if f.runner.seen[bz(seq)] {
+					t.Errorf("carl-%d is behind a proven gap and must be evicted without a RunTx", seq)
+				}
+			}
+			for _, seq := range tc.seqs {
+				if want := slices.Contains(tc.wantPooled, seq); poolHas(f.pool, bySeq[seq]) != want {
+					t.Errorf("carl-%d pooled = %v, want %v", seq, !want, want)
+				}
+			}
+		})
 	}
 }
 
@@ -1258,31 +1279,6 @@ func TestRunRecheck_PanicSkipsOnlyThatTx(t *testing.T) {
 				t.Fatal("a later group must still be rechecked")
 			}
 		})
-	}
-}
-
-func TestRunRecheck_NonAscendingPoolOrderSortedBeforeCascade(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	gapped := f.add(2, "carl", 9, "carl-9")
-	lower := f.add(3, "carl", 7, carlSeq7Bytes)
-	f.runner.failErrs = map[string]error{"carl-9": errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
-
-	groups := f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower})
-	if len(groups) != 1 || !groups[0].cascadable {
-		t.Fatalf("sorted group must be cascadable, got groups=%+v", groups)
-	}
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, gapped, lower}), 0)
-
-	if !f.runner.seen[carlSeq7Bytes] {
-		t.Fatal("seq 7 sits between the valid and gapped candidates in the sorted group and must still run")
-	}
-	if !poolHas(f.pool, valid) || !poolHas(f.pool, lower) {
-		t.Fatal("the two candidates that pass recheck must stay in the pool")
-	}
-	if poolHas(f.pool, gapped) {
-		t.Fatal("the failing candidate must be evicted")
 	}
 }
 
@@ -1545,10 +1541,7 @@ func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 	const total = recheckChunkSize + 50
 	f := newRecheckFixture()
-	txs := make([]sdk.Tx, total)
-	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
-	}
+	txs, _ := f.addChain("alice", total, nil)
 
 	groups := f.a.sched.groupCandidates(txs)
 	if len(groups) != 1 {
@@ -1563,7 +1556,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 		t.Fatalf("expected every candidate across chunk boundaries to run, got %d RunTx calls", got)
 	}
 	for i := 0; i < total; i++ {
-		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
+		if !f.runner.seen[chainBytes("alice", i)] {
 			t.Fatalf("alice-%d must have run", i)
 		}
 	}
@@ -1572,10 +1565,7 @@ func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
 func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 	const total = recheckChunkSize + 3
 	f := newRecheckFixture()
-	txs := make([]sdk.Tx, total)
-	for i := 0; i < total; i++ {
-		txs[i] = f.add(i+1, "fay", uint64(i), "fay-"+strconv.Itoa(i))
-	}
+	txs, _ := f.addChain("fay", total, nil)
 	var unlockedRuns int
 	f.runner.onCall = func([]byte) {
 		if f.a.exec.gate.mu.TryLock() {
@@ -1670,13 +1660,8 @@ func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 			f.runner.signer = f.signer
 			dave := sdk.AccAddress("dave").String()
 			f.runner.expectedNonce = map[string]uint64{dave: 0}
-			bz := func(i int) string { return "dave-" + strconv.Itoa(i) }
-			txs := make([]sdk.Tx, total)
-			ptrTxs := make([]*ptrTx, total)
-			for i := 0; i < total; i++ {
-				ptrTxs[i] = f.add(i+1, "dave", tc.seqOf(i), bz(i))
-				txs[i] = ptrTxs[i]
-			}
+			bz := func(i int) string { return chainBytes("dave", i) }
+			txs, ptrTxs := f.addChain("dave", total, tc.seqOf)
 			f.runner.onCall = func(b []byte) {
 				if string(b) == bz(n) {
 					f.runner.expectedNonce[dave] = tc.nonceAfterChunk1
@@ -1718,13 +1703,8 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 	f.runner.signer = f.signer
 	erin := sdk.AccAddress("erin").String()
 	f.runner.expectedNonce = map[string]uint64{erin: 0}
-	bz := func(i int) string { return "erin-" + strconv.Itoa(i) }
-	txs := make([]sdk.Tx, total)
-	ptrTxs := make([]*ptrTx, total)
-	for i := 0; i < total; i++ {
-		ptrTxs[i] = f.add(i+1, "erin", uint64(i), bz(i))
-		txs[i] = ptrTxs[i]
-	}
+	bz := func(i int) string { return chainBytes("erin", i) }
+	txs, ptrTxs := f.addChain("erin", total, nil)
 	f.runner.onCall = func(b []byte) {
 		if string(b) == bz(recheckChunkSize-1) {
 			f.a.exec.gate.commits++ // a Commit ran; recheck holds the gate here
@@ -1848,17 +1828,13 @@ func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
 	f := newRecheckFixture()
 	f.runner.signer = f.signer // real nonce tracking: the gap must hold on its own, not via failErrs
 	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("carl").String(): 0}
-	txs := make([]sdk.Tx, total)
-	ptrTxs := make([]*ptrTx, total)
-	bz := func(i int) string { return "carl-" + strconv.Itoa(i) }
-	for i := 0; i < total; i++ {
-		seq := uint64(i)
+	bz := func(i int) string { return chainBytes("carl", i) }
+	txs, ptrTxs := f.addChain("carl", total, func(i int) uint64 {
 		if i >= gapIndex {
-			seq += 2 // opens a gap at gapIndex and keeps ascending order past it
+			return uint64(i) + 2 // opens a gap at gapIndex and keeps ascending order past it
 		}
-		ptrTxs[i] = f.add(i+1, "carl", seq, bz(i))
-		txs[i] = ptrTxs[i]
-	}
+		return uint64(i)
+	})
 
 	groups := f.a.sched.groupCandidates(txs)
 	if len(groups) != 1 || !groups[0].cascadable {
