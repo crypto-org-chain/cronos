@@ -99,7 +99,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 // NOT mutate them. Safe today because decode is the only writer: the EVM ante's
 // VerifySender only compares against MsgEthereumTx.From (set at proto-decode),
 // never writes it. A future ante that mutates a decoded msg would break sharing.
-// Exception: encoding fills empty body/auth-info bytes; Manager.encodeMu serializes that.
+// Exception: encoding fills empty body/auth-info bytes; admitter.encodeMu serializes that.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
