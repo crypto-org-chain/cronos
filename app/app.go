@@ -467,10 +467,9 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		// The SDK default adapter panics on a SignerInfo without a public key; in FinalizeBlock's Remove
-		// that becomes an ErrPanic tx result that NoOp-mempool nodes don't produce.
+		// The SDK default adapter panics on a SignerInfo without a public key, which is valid once the key is on chain.
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter())
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
@@ -480,7 +479,7 @@ func New(
 				threshold := 100 + feeBump
 				return np >= op*threshold/100
 			},
-		})
+		}), logger.With("module", "app-mempool"))
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}

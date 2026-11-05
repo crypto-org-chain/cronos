@@ -154,8 +154,8 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	a.stagingMu.Unlock()
 }
 
-// FinalizeBlock stages unvalidated block txs outside any recover, so a panicking tx is
-// skipped rather than panicking FinalizeBlock.
+// Guarded per tx since FinalizeBlock stages unvalidated block txs outside any recover; a
+// panicking tx (e.g. one with no fee, which the decoder accepts) is skipped.
 func (a *Manager) txSenders(txs [][]byte) map[string]struct{} {
 	senders := make(map[string]struct{}, len(txs))
 	for _, bz := range txs {

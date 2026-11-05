@@ -545,6 +545,53 @@ func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 	}
 }
 
+func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
+	pooled, poison, unkeyed := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
+	finalize := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxFinalize}
+	recheck := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxRecheck}
+
+	testCases := []struct {
+		name      string
+		tx        sdk.Tx
+		reason    sdkmempool.RemoveReason
+		expErr    bool
+		expPanic  bool
+		expPooled bool
+	}{
+		{name: "finalize removes the pooled tx", tx: pooled, reason: finalize},
+		{name: "finalize ignores a signer extraction panic", tx: poison, reason: finalize, expPanic: true, expPooled: true},
+		{name: "finalize ignores a removal error", tx: unkeyed, reason: finalize, expPooled: true},
+		{name: "other callers still get the removal error", tx: unkeyed, reason: recheck, expErr: true, expPooled: true},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+				pooled: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+			}}
+			pool := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+				TxPriority:      sdkmempool.NewDefaultTxPriority(),
+				SignerExtractor: poisonSigner{signer, poison},
+			})
+			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+
+			var err error
+			s.Require().NotPanics(func() {
+				err = NewFinalizeNeutralMempool(pool, logger).RemoveWithReason(context.Background(), tc.tx, tc.reason)
+			})
+			s.Require().Equal(tc.expErr, err != nil, err)
+			s.Require().Equal(tc.expPooled, poolHas(pool, pooled))
+			if !tc.expPanic {
+				s.Require().Empty(logger.errors)
+				return
+			}
+			s.Require().Len(logger.errors, 1)
+			s.Require().Equal(panicPathFinalizeRemove, keyval(logger.errors[0], "path"))
+		})
+	}
+}
+
 type recordingLogger struct {
 	log.Logger
 	errors [][]any // keyvals of each Error call

@@ -444,6 +444,45 @@ func TestSignerInfoTxTestSuite(t *testing.T) {
 	suite.Run(t, new(SignerInfoTxTestSuite))
 }
 
+// withUnordered sets Body.Unordered, which an eth tx's signature doesn't cover.
+func withUnordered(tb testing.TB, bz []byte) []byte {
+	tb.Helper()
+	var raw txtypes.TxRaw
+	require.NoError(tb, raw.Unmarshal(bz))
+	var body txtypes.TxBody
+	require.NoError(tb, body.Unmarshal(raw.BodyBytes))
+	body.Unordered = true
+	var err error
+	raw.BodyBytes, err = body.Marshal()
+	require.NoError(tb, err)
+	return encodeRaw(tb, &raw)
+}
+
+func (f *admissionFixture) finalizeTx(tb testing.TB, bz []byte) *abci.ExecTxResult {
+	tb.Helper()
+	req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz}}
+	var resp *abci.ResponseFinalizeBlock
+	var err error
+	require.NotPanics(tb, func() { resp, err = f.app.FinalizeBlock(req) })
+	require.NoError(tb, err)
+	require.Len(tb, resp.TxResults, 1)
+	return resp.TxResults[0]
+}
+
+var (
+	blockExecutors = []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
+	// Validators may run any of these, so a block tx's result must not depend on which.
+	resultParityMempools = []struct {
+		name   string
+		opts   minimalOptionsMap
+		pooled bool
+	}{
+		{name: "app", pooled: true},
+		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
+		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
+	}
+)
+
 // A block can carry any decodable tx; FinalizeBlock must not panic, and the result must not
 // depend on the node's mempool config.
 func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
@@ -469,22 +508,24 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 			malleate: func(raw *txtypes.TxRaw) {
 				withSignerPubKey(s.T(), raw, &secp256k1.PubKey{Key: []byte{1}})
 			},
-			expErr: sdkerrors.ErrPanic,
+			expErr: sdkerrors.ErrPanic, // ante panics deriving the key's address, on every node
+		},
+		{
+			name: "no fee",
+			malleate: func(raw *txtypes.TxRaw) {
+				var authInfo txtypes.AuthInfo
+				s.Require().NoError(authInfo.Unmarshal(raw.AuthInfoBytes))
+				authInfo.Fee = nil
+				var err error
+				raw.AuthInfoBytes, err = authInfo.Marshal()
+				s.Require().NoError(err)
+			},
+			expErr: sdkerrors.ErrPanic, // decodes, but every signer lookup dereferences the fee
 		},
 	}
-	executors := []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
-	mempools := []struct {
-		name   string
-		opts   minimalOptionsMap
-		pooled bool
-	}{
-		{name: "app", pooled: true},
-		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
-		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
-	}
 
-	for _, executor := range executors {
-		for _, mp := range mempools {
+	for _, executor := range blockExecutors {
+		for _, mp := range resultParityMempools {
 			for _, tc := range testCases {
 				s.Run(executor+"/"+mp.name+"/"+tc.name, func() {
 					opts := minimalOptionsMap{server.FlagBlockExecutor: executor}
@@ -497,18 +538,14 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: f.signTransfer(s.T(), acc, nil)})
 					s.Require().NoError(err)
 					s.Require().Equal(abci.CodeTypeOK, checkResp.Code)
-					req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{encodeRaw(s.T(), raw)}}
 
-					var resp *abci.ResponseFinalizeBlock
-					s.Require().NotPanics(func() { resp, err = f.app.FinalizeBlock(req) })
-					s.Require().NoError(err)
-					s.Require().Len(resp.TxResults, 1)
+					res := f.finalizeTx(s.T(), encodeRaw(s.T(), raw))
 					expCode, expCodespace := abci.CodeTypeOK, ""
 					if tc.expErr != nil {
 						expCode, expCodespace = tc.expErr.ABCICode(), tc.expErr.Codespace()
 					}
-					s.Require().Equal(expCode, resp.TxResults[0].Code, resp.TxResults[0].Log)
-					s.Require().Equal(expCodespace, resp.TxResults[0].Codespace)
+					s.Require().Equal(expCode, res.Code, res.Log)
+					s.Require().Equal(expCodespace, res.Codespace)
 					_, err = f.app.Commit()
 					s.Require().NoError(err)
 					if m := f.app.MempoolManager(); m != nil {
@@ -523,6 +560,45 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 	}
 }
 
+// runTx fails a tx whose finalize-mode removal errors, which a NoOp mempool never does.
+func (s *SignerInfoTxTestSuite) TestFinalizeBlockRemovalErrorKeepsResult() {
+	for _, executor := range blockExecutors {
+		for _, mp := range resultParityMempools {
+			s.Run(executor+"/"+mp.name, func() {
+				opts := minimalOptionsMap{server.FlagBlockExecutor: executor}
+				maps.Copy(opts, mp.opts)
+				f := setupAdmissionAppWithOpts(s.T(), 1, opts)
+				// Unordered without a timeout timestamp, so the pool can't derive its removal key.
+				bz := withUnordered(s.T(), f.signTransfer(s.T(), &f.accounts[0], nil))
+
+				res := f.finalizeTx(s.T(), bz)
+				s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
+			})
+		}
+	}
+}
+
+// Valid without a public key, so a pooling node must admit it and remove it by the same key.
+func (s *SignerInfoTxTestSuite) TestNoPubKeyTxPoolRoundTrip() {
+	for _, mp := range resultParityMempools {
+		if !mp.pooled {
+			continue
+		}
+		s.Run(mp.name, func() {
+			f := setupAdmissionAppWithOpts(s.T(), 1, mp.opts)
+			bz := encodeRaw(s.T(), f.signBankSendWithoutPubKey(s.T(), &f.accounts[0]))
+			checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: bz})
+			s.Require().NoError(err)
+			s.Require().Equal(abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+			s.Require().Equal(1, f.app.Mempool().CountTx())
+
+			res := f.finalizeTx(s.T(), bz)
+			s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
+			s.Require().Zero(f.app.Mempool().CountTx())
+		})
+	}
+}
+
 func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 	f := setupAdmissionApp(s.T(), 1)
 	acc := &f.accounts[0]
@@ -532,7 +608,7 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 		name     string
 		malleate func(raw *txtypes.TxRaw)
 		expErr   bool
-		// expSDKParity: recheck matches pooled txs, keyed by the SDK adapter, against these signers.
+		// expSDKParity: same signers as the SDK adapter this replaces.
 		expSDKParity bool
 	}{
 		{

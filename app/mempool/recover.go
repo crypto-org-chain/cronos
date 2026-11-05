@@ -17,13 +17,14 @@ import (
 
 // Each path also names its cronos_mempool_panic_<path> counter.
 const (
-	panicPathAdmit     = "admit"
-	panicPathCheckTx   = "check_tx"
-	panicPathReap      = "reap"       // whole reap dropped
-	panicPathReapTx    = "reap_tx"    // one tx skipped
-	panicPathRecheck   = "recheck"    // cycle aborted, its senders retried next cycle
-	panicPathRecheckTx = "recheck_tx" // one tx evicted
-	panicPathStageTx   = "stage_tx"   // one proposal tx's senders not staged for recheck
+	panicPathAdmit          = "admit"
+	panicPathCheckTx        = "check_tx"
+	panicPathReap           = "reap"            // whole reap dropped
+	panicPathReapTx         = "reap_tx"         // one tx skipped
+	panicPathRecheck        = "recheck"         // cycle aborted, its senders retried next cycle
+	panicPathRecheckTx      = "recheck_tx"      // one tx evicted
+	panicPathStageTx        = "stage_tx"        // one tx's senders not staged for recheck
+	panicPathFinalizeRemove = "finalize_remove" // block tx's result unchanged, its pool entry left for recheck
 )
 
 // Only stacks are rate-limited; every panic still logs a line.
