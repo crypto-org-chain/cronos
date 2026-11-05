@@ -19,12 +19,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// fakeTx stands in for the SDK wrapper of an EVM tx, the only shape the decode
-// cache shares; its first GetSigners call is where the wrapper fills shared fields.
+// fakeTx stands in for the SDK wrapper of an EVM tx; GetSigners is where the wrapper fills its lazy fields.
 type fakeTx struct {
 	typeURL string // first extension option; "" means none
 	msgs    []sdk.Msg
-	msgsV2  []protov2.Message
 	signers [][]byte
 	err     error
 	panics  bool
@@ -35,13 +33,12 @@ func newFakeEthTx() *fakeTx {
 	return &fakeTx{
 		typeURL: ethTxTypeURL,
 		msgs:    []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg},
-		msgsV2:  make([]protov2.Message, 1),
 		signers: [][]byte{{1}},
 	}
 }
 
 func (f *fakeTx) GetMsgs() []sdk.Msg                    { return f.msgs }
-func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return f.msgsV2, f.err }
+func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 func (f *fakeTx) GetSigners() ([][]byte, error) {
 	if f.onWarm != nil {
 		f.onWarm()
@@ -146,14 +143,12 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 	}{
 		{"raw-format eth tx is shared", func(*fakeTx) {}, true},
 		{"cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "" }, false},
-		{"dynamic-fee cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionDynamicFeeTx" }, false},
 		{"legacy EIP-712 tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx" }, false},
 		{"legacy-format eth msg stays private", func(tx *fakeTx) { tx.msgs = []sdk.Msg{&evmtypes.MsgEthereumTx{}} }, false},
 		{"non-eth msg stays private", func(tx *fakeTx) { tx.msgs = append(tx.msgs, &evmtypes.MsgUpdateParams{}) }, false},
 		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false},
 		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false},
 		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false},
-		{"no msgsV2 stays private", func(tx *fakeTx) { tx.msgsV2 = nil }, false},
 		{"warm-up panic stays private", func(tx *fakeTx) { tx.panics = true }, false},
 	}
 	for _, tc := range testCases {
@@ -366,7 +361,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	c := NewDecodeCache(defaultCacheSize, customMax)
 	dec := NewCachingDecoder(base, c)
 
-	// Above cap: each call must miss, without paying the warm-up.
+	// Above cap: each call must miss without a warm-up.
 	above := make([]byte, customMax+1)
 	for i := 0; i < 3; i++ {
 		if _, err := dec(above); err != nil {

@@ -98,11 +98,8 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Safe today because only EVM txs are cached (warmForSharing),
-// their lazily filled fields are filled before set, and the EVM ante's VerifyEthSig
-// only compares against MsgEthereumTx.From (set at proto-decode), never writes it.
-// Encoding writes only empty body/auth-info bytes, which a shared EVM tx never has.
-// A future EVM ante that mutates a decoded tx would break sharing.
+// NOT mutate them. Only EVM txs are cached, warmed first (warmForSharing); the EVM
+// ante and the encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
@@ -144,7 +141,7 @@ func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
 }
 
 // NewCachingDecoder wraps base with the shared cache, so PrepareProposal and
-// BaseApp.runTx reuse each other's decodes of EVM txs (see warmForSharing).
+// BaseApp.runTx reuse each other's decodes.
 func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {
@@ -154,7 +151,6 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		// Oversized txs are never cached, so skip their warm-up.
 		if len(bz) <= cache.maxTxBytes && warmForSharing(tx) {
 			cache.set(bz, tx)
 		}
@@ -174,18 +170,17 @@ func warmForSharing(tx sdk.Tx) (ok bool) {
 			ok = false
 		}
 	}()
-	// Cosmos ante paths write to the decoded tx (amino-JSON Any caches, pubkey address caches, EIP-712 fee-payer sig).
+	// Cosmos ante paths write to decoded txs (amino-JSON Any caches, pubkey address caches, EIP-712 fee payer).
 	if !isRawEthTx(tx) {
 		return false
 	}
-	// The SDK wrapper re-fills signers/msgsV2 on every call while either is nil.
-	if sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) }); isSigTx {
-		if signers, err := sigTx.GetSigners(); err != nil || len(signers) == 0 {
-			return false
-		}
+	// The SDK wrapper fills signers and msgsV2 in one call, rerun while signers is nil.
+	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
+	if !isSigTx {
+		return false
 	}
-	msgs, err := tx.GetMsgsV2()
-	return err == nil && len(msgs) > 0
+	signers, err := sigTx.GetSigners()
+	return err == nil && len(signers) > 0
 }
 
 // isRawEthTx reports whether tx takes the EVM ante with only Raw-format eth msgs.

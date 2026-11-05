@@ -243,7 +243,7 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 	wg.Wait()
 }
 
-// Encoding a wrapper with empty body/auth-info bytes writes them; the decode cache keeps such txs private. Run with -race.
+// Encoding a wrapper with empty body/auth-info bytes writes them, so such txs must stay private. Run with -race.
 func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
 	const goroutines = 16
 	f := setupAdmissionApp(t, 1)
@@ -419,10 +419,8 @@ func (s *SharedDecodedTxTestSuite) TestMalformedTxMatchesCacheOff() {
 			t := s.T()
 			var results []*abci.ExecTxResult
 			for _, cache := range []minimalOptionsMap{nil, cacheOff} {
-				opts := maps.Clone(tc.executor)
-				if opts == nil {
-					opts = minimalOptionsMap{}
-				}
+				opts := minimalOptionsMap{}
+				maps.Copy(opts, tc.executor)
 				maps.Copy(opts, cache)
 				f := setupAdmissionAppWithOpts(t, 1, opts)
 				bz := nilFeeTx(t, f)
