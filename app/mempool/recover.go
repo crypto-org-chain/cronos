@@ -21,6 +21,7 @@ const (
 	panicPathCheckTx = "check_tx"
 	panicPathReap    = "reap"    // whole reap dropped
 	panicPathReapTx  = "reap_tx" // one tx skipped
+	panicPathRecheck = "recheck" // rest of the cycle dropped
 )
 
 // Only stacks are rate-limited; every panic still logs a line.

@@ -313,6 +313,73 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 	}
 }
 
+type panicSigner struct{}
+
+func (panicSigner) GetSigners(sdk.Tx) ([]sdkmempool.SignerData, error) {
+	panicking("GetSigners")
+	return nil, nil
+}
+
+func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
+	testCases := []struct {
+		name     string
+		malleate func(f *recheckFixture)
+		where    string
+	}{
+		{
+			name:     "panic in the pool scan",
+			malleate: func(f *recheckFixture) { f.a.mpool = &panickingPool{} },
+			where:    "scan",
+		},
+		{
+			name:     "panic in signer extraction",
+			malleate: func(f *recheckFixture) { f.a.signer = panicSigner{} },
+			where:    "GetSigners",
+		},
+		{
+			name: "panic in the encoder on a cache miss",
+			malleate: func(f *recheckFixture) {
+				f.a.encCache = nil
+				f.a.txEncoder = func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil }
+			},
+			where: encodeSite,
+		},
+		{
+			name: "panic in RunTx under the admission gate",
+			malleate: func(f *recheckFixture) {
+				f.a.runner = &stubRunner{runTx: func([]byte) error { panicking("RunTx"); return nil }}
+			},
+			where: "RunTx",
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			f := newRecheckFixture()
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			f.a.logger = logger
+			f.add(1, "alice", 0, "alice-0")
+			f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+			tc.malleate(f)
+			startAsyncWorker(f)
+			defer f.a.Close()
+			epoch := f.a.pendingTxCache.epoch.Load()
+
+			f.a.TriggerRecheck()
+
+			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "a panic must still release WaitForRecheck")
+			s.Require().Len(logger.errors, 1)
+			s.Require().Equal(panicPathRecheck, keyval(logger.errors[0], "path"))
+			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
+			s.Require().NotEqual(epoch, f.a.pendingTxCache.epoch.Load(), "the pending cache must be invalidated")
+			s.Require().True(f.a.gate.mu.TryLock(), "admission gate must be released after a panic")
+			f.a.gate.mu.Unlock()
+			s.Require().True(f.a.recheckMu.TryLock(), "recheckMu must be released after a panic")
+			f.a.recheckMu.Unlock()
+		})
+	}
+}
+
 type recordingLogger struct {
 	log.Logger
 	errors [][]any // keyvals of each Error call

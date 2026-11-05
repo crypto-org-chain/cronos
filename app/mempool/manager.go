@@ -427,6 +427,13 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil || a.recheckDisabled {
 		return
 	}
+	// Runs on the worker goroutine, where a panic would kill the node and skip close(ready).
+	defer func() {
+		if r := recover(); r != nil {
+			a.pendingTxCache.invalidate() // evictions before the panic must reach pending queries
+			logRecoveredPanic(a.logger, panicPathRecheck, r)
+		}
+	}()
 	a.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
@@ -584,10 +591,7 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if err != nil {
 			continue
 		}
-		a.gate.lock()
-		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		a.gate.unlock()
-		if err != nil {
+		if err = a.recheckTx(bz, tx); err != nil {
 			a.evict(tx)
 			evicted++
 		}
@@ -595,6 +599,14 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted")
 	}
+}
+
+// Deferred unlock: a recovered RunTx panic must not leave the gate held.
+func (a *Manager) recheckTx(bz []byte, tx sdk.Tx) error {
+	a.gate.lock()
+	defer a.gate.unlock()
+	_, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
+	return err
 }
 
 // txTimedout reports whether tx should be evicted by its own declared timeout:
