@@ -86,8 +86,9 @@ one `MsgEthereumTx` (the EVM signer adapter reports only the first msg's nonce, 
 the batch the account expects more than `lastOK+1` and a stale sibling would look like a
 gap; for the same reason staging and selection treat every batch sender as a signer, so a
 committed batch rechecks each co-sender's pooled txs), an unordered tx (keyed by timeout, not
-sequence), a duplicate sequence, or a tx dropped on an encode error or panic. A non-nonce
-failure (e.g. insufficient funds) or a panicking `RunTx` evicts only that tx; the next
+sequence), a duplicate sequence, or a tx dropped on an encode error or a panic while
+grouping. A non-nonce failure (e.g. insufficient funds) evicts only that tx, and a tx whose
+`RunTx` or eviction panics is evicted if possible; neither starts a cascade. The next
 sibling then fails as a proven gap if it really is one.
 
 ### Ante cache

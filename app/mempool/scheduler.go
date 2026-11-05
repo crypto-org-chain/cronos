@@ -382,8 +382,8 @@ type recheckCandidate struct {
 // (that tx is grouped elsewhere, so it can fill a nonce this group can't see),
 // a sender of a batch eth tx (its seq shows only the first msg's nonce), a
 // duplicate seq, an unordered tx (keyed by timeout, not sequence), or a tx
-// dropped on an encode error or panic — because the cascade rule reasons about
-// the next expected nonce.
+// dropped on an encode error or a panic while grouping — because the cascade
+// rule reasons about the next expected nonce.
 type recheckGroup struct {
 	key        string
 	txs        []recheckCandidate
@@ -562,19 +562,23 @@ func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height
 	for i := start; i < end; i++ {
 		c := g.txs[i]
 		var err error
-		if s.guardRecheckTx(c.tx, func() { _, _, _, err = s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx) }) {
-			continue // evicted as poison; like a non-nonce failure, it can't start a cascade
+		if s.guardRecheckTx(c.tx, func() {
+			if _, _, _, err = s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx); err != nil {
+				s.evict(c.tx)
+			}
+		}) {
+			continue // like a non-nonce failure, a panicking tx can't start a cascade
 		}
 		if err == nil {
 			lastOK, accepted = c.seq, true
 			continue
 		}
-		s.evict(c.tx)
 		evicted++
 		if g.cascadable && accepted && c.seq > lastOK+1 && isNonceErr(err) {
 			for _, rest := range g.txs[i+1 : end] {
-				s.evict(rest.tx)
-				cascaded++
+				if !s.guardRecheckTx(rest.tx, func() { s.evict(rest.tx) }) {
+					cascaded++
+				}
 			}
 			return evicted, cascaded, true
 		}

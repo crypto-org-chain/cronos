@@ -1105,6 +1105,7 @@ const aliceSeq0Bytes = "alice-0"
 
 const (
 	carlSeq5Bytes = "carl-5"
+	carlSeq6Bytes = "carl-6"
 	carlSeq7Bytes = "carl-7"
 	carlSeq8Bytes = "carl-8"
 )
@@ -1148,12 +1149,12 @@ func TestRunRecheck_NonceGapCascadesToHigherSiblings(t *testing.T) {
 func TestRunRecheck_StaleNonceDoesNotCascade(t *testing.T) {
 	f := newRecheckFixture()
 	stale := f.add(1, "carl", 5, carlSeq5Bytes)
-	next := f.add(2, "carl", 6, "carl-6")
+	next := f.add(2, "carl", 6, carlSeq6Bytes)
 	f.runner.failErrs = map[string]error{carlSeq5Bytes: errorsmod.Wrap(sdkerrors.ErrInvalidSequence, "stale")}
 
 	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{stale, next}))
 
-	if !f.runner.seen["carl-6"] {
+	if !f.runner.seen[carlSeq6Bytes] {
 		t.Fatal("the successor of a stale nonce must still be rechecked")
 	}
 	if poolHas(f.pool, stale) {
@@ -1178,28 +1179,84 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	}
 }
 
-func TestRunRecheck_PoisonTxEvictedAndItsGapCascades(t *testing.T) {
-	f := newRecheckFixture()
-	valid := f.add(1, "carl", 5, carlSeq5Bytes)
-	poison := f.add(2, "carl", 6, "carl-6")
-	gapped := f.add(3, "carl", 7, carlSeq7Bytes)
-	higher := f.add(4, "carl", 8, carlSeq8Bytes)
-	f.runner.panicBytes = map[string]bool{"carl-6": true}
-	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+type removePanicPool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	poison sdk.Tx
+}
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, poison, gapped, higher}))
+func (p removePanicPool) Remove(tx sdk.Tx) error {
+	if tx == p.poison {
+		panicking("Remove")
+	}
+	return p.PriorityNonceMempool.Remove(tx)
+}
 
-	if !poolHas(f.pool, valid) {
-		t.Fatal("the tx that passed recheck must stay in the pool")
+func TestRunRecheck_PanicSkipsOnlyThatTx(t *testing.T) {
+	gap := errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")
+	noFunds := errorsmod.Wrap(sdkerrors.ErrInsufficientFunds, "no funds")
+	carl := []string{carlSeq5Bytes, carlSeq6Bytes, carlSeq7Bytes, carlSeq8Bytes, "carl-9"}
+
+	testCases := []struct {
+		name      string
+		malleate  func(f *recheckFixture, txs map[string]sdk.Tx)
+		expPooled []string
+		expRunTx  []string
+	}{
+		{
+			name: "RunTx panic evicts the tx and the gap it leaves cascades",
+			malleate: func(f *recheckFixture, _ map[string]sdk.Tx) {
+				f.runner.panicBytes = map[string]bool{carlSeq6Bytes: true}
+				f.runner.failErrs = map[string]error{carlSeq7Bytes: gap}
+			},
+			expPooled: []string{carlSeq5Bytes},
+			expRunTx:  []string{carlSeq5Bytes, carlSeq6Bytes, carlSeq7Bytes},
+		},
+		{
+			name: "evict panic after a failed RunTx leaves that tx pooled and the chunk goes on",
+			malleate: func(f *recheckFixture, txs map[string]sdk.Tx) {
+				f.runner.failErrs = map[string]error{carlSeq6Bytes: noFunds}
+				f.a.sched.mpool = removePanicPool{f.pool, txs[carlSeq6Bytes]}
+			},
+			expPooled: carl,
+			expRunTx:  carl,
+		},
+		{
+			name: "cascade evict panic leaves only that sibling pooled",
+			malleate: func(f *recheckFixture, txs map[string]sdk.Tx) {
+				f.runner.failErrs = map[string]error{carlSeq6Bytes: noFunds, carlSeq7Bytes: gap}
+				f.a.sched.mpool = removePanicPool{f.pool, txs[carlSeq8Bytes]}
+			},
+			expPooled: []string{carlSeq5Bytes, carlSeq8Bytes},
+			expRunTx:  []string{carlSeq5Bytes, carlSeq6Bytes, carlSeq7Bytes},
+		},
 	}
-	if poolHas(f.pool, poison) {
-		t.Fatal("a tx whose RunTx panics must be evicted")
-	}
-	if !f.runner.seen[carlSeq7Bytes] {
-		t.Fatal("the chunk must go on past a panicking tx")
-	}
-	if f.runner.seen[carlSeq8Bytes] || poolHas(f.pool, gapped) || poolHas(f.pool, higher) {
-		t.Fatal("the gap left by the evicted poison tx must cascade like any other")
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			txs := make(map[string]sdk.Tx)
+			var candidates []sdk.Tx
+			for i, bz := range carl {
+				txs[bz] = f.add(i+1, "carl", uint64(5+i), bz)
+				candidates = append(candidates, txs[bz])
+			}
+			candidates = append(candidates, f.add(10, "dave", 0, "dave-0"))
+			tc.malleate(f, txs)
+
+			f.a.sched.runRecheck(f.a.sched.groupCandidates(candidates))
+
+			for _, bz := range carl {
+				if got := poolHas(f.pool, txs[bz]); got != slices.Contains(tc.expPooled, bz) {
+					t.Fatalf("%s pooled=%v, want %v", bz, got, !got)
+				}
+				if got := f.runner.seen[bz]; got != slices.Contains(tc.expRunTx, bz) {
+					t.Fatalf("%s reached RunTx=%v, want %v", bz, got, !got)
+				}
+			}
+			if !f.runner.seen["dave-0"] {
+				t.Fatal("a later group must still be rechecked")
+			}
+		})
 	}
 }
 
@@ -1264,7 +1321,7 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 		malleate       func(t *testing.T, f *recheckFixture) []sdk.Tx
 		wantCascadable map[string]bool
 		// check, if set, asserts anything beyond the cascadable flags.
-		check func(t *testing.T, groups []recheckGroup, txs []sdk.Tx)
+		check func(t *testing.T, f *recheckFixture, groups []recheckGroup, txs []sdk.Tx)
 	}{
 		{
 			name: "single eth msg keeps cascade",
@@ -1342,8 +1399,11 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 				return []sdk.Tx{poison, f.add(2, "alice", 6, "alice-6")}
 			},
 			wantCascadable: map[string]bool{alice.String(): false},
-			check: func(t *testing.T, groups []recheckGroup, txs []sdk.Tx) {
+			check: func(t *testing.T, f *recheckFixture, groups []recheckGroup, txs []sdk.Tx) {
 				t.Helper()
+				if poolHas(f.pool, txs[0]) {
+					t.Fatal("a tx whose encode panics must be evicted")
+				}
 				if len(groups[0].txs) != 1 || groups[0].txs[0].tx != txs[1] {
 					t.Fatal("only the sibling must be left to recheck")
 				}
@@ -1355,7 +1415,7 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 				return []sdk.Tx{f.add(1, "alice", 5, "alice-5a"), f.add(2, "alice", 5, "alice-5b")}
 			},
 			wantCascadable: map[string]bool{alice.String(): false},
-			check: func(t *testing.T, groups []recheckGroup, txs []sdk.Tx) {
+			check: func(t *testing.T, _ *recheckFixture, groups []recheckGroup, txs []sdk.Tx) {
 				t.Helper()
 				if groups[0].txs[0].tx != txs[0] || groups[0].txs[1].tx != txs[1] {
 					t.Fatal("stable sort must preserve pool order for equal-seq txs")
@@ -1378,7 +1438,7 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 				}
 			}
 			if tc.check != nil {
-				tc.check(t, groups, txs)
+				tc.check(t, f, groups, txs)
 			}
 		})
 	}
