@@ -176,6 +176,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			m := newManager(&stubRunner{}, nil, noopEncoder, nil)
 			logger := &recordingLogger{Logger: log.NewNopLogger()}
 			m.logger = logger
+			m.SetRPCMaxInflight(1)
 			tc.malleate(m)
 			epoch := m.pendingTxCache.epoch.Load()
 
@@ -194,8 +195,11 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must never be pooled")
 				s.Require().False(m.anteCache.Exists(anteKey(encodePanicTx)), "ante must not run for a tx whose encoding panics")
 			}
-			s.Require().True(m.mu.TryLock(), "admission mutex must be released after a panic")
-			m.mu.Unlock()
+			s.Require().True(m.gate.mu.TryLock(), "admission gate must be released after a panic")
+			m.gate.mu.Unlock()
+			release, ok := m.acquireRPCSlot()
+			s.Require().True(ok, "RPC slot must be released after a panic")
+			release()
 		})
 	}
 }

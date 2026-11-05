@@ -26,12 +26,28 @@ type txRunner interface {
 
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
+const (
+	mempoolFullLog    = "mempool is full"
+	rpcTxLimitFullLog = "too many in-flight RPC txs"
+)
+
+// admitSource decides whether an admission counts against rpcTxLimit.
+type admitSource int
+
+const (
+	fromGossip admitSource = iota
+	fromRPC
+)
+
 // Manager owns the app-side mempool for mempool.type=app
 type Manager struct {
-	// mu guards BaseApp.checkState
-	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
-	// normally relies on. Held only around RunTx, never the lock-free pool scan.
-	mu        sync.Mutex
+	// gate guards BaseApp.checkState, replacing the mempool lock BaseApp relies on
+	// (AppMempool.Lock() is a no-op). Never held across the lock-free pool scan.
+	gate admissionGate
+	// rpcTxLimit is applied to RPC admissions only; gossip is already bounded by
+	// p2p receive concurrency.
+	rpcTxLimit inflightLimit
+
 	runner    txRunner
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
@@ -47,7 +63,7 @@ type Manager struct {
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
 	// stagingMu guards the staging fields (recheckSenders, deferred, lastCommittedHeight).
-	// Separate from mu so FinalizeBlock staging never blocks behind mu's RunTx batches.
+	// Separate from gate so FinalizeBlock staging never blocks behind its RunTx batches.
 	stagingMu sync.Mutex
 	// recheckSenders accumulates senders of committed blocks awaiting recheck; merged
 	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
@@ -62,7 +78,7 @@ type Manager struct {
 	// ttlNumBlocks evicts txs older than this many blocks by arrival height; 0 = off.
 	ttlNumBlocks int64
 
-	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before mu and stagingMu, never after
+	recheckMu sync.Mutex // serializes RecheckTxs; always acquired before gate and stagingMu, never after
 	// Zero-value (trigger nil) when built via the newManager() test constructor;
 	// TriggerRecheck then runs RecheckTxs inline instead of async.
 	worker recheckWorker
@@ -155,10 +171,29 @@ func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
 	}
 }
 
-// AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
-// against lock-free admission.
-func (a *Manager) AdmissionMutex() *sync.Mutex {
-	return &a.mu
+// LockForCommit is for App.Commit only; see admissionGate.lockForCommit.
+func (a *Manager) LockForCommit() (unlock func()) {
+	return a.gate.lockForCommit()
+}
+
+// SetRPCMaxInflight caps RPC txs being admitted at once; excess get CodeTypeRetry. <= 0 = unlimited.
+func (a *Manager) SetRPCMaxInflight(n int) {
+	a.rpcTxLimit.max.Store(int64(n))
+}
+
+// RPCMaxInflight returns the RPC admission cap; <= 0 = unlimited.
+func (a *Manager) RPCMaxInflight() int {
+	return int(a.rpcTxLimit.max.Load())
+}
+
+// acquireRPCSlot takes an RPC admission slot and returns its release; when none
+// is free it counts a shed and returns ok=false.
+func (a *Manager) acquireRPCSlot() (release func(), ok bool) {
+	if !a.rpcTxLimit.tryAcquire() {
+		telemetry.IncrCounter(1, "cronos", "mempool", "rpc", "shed")
+		return nil, false
+	}
+	return a.rpcTxLimit.release, true
 }
 
 // SetPreVerify sets the pre-verification hook.
@@ -176,14 +211,14 @@ func (a *Manager) SetAnteCache(ac *antecache.AnteCache) {
 // admitting them.
 func (a *Manager) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		code, _, _ := a.admit(req.Tx)
+		code, _, _ := a.admit(req.Tx, fromGossip)
 		return &abci.ResponseInsertTx{Code: code}, nil
 	}
 }
 
-// InsertTx returns the sync ABCI result; error is always nil (failures surface as ABCI codes).
+// InsertTx is the direct RPC insert; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, rawLog := a.admit(txBytes)
+	code, codespace, rawLog := a.admit(txBytes, fromRPC)
 	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: rawLog}, nil
 }
 
@@ -210,15 +245,23 @@ func (a *Manager) RecheckDisabled() bool {
 }
 
 // admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
-// mu), then RunTx(ExecModeCheck) + encCache.Set under mu. Over-capacity maps to
-// CodeTypeRetry. tx stays nil when encCache is nil; BaseApp.RunTx accepts nil
-// sdk.Tx (uses txBytes).
-func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) {
+// the gate), then RunTx(ExecModeCheck) + encCache.Set under it. Over-capacity and,
+// for RPC txs, a full rpcTxLimit map to CodeTypeRetry. tx stays nil when
+// encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
+func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {
 			codespace, code, rawLog = errorsmod.ABCIInfo(recoveredPanic(a.logger, panicPathAdmit, r, "tx", txHash(txBytes)), false)
 		}
 	}()
+
+	if source == fromRPC {
+		release, ok := a.acquireRPCSlot()
+		if !ok {
+			return abci.CodeTypeRetry, "", rpcTxLimitFullLog
+		}
+		defer release()
+	}
 
 	if a.preVerify != nil {
 		if err := a.preVerify(txBytes); err != nil {
@@ -233,12 +276,12 @@ func (a *Manager) admit(txBytes []byte) (code uint32, codespace, rawLog string) 
 		return c, cs, l
 	}
 
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.gate.lock()
+	defer a.gate.unlock()
 
 	if _, _, _, err = a.runner.RunTx(sdk.ExecModeCheck, txBytes, tx, -1, nil, nil); err != nil {
 		if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
-			return abci.CodeTypeRetry, "", "mempool is full"
+			return abci.CodeTypeRetry, "", mempoolFullLog
 		}
 		cs, c, l := errorsmod.ABCIInfo(err, false)
 		return c, cs, l
@@ -274,14 +317,20 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 			}
 		}()
 
+		release, ok := a.acquireRPCSlot()
+		if !ok {
+			return &abci.ResponseCheckTx{Code: abci.CodeTypeRetry, Log: rpcTxLimitFullLog}, nil
+		}
+		defer release()
+
 		// Decode and encode before locking
 		tx, canonical, err := a.decodeAndEncode(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}
 
-		a.mu.Lock()
-		defer a.mu.Unlock()
+		a.gate.lock()
+		defer a.gate.unlock()
 
 		gasInfo, result, anteEvents, err := runTx(req.Tx, tx)
 		if err != nil {
@@ -526,9 +575,9 @@ func (a *Manager) runRecheck(candidates []sdk.Tx) {
 		if err != nil {
 			continue
 		}
-		a.mu.Lock()
+		a.gate.lock()
 		_, _, _, err = a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil)
-		a.mu.Unlock()
+		a.gate.unlock()
 		if err != nil {
 			a.evict(tx)
 			evicted++

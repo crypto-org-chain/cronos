@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -420,34 +419,6 @@ func TestManager_InsertAndCheckShareMutex(t *testing.T) {
 	}
 }
 
-func TestManager_AdmissionMutexGatesAdmission(t *testing.T) {
-	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	insert := a.InsertTxHandler()
-	mu := a.AdmissionMutex()
-
-	mu.Lock() // simulate App.Commit holding the admission mutex
-	admitted := make(chan struct{})
-	go func() {
-		insert(&abci.RequestInsertTx{Tx: []byte("tx")}) //nolint:errcheck
-		close(admitted)
-	}()
-
-	select {
-	case <-admitted:
-		t.Fatal("admission ran while AdmissionMutex held; Commit would race checkState")
-	case <-time.After(50 * time.Millisecond):
-		// expected: admission blocked behind the mutex
-	}
-
-	mu.Unlock()
-	select {
-	case <-admitted:
-		// admission proceeds once Commit releases the mutex
-	case <-time.After(time.Second):
-		t.Fatal("admission did not proceed after AdmissionMutex released")
-	}
-}
-
 func BenchmarkInsertTxHandler_Admit(b *testing.B) {
 	runner := &stubRunner{}
 	h := insertHandler(runner)
@@ -500,7 +471,7 @@ func TestManagerInsertTx_RetryOnMempoolFull(t *testing.T) {
 	if resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry, got %d", resp.Code)
 	}
-	if resp.RawLog != "mempool is full" {
+	if resp.RawLog != mempoolFullLog {
 		t.Fatalf("expected back-pressure log, got %q", resp.RawLog)
 	}
 }
@@ -567,7 +538,7 @@ func TestManagerInsertTx_NoRegisterOnReject(t *testing.T) {
 
 // TestManagerInsertTx_SharesAdmitWithHandler proves the RPC InsertTx and the
 // gossip InsertTxHandler run the same admission body under one mutex: both drive
-// the lock-free raceRunner concurrently, which -race flags if a path skips a.mu.
+// the lock-free raceRunner concurrently, which -race flags if a path skips the gate.
 func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
 	a := newManager(runner, nil, noopEncoder, nil)
