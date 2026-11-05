@@ -24,9 +24,10 @@ mempool-tx-cache-size = {{ .Cronos.MempoolTxCacheSize }}
 mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 
 # Tx budget per block for mempool.type=app (cronos mainnet empirical: ~2900).
-# Controls both the gossip-reap cap (txs per 500ms reap tick ≈ one block) and
-# the recheck-batch cap (candidates re-validated per Commit cycle ≈ one block of
-# senders). 0 = unlimited. Default 2900.
+# Controls both the gossip-reap cap (txs per 500ms reap tick ≈ one block) and a
+# soft recheck-batch cap per Commit cycle. The recheck cap applies between
+# senders, so one sender's pending txs are never split and the first sender
+# always runs whole. 0 = unlimited. Default 2900.
 mempool-txs-per-block = {{ .Cronos.MaxTxPerBlock }}
 
 # Evicts mempool.type=app txs older than 120 blocks by arrival height,

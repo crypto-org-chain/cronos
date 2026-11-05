@@ -1814,9 +1814,36 @@ func TestRunRecheck_CommitBeforeFirstChunkRunsNothing(t *testing.T) {
 	}
 }
 
+func TestRecheckTxs_DrainsOnlyUnderTheGate(t *testing.T) {
+	f := newRecheckFixture()
+	f.add(1, "bob", 0, "bob-0")
+	bob := sdk.AccAddress("bob").String()
+	f.a.sched.recheckSenders = map[string]struct{}{bob: {}}
+
+	f.a.exec.gate.lock() // stands in for a Commit holding the gate
+	done := make(chan struct{})
+	go func() {
+		f.a.sched.RecheckTxs()
+		close(done)
+	}()
+	time.Sleep(20 * time.Millisecond)
+	f.a.sched.stagingMu.Lock()
+	_, staged := f.a.sched.recheckSenders[bob]
+	f.a.sched.stagingMu.Unlock()
+	f.a.exec.gate.unlock()
+	<-done
+
+	if !staged {
+		t.Fatal("staging must not drain until the gate is free, or a Commit between drain and pin goes unseen")
+	}
+	if !f.runner.seen["bob-0"] {
+		t.Fatal("the cycle must run once the gate is free")
+	}
+}
+
 func TestRunGroup_CascadeStopsAtChunkBoundary(t *testing.T) {
-	const total = 3*recheckChunkSize - 88 // spans 3 chunks; boundaries at 256, 512
-	const gapIndex = 400                  // inside chunk 2 ([256, 512))
+	const total = 2*recheckChunkSize + recheckChunkSize/2  // spans 3 chunks
+	const gapIndex = recheckChunkSize + recheckChunkSize/2 // inside chunk 2
 	const chunk3Head = 2 * recheckChunkSize
 	f := newRecheckFixture()
 	f.runner.signer = f.signer // real nonce tracking: the gap must hold on its own, not via failErrs

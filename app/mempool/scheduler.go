@@ -480,7 +480,8 @@ func batchEthSenders(tx sdk.Tx) []string {
 
 // recheckChunkSize bounds one gate hold for admissions; Commit is covered by the
 // yield in runChunkLocked.
-const recheckChunkSize = 256
+// At ~22µs per RunTx, 64 keeps an admission's wait near main's per-tx gate.
+const recheckChunkSize = 64
 
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
 // queue can't hold the gate indefinitely. A same-sender admission may land
