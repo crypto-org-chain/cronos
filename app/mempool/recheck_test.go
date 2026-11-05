@@ -1802,7 +1802,7 @@ func TestRunRecheck_CommitBeforeFirstChunkRunsNothing(t *testing.T) {
 	f.add(2, "carl", 0, "carl-0")
 	f.a.exec.gate.commits++ // a Commit ran after the cycle pinned 0
 
-	f.a.sched.runRecheck(f.a.sched.groupCandidates(PoolSnapshot(t.Context(), f.pool)), 10)
+	f.a.sched.runRecheck(f.a.sched.groupCandidates(PoolSnapshot(t.Context(), f.pool)), 0)
 
 	if len(f.runner.calls) != 0 {
 		t.Fatalf("no candidate may run past the pinned height: calls=%v", f.runner.calls)
