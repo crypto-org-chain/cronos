@@ -383,7 +383,7 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			replaced:    true,
 			failingRepl: true,
 			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
-				// Admit it while encoding the stale tx, the one step runRecheck takes without mu.
+				// Admit it while encoding the stale tx, the one step runRecheck takes without the gate.
 				encode := f.a.txEncoder
 				f.enc.Evict(stale)
 				f.a.txEncoder = func(tx sdk.Tx) ([]byte, error) {
@@ -583,7 +583,7 @@ func TestDeferredRedirectToDeferredReplacement(t *testing.T) {
 	}
 }
 
-// Pass 1 evicts expired txs in holds of evictBatchSize under mu; this measures one full hold's batch.
+// Pass 1 evicts expired txs in holds of evictBatchSize under the gate; this measures one full hold's batch.
 func BenchmarkEvictExpiredBatch(b *testing.B) {
 	for b.Loop() {
 		b.StopTimer()
@@ -598,7 +598,7 @@ func BenchmarkEvictExpiredBatch(b *testing.B) {
 	}
 }
 
-// Recheck holds mu per candidate; this measures a cycle whose candidates all pass.
+// Recheck holds the gate per candidate; this measures a cycle whose candidates all pass.
 func BenchmarkRunRecheck(b *testing.B) {
 	const candidates = 5000
 	f := newRecheckFixture()
@@ -634,10 +634,10 @@ func TestEvictionWithoutLookupRemovesByKey(t *testing.T) {
 	}
 }
 
-// More expired txs than one lock hold evicts are all evicted, each under mu.
+// More expired txs than one lock hold evicts are all evicted, each under the gate.
 func TestEvictionBeyondOneBatch(t *testing.T) {
 	f := newRecheckFixture()
-	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.gate.mu}
 	expired := make([]sdk.Tx, 0, evictBatchSize+1)
 	for i := range evictBatchSize + 1 {
 		s := "sender-" + strconv.Itoa(i)
@@ -655,13 +655,13 @@ func TestEvictionBeyondOneBatch(t *testing.T) {
 	}
 }
 
-// Eviction and recheck must look up and remove under mu, or admission can replace the tx in between.
+// Eviction and recheck must look up and remove under the gate, or admission can replace the tx in between.
 func TestEvictionHoldsAdmissionLock(t *testing.T) {
 	f := newRecheckFixture("bob-0") // the candidate fails recheck, so its eviction is probed too
 	timedOut := f.addTimeout(1, "alice", 0, "alice-0", 5)
 	aged := f.add(2, "carol", 0, "carol-0")
 	candidate := f.add(3, "bob", 0, "bob-0")
-	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.mu}
+	probe := &lockProbePool{PriorityNonceMempool: f.pool, mu: &f.a.gate.mu}
 	f.a.mpool = probe
 	f.a.ttlNumBlocks = 5
 	f.a.arrival = map[sdk.Tx]int64{aged: 0}

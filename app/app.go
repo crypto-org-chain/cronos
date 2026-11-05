@@ -181,6 +181,7 @@ const (
 	FlagMaxTxPerBlock                = "cronos.mempool-txs-per-block"
 	FlagMempoolTxTTLEnabled          = "cronos.mempool-tx-ttl-enabled"
 	FlagMempoolPendingTxCacheEnabled = "cronos.mempool-pending-tx-cache-enabled"
+	FlagMempoolRPCMaxInflight        = "cronos.mempool-rpc-max-inflight"
 )
 
 // recheckWaitTimeout bounds how long PrepareProposal waits for an in-flight async
@@ -343,19 +344,6 @@ type App struct {
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
-}
-
-func parseBoolFlag(flag string, v interface{}) bool {
-	switch v.(type) {
-	case bool, string:
-	default:
-		panic(fmt.Errorf("invalid %s %v: must be a boolean, got %T", flag, v, v))
-	}
-	parsed, err := cast.ToBoolE(v)
-	if err != nil {
-		panic(fmt.Errorf("invalid %s %q: must be a boolean", flag, v))
-	}
-	return parsed
 }
 
 // txReplacement is ethermint's eth-only fee-bump rule, or one that refuses everything when disabled
@@ -533,12 +521,16 @@ func New(
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 	}
-	// recheckEnabled mirrors CometBFT's mempool.recheck (default true); only
-	// meaningful for mempool.type=app, so parsed (and possibly panics) only then.
+	// recheckEnabled mirrors CometBFT's mempool.recheck (default true). Both flags
+	// only matter for mempool.type=app, so they are parsed (and rejected) only then.
 	recheckEnabled := true
+	rpcMaxInflight := cmdcfg.DefaultMempoolRPCMaxInflight
 	if mempoolType == cronosmempool.TypeApp {
 		if v := appOpts.Get(FlagMempoolRecheck); v != nil {
 			recheckEnabled = parseBoolFlag(FlagMempoolRecheck, v)
+		}
+		if v := appOpts.Get(FlagMempoolRPCMaxInflight); v != nil {
+			rpcMaxInflight = parseNonNegativeIntFlag(FlagMempoolRPCMaxInflight, v)
 		}
 	}
 	if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp && mempoolType == cronosmempool.TypeApp {
@@ -609,6 +601,7 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
 			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
+			manager.SetRPCMaxInflight(rpcMaxInflight)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
@@ -1642,10 +1635,9 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
-		// AppMempool.Lock() is a no-op; mu serializes checkState reset against concurrent admission.
-		mu := app.mempoolManager.AdmissionMutex()
-		mu.Lock()
-		defer mu.Unlock()
+		// AppMempool.Lock() is a no-op; this serializes the checkState reset against admission.
+		unlock := app.mempoolManager.LockForCommit()
+		defer unlock()
 		return app.BaseApp.Commit()
 	}()
 
