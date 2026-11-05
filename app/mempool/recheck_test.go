@@ -40,6 +40,7 @@ type recheckRunner struct {
 	pool              sdkmempool.Mempool
 	failBytes         map[string]bool
 	failNoRemoveBytes map[string]bool
+	panicBytes        map[string]bool
 	// failErrs returns a specific error per tx bytes, without removing from the
 	// pool, so tests can drive runRecheck's nonce-gap classification.
 	failErrs map[string]error
@@ -79,6 +80,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.calls = append(r.calls, string(txBytes))
 	if r.onCall != nil {
 		r.onCall(txBytes)
+	}
+	if r.panicBytes[string(txBytes)] {
+		panicking("RunTx")
 	}
 
 	var sender string
@@ -1174,6 +1178,31 @@ func TestRunRecheck_NonNonceFailureDoesNotCascade(t *testing.T) {
 	}
 }
 
+func TestRunRecheck_PoisonTxEvictedAndItsGapCascades(t *testing.T) {
+	f := newRecheckFixture()
+	valid := f.add(1, "carl", 5, carlSeq5Bytes)
+	poison := f.add(2, "carl", 6, "carl-6")
+	gapped := f.add(3, "carl", 7, carlSeq7Bytes)
+	higher := f.add(4, "carl", 8, carlSeq8Bytes)
+	f.runner.panicBytes = map[string]bool{"carl-6": true}
+	f.runner.failErrs = map[string]error{carlSeq7Bytes: errorsmod.Wrap(sdkerrors.ErrWrongSequence, "gap")}
+
+	f.a.sched.runRecheck(f.a.sched.groupCandidates([]sdk.Tx{valid, poison, gapped, higher}))
+
+	if !poolHas(f.pool, valid) {
+		t.Fatal("the tx that passed recheck must stay in the pool")
+	}
+	if poolHas(f.pool, poison) {
+		t.Fatal("a tx whose RunTx panics must be evicted")
+	}
+	if !f.runner.seen[carlSeq7Bytes] {
+		t.Fatal("the chunk must go on past a panicking tx")
+	}
+	if f.runner.seen[carlSeq8Bytes] || poolHas(f.pool, gapped) || poolHas(f.pool, higher) {
+		t.Fatal("the gap left by the evicted poison tx must cascade like any other")
+	}
+}
+
 // groupCandidates sorts a group ascending by seq before it runs, so a
 // non-ascending pool/deferred order (5, 9, 7) no longer disables the cascade —
 // the group becomes the signer's clean ascending view (5, 7, 9), and every
@@ -1304,6 +1333,21 @@ func TestGroupCandidates_CascadeGuards(t *testing.T) {
 				return []sdk.Tx{unordered, f.insert(2, alice, 6), f.insert(3, alice, 7), f.insert(4, alice, 8)}
 			},
 			wantCascadable: map[string]bool{alice.String(): false},
+		},
+		{
+			name: "tx whose encode panics is dropped and disables its group",
+			malleate: func(_ *testing.T, f *recheckFixture) []sdk.Tx {
+				poison := f.insert(1, alice, 5) // no encCache entry, so grouping encodes it
+				f.a.exec.txEncoder = func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil }
+				return []sdk.Tx{poison, f.add(2, "alice", 6, "alice-6")}
+			},
+			wantCascadable: map[string]bool{alice.String(): false},
+			check: func(t *testing.T, groups []recheckGroup, txs []sdk.Tx) {
+				t.Helper()
+				if len(groups[0].txs) != 1 || groups[0].txs[0].tx != txs[1] {
+					t.Fatal("only the sibling must be left to recheck")
+				}
+			},
 		},
 		{
 			name: "duplicate seq disables its group and keeps pool order",

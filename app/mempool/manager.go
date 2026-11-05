@@ -6,6 +6,8 @@ import (
 
 	antecache "github.com/evmos/ethermint/ante/cache"
 
+	"cosmossdk.io/log/v2"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,10 +22,13 @@ type Manager struct {
 	sched *recheckScheduler
 }
 
-// NewManager builds the Manager for mempool.type=app;
-func NewManager(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
+// NewManager builds the Manager for mempool.type=app.
+func NewManager(app *baseapp.BaseApp, logger log.Logger, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder, recheckBatchSize int, ttlNumBlocks int64, recheckDisabled, pendingCacheEnabled bool) *Manager {
 	a := newManager(app, encCache, txEncoder, decoder)
 	a.adm.trace = app.Trace()
+	if logger != nil { // a nil logger would re-panic inside the recover handlers
+		a.exec.logger = logger
+	}
 	a.sched.mpool = mpool
 	a.sched.signer = signer
 	a.sched.maxRecheckBatch = recheckBatchSize
@@ -54,6 +59,7 @@ func newManager(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder
 		encCache:  encCache,
 		txEncoder: txEncoder,
 		decoder:   decoder,
+		logger:    log.NewNopLogger(),
 	}
 	return &Manager{
 		exec:  exec,
@@ -98,8 +104,8 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 
 // InsertTx is the direct RPC insert; error is always nil (failures surface as ABCI codes).
 func (a *Manager) InsertTx(txBytes []byte) (*sdk.TxResponse, error) {
-	code, codespace, log := a.adm.admit(txBytes, fromRPC)
-	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: log}, nil
+	code, codespace, rawLog := a.adm.admit(txBytes, fromRPC)
+	return &sdk.TxResponse{Code: code, Codespace: codespace, RawLog: rawLog}, nil
 }
 
 // PendingTxs returns a snapshot of pooled txs, safe for the caller to mutate.

@@ -3,6 +3,8 @@ package mempool
 import (
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	"cosmossdk.io/log/v2"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -19,7 +21,8 @@ var (
 )
 
 // txExec is what admission and recheck share: the RunTx entry point, the
-// codecs both need, and the PendingTxs snapshot cache both invalidate.
+// codecs both need, the PendingTxs snapshot cache both invalidate, and the
+// logger for recovered panics.
 type txExec struct {
 	// gate serializes every RunTx against baseapp's checkState, the pending-nonce
 	// view admission and recheck share: a CheckTx/ReCheckTx ante write-back is
@@ -37,6 +40,7 @@ type txExec struct {
 	decoder   sdk.TxDecoder
 	// pending avoids re-walking the pool on every PendingTxs() call.
 	pending pendingTxCache
+	logger  log.Logger
 }
 
 // runTxLocked runs tx against checkState. Precondition: the caller holds gate.

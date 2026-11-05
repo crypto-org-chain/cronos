@@ -154,6 +154,14 @@ func (s *recheckScheduler) RecheckTxs() {
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
+	// A panic here would crash the node and, on the worker, skip close(ready).
+	defer func() {
+		if r := recover(); r != nil {
+			s.restoreStaging(recheckSenders, deferred)
+			s.exec.pending.invalidate() // evictions before the panic must reach pending queries
+			logRecoveredPanic(s.exec.logger, panicPathRecheck, r)
+		}
+	}()
 
 	snapshot := PoolSnapshot(context.Background(), s.mpool)
 	candidates := s.selectTxs(snapshot, recheckSenders, height, deferred)
@@ -171,6 +179,16 @@ func (s *recheckScheduler) drainStaging() (recheckSenders map[string]struct{}, h
 	s.recheckSenders = nil
 	s.deferred = nil
 	return recheckSenders, height, deferred
+}
+
+// restoreStaging puts drained work back after an aborted cycle so the next cycle retries it.
+func (s *recheckScheduler) restoreStaging(recheckSenders map[string]struct{}, deferred []sdk.Tx) {
+	s.stagingMu.Lock()
+	defer s.stagingMu.Unlock()
+	s.mergeRecheckSenders(recheckSenders)
+	if s.deferred == nil {
+		s.deferred = deferred
+	}
 }
 
 // selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
@@ -199,19 +217,24 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 	// tx's timeout against block time before it can land in a block.
 	now := time.Now()
 	for _, tx := range snapshot {
-		if txTimedout(tx, height, now) {
-			evictedSet, recheckSenders = s.evictForRecheck(tx, evictedSet, recheckSenders)
-			expiredEvicted++
-			continue
-		}
-		if s.ttlNumBlocks > 0 {
-			arrived, expired := txTTLExpired(s.arrival, tx, height, s.ttlNumBlocks)
-			if expired {
+		evictedPoison := s.guardRecheckTx(tx, func() {
+			if txTimedout(tx, height, now) {
 				evictedSet, recheckSenders = s.evictForRecheck(tx, evictedSet, recheckSenders)
-				ttlEvicted++
-				continue
+				expiredEvicted++
+				return
 			}
-			newArrival[tx] = arrived
+			if s.ttlNumBlocks > 0 {
+				arrived, expired := txTTLExpired(s.arrival, tx, height, s.ttlNumBlocks)
+				if expired {
+					evictedSet, recheckSenders = s.evictForRecheck(tx, evictedSet, recheckSenders)
+					ttlEvicted++
+					return
+				}
+				newArrival[tx] = arrived
+			}
+		})
+		if evictedPoison {
+			evictedSet = markEvicted(evictedSet, tx)
 		}
 	}
 	s.arrival = newArrival
@@ -236,7 +259,12 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 		if len(recheckSenders) == 0 {
 			continue
 		}
-		for _, sg := range s.signers(tx) {
+		var sigs []string
+		if s.guardRecheckTx(tx, func() { sigs = s.signers(tx) }) {
+			delete(deferredLive, tx) // evicted, so don't recheck it as carry
+			continue
+		}
+		for _, sg := range sigs {
 			if _, ok := recheckSenders[sg]; ok {
 				candidates = append(candidates, tx)
 				break
@@ -268,10 +296,7 @@ func (s *recheckScheduler) selectTxs(snapshot []sdk.Tx, recheckSenders map[strin
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	s.evict(tx)
-	if evictedSet == nil {
-		evictedSet = make(map[sdk.Tx]struct{})
-	}
-	evictedSet[tx] = struct{}{}
+	evictedSet = markEvicted(evictedSet, tx)
 	sigs := s.signers(tx)
 	if len(sigs) > 0 && recheckSenders == nil {
 		recheckSenders = make(map[string]struct{})
@@ -280,6 +305,39 @@ func (s *recheckScheduler) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]stru
 		recheckSenders[sg] = struct{}{}
 	}
 	return evictedSet, recheckSenders
+}
+
+func markEvicted(evictedSet map[sdk.Tx]struct{}, tx sdk.Tx) map[sdk.Tx]struct{} {
+	if evictedSet == nil {
+		evictedSet = make(map[sdk.Tx]struct{})
+	}
+	evictedSet[tx] = struct{}{}
+	return evictedSet
+}
+
+// guardRecheckTx runs step and evicts tx if step panics, so one poison tx can't stall
+// every cycle's eviction. Reports whether step panicked.
+func (s *recheckScheduler) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(s.exec.logger, panicPathRecheckTx, r)
+			s.evictPoisonTx(tx)
+			panicked = true
+		}
+	}()
+	step()
+	return false
+}
+
+// Eviction calls the same tx methods that may have panicked; if it panics too, the tx
+// stays pooled and is guarded again next cycle.
+func (s *recheckScheduler) evictPoisonTx(tx sdk.Tx) {
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(s.exec.logger, panicPathRecheckTx, r, "evict_failed", true)
+		}
+	}()
+	s.evict(tx)
 }
 
 // capRecheckGroups bounds RunTx(ReCheck) calls per cycle without ever
@@ -324,8 +382,8 @@ type recheckCandidate struct {
 // (that tx is grouped elsewhere, so it can fill a nonce this group can't see),
 // a sender of a batch eth tx (its seq shows only the first msg's nonce), a
 // duplicate seq, an unordered tx (keyed by timeout, not sequence), or a tx
-// dropped on encode error — because the cascade rule reasons about the next
-// expected nonce.
+// dropped on an encode error or panic — because the cascade rule reasons about
+// the next expected nonce.
 type recheckGroup struct {
 	key        string
 	txs        []recheckCandidate
@@ -383,27 +441,33 @@ func (s *recheckScheduler) groupCandidates(candidates []sdk.Tx) []recheckGroup {
 		}
 	}
 	for _, tx := range candidates {
-		key, seq, known, multiSigner := s.firstSigner(tx)
-		gi, seen := index[key]
-		if !seen {
-			groups = append(groups, recheckGroup{key: key, cascadable: known})
-			gi = len(groups) - 1
-			index[key] = gi
-		}
-		g := &groups[gi]
-		if multiSigner {
-			markCoSigned(s.signers(tx))
-		}
-		markCoSigned(batchEthSenders(tx))
-		if unordered, ok := tx.(sdk.TxWithUnordered); ok && unordered.GetUnordered() {
-			g.cascadable = false // unordered txs key by timeout, not sequence: seq here is meaningless for the gap rule
-		}
-		bz, _, err := EncodeTx(s.exec.encCache, s.exec.txEncoder, tx)
-		if err != nil {
+		var g *recheckGroup
+		evictedPoison := s.guardRecheckTx(tx, func() {
+			key, seq, known, multiSigner := s.firstSigner(tx)
+			gi, seen := index[key]
+			if !seen {
+				groups = append(groups, recheckGroup{key: key, cascadable: known})
+				gi = len(groups) - 1
+				index[key] = gi
+			}
+			g = &groups[gi]
+			if multiSigner {
+				markCoSigned(s.signers(tx))
+			}
+			markCoSigned(batchEthSenders(tx))
+			if unordered, ok := tx.(sdk.TxWithUnordered); ok && unordered.GetUnordered() {
+				g.cascadable = false // unordered txs key by timeout, not sequence: seq here is meaningless for the gap rule
+			}
+			bz, _, err := EncodeTx(s.exec.encCache, s.exec.txEncoder, tx)
+			if err != nil {
+				g.cascadable = false
+				return
+			}
+			g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
+		})
+		if evictedPoison && g != nil {
 			g.cascadable = false
-			continue
 		}
-		g.txs = append(g.txs, recheckCandidate{tx: tx, bz: bz, seq: seq})
 	}
 	for i := range groups {
 		g := &groups[i]
@@ -497,7 +561,10 @@ func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, height
 	accepted := false
 	for i := start; i < end; i++ {
 		c := g.txs[i]
-		_, _, _, err := s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx)
+		var err error
+		if s.guardRecheckTx(c.tx, func() { _, _, _, err = s.exec.runTxLocked(sdk.ExecModeReCheck, c.bz, c.tx) }) {
+			continue // evicted as poison; like a non-nonce failure, it can't start a cascade
+		}
 		if err == nil {
 			lastOK, accepted = c.seq, true
 			continue

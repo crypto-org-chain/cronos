@@ -86,9 +86,9 @@ one `MsgEthereumTx` (the EVM signer adapter reports only the first msg's nonce, 
 the batch the account expects more than `lastOK+1` and a stale sibling would look like a
 gap; for the same reason staging and selection treat every batch sender as a signer, so a
 committed batch rechecks each co-sender's pooled txs), an unordered tx (keyed by timeout, not
-sequence), a duplicate sequence, or a tx dropped on encode error. A non-nonce failure
-(e.g. insufficient funds) evicts only that tx; the next sibling then fails as a proven gap
-if it really is one.
+sequence), a duplicate sequence, or a tx dropped on an encode error or panic. A non-nonce
+failure (e.g. insufficient funds) or a panicking `RunTx` evicts only that tx; the next
+sibling then fails as a proven gap if it really is one.
 
 ### Ante cache
 
@@ -100,8 +100,8 @@ entry lets a resubmit of the evicted nonce bypass the check.
 ### Split
 
 - `exec.go` — `txExec`: the admission gate (`admission_gate.go`, a mutex with Commit
-  priority), `RunTx` entry point, codecs, and the `PendingTxs` snapshot cache both halves
-  invalidate.
+  priority), `RunTx` entry point, codecs, the `PendingTxs` snapshot cache both halves
+  invalidate, and the logger both use for recovered panics (`recover.go`).
 - `admitter.go` — peer `InsertTx` and RPC `CheckTx`, with the RPC in-flight cap
   (`inflight_limit.go`).
 - `scheduler.go` — staging, selection/TTL, grouping, chunked recheck, eviction.
