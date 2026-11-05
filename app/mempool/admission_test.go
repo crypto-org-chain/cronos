@@ -38,6 +38,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -370,7 +371,7 @@ func (s *SharedDecodedTxTestSuite) TestFirstUseOfSharedWrapper() {
 			overrides: blockSTMOpts,
 			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
 				t.Helper()
-				return []func(){func() { finalizeTxs(t, f, bz, bz) }}
+				return []func(){func() { finalizeDuplicate(t, f, bz) }}
 			},
 		},
 	}
@@ -514,11 +515,12 @@ func newBlocklistProposalHandler(t *testing.T, f *admissionFixture) *cronos.Prop
 	return h
 }
 
-func finalizeTxs(t *testing.T, f *admissionFixture, txs ...[]byte) {
+func finalizeDuplicate(t *testing.T, f *admissionFixture, bz []byte) {
 	t.Helper()
-	resp, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: txs})
-	if assert.NoError(t, err) {
+	resp, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz, bz}})
+	if assert.NoError(t, err) && assert.Len(t, resp.TxResults, 2) {
 		assert.Equal(t, abci.CodeTypeOK, resp.TxResults[0].Code, resp.TxResults[0].Log)
+		assert.Equal(t, sdkerrors.ErrInvalidSequence.ABCICode(), resp.TxResults[1].Code, resp.TxResults[1].Log)
 	}
 }
 
