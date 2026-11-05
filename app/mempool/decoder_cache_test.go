@@ -19,11 +19,54 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// cacheTx is a minimal sdk.Tx stub used in decode cache tests.
-type cacheTx struct{ id uint64 }
+// fakeTx stands in for the SDK wrapper of an EVM tx, the only shape the decode
+// cache shares; its first GetSigners call is where the wrapper fills shared fields.
+type fakeTx struct {
+	typeURL string // first extension option; "" means none
+	msgs    []sdk.Msg
+	msgsV2  []protov2.Message
+	signers [][]byte
+	err     error
+	panics  bool
+	onWarm  func()
+}
 
-func (c *cacheTx) GetMsgs() []sdk.Msg                    { return nil }
-func (c *cacheTx) GetMsgsV2() ([]protov2.Message, error) { return make([]protov2.Message, 1), nil }
+func newFakeEthTx() *fakeTx {
+	return &fakeTx{
+		typeURL: "/ethermint.evm.v1.ExtensionOptionsEthereumTx",
+		msgs:    []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg},
+		msgsV2:  make([]protov2.Message, 1),
+		signers: [][]byte{{1}},
+	}
+}
+
+func (f *fakeTx) GetMsgs() []sdk.Msg                    { return f.msgs }
+func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return f.msgsV2, f.err }
+func (f *fakeTx) GetSigners() ([][]byte, error) {
+	if f.onWarm != nil {
+		f.onWarm()
+	}
+	if f.panics {
+		panic("nil AuthInfo.Fee")
+	}
+	return f.signers, f.err
+}
+
+func (f *fakeTx) GetExtensionOptions() []*codectypes.Any {
+	if f.typeURL == "" {
+		return nil
+	}
+	return []*codectypes.Any{{TypeUrl: f.typeURL}}
+}
+func (f *fakeTx) GetNonCriticalExtensionOptions() []*codectypes.Any { return nil }
+
+// cacheTx is an EVM-shaped sdk.Tx stub, so the decode cache shares it.
+type cacheTx struct {
+	*fakeTx
+	id uint64
+}
+
+func newCacheTx(id uint64) *cacheTx { return &cacheTx{fakeTx: newFakeEthTx(), id: id} }
 
 func makeRaw(id uint64) []byte {
 	b := make([]byte, 8)
@@ -39,7 +82,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 		if len(bz) < 8 {
 			return nil, errors.New("too short")
 		}
-		return &cacheTx{id: binary.LittleEndian.Uint64(bz)}, nil
+		return newCacheTx(binary.LittleEndian.Uint64(bz)), nil
 	}
 	return dec, &calls
 }
@@ -95,79 +138,32 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	}
 }
 
-// lazyTx stands in for the SDK wrapper, whose first GetMsgsV2 call fills shared fields.
-type lazyTx struct {
-	msgs    []protov2.Message
-	sdkMsgs []sdk.Msg
-	err     error
-	panics  bool
-	onWarm  func()
-}
-
-func (l *lazyTx) GetMsgs() []sdk.Msg { return l.sdkMsgs }
-func (l *lazyTx) GetMsgsV2() ([]protov2.Message, error) {
-	l.onWarm()
-	if l.panics {
-		panic("nil AuthInfo.Fee")
-	}
-	return l.msgs, l.err
-}
-
-// signerTx adds the wrapper's GetSigners, which re-fills while signers is nil.
-type signerTx struct {
-	*lazyTx
-	signers [][]byte
-}
-
-func (s *signerTx) GetSigners() ([][]byte, error) {
-	s.onWarm()
-	return s.signers, nil
-}
-
-// extOptTx adds extension options, which pick ethermint's ante variant.
-type extOptTx struct {
-	*lazyTx
-	typeURL string
-}
-
-func (e *extOptTx) GetExtensionOptions() []*codectypes.Any {
-	return []*codectypes.Any{{TypeUrl: e.typeURL}}
-}
-func (e *extOptTx) GetNonCriticalExtensionOptions() []*codectypes.Any { return nil }
-
 func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
-	oneMsg := make([]protov2.Message, 1)
 	testCases := []struct {
 		name       string
-		lazy       *lazyTx
-		withSigner [][]byte // non-nil wraps lazy in signerTx
-		extTypeURL string   // non-empty wraps lazy in extOptTx
+		malleate   func(tx *fakeTx)
 		wantShared bool
 	}{
-		{"warmed tx is shared", &lazyTx{msgs: oneMsg}, nil, "", true},
-		{"tx with signers is shared", &lazyTx{msgs: oneMsg}, [][]byte{{1}}, "", true},
-		{"raw-format eth msg is shared", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg}}, nil, "", true},
-		{"dynamic-fee extension is shared", &lazyTx{msgs: oneMsg}, nil, "/ethermint.types.v1.ExtensionOptionDynamicFeeTx", true},
-		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, nil, "", false},
-		{"no msgs stays private", &lazyTx{}, nil, "", false},
-		{"no signers stays private", &lazyTx{msgs: oneMsg}, [][]byte{}, "", false},
-		{"warm-up panic stays private", &lazyTx{msgs: oneMsg, panics: true}, nil, "", false},
-		{"legacy-format eth msg stays private", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{&evmtypes.MsgEthereumTx{}}}, nil, "", false},
-		{"legacy EIP-712 tx stays private", &lazyTx{msgs: oneMsg}, nil, web3TxTypeURL, false},
+		{"raw-format eth tx is shared", func(*fakeTx) {}, true},
+		{"cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "" }, false},
+		{"dynamic-fee cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionDynamicFeeTx" }, false},
+		{"legacy EIP-712 tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx" }, false},
+		{"legacy-format eth msg stays private", func(tx *fakeTx) { tx.msgs = []sdk.Msg{&evmtypes.MsgEthereumTx{}} }, false},
+		{"non-eth msg stays private", func(tx *fakeTx) { tx.msgs = append(tx.msgs, &evmtypes.MsgUpdateParams{}) }, false},
+		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false},
+		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false},
+		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false},
+		{"no msgsV2 stays private", func(tx *fakeTx) { tx.msgsV2 = nil }, false},
+		{"warm-up panic stays private", func(tx *fakeTx) { tx.panics = true }, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var tx sdk.Tx = tc.lazy
-			switch {
-			case tc.withSigner != nil:
-				tx = &signerTx{lazyTx: tc.lazy, signers: tc.withSigner}
-			case tc.extTypeURL != "":
-				tx = &extOptTx{lazyTx: tc.lazy, typeURL: tc.extTypeURL}
-			}
+			tx := newFakeEthTx()
+			tc.malleate(tx)
 			raw := makeRaw(1)
 			c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
 			warmed := false
-			tc.lazy.onWarm = func() {
+			tx.onWarm = func() {
 				warmed = true
 				if _, hit := c.get(raw); hit {
 					t.Error("tx visible in the cache before warm-up")
@@ -188,8 +184,8 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 					t.Fatal("decoder must return the base tx")
 				}
 			}
-			if !warmed {
-				t.Fatal("decode must warm the tx")
+			if tc.wantShared && !warmed {
+				t.Fatal("a shared tx must be warmed")
 			}
 			wantCalls := int64(2)
 			if tc.wantShared {
@@ -233,7 +229,7 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	// Fill shard to capacity with keys 0..shardCacheSize-1.
 	for i := 0; i < shardCacheSize; i++ {
 		bz := makeRaw(uint64(i))
-		s.set(xxhash.Sum64(bz), bz, &cacheTx{id: uint64(i)})
+		s.set(xxhash.Sum64(bz), bz, newCacheTx(uint64(i)))
 	}
 
 	// Access key 0 — promotes it to MRU.
@@ -245,7 +241,7 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	// Insert one new key. Shard is full, so LRU (key 1, never re-accessed)
 	// must be evicted, NOT key 0 (MRU).
 	newBz := makeRaw(uint64(shardCacheSize))
-	s.set(xxhash.Sum64(newBz), newBz, &cacheTx{id: uint64(shardCacheSize)})
+	s.set(xxhash.Sum64(newBz), newBz, newCacheTx(uint64(shardCacheSize)))
 
 	if _, ok := s.get(h0, makeRaw(0)); !ok {
 		t.Fatal("LRU evicted key 0 (recently used); should have evicted key 1")
@@ -328,7 +324,7 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 	calls := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
-		return &cacheTx{id: uint64(len(bz))}, nil
+		return newCacheTx(uint64(len(bz))), nil
 	}
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
 	dec := NewCachingDecoder(base, c)
@@ -362,7 +358,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	calls := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
-		return &cacheTx{id: uint64(len(bz))}, nil
+		return newCacheTx(uint64(len(bz))), nil
 	}
 	c := NewDecodeCache(defaultCacheSize, customMax)
 	dec := NewCachingDecoder(base, c)

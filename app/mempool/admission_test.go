@@ -416,20 +416,57 @@ func (s *SharedDecodedTxTestSuite) TestMalformedTxMatchesCacheOff() {
 	}
 }
 
-// nilFeeTx is a decodable MsgSend with empty auth_info, so AuthInfo.Fee is nil.
+// nilFeeTx is a decodable EVM transfer with empty auth_info, so AuthInfo.Fee is nil.
 func nilFeeTx(t *testing.T, f *admissionFixture) []byte {
 	t.Helper()
-	from := sdk.AccAddress(f.accounts[0].Address.Bytes())
-	b := f.app.TxConfig().NewTxBuilder()
-	require.NoError(t, b.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
-	bz, err := f.app.TxConfig().TxEncoder()(b.GetTx())
-	require.NoError(t, err)
 	var raw txtypes.TxRaw
-	require.NoError(t, raw.Unmarshal(bz))
+	require.NoError(t, raw.Unmarshal(f.signTransfer(t, &f.accounts[0], nil)))
 	raw.AuthInfoBytes = nil
-	bz, err = raw.Marshal()
+	bz, err := raw.Marshal()
 	require.NoError(t, err)
 	return bz
+}
+
+func (s *SharedDecodedTxTestSuite) TestOnlyEVMTxsAreShared() {
+	testCases := []struct {
+		name       string
+		build      func(t *testing.T, f *admissionFixture) []byte
+		wantShared bool
+	}{
+		{
+			name: "EVM transfer",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				return f.signTransfer(t, &f.accounts[0], nil)
+			},
+			wantShared: true,
+		},
+		{
+			name: "cosmos MsgSend",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				from := sdk.AccAddress(f.accounts[0].Address.Bytes())
+				b := f.app.TxConfig().NewTxBuilder()
+				require.NoError(t, b.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
+				b.SetGasLimit(100000)
+				bz, err := f.app.TxConfig().TxEncoder()(b.GetTx())
+				require.NoError(t, err)
+				return bz
+			},
+		},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			f := setupAdmissionApp(t, 1)
+			bz := tc.build(t, f)
+			first, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			second, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantShared, first == second)
+		})
+	}
 }
 
 // A non-empty blocklist makes ProcessProposal decode and check signers instead of fast-accepting.

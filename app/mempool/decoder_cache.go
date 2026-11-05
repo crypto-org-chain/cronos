@@ -98,10 +98,10 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Safe today because decode is the only writer: lazily filled
-// fields are filled before set (warmForSharing), and the EVM ante's VerifySender
+// NOT mutate them. Safe today because only EVM txs are cached (warmForSharing),
+// their lazily filled fields are filled before set, and the EVM ante's VerifySender
 // only compares against MsgEthereumTx.From (set at proto-decode), never writes it.
-// A future ante that mutates a decoded msg would break sharing.
+// A future EVM ante that mutates a decoded tx would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
@@ -163,11 +163,11 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 	}
 }
 
-// web3TxTypeURL selects ethermint's deprecated legacy EIP-712 ante (dispatched on the first extension option).
-const web3TxTypeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx"
+// ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
+var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
-// warmForSharing fills the lazily written fields readers would otherwise race to
-// fill, and reports whether they stuck; false leaves tx private like a cache-off decode.
+// warmForSharing reports whether tx may be shared, filling its lazily written
+// fields first; false leaves tx private like a cache-off decode.
 func warmForSharing(tx sdk.Tx) (ok bool) {
 	// A malformed tx (e.g. nil AuthInfo.Fee) panics here; it must surface in runTx's recover, not in decode.
 	defer func() {
@@ -175,24 +175,36 @@ func warmForSharing(tx sdk.Tx) (ok bool) {
 			ok = false
 		}
 	}()
+	// Cosmos ante paths write to the decoded tx (amino-JSON Any caches, pubkey address caches, EIP-712 fee-payer sig).
+	if !isRawEthTx(tx) {
+		return false
+	}
 	// The SDK wrapper re-fills signers/msgsV2 on every call while either is nil.
 	if sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) }); isSigTx {
 		if signers, err := sigTx.GetSigners(); err != nil || len(signers) == 0 {
 			return false
 		}
 	}
-	if msgs, err := tx.GetMsgsV2(); err != nil || len(msgs) == 0 {
+	msgs, err := tx.GetMsgsV2()
+	return err == nil && len(msgs) > 0
+}
+
+// isRawEthTx reports whether tx takes the EVM ante with only Raw-format eth msgs.
+func isRawEthTx(tx sdk.Tx) bool {
+	extTx, hasExt := tx.(authante.HasExtensionOptionsTx)
+	if !hasExt {
 		return false
 	}
-	if extTx, hasExt := tx.(authante.HasExtensionOptionsTx); hasExt {
-		// The legacy EIP-712 ante rewrites each msg Any's amino-JSON cache on every run, so warming can't help.
-		if opts := extTx.GetExtensionOptions(); len(opts) > 0 && opts[0].GetTypeUrl() == web3TxTypeURL {
-			return false
-		}
+	if opts := extTx.GetExtensionOptions(); len(opts) == 0 || opts[0].GetTypeUrl() != ethTxTypeURL {
+		return false
 	}
-	for _, msg := range tx.GetMsgs() {
+	msgs := tx.GetMsgs()
+	if len(msgs) == 0 {
+		return false
+	}
+	for _, msg := range msgs {
 		// Legacy Data-format msgs get Raw written on first AsTransaction.
-		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); isEth && ethMsg.Raw.Transaction == nil {
+		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); !isEth || ethMsg.Raw.Transaction == nil {
 			return false
 		}
 	}
