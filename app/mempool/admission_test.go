@@ -379,9 +379,8 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 	require.Equal(t, int64(2), f.app.LastBlockHeight())
 }
 
-// signBankSendWithoutPubKey signs a MsgSend from acc with no public key in its SignerInfo,
-// which is valid only because acc's key is already on-chain.
-func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAccount) *txtypes.TxRaw {
+// A nil pk leaves the SignerInfo without a public key, valid only because acc's key is already on-chain.
+func (f *admissionFixture) signBankSend(tb testing.TB, acc *testAccount, pk cryptotypes.PubKey) *txtypes.TxRaw {
 	tb.Helper()
 	txCfg := f.app.TxConfig()
 	from := sdk.AccAddress(acc.Address.Bytes())
@@ -390,6 +389,7 @@ func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAcc
 	builder.SetGasLimit(200000)
 	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(1, 16))))
 	sig := signing.SignatureV2{
+		PubKey:   pk,
 		Data:     &signing.SingleSignatureData{SignMode: signing.SignMode_SIGN_MODE_DIRECT},
 		Sequence: acc.Nonce,
 	}
@@ -543,7 +543,7 @@ func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
 					maps.Copy(opts, mp.opts)
 					f := setupAdmissionAppWithOpts(s.T(), 1, opts)
 					acc := &f.accounts[0]
-					raw := f.signBankSendWithoutPubKey(s.T(), acc)
+					raw := f.signBankSend(s.T(), acc, nil)
 					tc.malleate(raw)
 					acc.Nonce = 0
 					pooled := f.signTransfer(s.T(), acc, nil)
@@ -609,15 +609,63 @@ func (s *SignerInfoTxTestSuite) TestNoPubKeyTxNotAdmitted() {
 		}
 		s.Run(mp.name, func() {
 			f := setupAdmissionAppWithOpts(s.T(), 1, mp.opts)
-			bz := encodeRaw(s.T(), f.signBankSendWithoutPubKey(s.T(), &f.accounts[0]))
+			bz := encodeRaw(s.T(), f.signBankSend(s.T(), &f.accounts[0], nil))
 			checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: bz})
 			s.Require().NoError(err)
-			s.Require().NotEqual(abci.CodeTypeOK, checkResp.Code)
+			// The pool's SDK adapter panics in Insert, as on unpatched nodes.
+			s.Require().Equal(sdkerrors.ErrPanic.ABCICode(), checkResp.Code, checkResp.Log)
+			s.Require().Equal(sdkerrors.ErrPanic.Codespace(), checkResp.Codespace)
 			s.Require().Zero(f.app.Mempool().CountTx())
 
 			res := f.finalizeTx(s.T(), bz)
 			s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
 		})
+	}
+}
+
+// The pool keys txs with the SDK adapter while staging uses the msg adapter, so a pooled cosmos
+// tx must be dropped whether the block carries it or another tx at its nonce.
+func (s *SignerInfoTxTestSuite) TestPooledCosmosTxLeavesPool() {
+	testCases := []struct {
+		name    string
+		blockTx func(f *admissionFixture, pooled []byte) []byte
+	}{
+		{
+			name:    "block carries the pooled tx",
+			blockTx: func(_ *admissionFixture, pooled []byte) []byte { return pooled },
+		},
+		{
+			name: "block carries another tx at its nonce, without a public key",
+			blockTx: func(f *admissionFixture, _ []byte) []byte {
+				acc := &f.accounts[0]
+				acc.Nonce = 0
+				return encodeRaw(s.T(), f.signBankSend(s.T(), acc, nil))
+			},
+		},
+	}
+
+	for _, mp := range resultParityMempools {
+		if !mp.pooled {
+			continue
+		}
+		for _, tc := range testCases {
+			s.Run(mp.name+"/"+tc.name, func() {
+				f := setupAdmissionAppWithOpts(s.T(), 1, mp.opts)
+				acc := &f.accounts[0]
+				pooled := encodeRaw(s.T(), f.signBankSend(s.T(), acc, acc.Priv.PubKey()))
+				checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
+				s.Require().NoError(err)
+				s.Require().Equal(abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+				s.Require().Equal(1, f.app.Mempool().CountTx())
+
+				res := f.finalizeTx(s.T(), tc.blockTx(f, pooled))
+				s.Require().Equal(abci.CodeTypeOK, res.Code, res.Log)
+				_, err = f.app.Commit()
+				s.Require().NoError(err)
+				f.recheck(s.T(), pooled)
+				s.Require().Zero(f.app.Mempool().CountTx())
+			})
+		}
 	}
 }
 
@@ -666,7 +714,7 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			acc.Nonce = 0
-			raw := f.signBankSendWithoutPubKey(s.T(), acc)
+			raw := f.signBankSend(s.T(), acc, nil)
 			tc.malleate(raw)
 			tx, err := f.app.TxConfig().TxDecoder()(encodeRaw(s.T(), raw))
 			s.Require().NoError(err)
