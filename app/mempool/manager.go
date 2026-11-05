@@ -427,13 +427,6 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil || a.recheckDisabled {
 		return
 	}
-	// A panic here would crash the node and, on the worker, skip close(ready).
-	defer func() {
-		if r := recover(); r != nil {
-			a.pendingTxCache.invalidate() // evictions before the panic must reach pending queries
-			logRecoveredPanic(a.logger, panicPathRecheck, r)
-		}
-	}()
 	a.recheckMu.Lock() // lock order: see the recheckMu field comment
 	defer a.recheckMu.Unlock()
 	recheckSenders, height, deferred := a.drainStaging()
@@ -441,6 +434,14 @@ func (a *Manager) RecheckTxs() {
 	if len(recheckSenders) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
+	// A panic here would crash the node and, on the worker, skip close(ready).
+	defer func() {
+		if r := recover(); r != nil {
+			a.restoreStaging(recheckSenders, deferred)
+			a.pendingTxCache.invalidate() // evictions before the panic must reach pending queries
+			logRecoveredPanic(a.logger, panicPathRecheck, r)
+		}
+	}()
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
 	candidates := a.capRecheckTxs(a.selectTxs(snapshot, recheckSenders, height, deferred))
@@ -458,6 +459,16 @@ func (a *Manager) drainStaging() (recheckSenders map[string]struct{}, height int
 	a.recheckSenders = nil
 	a.deferred = nil
 	return recheckSenders, height, deferred
+}
+
+// restoreStaging puts drained work back after an aborted cycle so the next cycle retries it.
+func (a *Manager) restoreStaging(recheckSenders map[string]struct{}, deferred []sdk.Tx) {
+	a.stagingMu.Lock()
+	defer a.stagingMu.Unlock()
+	a.mergeRecheckSenders(recheckSenders)
+	if a.deferred == nil {
+		a.deferred = deferred
+	}
 }
 
 // selectTxs scans the pool to retrieve txs for recheck. Caller (RecheckTxs)
@@ -487,19 +498,24 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 	var evictedSet map[sdk.Tx]struct{} // nil until first eviction; nil-map read is safe
 	now := time.Now()
 	for _, tx := range snapshot {
-		if txTimedout(tx, height, now) {
-			evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-			expiredEvicted++
-			continue
-		}
-		if a.ttlNumBlocks > 0 {
-			arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
-			if expired {
+		evictedPoison := a.guardRecheckTx(tx, func() {
+			if txTimedout(tx, height, now) {
 				evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
-				ttlEvicted++
-				continue
+				expiredEvicted++
+				return
 			}
-			newArrival[tx] = arrived
+			if a.ttlNumBlocks > 0 {
+				arrived, expired := txTTLExpired(a.arrival, tx, height, a.ttlNumBlocks)
+				if expired {
+					evictedSet, recheckSenders = a.evictForRecheck(tx, evictedSet, recheckSenders)
+					ttlEvicted++
+					return
+				}
+				newArrival[tx] = arrived
+			}
+		})
+		if evictedPoison {
+			evictedSet = markEvicted(evictedSet, tx)
 		}
 	}
 	a.arrival = newArrival
@@ -524,7 +540,11 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 		if len(recheckSenders) == 0 {
 			continue
 		}
-		for _, s := range a.signers(tx) {
+		var sigs []string
+		if a.guardRecheckTx(tx, func() { sigs = a.signers(tx) }) {
+			continue
+		}
+		for _, s := range sigs {
 			if _, ok := recheckSenders[s]; ok {
 				candidates = append(candidates, tx)
 				break
@@ -556,10 +576,7 @@ func (a *Manager) selectTxs(snapshot []sdk.Tx, recheckSenders map[string]struct{
 // evictedSet/recheckSenders lazily so a no-eviction cycle stays alloc-free.
 func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, recheckSenders map[string]struct{}) (map[sdk.Tx]struct{}, map[string]struct{}) {
 	a.evict(tx)
-	if evictedSet == nil {
-		evictedSet = make(map[sdk.Tx]struct{})
-	}
-	evictedSet[tx] = struct{}{}
+	evictedSet = markEvicted(evictedSet, tx)
 	sigs := a.signers(tx)
 	if len(sigs) > 0 && recheckSenders == nil {
 		recheckSenders = make(map[string]struct{})
@@ -568,6 +585,35 @@ func (a *Manager) evictForRecheck(tx sdk.Tx, evictedSet map[sdk.Tx]struct{}, rec
 		recheckSenders[s] = struct{}{}
 	}
 	return evictedSet, recheckSenders
+}
+
+func markEvicted(evictedSet map[sdk.Tx]struct{}, tx sdk.Tx) map[sdk.Tx]struct{} {
+	if evictedSet == nil {
+		evictedSet = make(map[sdk.Tx]struct{})
+	}
+	evictedSet[tx] = struct{}{}
+	return evictedSet
+}
+
+// guardRecheckTx runs step and evicts tx if step panics, so one poison tx can't stall
+// every cycle's eviction. Reports whether step panicked.
+func (a *Manager) guardRecheckTx(tx sdk.Tx, step func()) (panicked bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(a.logger, panicPathRecheckTx, r)
+			a.evictPoisonTx(tx)
+			panicked = true
+		}
+	}()
+	step()
+	return false
+}
+
+// Eviction calls the same tx methods that may have panicked; if it panics too, the tx
+// stays pooled and its step is skipped again next cycle.
+func (a *Manager) evictPoisonTx(tx sdk.Tx) {
+	defer func() { _ = recover() }()
+	a.evict(tx)
 }
 
 // capRecheckTxs bounds RunTx(ReCheck) per cycle; overflow carries forward.
@@ -587,12 +633,18 @@ func (a *Manager) capRecheckTxs(candidates []sdk.Tx) []sdk.Tx {
 func (a *Manager) runRecheck(candidates []sdk.Tx) {
 	var evicted float32
 	for _, tx := range candidates {
-		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
-		if err != nil {
-			continue
-		}
-		if err = a.recheckTx(bz, tx); err != nil {
-			a.evict(tx)
+		var failed bool
+		evictedPoison := a.guardRecheckTx(tx, func() {
+			bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
+			if err != nil {
+				return
+			}
+			if err = a.recheckTx(bz, tx); err != nil {
+				a.evict(tx)
+				failed = true
+			}
+		})
+		if failed || evictedPoison {
 			evicted++
 		}
 	}
