@@ -395,6 +395,24 @@ func (s *AdmissionGateTestSuite) TestLockAfterWaitersLetsQueuedAdmissionGoFirst(
 	s.Equal("admission", <-order)
 }
 
+func (s *AdmissionGateTestSuite) TestLockAfterWaitersStopsYieldingAtBudget() {
+	var g admissionGate
+	unlockCommit := g.lockForCommit()
+	go func() { g.lock(); g.unlock() }() // parks behind the Commit, so it never acquires
+	s.Require().Eventually(func() bool { return g.waiting.Load() == 1 }, gateWait, time.Millisecond)
+
+	reachedLock := make(chan struct{})
+	go func() {
+		g.lockAfterWaiters(5 * time.Millisecond)
+		close(reachedLock)
+		g.unlock()
+	}()
+	// Once the budget runs out the caller moves on to lock(), so waiting climbs to 2.
+	s.Require().Eventually(func() bool { return g.waiting.Load() == 2 }, gateWait, time.Millisecond)
+	unlockCommit()
+	<-reachedLock
+}
+
 func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
 	const (
 		admitters = 64

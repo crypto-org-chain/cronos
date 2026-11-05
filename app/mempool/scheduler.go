@@ -490,7 +490,7 @@ func batchEthSenders(tx sdk.Tx) []string {
 }
 
 // recheckChunkSize bounds one gate hold (~1.4ms at ~22µs per RunTx) for
-// admissions; Commit is covered by the yield in runChunkLocked.
+// admissions; Commit is covered by the commitPending early exit in runChunkLocked.
 const recheckChunkSize = 64
 
 // recheckYieldBudget caps how long a chunk lets queued admissions go first, so
