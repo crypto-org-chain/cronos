@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math"
@@ -22,16 +23,27 @@ import (
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
+	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -365,6 +377,190 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 		t.Fatal("App.Commit did not finish after the gate was released")
 	}
 	require.Equal(t, int64(2), f.app.LastBlockHeight())
+}
+
+// signBankSendWithoutPubKey signs a MsgSend from acc with no public key in its SignerInfo,
+// which is valid only because acc's key is already on-chain.
+func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAccount) *txtypes.TxRaw {
+	tb.Helper()
+	txCfg := f.app.TxConfig()
+	from := sdk.AccAddress(acc.Address.Bytes())
+	builder := txCfg.NewTxBuilder()
+	require.NoError(tb, builder.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins())))
+	builder.SetGasLimit(200000)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(1, 16))))
+	sig := signing.SignatureV2{
+		Data:     &signing.SingleSignatureData{SignMode: signing.SignMode_SIGN_MODE_DIRECT},
+		Sequence: acc.Nonce,
+	}
+	require.NoError(tb, builder.SetSignatures(sig))
+
+	ctx := f.app.NewContext(true)
+	signerData := authsigning.SignerData{
+		Address:       from.String(),
+		ChainID:       cronos.TestAppChainID,
+		AccountNumber: f.app.AccountKeeper.GetAccount(ctx, from).GetAccountNumber(),
+		Sequence:      acc.Nonce,
+		PubKey:        acc.Priv.PubKey(),
+	}
+	signBytes, err := authsigning.GetSignBytesAdapter(ctx, txCfg.SignModeHandler(), signing.SignMode_SIGN_MODE_DIRECT, signerData, builder.GetTx())
+	require.NoError(tb, err)
+	sig.Data.(*signing.SingleSignatureData).Signature, err = acc.Priv.Sign(signBytes)
+	require.NoError(tb, err)
+	require.NoError(tb, builder.SetSignatures(sig))
+	acc.Nonce++
+
+	bz, err := txCfg.TxEncoder()(builder.GetTx())
+	require.NoError(tb, err)
+	var raw txtypes.TxRaw
+	require.NoError(tb, raw.Unmarshal(bz))
+	return &raw
+}
+
+// withSignerPubKey sets the first SignerInfo's public key, breaking the signature.
+func withSignerPubKey(tb testing.TB, raw *txtypes.TxRaw, pk cryptotypes.PubKey) {
+	tb.Helper()
+	var authInfo txtypes.AuthInfo
+	require.NoError(tb, authInfo.Unmarshal(raw.AuthInfoBytes))
+	pkAny, err := codectypes.NewAnyWithValue(pk)
+	require.NoError(tb, err)
+	authInfo.SignerInfos[0].PublicKey = pkAny
+	raw.AuthInfoBytes, err = authInfo.Marshal()
+	require.NoError(tb, err)
+}
+
+func encodeRaw(tb testing.TB, raw *txtypes.TxRaw) []byte {
+	tb.Helper()
+	bz, err := raw.Marshal()
+	require.NoError(tb, err)
+	return bz
+}
+
+type SignerInfoTxTestSuite struct {
+	suite.Suite
+}
+
+func TestSignerInfoTxTestSuite(t *testing.T) {
+	suite.Run(t, new(SignerInfoTxTestSuite))
+}
+
+// A block can carry any decodable tx, so staging its senders must not panic.
+func (s *SignerInfoTxTestSuite) TestFinalizeBlockDoesNotPanic() {
+	testCases := []struct {
+		name     string
+		malleate func(raw *txtypes.TxRaw)
+		expErr   *errorsmod.Error
+		// expStaleEvicted: the block tx used the pooled tx's nonce, so recheck of its staged sender evicts it.
+		expStaleEvicted bool
+	}{
+		{
+			name:     "validly signed without a public key",
+			malleate: func(*txtypes.TxRaw) {},
+			// Ante commits the fee and nonce, then the pool's SDK adapter panics in Remove;
+			// changing that adapter changes consensus results.
+			expErr:          sdkerrors.ErrPanic,
+			expStaleEvicted: true,
+		},
+		{
+			name:     "forged signature without a public key",
+			malleate: func(raw *txtypes.TxRaw) { raw.Signatures[0] = []byte("forged") },
+			expErr:   sdkerrors.ErrUnauthorized,
+		},
+		{
+			name: "malformed public key",
+			malleate: func(raw *txtypes.TxRaw) {
+				withSignerPubKey(s.T(), raw, &secp256k1.PubKey{Key: []byte{1}})
+			},
+			expErr: sdkerrors.ErrPanic,
+		},
+	}
+	executors := []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
+
+	for _, executor := range executors {
+		for _, tc := range testCases {
+			s.Run(executor+"/"+tc.name, func() {
+				f := setupAdmissionAppWithOpts(s.T(), 1, minimalOptionsMap{server.FlagBlockExecutor: executor})
+				acc := &f.accounts[0]
+				raw := f.signBankSendWithoutPubKey(s.T(), acc)
+				tc.malleate(raw)
+				acc.Nonce = 0
+				insertResp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: f.signTransfer(s.T(), acc, nil)})
+				s.Require().NoError(err)
+				s.Require().Equal(abci.CodeTypeOK, insertResp.Code)
+				req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{encodeRaw(s.T(), raw)}}
+
+				var resp *abci.ResponseFinalizeBlock
+				s.Require().NotPanics(func() { resp, err = f.app.FinalizeBlock(req) })
+				s.Require().NoError(err)
+				s.Require().Len(resp.TxResults, 1)
+				s.Require().Equal(tc.expErr.ABCICode(), resp.TxResults[0].Code)
+				s.Require().Equal(tc.expErr.Codespace(), resp.TxResults[0].Codespace)
+				_, err = f.app.Commit()
+				s.Require().NoError(err)
+				f.app.MempoolManager().WaitForRecheck(context.Background())
+				s.Require().Equal(tc.expStaleEvicted, f.app.Mempool().CountTx() == 0)
+			})
+		}
+	}
+}
+
+func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
+	f := setupAdmissionApp(s.T(), 1)
+	acc := &f.accounts[0]
+	from := sdk.AccAddress(acc.Address.Bytes())
+
+	testCases := []struct {
+		name     string
+		malleate func(raw *txtypes.TxRaw)
+		expErr   bool
+	}{
+		{
+			name:     "public key present",
+			malleate: func(raw *txtypes.TxRaw) { withSignerPubKey(s.T(), raw, acc.Priv.PubKey()) },
+		},
+		{
+			name:     "no public key",
+			malleate: func(*txtypes.TxRaw) {},
+		},
+		{
+			name: "malformed public key",
+			malleate: func(raw *txtypes.TxRaw) {
+				withSignerPubKey(s.T(), raw, &secp256k1.PubKey{Key: []byte{1}})
+			},
+		},
+		{
+			name: "more signer infos than msg signers",
+			malleate: func(raw *txtypes.TxRaw) {
+				var authInfo txtypes.AuthInfo
+				s.Require().NoError(authInfo.Unmarshal(raw.AuthInfoBytes))
+				authInfo.SignerInfos = append(authInfo.SignerInfos, authInfo.SignerInfos[0])
+				var err error
+				raw.AuthInfoBytes, err = authInfo.Marshal()
+				s.Require().NoError(err)
+				raw.Signatures = append(raw.Signatures, raw.Signatures[0])
+			},
+			expErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			acc.Nonce = 0
+			raw := f.signBankSendWithoutPubKey(s.T(), acc)
+			tc.malleate(raw)
+			tx, err := f.app.TxConfig().TxDecoder()(encodeRaw(s.T(), raw))
+			s.Require().NoError(err)
+
+			var signers []sdkmempool.SignerData
+			s.Require().NotPanics(func() { signers, err = mempool.NewMsgSignerExtractionAdapter().GetSigners(tx) })
+			if tc.expErr {
+				s.Require().Error(err)
+				return
+			}
+			s.Require().NoError(err)
+			s.Require().Equal([]sdkmempool.SignerData{sdkmempool.NewSignerData(from, 0)}, signers)
+		})
+	}
 }
 
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {

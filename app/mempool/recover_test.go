@@ -35,7 +35,10 @@ func TestRecoverTestSuite(t *testing.T) {
 	suite.Run(t, new(RecoverTestSuite))
 }
 
-const encodeSite = "encode"
+const (
+	encodeSite     = "encode"
+	getSignersSite = "GetSigners"
+)
 
 func panicking(where string) { panic("boom in " + where) }
 
@@ -332,7 +335,7 @@ type poisonSigner struct {
 
 func (p poisonSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	if tx == p.poison {
-		panicking("GetSigners")
+		panicking(getSignersSite)
 	}
 	return p.fakeSigner.GetSigners(tx)
 }
@@ -365,7 +368,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			name:       "tx whose signer extraction panics is evicted",
 			malleate:   func(f *recheckFixture, poison *poisonTx) { f.a.signer = poisonSigner{f.signer, poison} },
 			path:       panicPathRecheckTx,
-			where:      "GetSigners",
+			where:      getSignersSite,
 			expEvicted: true,
 		},
 		{
@@ -426,6 +429,73 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 
 			f.a.TriggerRecheck()
 			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "the worker must keep serving rechecks")
+		})
+	}
+}
+
+// Proposal txs are unvalidated and staging runs outside any recover, so staging must not panic.
+func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
+	good, poison := &ptrTx{id: 1}, &ptrTx{id: 2}
+	alice, bob := sdk.AccAddress("alice").String(), sdk.AccAddress("bob").String()
+
+	testCases := []struct {
+		name     string
+		malleate func(m *Manager)
+		where    string
+		stage    func(m *Manager, txs [][]byte)
+	}{
+		{
+			name:     "FinalizeBlock, signer extraction panics",
+			malleate: func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} },
+			where:    getSignersSite,
+			stage:    func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) },
+		},
+		{
+			name: "FinalizeBlock, decoder panics",
+			malleate: func(m *Manager) {
+				decode := m.decoder
+				m.decoder = func(bz []byte) (sdk.Tx, error) {
+					if string(bz) == "poison" {
+						panicking("decode")
+					}
+					return decode(bz)
+				}
+			},
+			where: "decode",
+			stage: func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) },
+		},
+		{
+			name:     "PrepareProposal gate skip, signer extraction panics",
+			malleate: func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} },
+			where:    getSignersSite,
+			stage:    func(m *Manager, txs [][]byte) { m.StageSkippedSenders(txs) },
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			decoder := func(bz []byte) (sdk.Tx, error) {
+				if string(bz) == "poison" {
+					return poison, nil
+				}
+				return good, nil
+			}
+			m := newManager(&stubRunner{}, nil, noopEncoder, decoder)
+			m.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+				good:   {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+				poison: {sdkmempool.NewSignerData(sdk.AccAddress("bob"), 0)},
+			}}
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			m.logger = logger
+			tc.malleate(m)
+
+			s.Require().NotPanics(func() { tc.stage(m, [][]byte{[]byte("poison"), []byte("good")}) })
+			s.Require().Contains(m.recheckSenders, alice, "txs after the poison must still be staged")
+			s.Require().NotContains(m.recheckSenders, bob)
+			s.Require().Len(logger.errors, 1)
+			s.Require().Equal(panicPathStageTx, keyval(logger.errors[0], "path"))
+			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
+			s.Require().Equal(txHash([]byte("poison")), keyval(logger.errors[0], "tx"))
 		})
 	}
 }

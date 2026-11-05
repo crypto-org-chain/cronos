@@ -23,6 +23,7 @@ const (
 	panicPathReapTx    = "reap_tx"    // one tx skipped
 	panicPathRecheck   = "recheck"    // cycle aborted, its senders retried next cycle
 	panicPathRecheckTx = "recheck_tx" // one tx evicted
+	panicPathStageTx   = "stage_tx"   // one proposal tx's senders not staged for recheck
 )
 
 // Only stacks are rate-limited; every panic still logs a line.
