@@ -35,6 +35,7 @@ type recheckRunner struct {
 	pool              sdkmempool.Mempool
 	failBytes         map[string]bool
 	failNoRemoveBytes map[string]bool
+	panicBytes        map[string]bool
 	modes             []sdk.ExecMode
 	seen              map[string]bool
 	ran               []string // tx bytes in RunTx order
@@ -46,6 +47,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
 	r.ran = append(r.ran, string(txBytes))
+	if r.panicBytes[string(txBytes)] {
+		panicking("RunTx")
+	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")
@@ -338,6 +342,7 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 		replaced     bool // otherwise the stale tx is removed, as FinalizeBlock does for an included tx
 		staleTimeout uint64
 		failingRepl  bool
+		panicRepl    bool
 		evict        func(f *recheckFixture, stale, sibling sdk.Tx)
 		expRan       []string
 	}{
@@ -370,6 +375,23 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			name:        "stale tx after its failing replacement is skipped",
 			replaced:    true,
 			failingRepl: true,
+			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
+				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
+				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
+			},
+			expRan: []string{replBz, siblingBz},
+		},
+		{
+			name:      "panicking replacement is evicted",
+			replaced:  true,
+			panicRepl: true,
+			evict:     recheck,
+			expRan:    []string{replBz, siblingBz},
+		},
+		{
+			name:      "stale tx after its panicking replacement is skipped",
+			replaced:  true,
+			panicRepl: true,
 			evict: func(f *recheckFixture, stale, sibling sdk.Tx) {
 				cur, _ := f.pool.GetTx(sdk.AccAddress("alice").String(), 0)
 				f.a.runRecheck([]sdk.Tx{cur, stale, sibling})
@@ -443,6 +465,9 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 			if tc.failingRepl {
 				f.runner.failNoRemoveBytes = map[string]bool{replBz: true}
 			}
+			if tc.panicRepl {
+				f.runner.panicBytes = map[string]bool{replBz: true}
+			}
 			var stale, replacement sdk.Tx
 			if tc.staleTimeout > 0 {
 				stale = f.addTimeout(1, "alice", 0, staleBz, tc.staleTimeout)
@@ -470,11 +495,16 @@ func TestStaleTxKeepsReplacement(t *testing.T) {
 				t.Fatal("sibling must stay pooled")
 			}
 			if replacement != nil {
+				evictedRepl := tc.failingRepl || tc.panicRepl
 				_, cached := f.enc.Get(replacement)
-				if pooled := poolHas(f.pool, replacement); pooled == tc.failingRepl || cached == tc.failingRepl {
-					t.Fatalf("replacement pooled=%t cached=%t, want both %t", pooled, cached, !tc.failingRepl)
+				if pooled := poolHas(f.pool, replacement); pooled == evictedRepl || cached == evictedRepl {
+					t.Fatalf("replacement pooled=%t cached=%t, want both %t", pooled, cached, !evictedRepl)
 				}
 			}
+			if !f.a.gate.mu.TryLock() {
+				t.Fatal("admission gate must be released")
+			}
+			f.a.gate.mu.Unlock()
 			if !slices.Equal(tc.expRan, f.runner.ran) {
 				t.Fatalf("rechecked %v, want %v", f.runner.ran, tc.expRan)
 			}

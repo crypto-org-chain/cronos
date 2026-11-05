@@ -122,15 +122,7 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })
 
-	testAccounts := make([]testAccount, accounts)
-	for i := range testAccounts {
-		priv, err := ethsecp256k1.GenerateKey()
-		require.NoError(tb, err)
-		testAccounts[i] = testAccount{
-			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
-			Priv:    priv,
-		}
-	}
+	testAccounts := newTestAccounts(tb, accounts)
 
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
@@ -175,6 +167,20 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 		consAddress: consAddress,
 		ethSigner:   ethtypes.LatestSignerForChainID(cronos.TestEthChainID),
 	}
+}
+
+func newTestAccounts(tb testing.TB, n int) []testAccount {
+	tb.Helper()
+	accounts := make([]testAccount, n)
+	for i := range accounts {
+		priv, err := ethsecp256k1.GenerateKey()
+		require.NoError(tb, err)
+		accounts[i] = testAccount{
+			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
+			Priv:    priv,
+		}
+	}
+	return accounts
 }
 
 // TestPreVerifyRejectsTamperedSig: tampered From rejected lock-free before RunTx.
@@ -235,6 +241,26 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 				}
 			}
 		}(g)
+	}
+	wg.Wait()
+}
+
+// The decode cache shares one wrapper for identical bytes, and encoding a wrapper with empty
+// body/auth-info bytes writes them, so concurrent admissions race without encodeMu. Run with -race.
+func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
+	const goroutines = 16
+	f := setupAdmissionApp(t, 1)
+	bz, err := f.app.TxConfig().TxEncoder()(f.app.TxConfig().NewTxBuilder().GetTx())
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() {
+			resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+			if err != nil || resp.Code == abci.CodeTypeOK {
+				t.Errorf("a tx with no msgs must be rejected: err=%v code=%d", err, resp.Code)
+			}
+		})
 	}
 	wg.Wait()
 }
@@ -452,42 +478,65 @@ func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	require.Nil(t, flood.MempoolClient())
 }
 
-// BenchmarkAdmission measures admitted tx/s through InsertTx at the current
-// single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
-// RunTx is serialized by the admission mutex.
+// BenchmarkAdmission measures InsertTx throughput at the current single-mutex
+// ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free; RunTx is
+// serialized by the admission mutex.
 func BenchmarkAdmission(b *testing.B) {
 	const goroutines = 16
-	f := setupAdmissionApp(b, goroutines)
 
-	// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
-	txs := make([][][]byte, goroutines)
-	for g := range goroutines {
-		txs[g] = make([][]byte, b.N)
-		for i := range b.N {
-			txs[g][i] = f.signTransfer(b, &f.accounts[g], nil)
-		}
+	testCases := []struct {
+		name     string
+		unfunded bool // senders aren't in genesis: txs pass pre-verify and decode, then ante rejects them
+	}{
+		{name: "valid"},
+		{name: "rejected", unfunded: true},
 	}
 
-	var admitted atomic.Int64
-	b.ResetTimer()
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-	for g := range goroutines {
-		go func(g int) {
-			defer wg.Done()
-			for i := range b.N {
-				resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
-				if err == nil && resp.Code == abci.CodeTypeOK {
-					admitted.Add(1)
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			// Room for every tx, so a long -benchtime can't fill the pool and fail the admitted count.
+			total := goroutines * b.N
+			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{"mempool.max-txs": max(total, 100000)})
+			senders := f.accounts
+			if tc.unfunded {
+				senders = newTestAccounts(b, goroutines)
+			}
+
+			// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
+			txs := make([][][]byte, goroutines)
+			for g := range goroutines {
+				txs[g] = make([][]byte, b.N)
+				for i := range b.N {
+					txs[g][i] = f.signTransfer(b, &senders[g], nil)
 				}
 			}
-		}(g)
-	}
-	wg.Wait()
-	b.StopTimer()
 
-	secs := b.Elapsed().Seconds()
-	if secs > 0 {
-		b.ReportMetric(float64(admitted.Load())/secs, "admit-tx/s")
+			var admitted atomic.Int64
+			b.ResetTimer()
+			var wg sync.WaitGroup
+			wg.Add(goroutines)
+			for g := range goroutines {
+				go func(g int) {
+					defer wg.Done()
+					for i := range b.N {
+						resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
+						if err == nil && resp.Code == abci.CodeTypeOK {
+							admitted.Add(1)
+						}
+					}
+				}(g)
+			}
+			wg.Wait()
+			b.StopTimer()
+
+			wantAdmitted := int64(total)
+			if tc.unfunded {
+				wantAdmitted = 0
+			}
+			require.Equal(b, wantAdmitted, admitted.Load())
+			if secs := b.Elapsed().Seconds(); secs > 0 {
+				b.ReportMetric(float64(total)/secs, "tx/s")
+			}
+		})
 	}
 }
