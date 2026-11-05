@@ -79,10 +79,10 @@ func evictClearsAnteCacheEntry(t *testing.T) {
 	}
 
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{tx}}
 	a.SetAnteCache(ac)
 
-	a.evict(tx)
+	a.sched.evict(tx)
 
 	if ac.Exists(addr, nonce) {
 		t.Fatal("evict must clear the tx's ante-cache entry, not leak it")
@@ -93,25 +93,25 @@ func evictNilAnteCacheNoPanic(t *testing.T) {
 	t.Helper()
 	tx := newEthTx(common.Address{0x2}, 1)
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{tx}}
 
-	a.evict(tx) // anteCache nil: must be a no-op, not a panic
+	a.sched.evict(tx) // anteCache nil: must be a no-op, not a panic
 }
 
 func evictNonEthMsgSkipsAnteCache(t *testing.T) {
 	t.Helper()
 	tx := &ptrTx{id: 1}
 	a := newManager(&stubRunner{}, nil, noopEncoder, nil)
-	a.mpool = &fakePool{txs: []sdk.Tx{tx}}
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{tx}}
 	a.SetAnteCache(antecache.NewAnteCache(0))
 
-	a.evict(tx)
+	a.sched.evict(tx)
 }
 
 func evictTTLEvictionClearsAnteCache(t *testing.T) {
 	t.Helper()
 	f := newRecheckFixture()
-	f.a.ttlNumBlocks = 5
+	f.a.sched.ttlNumBlocks = 5
 	ac := antecache.NewAnteCache(0)
 	f.a.SetAnteCache(ac)
 
@@ -125,13 +125,13 @@ func evictTTLEvictionClearsAnteCache(t *testing.T) {
 	}
 	f.enc.Set(tx, []byte("carol-7"))
 
-	f.a.lastCommittedHeight = 10 // first sighting: arrival=10
+	f.a.sched.lastCommittedHeight = 10 // first sighting: arrival=10
 	f.a.RecheckTxs()
 	if !ac.Exists(addr, nonce) {
 		t.Fatal("tx must survive (and keep its ante-cache entry) before TTL expiry")
 	}
 
-	f.a.lastCommittedHeight = 15 // 15-10 == ttl → evicted
+	f.a.sched.lastCommittedHeight = 15 // 15-10 == ttl → evicted
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, tx) {
@@ -158,7 +158,7 @@ func evictRecheckFailureClearsAnteCache(t *testing.T) {
 	}
 	f.enc.Set(tx, []byte("dave-2"))
 
-	f.a.recheckSenders = map[string]struct{}{sdk.AccAddress("dave").String(): {}}
+	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("dave").String(): {}}
 	f.a.RecheckTxs()
 
 	if poolHas(f.pool, tx) {
@@ -183,8 +183,8 @@ func evictMultipleMsgsClearsAll(t *testing.T) {
 	a.SetAnteCache(ac)
 
 	multi := &multiMsgTx{msgs: []sdk.Msg{msg1.msg, msg2.msg}}
-	a.mpool = &fakePool{txs: []sdk.Tx{multi}}
-	a.evict(multi)
+	a.sched.mpool = &fakePool{txs: []sdk.Tx{multi}}
+	a.sched.evict(multi)
 
 	if ac.Exists(addr1, nonce1) || ac.Exists(addr2, nonce2) {
 		t.Fatal("evict must clear every eth message's ante-cache entry")
