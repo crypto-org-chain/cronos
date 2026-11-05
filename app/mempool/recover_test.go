@@ -376,6 +376,9 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			f.a.gate.mu.Unlock()
 			s.Require().True(f.a.recheckMu.TryLock(), "recheckMu must be released after a panic")
 			f.a.recheckMu.Unlock()
+
+			f.a.TriggerRecheck()
+			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "the worker must keep serving rechecks")
 		})
 	}
 }

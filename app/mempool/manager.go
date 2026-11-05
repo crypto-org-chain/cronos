@@ -427,7 +427,7 @@ func (a *Manager) RecheckTxs() {
 	if a.mpool == nil || a.recheckDisabled {
 		return
 	}
-	// Runs on the worker goroutine, where a panic would kill the node and skip close(ready).
+	// A panic here would crash the node and, on the worker, skip close(ready).
 	defer func() {
 		if r := recover(); r != nil {
 			a.pendingTxCache.invalidate() // evictions before the panic must reach pending queries
