@@ -99,7 +99,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
 // NOT mutate them. Safe today because only EVM txs are cached (warmForSharing),
-// their lazily filled fields are filled before set, and the EVM ante's VerifySender
+// their lazily filled fields are filled before set, and the EVM ante's VerifyEthSig
 // only compares against MsgEthereumTx.From (set at proto-decode), never writes it.
 // A future EVM ante that mutates a decoded tx would break sharing.
 type DecodeCache struct {
@@ -146,7 +146,7 @@ func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
 }
 
 // NewCachingDecoder wraps base with the shared cache, so PrepareProposal and
-// BaseApp.runTx reuse each other's decodes.
+// BaseApp.runTx reuse each other's decodes of EVM txs (see warmForSharing).
 func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {
