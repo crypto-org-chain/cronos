@@ -11,6 +11,8 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -92,46 +94,84 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	}
 }
 
-// lazyTx counts GetMsgsV2 calls, standing in for the SDK wrapper's lazy signer init.
+// lazyTx stands in for the SDK wrapper, whose first GetMsgsV2 call fills shared fields.
 type lazyTx struct {
-	msgs  []protov2.Message
-	err   error
-	warms atomic.Int64
+	msgs    []protov2.Message
+	sdkMsgs []sdk.Msg
+	err     error
+	panics  bool
+	onWarm  func()
 }
 
-func (l *lazyTx) GetMsgs() []sdk.Msg { return nil }
+func (l *lazyTx) GetMsgs() []sdk.Msg { return l.sdkMsgs }
 func (l *lazyTx) GetMsgsV2() ([]protov2.Message, error) {
-	l.warms.Add(1)
+	l.onWarm()
+	if l.panics {
+		panic("nil AuthInfo.Fee")
+	}
 	return l.msgs, l.err
 }
 
+// signerTx adds the wrapper's GetSigners, which re-fills while signers is nil.
+type signerTx struct {
+	*lazyTx
+	signers [][]byte
+}
+
+func (s *signerTx) GetSigners() ([][]byte, error) {
+	s.onWarm()
+	return s.signers, nil
+}
+
 func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
+	oneMsg := make([]protov2.Message, 1)
 	testCases := []struct {
 		name       string
-		tx         *lazyTx
+		lazy       *lazyTx
+		withSigner [][]byte // non-nil wraps lazy in signerTx
 		wantShared bool
 	}{
-		{"warmed tx is shared", &lazyTx{msgs: make([]protov2.Message, 1)}, true},
-		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, false},
-		{"no msgs stays private", &lazyTx{}, false},
+		{"warmed tx is shared", &lazyTx{msgs: oneMsg}, nil, true},
+		{"tx with signers is shared", &lazyTx{msgs: oneMsg}, [][]byte{{1}}, true},
+		{"raw-format eth msg is shared", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg}}, nil, true},
+		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, nil, false},
+		{"no msgs stays private", &lazyTx{}, nil, false},
+		{"no signers stays private", &lazyTx{msgs: oneMsg}, [][]byte{}, false},
+		{"warm-up panic stays private", &lazyTx{msgs: oneMsg, panics: true}, nil, false},
+		{"legacy-format eth msg stays private", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{&evmtypes.MsgEthereumTx{}}}, nil, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var calls atomic.Int64
-			base := func([]byte) (sdk.Tx, error) {
-				calls.Add(1)
-				return tc.tx, nil
+			var tx sdk.Tx = tc.lazy
+			if tc.withSigner != nil {
+				tx = &signerTx{lazyTx: tc.lazy, signers: tc.withSigner}
 			}
-			dec := NewCachingDecoder(base, NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes))
+			raw := makeRaw(1)
+			c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+			warmed := false
+			tc.lazy.onWarm = func() {
+				warmed = true
+				if _, hit := c.get(raw); hit {
+					t.Error("tx visible in the cache before warm-up")
+				}
+			}
+			var calls atomic.Int64
+			dec := NewCachingDecoder(func([]byte) (sdk.Tx, error) {
+				calls.Add(1)
+				return tx, nil
+			}, c)
 
 			for range 2 {
-				tx, err := dec(makeRaw(1))
+				got, err := dec(raw)
 				if err != nil {
 					t.Fatalf("unexpected err: %v", err)
 				}
-				if tx != tc.tx {
+				if got != tx {
 					t.Fatal("decoder must return the base tx")
 				}
+			}
+			if !warmed {
+				t.Fatal("decode must warm the tx")
 			}
 			wantCalls := int64(2)
 			if tc.wantShared {
@@ -139,9 +179,6 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 			}
 			if got := calls.Load(); got != wantCalls {
 				t.Fatalf("base calls = %d, want %d", got, wantCalls)
-			}
-			if got := tc.tx.warms.Load(); got != wantCalls {
-				t.Fatalf("GetMsgsV2 calls = %d, want %d (once per base decode)", got, wantCalls)
 			}
 		})
 	}

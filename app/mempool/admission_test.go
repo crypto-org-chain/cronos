@@ -38,6 +38,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -110,10 +111,10 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 	tb.Helper()
 
 	appOpts := minimalOptionsMap{
-		flags.FlagHome:                 tb.TempDir(),
-		"mempool.type":                 "app",
-		"mempool.max-txs":              100000,
-		"cronos.mempool-tx-cache-size": 200000,
+		flags.FlagHome:         tb.TempDir(),
+		"mempool.type":         "app",
+		"mempool.max-txs":      100000,
+		cronos.FlagTxCacheSize: 200000,
 	}
 	maps.Copy(appOpts, overrides)
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
@@ -298,20 +299,21 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
 }
 
-type SharedTxRaceTestSuite struct {
+type SharedDecodedTxTestSuite struct {
 	suite.Suite
 }
 
-func TestSharedTxRaceTestSuite(t *testing.T) {
-	suite.Run(t, new(SharedTxRaceTestSuite))
+func TestSharedDecodedTxTestSuite(t *testing.T) {
+	suite.Run(t, new(SharedDecodedTxTestSuite))
+}
+
+var blockSTMOpts = minimalOptionsMap{
+	server.FlagBlockExecutor:   config.BlockExecutorBlockSTM,
+	server.FlagBlockSTMWorkers: 4,
 }
 
 // TestFirstUseOfSharedWrapper races first-time users of one decode-cached wrapper; run with -race.
-func (s *SharedTxRaceTestSuite) TestFirstUseOfSharedWrapper() {
-	blockSTM := minimalOptionsMap{
-		server.FlagBlockExecutor:   config.BlockExecutorBlockSTM,
-		server.FlagBlockSTMWorkers: 4,
-	}
+func (s *SharedDecodedTxTestSuite) TestFirstUseOfSharedWrapper() {
 	testCases := []struct {
 		name      string
 		overrides minimalOptionsMap
@@ -340,7 +342,7 @@ func (s *SharedTxRaceTestSuite) TestFirstUseOfSharedWrapper() {
 		},
 		{
 			name:      "duplicate tx bytes in one block-stm block",
-			overrides: blockSTM,
+			overrides: blockSTMOpts,
 			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
 				t.Helper()
 				return []func(){func() { finalizeTxs(t, f, bz, bz) }}
@@ -354,8 +356,11 @@ func (s *SharedTxRaceTestSuite) TestFirstUseOfSharedWrapper() {
 			f := setupAdmissionAppWithOpts(t, 1, tc.overrides)
 			bz := f.signTransfer(t, &f.accounts[0], nil)
 			// Seed the decode cache so every racer gets the same wrapper.
-			_, err := f.app.TxDecode(bz)
+			seeded, err := f.app.TxDecode(bz)
 			require.NoError(t, err)
+			again, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			require.Same(t, seeded, again, "an uncached tx would make the race vacuous")
 
 			fns := tc.race(t, f, bz)
 			start := make(chan struct{})
@@ -372,6 +377,59 @@ func (s *SharedTxRaceTestSuite) TestFirstUseOfSharedWrapper() {
 			wg.Wait()
 		})
 	}
+}
+
+// Decode-time warm-up must not turn a tx error into a FinalizeBlock panic (chain halt).
+func (s *SharedDecodedTxTestSuite) TestMalformedTxMatchesCacheOff() {
+	cacheOff := minimalOptionsMap{cronos.FlagTxCacheSize: -1}
+	testCases := []struct {
+		name     string
+		executor minimalOptionsMap
+	}{
+		{"sequential executor", nil},
+		{"block-stm executor", blockSTMOpts},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			var results []*abci.ExecTxResult
+			for _, cache := range []minimalOptionsMap{nil, cacheOff} {
+				opts := maps.Clone(tc.executor)
+				if opts == nil {
+					opts = minimalOptionsMap{}
+				}
+				maps.Copy(opts, cache)
+				f := setupAdmissionAppWithOpts(t, 1, opts)
+				bz := nilFeeTx(t, f)
+				var resp *abci.ResponseFinalizeBlock
+				require.NotPanics(t, func() {
+					var err error
+					resp, err = f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz}})
+					require.NoError(t, err)
+				})
+				results = append(results, resp.TxResults[0])
+			}
+			require.NotEqual(t, abci.CodeTypeOK, results[0].Code)
+			require.Equal(t, results[1].Code, results[0].Code, results[0].Log)
+			require.Equal(t, results[1].GasUsed, results[0].GasUsed)
+		})
+	}
+}
+
+// nilFeeTx is a decodable MsgSend with empty auth_info, so AuthInfo.Fee is nil.
+func nilFeeTx(t *testing.T, f *admissionFixture) []byte {
+	t.Helper()
+	from := sdk.AccAddress(f.accounts[0].Address.Bytes())
+	b := f.app.TxConfig().NewTxBuilder()
+	require.NoError(t, b.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
+	bz, err := f.app.TxConfig().TxEncoder()(b.GetTx())
+	require.NoError(t, err)
+	var raw txtypes.TxRaw
+	require.NoError(t, raw.Unmarshal(bz))
+	raw.AuthInfoBytes = nil
+	bz, err = raw.Marshal()
+	require.NoError(t, err)
+	return bz
 }
 
 // A non-empty blocklist makes ProcessProposal decode and check signers instead of fast-accepting.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -96,9 +97,10 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Safe today because decode is the only writer: the EVM ante's
-// VerifySender only compares against MsgEthereumTx.From (set at proto-decode),
-// never writes it. A future ante that mutates a decoded msg would break sharing.
+// NOT mutate them. Safe today because decode is the only writer: lazily filled
+// fields are filled before set (warmForSharing), and the EVM ante's VerifySender
+// only compares against MsgEthereumTx.From (set at proto-decode), never writes it.
+// A future ante that mutates a decoded msg would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
@@ -153,10 +155,36 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		// Fill the wrapper's lazy signers/msgsV2 before sharing; txs where that can't stick stay private.
-		if msgs, err := tx.GetMsgsV2(); err == nil && len(msgs) > 0 {
+		if warmForSharing(tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil
 	}
+}
+
+// warmForSharing fills the lazily written fields readers would otherwise race to
+// fill, and reports whether they stuck; false leaves tx private like a cache-off decode.
+func warmForSharing(tx sdk.Tx) (ok bool) {
+	// A malformed tx (e.g. nil AuthInfo.Fee) panics here; it must surface in runTx's recover, not in decode.
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	// The SDK wrapper re-fills signers/msgsV2 on every call while either is nil.
+	if sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) }); isSigTx {
+		if signers, err := sigTx.GetSigners(); err != nil || len(signers) == 0 {
+			return false
+		}
+	}
+	if msgs, err := tx.GetMsgsV2(); err != nil || len(msgs) == 0 {
+		return false
+	}
+	for _, msg := range tx.GetMsgs() {
+		// Legacy Data-format msgs get Raw written on first AsTransaction.
+		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); isEth && ethMsg.Raw.Transaction == nil {
+			return false
+		}
+	}
+	return true
 }
