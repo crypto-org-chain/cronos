@@ -33,8 +33,11 @@ identity and would drop out of the carry.
 
 ### Chunks
 
-A group runs in chunks of up to 64 under one gate hold each, which keeps an admission's
-wait near main's per-tx gate (~1.4 ms at ~22 µs per `RunTx`). A pending Commit goes
+A group runs in chunks of up to 64 under one gate hold each (~1.4 ms at ~22 µs per
+`RunTx`). Before each chunk, recheck lets admissions already queued go first, for up to
+1 ms. Without that, `sync.Mutex` lets the recheck goroutine re-take the gate ahead of
+them until they have waited 1 ms, so every admission would wait out that 1 ms plus a
+chunk. A pending Commit goes
 ahead of queued holders, and a chunk ends early once a Commit is waiting, so Commit
 waits out at most one `RunTx`.
 

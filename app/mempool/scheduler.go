@@ -489,10 +489,13 @@ func batchEthSenders(tx sdk.Tx) []string {
 	return senders
 }
 
-// recheckChunkSize bounds one gate hold for admissions; Commit is covered by the
-// yield in runChunkLocked.
-// At ~22µs per RunTx, 64 keeps an admission's wait near main's per-tx gate.
+// recheckChunkSize bounds one gate hold (~1.4ms at ~22µs per RunTx) for
+// admissions; Commit is covered by the yield in runChunkLocked.
 const recheckChunkSize = 64
+
+// recheckYieldBudget caps how long a chunk lets queued admissions go first, so
+// steady admission load can't starve recheck.
+const recheckYieldBudget = time.Millisecond
 
 // runGroup re-validates one signer's candidates in bounded chunks, so a deep
 // queue can't hold the gate indefinitely. A same-sender admission may land
@@ -522,7 +525,7 @@ func (s *recheckScheduler) runGroup(g recheckGroup, commitSeq uint64) (evicted, 
 // waits out one RunTx, not a whole chunk. ok is false, with nothing run, once a
 // Commit has run since commitSeq.
 func (s *recheckScheduler) runChunkLocked(g recheckGroup, start, end int, commitSeq uint64) (evicted, cascaded, next int, ok bool) {
-	s.exec.gate.lock()
+	s.exec.gate.lockAfterWaiters(recheckYieldBudget)
 	defer s.exec.gate.unlock()
 	if s.exec.gate.commits != commitSeq {
 		return 0, 0, start, false

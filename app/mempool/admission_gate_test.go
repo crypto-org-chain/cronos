@@ -376,6 +376,25 @@ func (r *exclusiveRunner) RunTx(sdk.ExecMode, []byte, sdk.Tx, int, storetypes.Mu
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
+func (s *AdmissionGateTestSuite) TestLockAfterWaitersLetsQueuedAdmissionGoFirst() {
+	var g admissionGate
+	g.lock() // a recheck chunk in flight
+	order := make(chan string, 2)
+	go func() {
+		g.lock()
+		order <- "admission"
+		g.unlock()
+	}()
+	s.Require().Eventually(func() bool { return g.waiting.Load() == 1 }, gateWait, time.Millisecond)
+
+	g.unlock() // chunk boundary: without the yield, sync.Mutex lets the next chunk barge ahead
+	g.lockAfterWaiters(gateWait)
+	order <- "recheck"
+	g.unlock()
+
+	s.Equal("admission", <-order)
+}
+
 func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
 	const (
 		admitters = 64
