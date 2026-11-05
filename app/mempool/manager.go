@@ -51,11 +51,11 @@ type Manager struct {
 	runner    txRunner
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
-	trace     bool
-	logger    log.Logger
-	// encodeMu serializes the pre-RunTx encode: the SDK encoder lazily writes a shared decoded
-	// tx whose body or auth-info bytes are empty. Separate from gate so encoding stays off it.
+	// encodeMu serializes the pre-RunTx encode, which writes empty body/auth-info bytes into a
+	// shared decoded tx. Pooled txs passed ante, so other encodes only read. Never held with gate.
 	encodeMu sync.Mutex
+	trace    bool
+	logger   log.Logger
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 

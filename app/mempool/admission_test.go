@@ -247,8 +247,9 @@ func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
-			require.NoError(t, err)
-			require.NotEqual(t, abci.CodeTypeOK, resp.Code, "a tx with no msgs must be rejected")
+			if err != nil || resp.Code == abci.CodeTypeOK {
+				t.Errorf("a tx with no msgs must be rejected: err=%v code=%d", err, resp.Code)
+			}
 		})
 	}
 	wg.Wait()
