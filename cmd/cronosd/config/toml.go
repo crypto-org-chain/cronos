@@ -38,6 +38,12 @@ mempool-tx-ttl-enabled = {{ .Cronos.MempoolTxTTLEnabled }}
 # Caches the PendingTxs() pool-scan result, invalidated on tx admission and
 # block completion. Default true. false always walks the pool.
 mempool-pending-tx-cache-enabled = {{ .Cronos.MempoolPendingTxCacheEnabled }}
+
+# Caps RPC txs (broadcast_tx_*, check_tx, JSON-RPC tx submits) admitted at once for
+# mempool.type=app. Excess are rejected with a retryable error instead of
+# queuing; broadcast_tx_async callers never see it. Peer gossip is not
+# counted. 0 = unlimited. Default 8192.
+mempool-rpc-max-inflight = {{ .Cronos.MempoolRPCMaxInflight }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration
