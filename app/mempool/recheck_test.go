@@ -34,6 +34,7 @@ type recheckRunner struct {
 	pool              sdkmempool.Mempool
 	failBytes         map[string]bool
 	failNoRemoveBytes map[string]bool
+	panicBytes        map[string]bool
 	modes             []sdk.ExecMode
 	seen              map[string]bool
 }
@@ -43,6 +44,9 @@ func (r *recheckRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, _ in
 	defer r.mu.Unlock()
 	r.modes = append(r.modes, mode)
 	r.seen[string(txBytes)] = true
+	if r.panicBytes[string(txBytes)] {
+		panicking("RunTx")
+	}
 	if r.failBytes[string(txBytes)] {
 		_ = r.pool.Remove(tx) // baseapp removes on ante failure during recheck
 		return sdk.GasInfo{}, nil, nil, errors.New("ante failed on recheck")

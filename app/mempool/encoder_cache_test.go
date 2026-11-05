@@ -85,6 +85,7 @@ func TestEncoderCache_LRUPromotesOnRead(t *testing.T) {
 
 func TestEncoderCache_NilReceiverMisses(t *testing.T) {
 	var nilCache *EncoderCache
+	nilCache.Set(&ptrTx{id: 1}, []byte{1})
 	if _, ok := nilCache.Get(&ptrTx{id: 1}); ok {
 		t.Fatal("nil *EncoderCache must miss, not hit")
 	}
