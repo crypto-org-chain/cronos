@@ -15,6 +15,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -123,28 +124,45 @@ func (s *signerTx) GetSigners() ([][]byte, error) {
 	return s.signers, nil
 }
 
+// extOptTx adds extension options, which pick ethermint's ante variant.
+type extOptTx struct {
+	*lazyTx
+	typeURL string
+}
+
+func (e *extOptTx) GetExtensionOptions() []*codectypes.Any {
+	return []*codectypes.Any{{TypeUrl: e.typeURL}}
+}
+func (e *extOptTx) GetNonCriticalExtensionOptions() []*codectypes.Any { return nil }
+
 func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 	oneMsg := make([]protov2.Message, 1)
 	testCases := []struct {
 		name       string
 		lazy       *lazyTx
 		withSigner [][]byte // non-nil wraps lazy in signerTx
+		extTypeURL string   // non-empty wraps lazy in extOptTx
 		wantShared bool
 	}{
-		{"warmed tx is shared", &lazyTx{msgs: oneMsg}, nil, true},
-		{"tx with signers is shared", &lazyTx{msgs: oneMsg}, [][]byte{{1}}, true},
-		{"raw-format eth msg is shared", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg}}, nil, true},
-		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, nil, false},
-		{"no msgs stays private", &lazyTx{}, nil, false},
-		{"no signers stays private", &lazyTx{msgs: oneMsg}, [][]byte{}, false},
-		{"warm-up panic stays private", &lazyTx{msgs: oneMsg, panics: true}, nil, false},
-		{"legacy-format eth msg stays private", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{&evmtypes.MsgEthereumTx{}}}, nil, false},
+		{"warmed tx is shared", &lazyTx{msgs: oneMsg}, nil, "", true},
+		{"tx with signers is shared", &lazyTx{msgs: oneMsg}, [][]byte{{1}}, "", true},
+		{"raw-format eth msg is shared", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg}}, nil, "", true},
+		{"dynamic-fee extension is shared", &lazyTx{msgs: oneMsg}, nil, "/ethermint.types.v1.ExtensionOptionDynamicFeeTx", true},
+		{"signer error stays private", &lazyTx{err: errors.New("bad signer")}, nil, "", false},
+		{"no msgs stays private", &lazyTx{}, nil, "", false},
+		{"no signers stays private", &lazyTx{msgs: oneMsg}, [][]byte{}, "", false},
+		{"warm-up panic stays private", &lazyTx{msgs: oneMsg, panics: true}, nil, "", false},
+		{"legacy-format eth msg stays private", &lazyTx{msgs: oneMsg, sdkMsgs: []sdk.Msg{&evmtypes.MsgEthereumTx{}}}, nil, "", false},
+		{"legacy EIP-712 tx stays private", &lazyTx{msgs: oneMsg}, nil, web3TxTypeURL, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var tx sdk.Tx = tc.lazy
-			if tc.withSigner != nil {
+			switch {
+			case tc.withSigner != nil:
 				tx = &signerTx{lazyTx: tc.lazy, signers: tc.withSigner}
+			case tc.extTypeURL != "":
+				tx = &extOptTx{lazyTx: tc.lazy, typeURL: tc.extTypeURL}
 			}
 			raw := makeRaw(1)
 			c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)

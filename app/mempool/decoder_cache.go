@@ -13,6 +13,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
 // xxhashSeed randomizes shard assignment so an attacker can't target one shard.
@@ -162,6 +163,9 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 	}
 }
 
+// web3TxTypeURL selects ethermint's deprecated legacy EIP-712 ante (dispatched on the first extension option).
+const web3TxTypeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx"
+
 // warmForSharing fills the lazily written fields readers would otherwise race to
 // fill, and reports whether they stuck; false leaves tx private like a cache-off decode.
 func warmForSharing(tx sdk.Tx) (ok bool) {
@@ -179,6 +183,12 @@ func warmForSharing(tx sdk.Tx) (ok bool) {
 	}
 	if msgs, err := tx.GetMsgsV2(); err != nil || len(msgs) == 0 {
 		return false
+	}
+	if extTx, hasExt := tx.(authante.HasExtensionOptionsTx); hasExt {
+		// The legacy EIP-712 ante rewrites each msg Any's amino-JSON cache on every run, so warming can't help.
+		if opts := extTx.GetExtensionOptions(); len(opts) > 0 && opts[0].GetTypeUrl() == web3TxTypeURL {
+			return false
+		}
 	}
 	for _, msg := range tx.GetMsgs() {
 		// Legacy Data-format msgs get Raw written on first AsTransaction.
