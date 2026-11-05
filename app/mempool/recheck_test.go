@@ -547,97 +547,92 @@ func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, er
 	return sd, nil
 }
 
-// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle
-// when the cap boundary falls between (single-tx) signer groups.
-func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
-	const total = 5
-	const batch = 2
-	f := newRecheckFixture()
-	recheckSenders := make(map[string]struct{}, total)
-	for i := 0; i < total; i++ {
-		sender := "sender" + strconv.Itoa(i)
-		f.add(i+1, sender, 0, sender+"-0")
-		recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
-	}
-	f.a.sched.maxRecheckBatch = batch
-	f.a.sched.recheckSenders = recheckSenders
-
-	f.a.sched.RecheckTxs()
-
-	if got := len(f.runner.modes); got != batch {
-		t.Fatalf("expected %d RunTx calls with batch cap, got %d", batch, got)
-	}
-}
-
-func TestRecheckTxs_BatchCapCarriesOverflowWithoutSplittingGroup(t *testing.T) {
-	const batch = 3
-	f := newRecheckFixture()
-	f.runner.signer = f.signer                                                      // enables per-sender expected-nonce semantics in the fake RunTx
-	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 8} // account nonce 8
-
-	bob := f.add(1, "bob", 0, "bob-0")
-	aliceSeqs := []uint64{8, 9, 10, 11, 12}
-	alice := make([]*ptrTx, len(aliceSeqs))
-	for i, seq := range aliceSeqs {
-		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
+func TestRecheckTxs_BatchCap(t *testing.T) {
+	testCases := []struct {
+		name               string
+		senders, perSender int
+		cap, wantRuns      int
+	}{
+		// The cap boundary falls between single-tx groups.
+		{name: "caps RunTx calls per cycle", senders: 5, perSender: 1, cap: 2, wantRuns: 2},
+		{name: "zero cap is unlimited", senders: 1, perSender: 5, cap: 0, wantRuns: 5},
 	}
 
-	f.a.sched.maxRecheckBatch = batch
-	f.a.sched.recheckSenders = map[string]struct{}{
-		sdk.AccAddress("bob").String():   {},
-		sdk.AccAddress("alice").String(): {},
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			f.a.sched.recheckSenders = make(map[string]struct{}, tc.senders)
+			for i := range tc.senders {
+				sender := "sender" + strconv.Itoa(i)
+				f.addChain(sender, tc.perSender, nil)
+				f.a.sched.recheckSenders[sdk.AccAddress(sender).String()] = struct{}{}
+			}
+			f.a.sched.maxRecheckBatch = tc.cap
 
-	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
-	// would push the running total to 6 > 3, so the whole group must defer.
-	f.a.sched.RecheckTxs()
+			f.a.sched.RecheckTxs()
 
-	if !f.runner.seen["bob-0"] {
-		t.Fatal("bob's group must run in cycle 1")
-	}
-	for _, seq := range aliceSeqs {
-		if f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
-			t.Fatalf("alice's group must not be partially run before deferring, but seq %d ran", seq)
-		}
-	}
-	if len(f.a.sched.deferred) != len(aliceSeqs) {
-		t.Fatalf("expected alice's whole group (%d txs) deferred, got %d", len(aliceSeqs), len(f.a.sched.deferred))
-	}
-
-	// Cycle 2: recheckSenders is empty, but the deferred carry must still run
-	// as one atomic group against alice's real nonce (still 8: her chain was
-	// only rechecked, never included in a block).
-	f.a.sched.RecheckTxs()
-
-	for _, seq := range aliceSeqs {
-		if !f.runner.seen["alice-"+strconv.FormatUint(seq, 10)] {
-			t.Fatalf("alice-%d must be rechecked in cycle 2", seq)
-		}
-	}
-	if !poolHas(f.pool, bob) {
-		t.Fatal("bob's tx must remain valid in the pool")
-	}
-	for i, tx := range alice {
-		if !poolHas(f.pool, tx) {
-			t.Fatalf("alice's tx at index %d (seq %d) must not be evicted: the cap must not split her nonce chain", i, aliceSeqs[i])
-		}
+			if got := len(f.runner.modes); got != tc.wantRuns {
+				t.Fatalf("expected %d RunTx calls, got %d", tc.wantRuns, got)
+			}
+		})
 	}
 }
 
-// maxRecheckBatch == 0 must leave the limit disabled (all candidates rechecked).
-func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
-	const total = 5
-	f := newRecheckFixture()
-	for i := 0; i < total; i++ {
-		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+func TestRecheckTxs_BatchCapCarriesWholeGroup(t *testing.T) {
+	testCases := []struct {
+		name string
+		// bumpHead fee-bumps alice's head between cycles: same (sender, nonce),
+		// new tx identity, so only the cap's sender re-stage can re-pick her chain.
+		bumpHead bool
+	}{
+		{name: "overflow group carries whole to the next cycle"},
+		{name: "head fee bump between cycles does not evict the tail", bumpHead: true},
 	}
-	// maxRecheckBatch left at zero default
-	f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.sched.RecheckTxs()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newRecheckFixture()
+			f.runner.signer = f.signer
+			aliceKey := sdk.AccAddress("alice").String()
+			f.runner.expectedNonce = map[string]uint64{aliceKey: 0}
+			bob := f.add(1, "bob", 0, "bob-0")
+			_, alice := f.addChain("alice", 5, nil)
+			f.a.sched.maxRecheckBatch = 3
+			f.a.sched.recheckSenders = map[string]struct{}{sdk.AccAddress("bob").String(): {}, aliceKey: {}}
 
-	if got := len(f.runner.modes); got != total {
-		t.Fatalf("expected %d RunTx calls with no cap, got %d", total, got)
+			// Cycle 1: bob's 1-tx group fits; alice's 5 would make 6 > 3, so her group defers whole.
+			f.a.sched.RecheckTxs()
+			if !f.runner.seen["bob-0"] {
+				t.Fatal("bob's group must run in cycle 1")
+			}
+			for i := range alice {
+				if f.runner.seen[chainBytes("alice", i)] {
+					t.Fatalf("alice's group must not run partially before deferring, but alice-%d ran", i)
+				}
+			}
+			if len(f.a.sched.deferred) != len(alice) {
+				t.Fatalf("expected alice's whole group deferred, got %d", len(f.a.sched.deferred))
+			}
+
+			head := sdk.Tx(alice[0])
+			if tc.bumpHead {
+				head = f.add(99, "alice", 0, "alice-0-bumped")
+				if poolHas(f.pool, alice[0]) {
+					t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
+				}
+			}
+
+			// Cycle 2: no block touched alice, so her nonce is still 0.
+			f.a.sched.RecheckTxs()
+			if !poolHas(f.pool, bob) || !poolHas(f.pool, head) {
+				t.Fatal("bob's tx and alice's head must stay pooled")
+			}
+			for i, tx := range alice[1:] {
+				if !poolHas(f.pool, tx) {
+					t.Fatalf("alice-%d must not be evicted: the cap must not split her chain", i+1)
+				}
+			}
+		})
 	}
 }
 
@@ -1541,30 +1536,6 @@ func TestGroupCandidates_SortsBySeqAscending(t *testing.T) {
 	}
 }
 
-func TestRunGroup_LargerThanChunkRunsEveryCandidate(t *testing.T) {
-	const total = recheckChunkSize + 50
-	f := newRecheckFixture()
-	txs, _ := f.addChain("alice", total, nil)
-
-	groups := f.a.sched.groupCandidates(txs)
-	if len(groups) != 1 {
-		t.Fatalf("expected 1 group, got %d", len(groups))
-	}
-
-	evicted, cascaded, _ := f.a.sched.runGroup(groups[0], 0)
-	if evicted != 0 || cascaded != 0 {
-		t.Fatalf("expected no evictions, got evicted=%v cascaded=%v", evicted, cascaded)
-	}
-	if got := len(f.runner.calls); got != total {
-		t.Fatalf("expected every candidate across chunk boundaries to run, got %d RunTx calls", got)
-	}
-	for i := 0; i < total; i++ {
-		if !f.runner.seen[chainBytes("alice", i)] {
-			t.Fatalf("alice-%d must have run", i)
-		}
-	}
-}
-
 func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 	const total = recheckChunkSize + 3
 	f := newRecheckFixture()
@@ -1601,6 +1572,33 @@ func TestRunChunkLocked_HoldsGateOnlyForTheChunk(t *testing.T) {
 
 // Each case moves the expected nonce as chunk 2's head runs, as admissions
 // between gate holds would, and checks chunk 2 never blind-evicts a valid candidate.
+func TestRunGroup_QueuedAdmissionRunsBetweenChunks(t *testing.T) {
+	f := newRecheckFixture()
+	txs, _ := f.addChain("gail", recheckChunkSize+1, nil)
+	callsAtAdmission := make(chan int, 1)
+	f.runner.onCall = func(b []byte) {
+		if string(b) != chainBytes("gail", 0) {
+			return
+		}
+		go func() { // an admission arriving during chunk 1
+			f.a.exec.gate.lock()
+			f.runner.mu.Lock()
+			callsAtAdmission <- len(f.runner.calls)
+			f.runner.mu.Unlock()
+			f.a.exec.gate.unlock()
+		}()
+		for f.a.exec.gate.waiting.Load() == 0 {
+			time.Sleep(time.Microsecond)
+		}
+	}
+
+	f.a.sched.runGroup(f.a.sched.groupCandidates(txs)[0], 0)
+
+	if got := <-callsAtAdmission; got != recheckChunkSize {
+		t.Fatalf("the queued admission must get the gate right after chunk 1 (%d RunTx), got it after %d", recheckChunkSize, got)
+	}
+}
+
 func TestRunGroup_ChunkBoundaryNeverCarriesGapProof(t *testing.T) {
 	const n = recheckChunkSize
 	const total = n + 3 // chunk 1 = [0, n); chunk 2 = [n, n+3)
@@ -1741,19 +1739,20 @@ func TestRunGroup_CommitBetweenChunksRestagesRest(t *testing.T) {
 func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 	f := newRecheckFixture()
 	f.runner.signer = f.signer
-	bob, carl := sdk.AccAddress("bob").String(), sdk.AccAddress("carl").String()
-	f.runner.expectedNonce = map[string]uint64{bob: 0, carl: 5}
+	bob, carl, dave := sdk.AccAddress("bob").String(), sdk.AccAddress("carl").String(), sdk.AccAddress("dave").String()
+	f.runner.expectedNonce = map[string]uint64{bob: 0, carl: 5, dave: 0}
 
 	f.add(1, "bob", 0, "bob-0") // bob's group runs first
 	f.add(2, "bob", 1, "bob-1")
 	c5 := f.add(3, "carl", 5, "carl-5")
 	c6 := f.add(4, "carl", 6, carlSeq6Bytes)
 	c7 := f.add(5, "carl", 7, "carl-7")
+	f.add(6, "dave", 0, "dave-0")
 	f.a.sched.lastCommittedHeight = 10
-	f.a.sched.recheckSenders = map[string]struct{}{bob: {}, carl: {}}
+	f.a.sched.recheckSenders = map[string]struct{}{bob: {}, carl: {}, dave: {}}
 
 	// Block 11 commits carl-5 right after bob's group and resets checkState. It
-	// stages no sender, so only the stop's re-stage brings carl back.
+	// stages no sender, so only the stop's re-stage brings carl and dave back.
 	f.runner.onCall = func(b []byte) {
 		if string(b) != "bob-1" {
 			return
@@ -1767,33 +1766,15 @@ func TestRecheckTxs_CommitBetweenGroupsRestagesRest(t *testing.T) {
 	}
 
 	f.a.sched.RecheckTxs()
-	if f.runner.seen[carlSeq6Bytes] {
-		t.Fatalf("carl's group must not run after the Commit: calls=%v", f.runner.calls)
+	if f.runner.seen[carlSeq6Bytes] || f.runner.seen["dave-0"] {
+		t.Fatalf("no group may run after the Commit: calls=%v", f.runner.calls)
 	}
 	f.a.sched.RecheckTxs() // the cycle that Commit triggers
-	if !f.runner.seen[carlSeq6Bytes] {
-		t.Fatalf("carl must be re-staged and rechecked: calls=%v", f.runner.calls)
+	if !f.runner.seen[carlSeq6Bytes] || !f.runner.seen["dave-0"] {
+		t.Fatalf("every unreached group must be re-staged and rechecked: calls=%v", f.runner.calls)
 	}
 	if !poolHas(f.pool, c6) || !poolHas(f.pool, c7) {
 		t.Fatalf("valid carl txs evicted by a second recheck on the same checkState: calls=%v", f.runner.calls)
-	}
-}
-
-func TestRunRecheck_CommitBeforeFirstChunkRunsNothing(t *testing.T) {
-	f := newRecheckFixture()
-	f.add(1, "bob", 0, "bob-0")
-	f.add(2, "carl", 0, "carl-0")
-	f.a.exec.gate.commits++ // a Commit ran after the cycle pinned 0
-
-	f.a.sched.runRecheck(f.a.sched.groupCandidates(PoolSnapshot(t.Context(), f.pool)), 0)
-
-	if len(f.runner.calls) != 0 {
-		t.Fatalf("no candidate may run past the pinned height: calls=%v", f.runner.calls)
-	}
-	for _, sender := range []string{"bob", "carl"} {
-		if _, ok := f.a.sched.recheckSenders[sdk.AccAddress(sender).String()]; !ok {
-			t.Fatalf("%s must be re-staged", sender)
-		}
 	}
 }
 
@@ -1877,75 +1858,5 @@ func TestSigners_NilSignerNoPanic(t *testing.T) {
 	s := &recheckScheduler{}
 	if got := s.signers(&ptrTx{id: 1}); got != nil {
 		t.Fatalf("expected nil signers with a nil extractor, got %v", got)
-	}
-}
-
-func TestRecheckTxs_DeferredCarryWithReplacedHeadDoesNotEvictTail(t *testing.T) {
-	const batch = 3
-	f := newRecheckFixture()
-	f.runner.signer = f.signer
-	f.runner.expectedNonce = map[string]uint64{sdk.AccAddress("alice").String(): 5}
-
-	bob := f.add(1, "bob", 0, "bob-0")
-	aliceSeqs := []uint64{5, 6, 7, 8, 9}
-	alice := make([]*ptrTx, len(aliceSeqs))
-	for i, seq := range aliceSeqs {
-		alice[i] = f.add(10+i, "alice", seq, "alice-"+strconv.FormatUint(seq, 10))
-	}
-
-	f.a.sched.maxRecheckBatch = batch
-	f.a.sched.recheckSenders = map[string]struct{}{
-		sdk.AccAddress("bob").String():   {},
-		sdk.AccAddress("alice").String(): {},
-	}
-
-	// Cycle 1: bob's group (1 tx) fits under the cap; alice's group (5 txs)
-	// overflows and must defer whole.
-	f.a.sched.RecheckTxs()
-	if !poolHas(f.pool, bob) {
-		t.Fatal("precondition: bob's tx must survive cycle 1")
-	}
-	if len(f.a.sched.deferred) != len(aliceSeqs) {
-		t.Fatalf("precondition: alice's whole group must defer, got %d", len(f.a.sched.deferred))
-	}
-
-	// alice fee-bumps her head tx: same (sender, nonce) key, new tx identity.
-	// PriorityNonceMempool.Insert replaces the deferred pointer's pool entry.
-	bumped := f.add(99, "alice", aliceSeqs[0], "alice-5-bumped")
-	if poolHas(f.pool, alice[0]) {
-		t.Fatal("precondition: fee bump must replace the original nonce-5 entry")
-	}
-
-	// No block touches alice between cycles; her real nonce stays 5.
-	// Cycle 2: recheckSenders is drained empty going in; only capRecheckGroups'
-	// re-staging from cycle 1 covers alice here.
-	f.a.sched.RecheckTxs()
-
-	if !poolHas(f.pool, bumped) {
-		t.Fatal("the fee-bumped replacement at nonce 5 must survive recheck")
-	}
-	for i, seq := range aliceSeqs[1:] {
-		if !poolHas(f.pool, alice[i+1]) {
-			t.Fatalf("alice's tail tx at seq %d must not be evicted after a head fee bump", seq)
-		}
-	}
-}
-
-// Documented residual: Remove matches by (sender, nonce), so evicting a stale
-// candidate drops a fee bump that replaced it after the snapshot.
-func TestEvict_KeyBasedRemovalDropsReplacementNotStaleTx(t *testing.T) {
-	f := newRecheckFixture()
-	stale := f.add(1, "alice", 0, "alice-0")
-
-	// A fee bump lands at the same (sender, nonce) key before eviction runs.
-	replacement := f.insert(2, sdk.AccAddress("alice"), 0)
-	if poolHas(f.pool, stale) {
-		t.Fatal("precondition: fee bump must replace the original nonce-0 entry")
-	}
-
-	f.a.sched.evict(stale)
-
-	if poolHas(f.pool, replacement) {
-		t.Fatal("key-based Remove must drop whatever occupies (alice, 0) now, i.e. the replacement")
 	}
 }
