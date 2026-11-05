@@ -60,7 +60,7 @@ func (s *recheckScheduler) recheckDecodingEnabled() bool {
 
 // stageSkippedSenders stages the senders of proposal-gate-rejected txs, leaving the height.
 func (s *recheckScheduler) stageSkippedSenders(txs [][]byte) {
-	if !s.recheckDecodingEnabled() {
+	if !s.recheckDecodingEnabled() || len(txs) == 0 {
 		return
 	}
 	s.stageSenders(s.decodedSignerSet(txs))

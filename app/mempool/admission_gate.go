@@ -50,7 +50,8 @@ func (g *admissionGate) lockAfterWaiters(budget time.Duration) {
 	if n := g.waiting.Load(); n > 0 {
 		target := g.acquired.Load() + uint64(n)
 		deadline := time.Now().Add(budget)
-		for g.waiting.Load() > 0 && g.acquired.Load() < target && time.Now().Before(deadline) {
+		// Waiters parked behind a pending Commit can't acquire, so yielding to them is wasted.
+		for !g.commitPending() && g.waiting.Load() > 0 && g.acquired.Load() < target && time.Now().Before(deadline) {
 			runtime.Gosched()
 		}
 	}
