@@ -1,13 +1,11 @@
 diff --git a/app/app.go b/app/app.go
-index 678ccc0a..ba64a7fe 100644
 --- a/app/app.go
 +++ b/app/app.go
-@@ -1060,6 +1060,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
- 		},
+@@ -1273,6 +1273,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blac
  		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
  		PendingTxListener: app.onPendingTx,
+ 		AnteCache:         anteCache,
 +		UnsafeUnorderedTx: true,
-		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
-	}
- 
- 	anteHandler, err := evmante.NewAnteHandler(options)
+ 		SenderCache:       app.senderCache,
+ 	}
+
