@@ -59,7 +59,8 @@ type Manager struct {
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
-	mpool     sdkmempool.Mempool
+	mpool sdkmempool.Mempool
+	// signer must key every pooled tx by the same address strings as the pool's adapter.
 	signer    sdkmempool.SignerExtractionAdapter
 	decoder   sdk.TxDecoder
 	anteCache *antecache.AnteCache
@@ -144,22 +145,36 @@ func (a *Manager) StageSkippedSenders(txs [][]byte) {
 	if !a.recheckDecodingEnabled() || len(txs) == 0 {
 		return
 	}
-	senders := make(map[string]struct{}, len(txs))
-	for _, bz := range txs {
-		tx, err := a.decoder(bz)
-		if err != nil {
-			continue
-		}
-		for _, s := range a.signers(tx) {
-			senders[s] = struct{}{}
-		}
-	}
+	senders := a.txSenders(txs)
 	if len(senders) == 0 {
 		return
 	}
 	a.stagingMu.Lock()
 	a.mergeRecheckSenders(senders)
 	a.stagingMu.Unlock()
+}
+
+// Guarded per tx since FinalizeBlock stages unvalidated block txs outside any recover; a
+// panicking tx (e.g. one with no fee, which the decoder accepts) is skipped.
+func (a *Manager) txSenders(txs [][]byte) map[string]struct{} {
+	senders := make(map[string]struct{}, len(txs))
+	for _, bz := range txs {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logRecoveredPanic(a.logger, panicPathStageTx, r, "tx", txHash(bz))
+				}
+			}()
+			tx, err := a.decoder(bz)
+			if err != nil {
+				return // non-sdk txs (e.g. vote extensions) have no mempool entry
+			}
+			for _, s := range a.signers(tx) {
+				senders[s] = struct{}{}
+			}
+		}()
+	}
+	return senders
 }
 
 func (a *Manager) mergeRecheckSenders(senders map[string]struct{}) {
@@ -370,16 +385,7 @@ func (a *Manager) StageRecheckSenders(height int64, txs [][]byte) {
 	// and recheckSenders in one critical section so a reader never sees a torn update.
 	var senders map[string]struct{}
 	if a.recheckDecodingEnabled() {
-		senders = make(map[string]struct{}, len(txs))
-		for _, bz := range txs {
-			tx, err := a.decoder(bz)
-			if err != nil {
-				continue // non-sdk txs (e.g. vote extensions) have no mempool entry
-			}
-			for _, s := range a.signers(tx) {
-				senders[s] = struct{}{}
-			}
-		}
+		senders = a.txSenders(txs)
 	}
 
 	a.stagingMu.Lock()
