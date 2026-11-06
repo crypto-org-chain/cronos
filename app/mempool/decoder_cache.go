@@ -98,7 +98,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Only EVM txs are cached, warmed first (warmForSharing); the EVM
+// NOT mutate them. Only EVM txs are cached, with signers filled first (initSigners); the EVM
 // ante and the encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
@@ -151,7 +151,8 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		if len(bz) <= cache.maxTxBytes && warmForSharing(tx) {
+		// Cosmos ante paths write to decoded txs (amino-JSON Any caches, pubkey address caches, EIP-712 fee payer).
+		if len(bz) <= cache.maxTxBytes && isRawEthTx(tx) && initSigners(tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil
@@ -161,21 +162,17 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 // ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
 var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
-// warmForSharing reports whether tx may be shared, filling its lazily written
-// fields first; false leaves tx private like a cache-off decode.
-func warmForSharing(tx sdk.Tx) (ok bool) {
+// initSigners fills the SDK wrapper's lazy signers and msgsV2 before tx is shared, so
+// later readers never race on that first write; false means tx must stay private.
+func initSigners(tx sdk.Tx) (ok bool) {
 	// A malformed tx (e.g. nil AuthInfo.Fee) panics here; it must surface in runTx's recover, not in decode.
+	// The same panic keeps txs with empty auth-info bytes (the encoder writes them) private.
 	defer func() {
 		if recover() != nil {
 			ok = false
 		}
 	}()
-	// Cosmos ante paths write to decoded txs (amino-JSON Any caches, pubkey address caches, EIP-712 fee payer).
-	if !isRawEthTx(tx) {
-		return false
-	}
-	// The SDK wrapper fills signers and msgsV2 in one call, rerun while signers is nil.
-	// It also panics on a nil AuthInfo.Fee, which keeps txs with empty auth-info bytes (the encoder writes them) private.
+	// The wrapper fills signers and msgsV2 in one call, rerun while signers is nil.
 	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
 	if !isSigTx {
 		return false

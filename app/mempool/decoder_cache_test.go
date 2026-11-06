@@ -21,12 +21,12 @@ import (
 
 // fakeTx stands in for the SDK wrapper of an EVM tx; GetSigners is where the wrapper fills its lazy fields.
 type fakeTx struct {
-	typeURL string // first extension option; "" means none
-	msgs    []sdk.Msg
-	signers [][]byte
-	err     error
-	panics  bool
-	onWarm  func()
+	typeURL      string // first extension option; "" means none
+	msgs         []sdk.Msg
+	signers      [][]byte
+	err          error
+	panics       bool
+	onGetSigners func()
 }
 
 func newFakeEthTx() *fakeTx {
@@ -40,8 +40,8 @@ func newFakeEthTx() *fakeTx {
 func (f *fakeTx) GetMsgs() []sdk.Msg                    { return f.msgs }
 func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 func (f *fakeTx) GetSigners() ([][]byte, error) {
-	if f.onWarm != nil {
-		f.onWarm()
+	if f.onGetSigners != nil {
+		f.onGetSigners()
 	}
 	if f.panics {
 		panic("nil AuthInfo.Fee")
@@ -135,7 +135,7 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	}
 }
 
-func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
+func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 	testCases := []struct {
 		name       string
 		malleate   func(tx *fakeTx)
@@ -149,7 +149,7 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false},
 		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false},
 		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false},
-		{"warm-up panic stays private", func(tx *fakeTx) { tx.panics = true }, false},
+		{"signer panic stays private", func(tx *fakeTx) { tx.panics = true }, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -157,11 +157,11 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 			tc.malleate(tx)
 			raw := makeRaw(1)
 			c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-			warmed := false
-			tx.onWarm = func() {
-				warmed = true
+			signersInited := false
+			tx.onGetSigners = func() {
+				signersInited = true
 				if _, hit := c.get(raw); hit {
-					t.Error("tx visible in the cache before warm-up")
+					t.Error("tx visible in the cache before signer init")
 				}
 			}
 			var calls atomic.Int64
@@ -179,8 +179,8 @@ func TestDecodeCache_WarmsBeforeSharing(t *testing.T) {
 					t.Fatal("decoder must return the base tx")
 				}
 			}
-			if tc.wantShared && !warmed {
-				t.Fatal("a shared tx must be warmed")
+			if tc.wantShared && !signersInited {
+				t.Fatal("a shared tx must have its signers filled")
 			}
 			wantCalls := int64(2)
 			if tc.wantShared {
@@ -351,17 +351,17 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	const customMax = 32
 	calls := atomic.Int64{}
-	warms := atomic.Int64{}
+	signerInits := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
 		tx := newCacheTx(uint64(len(bz)))
-		tx.onWarm = func() { warms.Add(1) }
+		tx.onGetSigners = func() { signerInits.Add(1) }
 		return tx, nil
 	}
 	c := NewDecodeCache(defaultCacheSize, customMax)
 	dec := NewCachingDecoder(base, c)
 
-	// Above cap: each call must miss without a warm-up.
+	// Above cap: each call must miss without signer init.
 	above := make([]byte, customMax+1)
 	for i := 0; i < 3; i++ {
 		if _, err := dec(above); err != nil {
@@ -371,8 +371,8 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	if got := calls.Load(); got != 3 {
 		t.Fatalf("above-cap was cached: calls=%d, want 3", got)
 	}
-	if got := warms.Load(); got != 0 {
-		t.Fatalf("above-cap was warmed: warms=%d, want 0", got)
+	if got := signerInits.Load(); got != 0 {
+		t.Fatalf("above-cap had signers filled: signerInits=%d, want 0", got)
 	}
 
 	// Default const would cache this; with a custom cap of 32 even 33-byte

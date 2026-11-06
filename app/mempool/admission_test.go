@@ -405,7 +405,7 @@ func (s *SharedDecodedTxTestSuite) TestFirstUseOfSharedWrapper() {
 	}
 }
 
-// Decode-time warm-up must not turn a tx error into a FinalizeBlock panic (chain halt).
+// Decode-time signer init must not turn a tx error into a FinalizeBlock panic (chain halt).
 func (s *SharedDecodedTxTestSuite) TestMalformedTxMatchesCacheOff() {
 	cacheOff := minimalOptionsMap{cronos.FlagTxCacheSize: -1}
 	testCases := []struct {
