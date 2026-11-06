@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math"
@@ -29,9 +30,14 @@ import (
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -104,8 +110,8 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 
 	appOpts := minimalOptionsMap{
 		flags.FlagHome:                 tb.TempDir(),
-		"mempool.type":                 "app",
-		"mempool.max-txs":              100000,
+		cronos.FlagMempoolType:         "app",
+		server.FlagMempoolMaxTxs:       100000,
 		"cronos.mempool-tx-cache-size": 200000,
 	}
 	maps.Copy(appOpts, overrides)
@@ -367,12 +373,125 @@ func TestAppCommitTakesAdmissionGate(t *testing.T) {
 	require.Equal(t, int64(2), f.app.LastBlockHeight())
 }
 
+// The SignerInfo carries no public key, valid only because acc's key is already on-chain.
+func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAccount) []byte {
+	tb.Helper()
+	txCfg := f.app.TxConfig()
+	from := sdk.AccAddress(acc.Address.Bytes())
+	builder := txCfg.NewTxBuilder()
+	require.NoError(tb, builder.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
+	builder.SetGasLimit(200000)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(1, 16))))
+	sig := signing.SignatureV2{
+		Data:     &signing.SingleSignatureData{SignMode: signing.SignMode_SIGN_MODE_DIRECT},
+		Sequence: acc.Nonce,
+	}
+	require.NoError(tb, builder.SetSignatures(sig))
+
+	ctx := f.app.NewContext(true)
+	signerData := authsigning.SignerData{
+		Address:       from.String(),
+		ChainID:       cronos.TestAppChainID,
+		AccountNumber: f.app.AccountKeeper.GetAccount(ctx, from).GetAccountNumber(),
+		Sequence:      acc.Nonce,
+		PubKey:        acc.Priv.PubKey(),
+	}
+	signBytes, err := authsigning.GetSignBytesAdapter(ctx, txCfg.SignModeHandler(), signing.SignMode_SIGN_MODE_DIRECT, signerData, builder.GetTx())
+	require.NoError(tb, err)
+	sig.Data.(*signing.SingleSignatureData).Signature, err = acc.Priv.Sign(signBytes)
+	require.NoError(tb, err)
+	require.NoError(tb, builder.SetSignatures(sig))
+	acc.Nonce++
+
+	bz, err := txCfg.TxEncoder()(builder.GetTx())
+	require.NoError(tb, err)
+	return bz
+}
+
+func (f *admissionFixture) finalizeTx(tb testing.TB, bz []byte) *abci.ExecTxResult {
+	tb.Helper()
+	req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz}}
+	var resp *abci.ResponseFinalizeBlock
+	var err error
+	require.NotPanics(tb, func() { resp, err = f.app.FinalizeBlock(req) })
+	require.NoError(tb, err)
+	require.Len(tb, resp.TxResults, 1)
+	return resp.TxResults[0]
+}
+
+// Only the app mempool rechecks itself; under flood, CometBFT rechecks each pooled tx.
+func (f *admissionFixture) recheck(tb testing.TB, pooled []byte) {
+	tb.Helper()
+	if m := f.app.MempoolManager(); m != nil {
+		m.WaitForRecheck(context.Background())
+		return
+	}
+	_, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled, Type: abci.CheckTxType_Recheck})
+	require.NoError(tb, err)
+}
+
+var (
+	blockExecutors = []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
+	// Validators may run any of these, so a block tx's result must not depend on which.
+	resultParityMempools = []struct {
+		name   string
+		opts   minimalOptionsMap
+		pooled bool
+	}{
+		{name: "app", pooled: true},
+		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
+		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
+	}
+)
+
+// A pooling node rejects a tx without a public key, yet a block may carry one: FinalizeBlock
+// must not panic, and the result must not depend on the node's mempool config.
+func TestFinalizeBlockTxWithoutPubKey(t *testing.T) {
+	for _, executor := range blockExecutors {
+		for _, mp := range resultParityMempools {
+			t.Run(executor+"/"+mp.name, func(t *testing.T) {
+				opts := minimalOptionsMap{server.FlagBlockExecutor: executor}
+				maps.Copy(opts, mp.opts)
+				f := setupAdmissionAppWithOpts(t, 1, opts)
+				acc := &f.accounts[0]
+				blockTx := f.signBankSendWithoutPubKey(t, acc)
+				if mp.pooled {
+					// Transitional: admission rejects it, so this node never proposes one.
+					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: blockTx})
+					require.NoError(t, err)
+					require.Equal(t, sdkerrors.ErrInvalidPubKey.ABCICode(), checkResp.Code, checkResp.Log)
+					require.Zero(t, f.app.Mempool().CountTx())
+				}
+				acc.Nonce = 0
+				pooled := f.signTransfer(t, acc, nil)
+				checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
+				require.NoError(t, err)
+				require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+				if mp.pooled {
+					require.Equal(t, 1, f.app.Mempool().CountTx())
+				}
+
+				res := f.finalizeTx(t, blockTx)
+				require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
+				_, err = f.app.Commit()
+				require.NoError(t, err)
+				if !mp.pooled {
+					return
+				}
+				// The block tx spent the pooled tx's nonce, so recheck must evict it.
+				f.recheck(t, pooled)
+				require.Zero(t, f.app.Mempool().CountTx())
+			})
+		}
+	}
+}
+
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
 	require.NotNil(t, appMempool.MempoolManager())
 	require.NotNil(t, appMempool.MempoolClient(), "app mempool exposes a client")
 
-	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
+	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), cronos.FlagMempoolType: "flood"}
 	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	t.Cleanup(func() { _ = flood.Close() })
 	require.Nil(t, flood.MempoolManager())
@@ -399,7 +518,7 @@ func BenchmarkAdmission(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			// Room for every tx, so a long -benchtime can't fill the pool and fail the admitted count.
 			total := goroutines * b.N
-			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{"mempool.max-txs": max(total, 100000)})
+			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{server.FlagMempoolMaxTxs: max(total, 100000)})
 			senders := f.accounts
 			if tc.unfunded {
 				senders = newTestAccounts(b, goroutines)
