@@ -107,7 +107,7 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndLeavesEvictionToRech
 			}
 			h := newProposalPathHarness(s.T(), txs)
 
-			s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee), "fast path")
+			s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee, tc.anteRejects), "fast path")
 			s.Require().Equal(tc.ante, h.runAntePath(tc.anteRejects), "ante path")
 			s.Require().Equal(abci.ResponseProcessProposal_ACCEPT, h.processProposal(tc.fast.proposed),
 				"peers must accept whatever the fast path proposes")
@@ -256,8 +256,9 @@ func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 }
 
 // runFastPath drives CacheProposalTxVerifier plus the cronos wrapper with a warm
-// encoder cache, as after admission. A zero baseFee disables the gate.
-func (h *proposalPathHarness) runFastPath(baseFee int64) proposalPathResult {
+// encoder cache, as after admission. Its base verifier gets the same rejects, so
+// a fast path that ran the ante would fail. A zero baseFee disables the gate.
+func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string) proposalPathResult {
 	pool := h.newPool()
 	encCache := cronosmempool.NewEncoderCache(0, 0)
 	for name, tx := range h.txs {
@@ -267,7 +268,7 @@ func (h *proposalPathHarness) runFastPath(baseFee int64) proposalPathResult {
 	if baseFee > 0 {
 		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
 	}
-	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(&diffVerifier{txs: h.txs}, encCache))
+	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(h.verifier(rejects), encCache))
 	ph := NewMempoolProposalHandler(inner, acceptAllTxs, feeGate, diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
@@ -276,14 +277,18 @@ func (h *proposalPathHarness) runFastPath(baseFee int64) proposalPathResult {
 // encoder cache is disabled.
 func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
 	pool := h.newPool()
+	ph := baseapp.NewDefaultProposalHandler(pool, h.verifier(rejects))
+	ph.SetTxSelector(NewExtTxSelector(acceptAllTxs, nil))
+	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
+	return h.prepare(ph.PrepareProposalHandler(), pool)
+}
+
+func (h *proposalPathHarness) verifier(rejects []string) *diffVerifier {
 	v := &diffVerifier{txs: h.txs, rejects: make(map[string]bool, len(rejects))}
 	for _, name := range rejects {
 		v.rejects[name] = true
 	}
-	ph := baseapp.NewDefaultProposalHandler(pool, v)
-	ph.SetTxSelector(NewExtTxSelector(acceptAllTxs, nil))
-	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
-	return h.prepare(ph.PrepareProposalHandler(), pool)
+	return v
 }
 
 func (h *proposalPathHarness) prepare(prepare sdk.PrepareProposalHandler, pool mempool.Mempool) proposalPathResult {
@@ -296,10 +301,16 @@ func (h *proposalPathHarness) prepare(prepare sdk.PrepareProposalHandler, pool m
 	for _, tx := range cronosmempool.PoolSnapshot(h.ctx, pool) {
 		res.pooled = append(res.pooled, tx.(*diffTx).name)
 	}
-	// Selection order isn't under test; pool iteration order differs across senders.
-	slices.Sort(res.proposed)
-	slices.Sort(res.pooled)
+	// Sort by signer only: a sender's nonce order must hold, the order across senders isn't under test.
+	slices.SortStableFunc(res.proposed, bySigner)
+	slices.SortStableFunc(res.pooled, bySigner)
 	return res
+}
+
+func bySigner(a, b string) int {
+	sa, _, _ := strings.Cut(a, "-")
+	sb, _, _ := strings.Cut(b, "-")
+	return strings.Compare(sa, sb)
 }
 
 // processProposal runs the real cronos ProcessProposal with mallory blocklisted,
