@@ -175,6 +175,7 @@ func warmForSharing(tx sdk.Tx) (ok bool) {
 		return false
 	}
 	// The SDK wrapper fills signers and msgsV2 in one call, rerun while signers is nil.
+	// It also panics on a nil AuthInfo.Fee, which keeps txs with empty auth-info bytes (the encoder writes them) private.
 	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
 	if !isSigTx {
 		return false

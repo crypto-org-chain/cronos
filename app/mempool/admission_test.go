@@ -466,6 +466,11 @@ func (s *SharedDecodedTxTestSuite) TestOnlyEVMTxsAreShared() {
 			wantShared: true,
 		},
 		{
+			// The encoder writes empty auth-info bytes, so such a tx must stay private.
+			name:  "EVM transfer with nil fee",
+			build: nilFeeTx,
+		},
+		{
 			name: "cosmos MsgSend",
 			build: func(t *testing.T, f *admissionFixture) []byte {
 				t.Helper()
