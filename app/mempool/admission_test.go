@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"math"
@@ -19,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	srvflags "github.com/evmos/ethermint/server/flags"
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
@@ -29,9 +31,14 @@ import (
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
@@ -104,23 +111,15 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 
 	appOpts := minimalOptionsMap{
 		flags.FlagHome:                 tb.TempDir(),
-		"mempool.type":                 "app",
-		"mempool.max-txs":              100000,
+		cronos.FlagMempoolType:         "app",
+		server.FlagMempoolMaxTxs:       100000,
 		"cronos.mempool-tx-cache-size": 200000,
 	}
 	maps.Copy(appOpts, overrides)
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	tb.Cleanup(func() { _ = app.Close() })
 
-	testAccounts := make([]testAccount, accounts)
-	for i := range testAccounts {
-		priv, err := ethsecp256k1.GenerateKey()
-		require.NoError(tb, err)
-		testAccounts[i] = testAccount{
-			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
-			Priv:    priv,
-		}
-	}
+	testAccounts := newTestAccounts(tb, accounts)
 
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
@@ -165,6 +164,20 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 		consAddress: consAddress,
 		ethSigner:   ethtypes.LatestSignerForChainID(cronos.TestEthChainID),
 	}
+}
+
+func newTestAccounts(tb testing.TB, n int) []testAccount {
+	tb.Helper()
+	accounts := make([]testAccount, n)
+	for i := range accounts {
+		priv, err := ethsecp256k1.GenerateKey()
+		require.NoError(tb, err)
+		accounts[i] = testAccount{
+			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
+			Priv:    priv,
+		}
+	}
+	return accounts
 }
 
 // TestPreVerifyRejectsTamperedSig: tampered From rejected lock-free before RunTx.
@@ -225,6 +238,26 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 				}
 			}
 		}(g)
+	}
+	wg.Wait()
+}
+
+// The decode cache shares one wrapper for identical bytes, and encoding a wrapper with empty
+// body/auth-info bytes writes them, so concurrent admissions race without encodeMu. Run with -race.
+func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
+	const goroutines = 16
+	f := setupAdmissionApp(t, 1)
+	bz, err := f.app.TxConfig().TxEncoder()(f.app.TxConfig().NewTxBuilder().GetTx())
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Go(func() {
+			resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+			if err != nil || resp.Code == abci.CodeTypeOK {
+				t.Errorf("a tx with no msgs must be rejected: err=%v code=%d", err, resp.Code)
+			}
+		})
 	}
 	wg.Wait()
 }
@@ -310,12 +343,125 @@ func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {
 	require.NotEmpty(t, resp.RawLog, "reject must carry a reason for the RPC caller")
 }
 
+// The SignerInfo carries no public key, valid only because acc's key is already on-chain.
+func (f *admissionFixture) signBankSendWithoutPubKey(tb testing.TB, acc *testAccount) []byte {
+	tb.Helper()
+	txCfg := f.app.TxConfig()
+	from := sdk.AccAddress(acc.Address.Bytes())
+	builder := txCfg.NewTxBuilder()
+	require.NoError(tb, builder.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
+	builder.SetGasLimit(200000)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(1, 16))))
+	sig := signing.SignatureV2{
+		Data:     &signing.SingleSignatureData{SignMode: signing.SignMode_SIGN_MODE_DIRECT},
+		Sequence: acc.Nonce,
+	}
+	require.NoError(tb, builder.SetSignatures(sig))
+
+	ctx := f.app.NewContext(true)
+	signerData := authsigning.SignerData{
+		Address:       from.String(),
+		ChainID:       cronos.TestAppChainID,
+		AccountNumber: f.app.AccountKeeper.GetAccount(ctx, from).GetAccountNumber(),
+		Sequence:      acc.Nonce,
+		PubKey:        acc.Priv.PubKey(),
+	}
+	signBytes, err := authsigning.GetSignBytesAdapter(ctx, txCfg.SignModeHandler(), signing.SignMode_SIGN_MODE_DIRECT, signerData, builder.GetTx())
+	require.NoError(tb, err)
+	sig.Data.(*signing.SingleSignatureData).Signature, err = acc.Priv.Sign(signBytes)
+	require.NoError(tb, err)
+	require.NoError(tb, builder.SetSignatures(sig))
+	acc.Nonce++
+
+	bz, err := txCfg.TxEncoder()(builder.GetTx())
+	require.NoError(tb, err)
+	return bz
+}
+
+func (f *admissionFixture) finalizeTx(tb testing.TB, bz []byte) *abci.ExecTxResult {
+	tb.Helper()
+	req := &abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz}}
+	var resp *abci.ResponseFinalizeBlock
+	var err error
+	require.NotPanics(tb, func() { resp, err = f.app.FinalizeBlock(req) })
+	require.NoError(tb, err)
+	require.Len(tb, resp.TxResults, 1)
+	return resp.TxResults[0]
+}
+
+// Only the app mempool rechecks itself; under flood, CometBFT rechecks each pooled tx.
+func (f *admissionFixture) recheck(tb testing.TB, pooled []byte) {
+	tb.Helper()
+	if m := f.app.MempoolManager(); m != nil {
+		m.WaitForRecheck(context.Background())
+		return
+	}
+	_, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled, Type: abci.CheckTxType_Recheck})
+	require.NoError(tb, err)
+}
+
+var (
+	blockExecutors = []string{config.BlockExecutorSequential, config.BlockExecutorBlockSTM}
+	// Validators may run any of these, so a block tx's result must not depend on which.
+	resultParityMempools = []struct {
+		name   string
+		opts   minimalOptionsMap
+		pooled bool
+	}{
+		{name: "app", pooled: true},
+		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
+		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
+	}
+)
+
+// A pooling node rejects a tx without a public key, yet a block may carry one: FinalizeBlock
+// must not panic, and the result must not depend on the node's mempool config.
+func TestFinalizeBlockTxWithoutPubKey(t *testing.T) {
+	for _, executor := range blockExecutors {
+		for _, mp := range resultParityMempools {
+			t.Run(executor+"/"+mp.name, func(t *testing.T) {
+				opts := minimalOptionsMap{srvflags.EVMBlockExecutor: executor}
+				maps.Copy(opts, mp.opts)
+				f := setupAdmissionAppWithOpts(t, 1, opts)
+				acc := &f.accounts[0]
+				blockTx := f.signBankSendWithoutPubKey(t, acc)
+				if mp.pooled {
+					// Transitional: admission rejects it, so this node never proposes one.
+					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: blockTx})
+					require.NoError(t, err)
+					require.Equal(t, sdkerrors.ErrInvalidPubKey.ABCICode(), checkResp.Code, checkResp.Log)
+					require.Zero(t, f.app.Mempool().CountTx())
+				}
+				acc.Nonce = 0
+				pooled := f.signTransfer(t, acc, nil)
+				checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
+				require.NoError(t, err)
+				require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+				if mp.pooled {
+					require.Equal(t, 1, f.app.Mempool().CountTx())
+				}
+
+				res := f.finalizeTx(t, blockTx)
+				require.Equal(t, abci.CodeTypeOK, res.Code, res.Log)
+				_, err = f.app.Commit()
+				require.NoError(t, err)
+				if !mp.pooled {
+					return
+				}
+				// The block tx spent the pooled tx's nonce, so recheck must evict it.
+				f.recheck(t, pooled)
+				require.Zero(t, f.app.Mempool().CountTx())
+			})
+		}
+	}
+}
+
 func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	appMempool := setupAdmissionApp(t, 1).app
 	require.NotNil(t, appMempool.MempoolManager())
 	require.NotNil(t, appMempool.MempoolClient(), "app mempool exposes a client")
 
-	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), "mempool.type": "flood"}
+	floodOpts := minimalOptionsMap{flags.FlagHome: t.TempDir(), cronos.FlagMempoolType: "flood"}
 	flood := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, floodOpts, baseapp.SetChainID(cronos.TestAppChainID))
 	t.Cleanup(func() { _ = flood.Close() })
 	require.Nil(t, flood.MempoolManager())
@@ -324,42 +470,65 @@ func TestAppMempoolClientNilWithoutAppMempool(t *testing.T) {
 	require.Nil(t, flood.MempoolClient())
 }
 
-// BenchmarkAdmission measures admitted tx/s through InsertTx at the current
-// single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
-// RunTx is serialized by the admission mutex.
+// BenchmarkAdmission measures InsertTx throughput at the current single-mutex
+// ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free; RunTx is
+// serialized by the admission mutex.
 func BenchmarkAdmission(b *testing.B) {
 	const goroutines = 16
-	f := setupAdmissionApp(b, goroutines)
 
-	// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
-	txs := make([][][]byte, goroutines)
-	for g := range goroutines {
-		txs[g] = make([][]byte, b.N)
-		for i := range b.N {
-			txs[g][i] = f.signTransfer(b, &f.accounts[g], nil)
-		}
+	testCases := []struct {
+		name     string
+		unfunded bool // senders aren't in genesis: txs pass pre-verify and decode, then ante rejects them
+	}{
+		{name: "valid"},
+		{name: "rejected", unfunded: true},
 	}
 
-	var admitted atomic.Int64
-	b.ResetTimer()
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-	for g := range goroutines {
-		go func(g int) {
-			defer wg.Done()
-			for i := range b.N {
-				resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
-				if err == nil && resp.Code == abci.CodeTypeOK {
-					admitted.Add(1)
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			// Room for every tx, so a long -benchtime can't fill the pool and fail the admitted count.
+			total := goroutines * b.N
+			f := setupAdmissionAppWithOpts(b, goroutines, minimalOptionsMap{server.FlagMempoolMaxTxs: max(total, 100000)})
+			senders := f.accounts
+			if tc.unfunded {
+				senders = newTestAccounts(b, goroutines)
+			}
+
+			// Pre-sign b.N txs per goroutine (distinct accounts → independent nonces).
+			txs := make([][][]byte, goroutines)
+			for g := range goroutines {
+				txs[g] = make([][]byte, b.N)
+				for i := range b.N {
+					txs[g][i] = f.signTransfer(b, &senders[g], nil)
 				}
 			}
-		}(g)
-	}
-	wg.Wait()
-	b.StopTimer()
 
-	secs := b.Elapsed().Seconds()
-	if secs > 0 {
-		b.ReportMetric(float64(admitted.Load())/secs, "admit-tx/s")
+			var admitted atomic.Int64
+			b.ResetTimer()
+			var wg sync.WaitGroup
+			wg.Add(goroutines)
+			for g := range goroutines {
+				go func(g int) {
+					defer wg.Done()
+					for i := range b.N {
+						resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txs[g][i]})
+						if err == nil && resp.Code == abci.CodeTypeOK {
+							admitted.Add(1)
+						}
+					}
+				}(g)
+			}
+			wg.Wait()
+			b.StopTimer()
+
+			wantAdmitted := int64(total)
+			if tc.unfunded {
+				wantAdmitted = 0
+			}
+			require.Equal(b, wantAdmitted, admitted.Load())
+			if secs := b.Elapsed().Seconds(); secs > 0 {
+				b.ReportMetric(float64(total)/secs, "tx/s")
+			}
+		})
 	}
 }

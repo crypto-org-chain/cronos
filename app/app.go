@@ -480,10 +480,13 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyIgnore))
+		// Transitional: the pool requires a public key so admission still rejects txs without one, and this
+		// node won't propose one before all validators run this version.
+		poolSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
+		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: signerExtractor,
+			SignerExtractor: poolSigner,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
 				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
@@ -491,7 +494,7 @@ func New(
 				threshold := 100 + feeBump
 				return np >= op*threshold/100
 			},
-		})
+		}), logger.With("module", "app-mempool"))
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
@@ -578,8 +581,9 @@ func New(
 				logger.Warn("mempool.recheck=false: all post-commit rechecking is disabled, including TTL/timeout eviction; a tx invalidated by a sibling's eviction is never evicted and may be reproposed indefinitely")
 			}
 
-			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, logger.With("module", "app-mempool")))
-			manager := cronosmempool.NewManager(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
+			mempoolLogger := logger.With("module", "app-mempool")
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, txsPerBlock, mempoolLogger))
+			manager := cronosmempool.NewManager(app, mempoolLogger, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder, txsPerBlock, ttlNumBlocks, !recheckEnabled, pendingCacheEnabled)
 			manager.SetAnteCache(anteCache)
 			var preVerifiers cronosmempool.PreVerifierRegistry
 			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
