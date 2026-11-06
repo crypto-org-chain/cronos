@@ -358,7 +358,7 @@ func txReplacement(feeBump int64, disabled bool) func(op, np int64, oTx, nTx sdk
 // noTxReplacementMempool reports a tx at a pooled nonce as an invalid nonce, not underpriced, since
 // no fee bump would help.
 type noTxReplacementMempool struct {
-	*mempool.PriorityNonceMempool[int64]
+	cronosmempool.FinalizeNeutralMempool
 }
 
 // Losing any of these silently degrades the manager's fast paths.
@@ -369,7 +369,7 @@ var (
 )
 
 func (m noTxReplacementMempool) Insert(ctx context.Context, tx sdk.Tx) error {
-	err := m.PriorityNonceMempool.Insert(ctx, tx)
+	err := m.FinalizeNeutralMempool.Insert(ctx, tx)
 	if stderrors.Is(err, mempool.ErrTxReplacement) {
 		return sdkerrors.ErrInvalidSequence.Wrap("invalid nonce; a tx at this nonce is pooled and tx replacement is disabled")
 	}
@@ -496,13 +496,16 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
-		priorityPool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyIgnore))
+		// Transitional: the pool requires a public key so admission still rejects txs without one, and this
+		// node won't propose one before all validators run this version.
+		poolSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
+		priorityPool := cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: signerExtractor,
+			SignerExtractor: poolSigner,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement:   txReplacement(feeBump, disableTxReplacement),
-		})
+		}), logger.With("module", "app-mempool"))
 		mpool = priorityPool
 		if disableTxReplacement {
 			mpool = noTxReplacementMempool{priorityPool}
