@@ -151,7 +151,8 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		// Cosmos ante paths write to decoded txs (amino-JSON Any caches, pubkey address caches, EIP-712 fee payer).
+		// Cosmos txs stay private: multisig Address() and legacy EIP-712 checks rewrite Any amino caches on every call,
+		// and cosmos msg handlers aren't held to read-only.
 		if len(bz) <= cache.maxTxBytes && isRawEthTx(tx) && initSigners(tx) {
 			cache.set(bz, tx)
 		}
