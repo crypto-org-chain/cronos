@@ -670,14 +670,18 @@ func (s *SignerInfoTxTestSuite) TestPooledCosmosTxLeavesPool() {
 }
 
 func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
-	f := setupAdmissionApp(s.T(), 1)
+	f := setupAdmissionApp(s.T(), 2)
 	acc := &f.accounts[0]
 	from := sdk.AccAddress(acc.Address.Bytes())
+	other := sdk.AccAddress(f.accounts[1].Address.Bytes())
 
 	testCases := []struct {
 		name     string
+		nonce    uint64
 		malleate func(raw *txtypes.TxRaw)
 		expErr   bool
+		// expSigners defaults to the single sender at nonce.
+		expSigners []sdkmempool.SignerData
 		// expSDKParity: same signers as the SDK adapter this replaces.
 		expSDKParity bool
 	}{
@@ -685,6 +689,35 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 			name:         "public key present",
 			malleate:     func(raw *txtypes.TxRaw) { withSignerPubKey(s.T(), raw, acc.Priv.PubKey()) },
 			expSDKParity: true,
+		},
+		{
+			name:         "public key present, nonzero sequence",
+			nonce:        5,
+			malleate:     func(raw *txtypes.TxRaw) { withSignerPubKey(s.T(), raw, acc.Priv.PubKey()) },
+			expSDKParity: true,
+		},
+		{
+			name:  "two signers with distinct sequences",
+			nonce: 3,
+			malleate: func(raw *txtypes.TxRaw) {
+				var body txtypes.TxBody
+				s.Require().NoError(body.Unmarshal(raw.BodyBytes))
+				msg, err := codectypes.NewAnyWithValue(banktypes.NewMsgSend(other, other, sdk.NewCoins()))
+				s.Require().NoError(err)
+				body.Messages = append(body.Messages, msg)
+				raw.BodyBytes, err = body.Marshal()
+				s.Require().NoError(err)
+
+				var authInfo txtypes.AuthInfo
+				s.Require().NoError(authInfo.Unmarshal(raw.AuthInfoBytes))
+				second := *authInfo.SignerInfos[0]
+				second.Sequence = 7
+				authInfo.SignerInfos = append(authInfo.SignerInfos, &second)
+				raw.AuthInfoBytes, err = authInfo.Marshal()
+				s.Require().NoError(err)
+				raw.Signatures = append(raw.Signatures, raw.Signatures[0])
+			},
+			expSigners: []sdkmempool.SignerData{sdkmempool.NewSignerData(from, 3), sdkmempool.NewSignerData(other, 7)},
 		},
 		{
 			name:     "no public key",
@@ -713,7 +746,7 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
-			acc.Nonce = 0
+			acc.Nonce = tc.nonce
 			raw := f.signBankSend(s.T(), acc, nil)
 			tc.malleate(raw)
 			tx, err := f.app.TxConfig().TxDecoder()(encodeRaw(s.T(), raw))
@@ -726,7 +759,11 @@ func (s *SignerInfoTxTestSuite) TestMsgSignerExtractionAdapter() {
 				return
 			}
 			s.Require().NoError(err)
-			s.Require().Equal([]sdkmempool.SignerData{sdkmempool.NewSignerData(from, 0)}, signers)
+			expSigners := tc.expSigners
+			if expSigners == nil {
+				expSigners = []sdkmempool.SignerData{sdkmempool.NewSignerData(from, tc.nonce)}
+			}
+			s.Require().Equal(expSigners, signers)
 			if tc.expSDKParity {
 				sdkSigners, err := sdkmempool.NewDefaultSignerExtractionAdapter().GetSigners(tx)
 				s.Require().NoError(err)
