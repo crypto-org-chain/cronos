@@ -534,6 +534,7 @@ var (
 		pooled bool
 	}{
 		{name: "app", pooled: true},
+		{name: "app-no-replacement", opts: minimalOptionsMap{cronos.FlagDisableTxReplacement: true}, pooled: true},
 		{name: "flood", opts: minimalOptionsMap{cronos.FlagMempoolType: ""}, pooled: true},
 		{name: "noop", opts: minimalOptionsMap{cronos.FlagMempoolType: "", server.FlagMempoolMaxTxs: -1}},
 	}
