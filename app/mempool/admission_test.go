@@ -35,6 +35,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -443,8 +444,8 @@ var (
 	}
 )
 
-// The pool's SDK signer adapter panics on a tx without a public key, yet a block may carry one:
-// FinalizeBlock must not panic, and the result must not depend on the node's mempool config.
+// A pooling node rejects a tx without a public key, yet a block may carry one: FinalizeBlock
+// must not panic, and the result must not depend on the node's mempool config.
 func TestFinalizeBlockTxWithoutPubKey(t *testing.T) {
 	for _, executor := range blockExecutors {
 		for _, mp := range resultParityMempools {
@@ -454,6 +455,13 @@ func TestFinalizeBlockTxWithoutPubKey(t *testing.T) {
 				f := setupAdmissionAppWithOpts(t, 1, opts)
 				acc := &f.accounts[0]
 				blockTx := f.signBankSendWithoutPubKey(t, acc)
+				if mp.pooled {
+					// Transitional: admission rejects it, so this node never proposes one.
+					checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: blockTx})
+					require.NoError(t, err)
+					require.Equal(t, sdkerrors.ErrInvalidPubKey.ABCICode(), checkResp.Code, checkResp.Log)
+					require.Zero(t, f.app.Mempool().CountTx())
+				}
 				acc.Nonce = 0
 				pooled := f.signTransfer(t, acc, nil)
 				checkResp, err := f.app.CheckTx(&abci.RequestCheckTx{Tx: pooled})
