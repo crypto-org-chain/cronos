@@ -3,12 +3,16 @@ package app
 import (
 	"fmt"
 	"math/big"
+	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
 	"cosmossdk.io/log/v2"
@@ -21,16 +25,101 @@ import (
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
-// The fast PrepareProposal path (mempool.type=app with the encoder cache) trusts
-// admission + recheck and only encodes each pooled tx, where the default path
-// re-runs the ante for every candidate. The tests below run both over identically
-// seeded pools and pin down where the two are allowed to disagree: the fast path
-// may propose a tx the ante would reject, and it leaves rejected txs in the pool
-// for recheck instead of evicting them during the proposal.
-//
-// Every difference here is bounded by what the proposal contract permits: cronos
-// ProcessProposal is blocklist-only, so an ante-invalid tx cannot make peers reject
-// the block — FinalizeBlock records it as a failed tx result.
+// The fast PrepareProposal path (mempool.type=app with the encoder cache) skips
+// the ante and leaves eviction to recheck. These tests pin where it may differ
+// from the default ante path. Cronos ProcessProposal is blocklist-only, so an
+// ante-invalid tx the fast path proposes fails in FinalizeBlock instead of
+// getting the block rejected.
+
+type PrepareProposalPathsSuite struct {
+	suite.Suite
+}
+
+func TestPrepareProposalPathsSuite(t *testing.T) {
+	suite.Run(t, new(PrepareProposalPathsSuite))
+}
+
+type proposalPathResult struct {
+	proposed []string
+	pooled   []string
+}
+
+func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndLeavesEvictionToRecheck() {
+	testCases := []struct {
+		name string
+		pool []string
+		// malleate changes the one field a case is about; txs default to a 1 basecro/gas fee cap.
+		malleate    func(txs map[string]*diffTx)
+		baseFee     int64
+		anteRejects []string
+		fast, ante  proposalPathResult
+	}{
+		{
+			name: "all valid: same proposal, nothing evicted",
+			pool: []string{txAlice0, txAlice1, txBob0},
+			fast: proposalPathResult{proposed: []string{txAlice0, txAlice1, txBob0}, pooled: []string{txAlice0, txAlice1, txBob0}},
+			ante: proposalPathResult{proposed: []string{txAlice0, txAlice1, txBob0}, pooled: []string{txAlice0, txAlice1, txBob0}},
+		},
+		{
+			name: "nonce gap: both stop at the gap, nothing evicted",
+			pool: []string{txAlice0, txAlice2},
+			fast: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txAlice2}},
+			ante: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txAlice2}},
+		},
+		{
+			name:        "stale nonce not yet rechecked: fast proposes it, ante drops and evicts it",
+			pool:        []string{txAlice0, txAlice1},
+			anteRejects: []string{txAlice0},
+			fast:        proposalPathResult{proposed: []string{txAlice0, txAlice1}, pooled: []string{txAlice0, txAlice1}},
+			ante:        proposalPathResult{proposed: []string{txAlice1}, pooled: []string{txAlice1}},
+		},
+		{
+			name:        "recheck backlog: fast proposes the whole stale prefix",
+			pool:        []string{txAlice0, txAlice1, txAlice2, txBob0},
+			anteRejects: []string{txAlice0, txAlice1, txAlice2},
+			fast:        proposalPathResult{proposed: []string{txAlice0, txAlice1, txAlice2, txBob0}, pooled: []string{txAlice0, txAlice1, txAlice2, txBob0}},
+			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+		},
+		{
+			name:        "baseFee above a fee cap: both skip it, only ante evicts it",
+			pool:        []string{txAlice0, txBob0},
+			malleate:    func(txs map[string]*diffTx) { txs[txBob0].fee *= 100 },
+			baseFee:     50,
+			anteRejects: []string{txAlice0},
+			fast:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txAlice0, txBob0}},
+			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+		},
+		{
+			name:        "timeout height passed: fast proposes the expired tx",
+			pool:        []string{txAlice0, txBob0},
+			malleate:    func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight - 1 },
+			anteRejects: []string{txAlice0},
+			fast:        proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
+			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			txs := newDiffTxs(tc.pool...)
+			if tc.malleate != nil {
+				tc.malleate(txs)
+			}
+			h := newProposalPathHarness(s.T(), txs)
+
+			s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee), "fast path")
+			s.Require().Equal(tc.ante, h.runAntePath(tc.anteRejects), "ante path")
+			s.Require().Equal(abci.ResponseProcessProposal_ACCEPT, h.processProposal(tc.fast.proposed),
+				"peers must accept whatever the fast path proposes")
+		})
+	}
+}
+
+// Control: the ACCEPT checks above mean something only if ProcessProposal can reject.
+func (s *PrepareProposalPathsSuite) TestProcessProposalRejectsBlocklistedSigner() {
+	h := newProposalPathHarness(s.T(), newDiffTxs("mallory-0"))
+	s.Require().Equal(abci.ResponseProcessProposal_REJECT, h.processProposal([]string{"mallory-0"}))
+}
 
 const (
 	txAlice0 = "alice-0"
@@ -39,22 +128,21 @@ const (
 	txBob0   = "bob-0"
 
 	diffDenom  = "basecro"
+	diffHeight = 10
+	diffGas    = 21_000
 	diffMaxTxB = 1 << 20
 	diffMaxGas = 100_000_000
 )
 
-// diffTx carries everything both paths need — signer and nonce for ordering, fee
-// and gas for the baseFee gate, a timeout height for the expiry case — so neither
-// needs a real codec or account keeper. Its raw bytes are its name, keeping a
-// proposal's tx set readable in assertions.
+// diffTx is named "<signer>-<nonce>" and its raw bytes are that name, so cases
+// read as tx names and neither path needs a real codec or account keeper.
 type diffTx struct {
-	name     string
-	signer   sdk.AccAddress
-	seq      uint64
-	gas      uint64
-	fee      int64
-	timeout  uint64
-	priority int64
+	name    string
+	signer  sdk.AccAddress
+	seq     uint64
+	gas     uint64
+	fee     int64
+	timeout uint64
 }
 
 var (
@@ -75,6 +163,22 @@ func (t *diffTx) GetSignaturesV2() ([]signingtypes.SignatureV2, error) { return 
 
 func diffAddr(name string) sdk.AccAddress { return sdk.AccAddress(fmt.Sprintf("%-20s", name)) }
 
+func newDiffTxs(names ...string) map[string]*diffTx {
+	txs := make(map[string]*diffTx, len(names))
+	for _, name := range names {
+		signer, nonce, ok := strings.Cut(name, "-")
+		if !ok {
+			panic("tx name must be <signer>-<nonce>: " + name)
+		}
+		seq, err := strconv.ParseUint(nonce, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		txs[name] = &diffTx{name: name, signer: diffAddr(signer), seq: seq, gas: diffGas, fee: diffGas}
+	}
+	return txs
+}
+
 type diffSignerExtractor struct{}
 
 func (diffSignerExtractor) GetSigners(tx sdk.Tx) ([]mempool.SignerData, error) {
@@ -85,12 +189,11 @@ func (diffSignerExtractor) GetSigners(tx sdk.Tx) ([]mempool.SignerData, error) {
 	return []mempool.SignerData{mempool.NewSignerData(dt.signer, dt.seq)}, nil
 }
 
-// diffVerifier is the codec half of baseapp.ProposalTxVerifier for diffTx. ante
-// stands in for the default path's RunTx(PrepareProposal); the cached fast path
-// never reaches it.
+// diffVerifier is baseapp.ProposalTxVerifier for diffTx; rejects stands in for
+// the txs the default path's RunTx(PrepareProposal) ante would fail.
 type diffVerifier struct {
-	byName map[string]*diffTx
-	ante   func(*diffTx) error
+	txs     map[string]*diffTx
+	rejects map[string]bool
 }
 
 func (v *diffVerifier) TxEncode(tx sdk.Tx) ([]byte, error) {
@@ -102,7 +205,7 @@ func (v *diffVerifier) TxEncode(tx sdk.Tx) ([]byte, error) {
 }
 
 func (v *diffVerifier) TxDecode(bz []byte) (sdk.Tx, error) {
-	dt, ok := v.byName[string(bz)]
+	dt, ok := v.txs[string(bz)]
 	if !ok {
 		return nil, fmt.Errorf("unknown tx %q", bz)
 	}
@@ -114,260 +217,107 @@ func (v *diffVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v.ante != nil {
-		if err := v.ante(tx.(*diffTx)); err != nil {
-			return nil, err
-		}
+	if v.rejects[string(bz)] {
+		return nil, fmt.Errorf("ante rejected %s", bz)
 	}
 	return bz, nil
 }
 
 func (v *diffVerifier) ProcessProposalVerifyTx(bz []byte) (sdk.Tx, error) {
-	tx, err := v.TxDecode(bz)
-	if err != nil {
-		return nil, err
+	if v.rejects[string(bz)] {
+		return nil, fmt.Errorf("ante rejected %s", bz)
 	}
-	if v.ante != nil {
-		if err := v.ante(tx.(*diffTx)); err != nil {
-			return nil, err
-		}
-	}
-	return tx, nil
+	return v.TxDecode(bz)
 }
 
-func diffCtx(height int64) sdk.Context {
-	return sdk.NewContext(nil, cmtproto.Header{Height: height}, false, log.NewNopLogger()).
-		WithConsensusParams(cmtproto.ConsensusParams{Block: &cmtproto.BlockParams{MaxGas: diffMaxGas}})
+type proposalPathHarness struct {
+	t   *testing.T
+	ctx sdk.Context
+	txs map[string]*diffTx
 }
 
-// newDiffPool seeds a fresh pool per path, since the default path evicts the txs
-// its ante rejects and would otherwise leak that into the other path's run.
-func newDiffPool(t *testing.T, ctx sdk.Context, txs []*diffTx) *mempool.PriorityNonceMempool[int64] {
+func newProposalPathHarness(t *testing.T, txs map[string]*diffTx) *proposalPathHarness {
 	t.Helper()
+	ctx := sdk.NewContext(nil, cmtproto.Header{Height: diffHeight}, false, log.NewNopLogger()).
+		WithConsensusParams(cmtproto.ConsensusParams{Block: &cmtproto.BlockParams{MaxGas: diffMaxGas}})
+	return &proposalPathHarness{t: t, ctx: ctx, txs: txs}
+}
+
+// newPool seeds a fresh pool per path, since the ante path evicts what it rejects.
+func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 	pool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      mempool.NewDefaultTxPriority(),
 		SignerExtractor: diffSignerExtractor{},
 	})
-	for _, tx := range txs {
-		require.NoError(t, pool.Insert(ctx.WithPriority(tx.priority), tx))
+	for _, tx := range h.txs {
+		require.NoError(h.t, pool.Insert(h.ctx, tx))
 	}
 	return pool
 }
 
-func diffNames(txs []*diffTx) map[string]*diffTx {
-	byName := make(map[string]*diffTx, len(txs))
-	for _, tx := range txs {
-		byName[tx.name] = tx
-	}
-	return byName
-}
-
-func rawNames(raw [][]byte) []string {
-	names := make([]string, len(raw))
-	for i, bz := range raw {
-		names[i] = string(bz)
-	}
-	return names
-}
-
-func poolNames(t *testing.T, ctx sdk.Context, pool mempool.Mempool) []string {
-	t.Helper()
-	var names []string
-	for _, tx := range cronosmempool.PoolSnapshot(ctx, pool) {
-		dt, ok := tx.(*diffTx)
-		require.True(t, ok)
-		names = append(names, dt.name)
-	}
-	return names
-}
-
-func acceptAllTxs(_ sdk.Tx, _ []byte) error { return nil }
-
-// runFastPath drives the production fast path: CacheProposalTxVerifier plus the
-// cronos wrapper. The cache is pre-warmed so the hit branch runs, as after
-// admission; the verifier never runs the ante, even on a miss.
-func runFastPath(t *testing.T, ctx sdk.Context, txs []*diffTx, feeGate func(sdk.Context) (*big.Int, string)) ([]string, []string) {
-	t.Helper()
-	pool := newDiffPool(t, ctx, txs)
-	base := &diffVerifier{byName: diffNames(txs)}
+// runFastPath drives CacheProposalTxVerifier plus the cronos wrapper with a warm
+// encoder cache, as after admission. A zero baseFee disables the gate.
+func (h *proposalPathHarness) runFastPath(baseFee int64) proposalPathResult {
+	pool := h.newPool()
 	encCache := cronosmempool.NewEncoderCache(0, 0)
-	for _, tx := range txs {
-		encCache.Set(tx, []byte(tx.name))
+	for name, tx := range h.txs {
+		encCache.Set(tx, []byte(name))
 	}
-	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(base, encCache))
-	h := NewMempoolProposalHandler(inner, acceptAllTxs, feeGate, diffSignerExtractor{})
-	resp, err := h.PrepareProposalHandler()(ctx, &abci.RequestPrepareProposal{MaxTxBytes: diffMaxTxB, Height: ctx.BlockHeight()})
-	require.NoError(t, err)
-	return rawNames(resp.Txs), poolNames(t, ctx, pool)
+	var feeGate func(sdk.Context) (*big.Int, string)
+	if baseFee > 0 {
+		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
+	}
+	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(&diffVerifier{txs: h.txs}, encCache))
+	ph := NewMempoolProposalHandler(inner, acceptAllTxs, feeGate, diffSignerExtractor{})
+	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
 
-// runAntePath drives the default handler with a full-ante verifier, the
-// configuration used when the encoder cache is disabled.
-func runAntePath(t *testing.T, ctx sdk.Context, txs []*diffTx, ante func(*diffTx) error) ([]string, []string) {
-	t.Helper()
-	pool := newDiffPool(t, ctx, txs)
-	h := baseapp.NewDefaultProposalHandler(pool, &diffVerifier{byName: diffNames(txs), ante: ante})
-	h.SetTxSelector(NewExtTxSelector(acceptAllTxs, nil))
-	h.SetSignerExtractionAdapter(diffSignerExtractor{})
-	resp, err := h.PrepareProposalHandler()(ctx, &abci.RequestPrepareProposal{MaxTxBytes: diffMaxTxB, Height: ctx.BlockHeight()})
-	require.NoError(t, err)
-	return rawNames(resp.Txs), poolNames(t, ctx, pool)
+// runAntePath drives the default handler with a full-ante verifier, as when the
+// encoder cache is disabled.
+func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
+	pool := h.newPool()
+	v := &diffVerifier{txs: h.txs, rejects: make(map[string]bool, len(rejects))}
+	for _, name := range rejects {
+		v.rejects[name] = true
+	}
+	ph := baseapp.NewDefaultProposalHandler(pool, v)
+	ph.SetTxSelector(NewExtTxSelector(acceptAllTxs, nil))
+	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
+	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
 
-func requireProcessProposalAccepts(t *testing.T, ctx sdk.Context, txs []*diffTx, proposal []string) {
-	t.Helper()
-	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, ctx, txs, proposal))
+func (h *proposalPathHarness) prepare(prepare sdk.PrepareProposalHandler, pool mempool.Mempool) proposalPathResult {
+	resp, err := prepare(h.ctx, &abci.RequestPrepareProposal{MaxTxBytes: diffMaxTxB, Height: diffHeight})
+	require.NoError(h.t, err)
+	res := proposalPathResult{proposed: make([]string, len(resp.Txs))}
+	for i, bz := range resp.Txs {
+		res.proposed[i] = string(bz)
+	}
+	for _, tx := range cronosmempool.PoolSnapshot(h.ctx, pool) {
+		res.pooled = append(res.pooled, tx.(*diffTx).name)
+	}
+	// Selection order isn't under test; pool iteration order differs across senders.
+	slices.Sort(res.proposed)
+	slices.Sort(res.pooled)
+	return res
 }
 
-// processProposalStatus runs the real cronos ProcessProposal over a proposal,
-// with mallory blocklisted so the per-tx validation actually runs.
-func processProposalStatus(t *testing.T, ctx sdk.Context, txs []*diffTx, proposal []string) abci.ResponseProcessProposal_ProposalStatus {
-	t.Helper()
-	base := &diffVerifier{byName: diffNames(txs)}
+// processProposal runs the real cronos ProcessProposal with mallory blocklisted,
+// so per-tx validation actually runs.
+func (h *proposalPathHarness) processProposal(proposal []string) abci.ResponseProcessProposal_ProposalStatus {
 	codec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 	blocked, err := codec.BytesToString(diffAddr("mallory"))
-	require.NoError(t, err)
-	ph := NewProposalHandler(base.TxDecode, nil, codec)
+	require.NoError(h.t, err)
+	ph := NewProposalHandler((&diffVerifier{txs: h.txs}).TxDecode, nil, codec)
 	ph.blocklist = map[string]struct{}{blocked: {}}
 
 	raw := make([][]byte, len(proposal))
 	for i, name := range proposal {
 		raw[i] = []byte(name)
 	}
-	resp, err := ph.ProcessProposalHandler()(ctx, &abci.RequestProcessProposal{Txs: raw, Height: ctx.BlockHeight()})
-	require.NoError(t, err)
+	resp, err := ph.ProcessProposalHandler()(h.ctx, &abci.RequestProcessProposal{Txs: raw, Height: diffHeight})
+	require.NoError(h.t, err)
 	return resp.Status
 }
 
-func TestProposalPathsDiff(t *testing.T) {
-	alice, bob := diffAddr("alice"), diffAddr("bob")
-	ctx := diffCtx(10)
-	acceptAllAnte := func(*diffTx) error { return nil }
-
-	t.Run("process proposal rejects a blocklisted signer", func(t *testing.T) {
-		// Control: the accept checks below mean something only if this path can reject.
-		txs := []*diffTx{{name: "mallory-0", signer: diffAddr("mallory"), gas: 21_000, fee: 21_000}}
-		require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, ctx, txs, []string{"mallory-0"}))
-	})
-
-	t.Run("all pooled txs valid: paths agree on selection and pool", func(t *testing.T) {
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txAlice1, signer: alice, seq: 1, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txBob0, signer: bob, seq: 0, gas: 21_000, fee: 21_000, priority: 9},
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, nil)
-		anteSel, antePool := runAntePath(t, ctx, txs, acceptAllAnte)
-		require.Equal(t, anteSel, fastSel)
-		require.ElementsMatch(t, antePool, fastPool)
-		require.Len(t, fastSel, 3)
-	})
-
-	t.Run("nonce gap: both paths stop at the gap, neither evicts", func(t *testing.T) {
-		// The gap guard lives in DefaultProposalHandler's per-signer sequence
-		// tracking, which both paths share, so this must not diverge.
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txAlice2, signer: alice, seq: 2, gas: 21_000, fee: 21_000, priority: 5},
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, nil)
-		anteSel, antePool := runAntePath(t, ctx, txs, acceptAllAnte)
-		require.Equal(t, []string{txAlice0}, fastSel)
-		require.Equal(t, anteSel, fastSel)
-		require.ElementsMatch(t, []string{txAlice0, txAlice2}, fastPool)
-		require.ElementsMatch(t, antePool, fastPool)
-	})
-
-	t.Run("stale nonce: fast path proposes it, ante path drops and evicts it", func(t *testing.T) {
-		// alice-0 was already committed; recheck hasn't evicted it yet.
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txAlice1, signer: alice, seq: 1, gas: 21_000, fee: 21_000, priority: 5},
-		}
-		staleBelow1 := func(tx *diffTx) error {
-			if tx.seq < 1 {
-				return fmt.Errorf("account sequence mismatch: got %d, expected 1", tx.seq)
-			}
-			return nil
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, nil)
-		anteSel, antePool := runAntePath(t, ctx, txs, staleBelow1)
-
-		require.Equal(t, []string{txAlice0, txAlice1}, fastSel)
-		require.Equal(t, []string{txAlice1}, anteSel, "ante rejects the committed nonce")
-		require.ElementsMatch(t, []string{txAlice0, txAlice1}, fastPool, "fast path leaves eviction to recheck")
-		require.Equal(t, []string{txAlice1}, antePool, "ante path evicts during the proposal")
-		requireProcessProposalAccepts(t, ctx, txs, fastSel)
-	})
-
-	t.Run("recheck backlog: fast path proposes the whole stale prefix", func(t *testing.T) {
-		// Worst case of the above: a block committed three of alice's txs and the
-		// async recheck hasn't run, so every pooled tx is stale.
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txAlice1, signer: alice, seq: 1, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txAlice2, signer: alice, seq: 2, gas: 21_000, fee: 21_000, priority: 5},
-			{name: txBob0, signer: bob, seq: 0, gas: 21_000, fee: 21_000, priority: 9},
-		}
-		allStale := func(tx *diffTx) error {
-			if tx.signer.Equals(alice) {
-				return fmt.Errorf("account sequence mismatch: got %d, expected 3", tx.seq)
-			}
-			return nil
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, nil)
-		anteSel, antePool := runAntePath(t, ctx, txs, allStale)
-
-		require.ElementsMatch(t, []string{txAlice0, txAlice1, txAlice2, txBob0}, fastSel)
-		require.Equal(t, []string{txBob0}, anteSel)
-		require.Len(t, fastPool, 4)
-		require.Equal(t, []string{txBob0}, antePool)
-		requireProcessProposalAccepts(t, ctx, txs, fastSel)
-	})
-
-	t.Run("baseFee drift: paths agree on selection, differ on eviction", func(t *testing.T) {
-		// The gate replaces the ante's fee check on the fast path, so the selections
-		// match; only the pool side effect differs.
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 100, fee: 1_000, priority: 5}, // feeCap 10
-			{name: txBob0, signer: bob, seq: 0, gas: 100, fee: 10_000, priority: 9},    // feeCap 100
-		}
-		gate := func(sdk.Context) (*big.Int, string) { return big.NewInt(50), diffDenom }
-		lowFeeRejected := func(tx *diffTx) error {
-			if tx.fee/int64(tx.gas) < 50 {
-				return fmt.Errorf("insufficient fee: feeCap %d below baseFee 50", tx.fee/int64(tx.gas))
-			}
-			return nil
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, gate)
-		anteSel, antePool := runAntePath(t, ctx, txs, lowFeeRejected)
-
-		require.Equal(t, []string{txBob0}, fastSel)
-		require.Equal(t, anteSel, fastSel)
-		require.ElementsMatch(t, []string{txAlice0, txBob0}, fastPool, "gated tx stays pooled for a later block")
-		require.Equal(t, []string{txBob0}, antePool)
-	})
-
-	t.Run("timeout height: fast path proposes the expired tx", func(t *testing.T) {
-		// Timeout eviction is recheck's job on the fast path; the selector doesn't
-		// look at timeout height, so an expired tx survives until recheck runs.
-		txs := []*diffTx{
-			{name: txAlice0, signer: alice, seq: 0, gas: 21_000, fee: 21_000, priority: 5, timeout: 5},
-			{name: txBob0, signer: bob, seq: 0, gas: 21_000, fee: 21_000, priority: 9},
-		}
-		timedOut := func(tx *diffTx) error {
-			if tx.timeout > 0 && uint64(ctx.BlockHeight()) >= tx.timeout {
-				return fmt.Errorf("tx timeout height %d exceeded", tx.timeout)
-			}
-			return nil
-		}
-		fastSel, fastPool := runFastPath(t, ctx, txs, nil)
-		anteSel, antePool := runAntePath(t, ctx, txs, timedOut)
-
-		require.ElementsMatch(t, []string{txAlice0, txBob0}, fastSel)
-		require.Equal(t, []string{txBob0}, anteSel)
-		require.Len(t, fastPool, 2)
-		require.Equal(t, []string{txBob0}, antePool)
-		requireProcessProposalAccepts(t, ctx, txs, fastSel)
-	})
-}
+func acceptAllTxs(_ sdk.Tx, _ []byte) error { return nil }
