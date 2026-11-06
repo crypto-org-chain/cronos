@@ -39,7 +39,7 @@ func (p FinalizeNeutralMempool) RemoveWithReason(ctx context.Context, tx sdk.Tx,
 			logRecoveredPanic(p.logger, panicPathFinalizeRemove, r)
 		}
 	}()
-	// A pooled entry left behind is stale (ante consumed its nonce), so recheck evicts it.
+	// A pooled entry left behind is stale (ante consumed its nonce); recheck, when enabled, evicts it.
 	if removeErr := p.Remove(tx); removeErr != nil && !errors.Is(removeErr, sdkmempool.ErrTxNotFound) {
 		p.logger.Debug("block tx not removed from mempool", "err", removeErr)
 	}
