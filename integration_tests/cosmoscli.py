@@ -633,13 +633,14 @@ class CosmosCLI:
         )
         return r.decode("utf-8")
 
-    def broadcast_tx(self, tx_file, **kwargs):
+    def broadcast_tx(self, tx_file, wait=True, **kwargs):
+        "wait=False returns the CheckTx response without waiting for inclusion"
         kwargs.setdefault("broadcast_mode", "sync")
         kwargs.setdefault("output", "json")
         rsp = json.loads(
             self.raw("tx", "broadcast", tx_file, node=self.node_rpc, **kwargs)
         )
-        if rsp["code"] == 0:
+        if wait and rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
@@ -647,7 +648,7 @@ class CosmosCLI:
         with tempfile.NamedTemporaryFile("w") as fp:
             json.dump(tx, fp)
             fp.flush()
-            return self.broadcast_tx(fp.name)
+            return self.broadcast_tx(fp.name, **kwargs)
 
     def unjail(self, addr):
         return json.loads(
