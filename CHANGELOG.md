@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#2254](https://github.com/crypto-org-chain/cronos/pull/2254) fix(mempool): keep block tx results and recheck staging independent of local mempool errors.
+
 ### Bug fixes
 
 * [#2244](https://github.com/crypto-org-chain/cronos/pull/2244) fix(mempool): recover panics in app-mempool CheckTx, InsertTx and ReapTxs.
