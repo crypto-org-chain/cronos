@@ -204,8 +204,6 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			release, ok := m.acquireRPCSlot()
 			s.Require().True(ok, "RPC slot must be released after a panic")
 			release()
-			s.Require().True(m.encodeMu.TryLock(), "encodeMu must be released after a panic")
-			m.encodeMu.Unlock()
 		})
 	}
 }

@@ -51,11 +51,8 @@ type Manager struct {
 	runner    txRunner
 	encCache  *EncoderCache
 	txEncoder sdk.TxEncoder
-	// encodeMu serializes the pre-RunTx encode, which writes empty body/auth-info bytes into a
-	// shared decoded tx. Pooled txs passed ante, so other encodes only read. Never held with gate.
-	encodeMu sync.Mutex
-	trace    bool
-	logger   log.Logger
+	trace     bool
+	logger    log.Logger
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
 	preVerify func([]byte) error
 
@@ -319,17 +316,10 @@ func (a *Manager) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
 	if err != nil {
 		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
 	}
-	if bz, err := a.encode(tx); err == nil {
+	if bz, err := a.txEncoder(tx); err == nil {
 		return tx, bz, nil
 	}
 	return tx, raw, nil
-}
-
-// Deferred unlock: a recovered encoder panic must not leave encodeMu held.
-func (a *Manager) encode(tx sdk.Tx) ([]byte, error) {
-	a.encodeMu.Lock()
-	defer a.encodeMu.Unlock()
-	return a.txEncoder(tx)
 }
 
 // CheckTxHandler runs RPC CheckTx.
