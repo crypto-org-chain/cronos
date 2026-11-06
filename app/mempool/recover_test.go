@@ -54,9 +54,9 @@ func panicRunTx([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) 
 
 // withDecodeCache turns on the decode path so decoder and encoder panics are reachable.
 func withDecodeCache(m *Manager, decoder sdk.TxDecoder, encoder sdk.TxEncoder) {
-	m.encCache = NewEncoderCache(0, 0)
-	m.decoder = decoder
-	m.txEncoder = encoder
+	m.exec.encCache = NewEncoderCache(0, 0)
+	m.exec.decoder = decoder
+	m.exec.txEncoder = encoder
 }
 
 type storingPool struct{ fakePool }
@@ -83,8 +83,8 @@ var encodePanicTx = newEthTx(common.Address{0x1}, 7)
 
 func withEncodePanic(m *Manager) {
 	pool, ante := &storingPool{}, antecache.NewAnteCache(0)
-	m.mpool = pool
-	m.runner = insertingRunner{pool: pool, ante: ante}
+	m.sched.mpool = pool
+	m.exec.runner = insertingRunner{pool: pool, ante: ante}
 	m.SetAnteCache(ante)
 	withDecodeCache(m, func([]byte) (sdk.Tx, error) { return encodePanicTx, nil }, func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil })
 }
@@ -107,7 +107,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 
 	checkPooling := func(m *Manager) (uint32, string, error) {
 		runTx := func(bz []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-			return m.runner.RunTx(sdk.ExecModeCheck, bz, tx, -1, nil, nil)
+			return m.exec.runner.RunTx(sdk.ExecModeCheck, bz, tx, -1, nil, nil)
 		}
 		return checkWith(runTx)(m)
 	}
@@ -135,7 +135,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		{
 			name: "RPC InsertTx, panic in RunTx under the admission gate",
 			malleate: func(m *Manager) {
-				m.runner = &stubRunner{runTx: func([]byte) error { panicking("RunTx"); return nil }}
+				m.exec.runner = &stubRunner{runTx: func([]byte) error { panicking("RunTx"); return nil }}
 			},
 			call:  insertViaRPC,
 			path:  panicPathAdmit,
@@ -179,10 +179,10 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		s.Run(tc.name, func() {
 			m := newManager(&stubRunner{}, nil, noopEncoder, nil)
 			logger := &recordingLogger{Logger: log.NewNopLogger()}
-			m.logger = logger
+			m.exec.logger = logger
 			m.SetRPCMaxInflight(1)
 			tc.malleate(m)
-			epoch := m.pendingTxCache.epoch.Load()
+			epoch := m.exec.pending.epoch.Load()
 
 			code, rawLog, err := tc.call(m)
 
@@ -194,18 +194,18 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			s.Require().Equal(panicCode, code)
 			s.Require().Less(code, abci.CodeTypeRetry, "CometBFT must not soon retry a panicking tx")
 			s.Require().NotContains(rawLog, "boom", "the panic value must not reach clients")
-			s.Require().Equal(epoch, m.pendingTxCache.epoch.Load(), "a rejected tx must not invalidate the pending cache")
+			s.Require().Equal(epoch, m.exec.pending.epoch.Load(), "a rejected tx must not invalidate the pending cache")
 			if tc.encodePanics {
 				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must never be pooled")
-				s.Require().False(m.anteCache.Exists(anteKey(encodePanicTx)), "ante must not run for a tx whose encoding panics")
+				s.Require().False(m.sched.anteCache.Exists(anteKey(encodePanicTx)), "ante must not run for a tx whose encoding panics")
 			}
-			s.Require().True(m.gate.mu.TryLock(), "admission gate must be released after a panic")
-			m.gate.mu.Unlock()
-			release, ok := m.acquireRPCSlot()
+			s.Require().True(m.exec.gate.mu.TryLock(), "admission gate must be released after a panic")
+			m.exec.gate.mu.Unlock()
+			release, ok := m.adm.acquireRPCSlot()
 			s.Require().True(ok, "RPC slot must be released after a panic")
 			release()
-			s.Require().True(m.encodeMu.TryLock(), "encodeMu must be released after a panic")
-			m.encodeMu.Unlock()
+			s.Require().True(m.adm.encodeMu.TryLock(), "encodeMu must be released after a panic")
+			m.adm.encodeMu.Unlock()
 		})
 	}
 }
@@ -356,7 +356,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 	}{
 		{
 			name:     "panic in the pool scan aborts the cycle and keeps its senders",
-			malleate: func(f *recheckFixture, _ *poisonTx) { f.a.mpool = &panickingPool{} },
+			malleate: func(f *recheckFixture, _ *poisonTx) { f.a.sched.mpool = &panickingPool{} },
 			path:     panicPathRecheck,
 			where:    "scan",
 		},
@@ -369,7 +369,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 		},
 		{
 			name:       "tx whose signer extraction panics is evicted",
-			malleate:   func(f *recheckFixture, poison *poisonTx) { f.a.signer = poisonSigner{f.signer, poison} },
+			malleate:   func(f *recheckFixture, poison *poisonTx) { f.a.sched.signer = poisonSigner{f.signer, poison} },
 			path:       panicPathRecheckTx,
 			where:      getSignersSite,
 			expEvicted: true,
@@ -378,7 +378,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			name: "tx whose encode panics on a cache miss is evicted",
 			malleate: func(f *recheckFixture, poison *poisonTx) {
 				f.enc.Evict(poison)
-				f.a.txEncoder = func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil }
+				f.a.exec.txEncoder = func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil }
 			},
 			path:       panicPathRecheckTx,
 			where:      encodeSite,
@@ -398,18 +398,18 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 		s.Run(tc.name, func() {
 			f := newRecheckFixture("alice-1") // the sibling fails recheck, so it's evicted only if the cycle goes on
 			logger := &recordingLogger{Logger: log.NewNopLogger()}
-			f.a.logger = logger
+			f.a.exec.logger = logger
 			poison := &poisonTx{ptrTx: ptrTx{id: 1}}
 			f.signer.m[poison] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
 			s.Require().NoError(f.pool.Insert(sdk.Context{}, poison))
 			f.enc.Set(poison, []byte("alice-0"))
 			sibling := f.add(2, "alice", 1, "alice-1")
-			f.a.recheckSenders = map[string]struct{}{alice: {}}
-			f.a.deferred = []sdk.Tx{poison}
+			f.a.sched.recheckSenders = map[string]struct{}{alice: {}}
+			f.a.sched.deferred = []sdk.Tx{poison}
 			tc.malleate(f, poison)
 			startAsyncWorker(f)
 			defer f.a.Close()
-			epoch := f.a.pendingTxCache.epoch.Load()
+			epoch := f.a.exec.pending.epoch.Load()
 
 			f.a.TriggerRecheck()
 
@@ -421,14 +421,14 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			s.Require().Equal(!tc.expEvicted, poolHas(f.pool, sibling))
 			s.Require().Equal(tc.expRunTx, f.runner.seen["alice-0"], "an evicted poison tx must not be rechecked")
 			if !tc.expEvicted {
-				s.Require().Contains(f.a.recheckSenders, alice, "an aborted cycle's senders must be retried")
-				s.Require().Equal([]sdk.Tx{poison}, f.a.deferred, "an aborted cycle's carry must be retried")
+				s.Require().Contains(f.a.sched.recheckSenders, alice, "an aborted cycle's senders must be retried")
+				s.Require().Equal([]sdk.Tx{poison}, f.a.sched.deferred, "an aborted cycle's carry must be retried")
 			}
-			s.Require().NotEqual(epoch, f.a.pendingTxCache.epoch.Load(), "the pending cache must be invalidated")
-			s.Require().True(f.a.gate.mu.TryLock(), "admission gate must be released after a panic")
-			f.a.gate.mu.Unlock()
-			s.Require().True(f.a.recheckMu.TryLock(), "recheckMu must be released after a panic")
-			f.a.recheckMu.Unlock()
+			s.Require().NotEqual(epoch, f.a.exec.pending.epoch.Load(), "the pending cache must be invalidated")
+			s.Require().True(f.a.exec.gate.mu.TryLock(), "admission gate must be released after a panic")
+			f.a.exec.gate.mu.Unlock()
+			s.Require().True(f.a.sched.recheckMu.TryLock(), "recheckMu must be released after a panic")
+			f.a.sched.recheckMu.Unlock()
 
 			f.a.TriggerRecheck()
 			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "the worker must keep serving rechecks")
@@ -440,10 +440,10 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 	good, poison := &ptrTx{id: 1}, &ptrTx{id: 2}
 	alice, bob := sdk.AccAddress("alice").String(), sdk.AccAddress("bob").String()
-	signerPanics := func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} }
+	signerPanics := func(m *Manager) { m.sched.signer = poisonSigner{m.sched.signer.(fakeSigner), poison} }
 	decoderPanics := func(m *Manager) {
-		decode := m.decoder
-		m.decoder = func(bz []byte) (sdk.Tx, error) {
+		decode := m.exec.decoder
+		m.exec.decoder = func(bz []byte) (sdk.Tx, error) {
 			if string(bz) == "poison" {
 				panicking(decodeSite)
 			}
@@ -524,21 +524,21 @@ func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 				return good, nil
 			}
 			m := newManager(&stubRunner{}, nil, noopEncoder, decoder)
-			m.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+			m.sched.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
 				good:   {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
 				poison: {sdkmempool.NewSignerData(sdk.AccAddress("bob"), 0)},
 			}}
 			logger := &recordingLogger{Logger: log.NewNopLogger()}
-			m.logger = logger
+			m.exec.logger = logger
 			tc.malleate(m)
 
 			s.Require().NotPanics(func() { tc.stage(m, tc.txs) })
-			_, staged := m.recheckSenders[alice]
+			_, staged := m.sched.recheckSenders[alice]
 			s.Require().Equal(tc.expStaged, staged, "txs after the poison must still be staged")
-			s.Require().NotContains(m.recheckSenders, bob)
-			s.Require().Equal(tc.expHeight, m.lastCommittedHeight)
-			s.Require().True(m.stagingMu.TryLock(), "stagingMu must be released")
-			m.stagingMu.Unlock()
+			s.Require().NotContains(m.sched.recheckSenders, bob)
+			s.Require().Equal(tc.expHeight, m.sched.lastCommittedHeight)
+			s.Require().True(m.sched.stagingMu.TryLock(), "stagingMu must be released")
+			m.sched.stagingMu.Unlock()
 			s.Require().Len(logger.errors, 1)
 			s.Require().Equal(panicPathStageTx, keyval(logger.errors[0], "path"))
 			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
