@@ -23,8 +23,9 @@ import (
 // each block touched, picks which pending txs to re-validate, and evicts the ones
 // the new state invalidated.
 type recheckScheduler struct {
-	exec   *txExec
-	mpool  sdkmempool.Mempool
+	exec  *txExec
+	mpool sdkmempool.Mempool
+	// signer must key every pooled tx by the same address strings as the pool's adapter.
 	signer sdkmempool.SignerExtractionAdapter
 	// maxRecheckBatch softly caps RunTx(ReCheck) calls per cycle, splitting only
 	// between signer groups. 0 = unlimited.
@@ -66,14 +67,22 @@ func (s *recheckScheduler) stageSkippedSenders(txs [][]byte) {
 	s.stageSenders(s.decodedSignerSet(txs))
 }
 
-// decodedSignerSet decodes txs and collects their signers, skipping non-sdk txs
-// (e.g. vote extensions), which have no mempool entry.
+// decodedSignerSet decodes txs and collects their signers. Guarded per tx since
+// FinalizeBlock stages unvalidated block txs outside any recover; a panicking tx
+// (e.g. one with no fee, which the decoder accepts) is skipped.
 func (s *recheckScheduler) decodedSignerSet(txs [][]byte) map[string]struct{} {
 	senders := make(map[string]struct{}, len(txs))
 	for _, bz := range txs {
-		if tx, err := s.exec.decoder(bz); err == nil {
-			s.addSigners(senders, tx)
-		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logRecoveredPanic(s.exec.logger, panicPathStageTx, r, "tx", txHash(bz))
+				}
+			}()
+			if tx, err := s.exec.decoder(bz); err == nil { // non-sdk txs (e.g. vote extensions) have no mempool entry
+				s.addSigners(senders, tx)
+			}
+		}()
 	}
 	return senders
 }
