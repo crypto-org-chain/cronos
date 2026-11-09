@@ -84,8 +84,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		return isFull() // blocked/invalid: skip, keep scanning
 	}
 
-	// Timeout gate: the fast path skips the ante, so without this an expired tx
-	// would take block space and then fail in FinalizeBlock without paying a fee.
+	// Timeout gate: the fast path skips the ante, so without this an expired cosmos
+	// tx would take block space and then fail in FinalizeBlock without paying a fee.
 	if txExpired(goCtx, memTx) {
 		ts.gateSkipped = append(ts.gateSkipped, txBz)
 		telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "expired")
