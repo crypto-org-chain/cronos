@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -126,11 +127,43 @@ func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	return ts.baseFee, ts.evmDenom
 }
 
+// recheckStager is the part of the app mempool manager that PrepareProposal drives.
+type recheckStager interface {
+	WaitForRecheckTimedOut(ctx context.Context, timeout time.Duration) bool
+	StageSkippedSenders(txs [][]byte)
+}
+
+var _ recheckStager = (*cronosmempool.Manager)(nil)
+
 // MempoolProposalHandler defines a custom PrepareProposal for cronos.
 type MempoolProposalHandler struct {
-	mempoolManager *cronosmempool.Manager
+	mempoolManager recheckStager
 	extSel         *ExtTxSelector
 	inner          sdk.PrepareProposalHandler
+}
+
+// newPrepareProposalHandler returns the fast handler when encCache is set, else the
+// full-ante default handler, whose MempoolProposalHandler is nil. feeGate applies
+// only to the fast path.
+func newPrepareProposalHandler(
+	mpool mempool.Mempool,
+	verifier baseapp.ProposalTxVerifier,
+	encCache *cronosmempool.EncoderCache,
+	validateTx func(sdk.Tx, []byte) error,
+	feeGate func(sdk.Context) (*big.Int, string),
+	signerExtractor mempool.SignerExtractionAdapter,
+) (sdk.PrepareProposalHandler, *MempoolProposalHandler) {
+	if encCache != nil {
+		h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(verifier, encCache))
+		ph := NewMempoolProposalHandler(h, validateTx, feeGate, signerExtractor)
+		return ph.PrepareProposalHandler(), ph
+	}
+	h := baseapp.NewDefaultProposalHandler(mpool, verifier)
+	h.SetTxSelector(NewExtTxSelector(validateTx, nil))
+	if signerExtractor != nil {
+		h.SetSignerExtractionAdapter(signerExtractor)
+	}
+	return h.PrepareProposalHandler(), nil
 }
 
 // NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
@@ -143,7 +176,7 @@ func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx fun
 	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
 }
 
-func (h *MempoolProposalHandler) SetMempoolManager(m *cronosmempool.Manager) {
+func (h *MempoolProposalHandler) SetMempoolManager(m recheckStager) {
 	h.mempoolManager = m
 }
 
