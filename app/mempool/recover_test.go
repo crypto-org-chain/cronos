@@ -35,7 +35,11 @@ func TestRecoverTestSuite(t *testing.T) {
 	suite.Run(t, new(RecoverTestSuite))
 }
 
-const encodeSite = "encode"
+const (
+	encodeSite     = "encode"
+	decodeSite     = "decode"
+	getSignersSite = "GetSigners"
+)
 
 func panicking(where string) { panic("boom in " + where) }
 
@@ -148,11 +152,11 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		{
 			name: "CheckTx, panic in the decoder before the admission gate",
 			malleate: func(m *Manager) {
-				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking("decode"); return nil, nil }, noopEncoder)
+				withDecodeCache(m, func([]byte) (sdk.Tx, error) { panicking(decodeSite); return nil, nil }, noopEncoder)
 			},
 			call:  checkWith(okRunTx),
 			path:  panicPathCheckTx,
-			where: "decode",
+			where: decodeSite,
 		},
 		{
 			name:     "CheckTx, panic in runTx under the admission gate",
@@ -200,6 +204,8 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			release, ok := m.acquireRPCSlot()
 			s.Require().True(ok, "RPC slot must be released after a panic")
 			release()
+			s.Require().True(m.encodeMu.TryLock(), "encodeMu must be released after a panic")
+			m.encodeMu.Unlock()
 		})
 	}
 }
@@ -332,7 +338,7 @@ type poisonSigner struct {
 
 func (p poisonSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 	if tx == p.poison {
-		panicking("GetSigners")
+		panicking(getSignersSite)
 	}
 	return p.fakeSigner.GetSigners(tx)
 }
@@ -365,7 +371,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			name:       "tx whose signer extraction panics is evicted",
 			malleate:   func(f *recheckFixture, poison *poisonTx) { f.a.signer = poisonSigner{f.signer, poison} },
 			path:       panicPathRecheckTx,
-			where:      "GetSigners",
+			where:      getSignersSite,
 			expEvicted: true,
 		},
 		{
@@ -426,6 +432,171 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 
 			f.a.TriggerRecheck()
 			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "the worker must keep serving rechecks")
+		})
+	}
+}
+
+// FinalizeBlock stages unvalidated block txs outside any recover, so staging must not panic.
+func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
+	good, poison := &ptrTx{id: 1}, &ptrTx{id: 2}
+	alice, bob := sdk.AccAddress("alice").String(), sdk.AccAddress("bob").String()
+	signerPanics := func(m *Manager) { m.signer = poisonSigner{m.signer.(fakeSigner), poison} }
+	decoderPanics := func(m *Manager) {
+		decode := m.decoder
+		m.decoder = func(bz []byte) (sdk.Tx, error) {
+			if string(bz) == "poison" {
+				panicking(decodeSite)
+			}
+			return decode(bz)
+		}
+	}
+	finalize := func(m *Manager, txs [][]byte) { m.StageRecheckSenders(7, txs) }
+	skip := func(m *Manager, txs [][]byte) { m.StageSkippedSenders(txs) }
+	poisonFirst := [][]byte{[]byte("poison"), []byte("good")}
+	poisonOnly := [][]byte{[]byte("poison")}
+
+	testCases := []struct {
+		name      string
+		malleate  func(m *Manager)
+		where     string
+		stage     func(m *Manager, txs [][]byte)
+		txs       [][]byte // poison first
+		expStaged bool     // alice, the good tx's sender, is staged
+		expHeight int64
+	}{
+		{
+			name:      "FinalizeBlock, signer extraction panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     finalize,
+			txs:       poisonFirst,
+			expStaged: true,
+			expHeight: 7,
+		},
+		{
+			name:      "FinalizeBlock, decoder panics",
+			malleate:  decoderPanics,
+			where:     decodeSite,
+			stage:     finalize,
+			txs:       poisonFirst,
+			expStaged: true,
+			expHeight: 7,
+		},
+		{
+			name:      "FinalizeBlock, every tx panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     finalize,
+			txs:       poisonOnly,
+			expHeight: 7,
+		},
+		{
+			name:      "PrepareProposal gate skip, signer extraction panics",
+			malleate:  signerPanics,
+			where:     getSignersSite,
+			stage:     skip,
+			txs:       poisonFirst,
+			expStaged: true,
+		},
+		{
+			name:      "PrepareProposal gate skip, decoder panics",
+			malleate:  decoderPanics,
+			where:     decodeSite,
+			stage:     skip,
+			txs:       poisonFirst,
+			expStaged: true,
+		},
+		{
+			name:     "PrepareProposal gate skip, every tx panics",
+			malleate: signerPanics,
+			where:    getSignersSite,
+			stage:    skip,
+			txs:      poisonOnly,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			decoder := func(bz []byte) (sdk.Tx, error) {
+				if string(bz) == "poison" {
+					return poison, nil
+				}
+				return good, nil
+			}
+			m := newManager(&stubRunner{}, nil, noopEncoder, decoder)
+			m.signer = fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+				good:   {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+				poison: {sdkmempool.NewSignerData(sdk.AccAddress("bob"), 0)},
+			}}
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			m.logger = logger
+			tc.malleate(m)
+
+			s.Require().NotPanics(func() { tc.stage(m, tc.txs) })
+			_, staged := m.recheckSenders[alice]
+			s.Require().Equal(tc.expStaged, staged, "txs after the poison must still be staged")
+			s.Require().NotContains(m.recheckSenders, bob)
+			s.Require().Equal(tc.expHeight, m.lastCommittedHeight)
+			s.Require().True(m.stagingMu.TryLock(), "stagingMu must be released")
+			m.stagingMu.Unlock()
+			s.Require().Len(logger.errors, 1)
+			s.Require().Equal(panicPathStageTx, keyval(logger.errors[0], "path"))
+			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
+			s.Require().Equal(txHash([]byte("poison")), keyval(logger.errors[0], "tx"))
+		})
+	}
+}
+
+func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
+	pooled, poison, unkeyed := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
+	finalize := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxFinalize}
+	recheck := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxRecheck}
+
+	testCases := []struct {
+		name      string
+		tx        sdk.Tx
+		reason    sdkmempool.RemoveReason
+		nilLogger bool
+		expErr    bool
+		expLogged bool // the panic is logged under panicPathFinalizeRemove
+		expPooled bool
+	}{
+		{name: "finalize removes the pooled tx", tx: pooled, reason: finalize},
+		{name: "finalize ignores a signer extraction panic", tx: poison, reason: finalize, expLogged: true, expPooled: true},
+		{name: "finalize ignores a removal error", tx: unkeyed, reason: finalize, expPooled: true},
+		{name: "finalize with a nil logger ignores a panic", tx: poison, reason: finalize, nilLogger: true, expPooled: true},
+		{name: "finalize with a nil logger ignores a removal error", tx: unkeyed, reason: finalize, nilLogger: true, expPooled: true},
+		{name: "other callers still get the removal error", tx: unkeyed, reason: recheck, expErr: true, expPooled: true},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
+				pooled: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
+			}}
+			pool := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+				TxPriority:      sdkmempool.NewDefaultTxPriority(),
+				SignerExtractor: poisonSigner{signer, poison},
+			})
+			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
+			recorder := &recordingLogger{Logger: log.NewNopLogger()}
+			var logger log.Logger = recorder
+			if tc.nilLogger {
+				logger = nil
+			}
+
+			var err error
+			s.Require().NotPanics(func() {
+				err = NewFinalizeNeutralMempool(pool, logger).RemoveWithReason(context.Background(), tc.tx, tc.reason)
+			})
+			s.Require().Equal(tc.expErr, err != nil, err)
+			s.Require().Equal(tc.expPooled, poolHas(pool, pooled))
+			if !tc.expLogged {
+				s.Require().Empty(recorder.errors)
+				return
+			}
+			s.Require().Len(recorder.errors, 1)
+			s.Require().Equal(panicPathFinalizeRemove, keyval(recorder.errors[0], "path"))
 		})
 	}
 }
