@@ -78,6 +78,12 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
 		},
 		{
+			name: "blocklisted signer: both skip it, neither evicts it",
+			pool: []string{txAlice0, txMallory0},
+			fast: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
+			ante: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
+		},
+		{
 			name:        "baseFee above a fee cap: both skip it, only ante evicts it",
 			pool:        []string{txAlice0, txBob0},
 			malleate:    func(txs map[string]*diffTx) { txs[txBob0].fee *= 100 },
@@ -117,6 +123,8 @@ const (
 	txAlice1 = "alice-1"
 	txAlice2 = "alice-2"
 	txBob0   = "bob-0"
+	// txMallory0's signer is blocklisted.
+	txMallory0 = "mallory-0"
 
 	diffDenom  = "basecro"
 	diffHeight = 10
@@ -271,7 +279,7 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
 	}
 	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(base, encCache))
-	ph := NewMempoolProposalHandler(inner, acceptAllTxs, feeGate, diffSignerExtractor{})
+	ph := NewMempoolProposalHandler(inner, rejectBlocklisted, feeGate, diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
 
@@ -280,7 +288,7 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
 	pool := h.newPool()
 	ph := baseapp.NewDefaultProposalHandler(pool, h.verifier(rejects))
-	ph.SetTxSelector(NewExtTxSelector(acceptAllTxs, nil))
+	ph.SetTxSelector(NewExtTxSelector(rejectBlocklisted, nil))
 	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
@@ -315,4 +323,10 @@ func bySigner(a, b string) int {
 	return strings.Compare(sa, sb)
 }
 
-func acceptAllTxs(_ sdk.Tx, _ []byte) error { return nil }
+// rejectBlocklisted stands in for ProposalHandler.ValidateTransaction.
+func rejectBlocklisted(tx sdk.Tx, _ []byte) error {
+	if dt := tx.(*diffTx); dt.signer.Equals(diffAddr("mallory")) {
+		return fmt.Errorf("signer is blocked: %s", dt.name)
+	}
+	return nil
+}
