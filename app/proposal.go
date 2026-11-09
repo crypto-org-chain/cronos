@@ -87,12 +87,10 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 
 	// Timeout gate: the fast path skips the ante, so without this an expired tx
 	// would take block space and then fail in FinalizeBlock without paying a fee.
-	if timeoutTx, ok := memTx.(sdk.TxWithTimeoutHeight); ok {
-		if timeout := timeoutTx.GetTimeoutHeight(); timeout > 0 && uint64(sdk.UnwrapSDKContext(goCtx).BlockHeight()) > timeout {
-			ts.gateSkipped = append(ts.gateSkipped, txBz)
-			telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "expired")
-			return isFull()
-		}
+	if txExpired(goCtx, memTx) {
+		ts.gateSkipped = append(ts.gateSkipped, txBz)
+		telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "expired")
+		return isFull()
 	}
 
 	txSize := cronosmempool.ProtoSizeForTx(txBz)
@@ -130,6 +128,25 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 	return isFull()
 }
 
+// txExpired mirrors the SDK ante's TxTimeoutHeightDecorator; goCtx is unwrapped only for a tx with a timeout.
+func txExpired(goCtx context.Context, tx sdk.Tx) bool {
+	var timeoutHeight uint64
+	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
+		timeoutHeight = t.GetTimeoutHeight()
+	}
+	var timeoutTime time.Time
+	if t, ok := tx.(sdk.TxWithTimeoutTimeStamp); ok {
+		timeoutTime = t.GetTimeoutTimeStamp()
+	}
+	hasTimeoutTime := !timeoutTime.IsZero() && timeoutTime.Unix() != 0
+	if timeoutHeight == 0 && !hasTimeoutTime {
+		return false
+	}
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	return (timeoutHeight > 0 && uint64(ctx.BlockHeight()) > timeoutHeight) ||
+		(hasTimeoutTime && timeoutTime.Before(ctx.BlockHeader().Time))
+}
+
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
 func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
 	if ts.baseFee == nil && ts.baseFeeRetriever != nil {
@@ -162,8 +179,9 @@ func newProposalEncoderCache(mempoolType string, txCacheSize, maxTxBytes int) *c
 	return cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
 }
 
-// newPrepareProposalHandler returns the fast handler when encCache is set, else the
-// full-ante default handler. feeGate and manager apply only to the fast path; manager may be nil.
+// newPrepareProposalHandler returns the fast handler, which skips the ante, when encCache
+// is set, else the full-ante one. feeGate and manager apply only to the fast path;
+// manager may be nil. Both drain the selector's skipped txs every round.
 func newPrepareProposalHandler(
 	mpool mempool.Mempool,
 	verifier baseapp.ProposalTxVerifier,
@@ -174,20 +192,16 @@ func newPrepareProposalHandler(
 	manager recheckStager,
 ) sdk.PrepareProposalHandler {
 	if encCache != nil {
-		h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(verifier, encCache))
-		ph := NewMempoolProposalHandler(h, validateTx, feeGate, signerExtractor)
-		ph.SetMempoolManager(manager)
-		return ph.PrepareProposalHandler()
+		verifier = NewCacheProposalTxVerifier(verifier, encCache)
+	} else {
+		feeGate, manager = nil, nil
 	}
-	h := baseapp.NewDefaultProposalHandler(mpool, verifier)
-	h.SetTxSelector(NewExtTxSelector(validateTx, nil))
-	if signerExtractor != nil {
-		h.SetSignerExtractionAdapter(signerExtractor)
-	}
-	return h.PrepareProposalHandler()
+	ph := NewMempoolProposalHandler(baseapp.NewDefaultProposalHandler(mpool, verifier), validateTx, feeGate, signerExtractor)
+	ph.SetMempoolManager(manager)
+	return ph.PrepareProposalHandler()
 }
 
-// NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
+// NewMempoolProposalHandler wraps h with the ExtTxSelector's blocklist, timeout and baseFee gates.
 func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx func(sdk.Tx, []byte) error, baseFeeRetriever func(sdk.Context) (*big.Int, string), signerExtractor mempool.SignerExtractionAdapter) *MempoolProposalHandler {
 	extSel := NewExtTxSelector(validateTx, baseFeeRetriever)
 	h.SetTxSelector(extSel)

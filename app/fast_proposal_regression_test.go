@@ -161,19 +161,21 @@ const (
 // diffTx is named "<signer>-<nonce>" and its raw bytes are that name, so cases
 // read as tx names and neither path needs a real codec or account keeper.
 type diffTx struct {
-	name     string
-	signer   sdk.AccAddress
-	seq      uint64
-	gas      uint64
-	fee      int64
-	timeout  uint64
-	priority int64
+	name        string
+	signer      sdk.AccAddress
+	seq         uint64
+	gas         uint64
+	fee         int64
+	timeout     uint64
+	timeoutTime time.Time
+	priority    int64
 }
 
 var (
-	_ sdk.FeeTx               = (*diffTx)(nil)
-	_ sdk.TxWithTimeoutHeight = (*diffTx)(nil)
-	_ signing.SigVerifiableTx = (*diffTx)(nil)
+	_ sdk.FeeTx                  = (*diffTx)(nil)
+	_ sdk.TxWithTimeoutHeight    = (*diffTx)(nil)
+	_ sdk.TxWithTimeoutTimeStamp = (*diffTx)(nil)
+	_ signing.SigVerifiableTx    = (*diffTx)(nil)
 )
 
 func (t *diffTx) GetMsgs() []sdk.Msg                    { return nil }
@@ -182,6 +184,7 @@ func (t *diffTx) GetGas() uint64                        { return t.gas }
 func (t *diffTx) GetFee() sdk.Coins                     { return sdk.NewCoins(sdk.NewInt64Coin(diffDenom, t.fee)) }
 func (t *diffTx) FeePayer() []byte                      { return t.signer }
 func (t *diffTx) FeeGranter() []byte                    { return nil }
+func (t *diffTx) GetTimeoutTimeStamp() time.Time        { return t.timeoutTime }
 func (t *diffTx) GetTimeoutHeight() uint64              { return t.timeout }
 func (t *diffTx) GetSigners() ([][]byte, error)         { return [][]byte{t.signer}, nil }
 func (t *diffTx) GetPubKeys() ([]cryptotypes.PubKey, error) {
