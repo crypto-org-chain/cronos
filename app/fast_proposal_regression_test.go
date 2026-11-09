@@ -18,6 +18,7 @@ import (
 	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	authcodec "github.com/cosmos/cosmos-sdk/codec/address"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -78,10 +79,12 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
 		},
 		{
-			name: "blocklisted signer: both skip it, neither evicts it",
+			name: "blocklisted signer selected first: both skip it and keep selecting, neither evicts it",
 			pool: []string{txAlice0, txMallory0},
-			fast: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
-			ante: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
+			// Higher priority puts mallory-0 ahead of alice-0, so a selector that stopped at the rejection fails.
+			malleate: func(txs map[string]*diffTx) { txs[txMallory0].priority = 10 },
+			fast:     proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
+			ante:     proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
 		},
 		{
 			name:        "baseFee above a fee cap: both skip it, only ante evicts it",
@@ -136,12 +139,13 @@ const (
 // diffTx is named "<signer>-<nonce>" and its raw bytes are that name, so cases
 // read as tx names and neither path needs a real codec or account keeper.
 type diffTx struct {
-	name    string
-	signer  sdk.AccAddress
-	seq     uint64
-	gas     uint64
-	fee     int64
-	timeout uint64
+	name     string
+	signer   sdk.AccAddress
+	seq      uint64
+	gas      uint64
+	fee      int64
+	timeout  uint64
+	priority int64
 }
 
 var (
@@ -238,13 +242,20 @@ type proposalPathHarness struct {
 	t   *testing.T
 	ctx sdk.Context
 	txs map[string]*diffTx
+	// validateTx is the production blocklist check, with mallory blocklisted.
+	validateTx func(sdk.Tx, []byte) error
 }
 
 func newProposalPathHarness(t *testing.T, txs map[string]*diffTx) *proposalPathHarness {
 	t.Helper()
 	ctx := sdk.NewContext(nil, cmtproto.Header{Height: diffHeight}, false, log.NewNopLogger()).
 		WithConsensusParams(cmtproto.ConsensusParams{Block: &cmtproto.BlockParams{MaxGas: diffMaxGas}})
-	return &proposalPathHarness{t: t, ctx: ctx, txs: txs}
+	codec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	blocked, err := codec.BytesToString(diffAddr("mallory"))
+	require.NoError(t, err)
+	ph := NewProposalHandler(nil, nil, codec)
+	ph.blocklist = map[string]struct{}{blocked: {}}
+	return &proposalPathHarness{t: t, ctx: ctx, txs: txs, validateTx: ph.ValidateTransaction}
 }
 
 // newPool seeds a fresh pool per path, since the ante path evicts what it rejects.
@@ -254,7 +265,7 @@ func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 		SignerExtractor: diffSignerExtractor{},
 	})
 	for _, tx := range h.txs {
-		require.NoError(h.t, pool.Insert(h.ctx, tx))
+		require.NoError(h.t, pool.Insert(h.ctx.WithPriority(tx.priority), tx))
 	}
 	return pool
 }
@@ -279,7 +290,7 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
 	}
 	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(base, encCache))
-	ph := NewMempoolProposalHandler(inner, rejectBlocklisted, feeGate, diffSignerExtractor{})
+	ph := NewMempoolProposalHandler(inner, h.validateTx, feeGate, diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
 
@@ -288,7 +299,7 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
 	pool := h.newPool()
 	ph := baseapp.NewDefaultProposalHandler(pool, h.verifier(rejects))
-	ph.SetTxSelector(NewExtTxSelector(rejectBlocklisted, nil))
+	ph.SetTxSelector(NewExtTxSelector(h.validateTx, nil))
 	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
@@ -321,12 +332,4 @@ func bySigner(a, b string) int {
 	sa, _, _ := strings.Cut(a, "-")
 	sb, _, _ := strings.Cut(b, "-")
 	return strings.Compare(sa, sb)
-}
-
-// rejectBlocklisted stands in for ProposalHandler.ValidateTransaction.
-func rejectBlocklisted(tx sdk.Tx, _ []byte) error {
-	if dt := tx.(*diffTx); dt.signer.Equals(diffAddr("mallory")) {
-		return fmt.Errorf("signer is blocked: %s", dt.name)
-	}
-	return nil
 }
