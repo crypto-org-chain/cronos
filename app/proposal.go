@@ -128,23 +128,14 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 	return isFull()
 }
 
-// txExpired mirrors the SDK ante's TxTimeoutHeightDecorator; goCtx is unwrapped only for a tx with a timeout.
+// txExpired is the ante's timeout-height check. The timeout timestamp is left out:
+// the eth ante never checks it, so gating on it could skip a valid eth tx forever.
 func txExpired(goCtx context.Context, tx sdk.Tx) bool {
-	var timeoutHeight uint64
-	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
-		timeoutHeight = t.GetTimeoutHeight()
-	}
-	var timeoutTime time.Time
-	if t, ok := tx.(sdk.TxWithTimeoutTimeStamp); ok {
-		timeoutTime = t.GetTimeoutTimeStamp()
-	}
-	hasTimeoutTime := !timeoutTime.IsZero() && timeoutTime.Unix() != 0
-	if timeoutHeight == 0 && !hasTimeoutTime {
+	t, ok := tx.(sdk.TxWithTimeoutHeight)
+	if !ok || t.GetTimeoutHeight() == 0 {
 		return false
 	}
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	return (timeoutHeight > 0 && uint64(ctx.BlockHeight()) > timeoutHeight) ||
-		(hasTimeoutTime && timeoutTime.Before(ctx.BlockHeader().Time))
+	return uint64(sdk.UnwrapSDKContext(goCtx).BlockHeight()) > t.GetTimeoutHeight()
 }
 
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
