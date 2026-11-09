@@ -262,8 +262,8 @@ func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
 
-// admit is the shared admission path: decode + preVerify + encode unlocked (bad txs skip
-// the gate), then RunTx(ExecModeCheck) + encCache.Set under it. Over-capacity and,
+// admit is the shared admission path: prepare unlocked, then RunTx(ExecModeCheck) +
+// encCache.Set under the gate. Over-capacity and,
 // for RPC txs, a full rpcTxLimit map to CodeTypeRetry.
 func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
@@ -280,20 +280,11 @@ func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codesp
 		defer release()
 	}
 
-	tx, err := a.decode(txBytes)
+	tx, canonical, err := a.prepare(txBytes)
 	if err != nil {
 		cs, c, l := errorsmod.ABCIInfo(err, false)
 		return c, cs, l
 	}
-
-	if a.preVerify != nil {
-		if err := a.preVerify(tx); err != nil {
-			cs, c, l := errorsmod.ABCIInfo(err, false)
-			return c, cs, l
-		}
-	}
-
-	canonical := a.encode(tx, txBytes)
 
 	a.gate.lock()
 	defer a.gate.unlock()
@@ -309,6 +300,19 @@ func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codesp
 	a.encCache.Set(tx, canonical)
 	a.pendingTxCache.invalidate()
 	return abci.CodeTypeOK, "", ""
+}
+
+// prepare decodes, pre-verifies and encodes a tx outside the admission gate, so bad txs never take it.
+func (a *Manager) prepare(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
+	if tx, err = a.decode(raw); err != nil {
+		return nil, nil, err
+	}
+	if a.preVerify != nil {
+		if err = a.preVerify(tx); err != nil {
+			return nil, nil, err
+		}
+	}
+	return tx, a.encode(tx, raw), nil
 }
 
 // decode returns a nil tx without a decoder; BaseApp.RunTx then decodes txBytes itself.
@@ -349,12 +353,10 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 		}
 		defer release()
 
-		// Decode and encode before locking
-		tx, err := a.decode(req.Tx)
+		tx, canonical, err := a.prepare(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}
-		canonical := a.encode(tx, req.Tx)
 
 		a.gate.lock()
 		defer a.gate.unlock()

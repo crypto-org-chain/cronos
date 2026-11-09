@@ -160,6 +160,16 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			where: decodeSite,
 		},
 		{
+			name: "CheckTx, panic in preVerify before the admission gate",
+			malleate: func(m *Manager) {
+				m.decoder = noopDecoder
+				m.SetPreVerify(func(sdk.Tx) error { panicking("preVerify"); return nil })
+			},
+			call:  checkWith(okRunTx),
+			path:  panicPathCheckTx,
+			where: "preVerify",
+		},
+		{
 			name:     "CheckTx, panic in runTx under the admission gate",
 			malleate: func(*Manager) {},
 			call:     checkWith(panicRunTx),

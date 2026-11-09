@@ -243,17 +243,21 @@ func (r *txCapturingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ 
 
 func TestAdmissionDecodesOnce(t *testing.T) {
 	_, decodeErrCode, _ := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode, false)
+	_, badSigCode, _ := errorsmod.ABCIInfo(sdkerrors.ErrorInvalidSigner, false)
 	testCases := []struct {
 		name      string
 		encCache  *EncoderCache
 		checkTx   bool
 		decodeErr bool
+		verifyErr bool
 	}{
 		{name: "InsertTx without encCache"},
 		{name: "InsertTx with encCache", encCache: NewEncoderCache(0, 0)},
 		{name: "CheckTx without encCache", checkTx: true},
 		{name: "InsertTx undecodable tx", decodeErr: true},
 		{name: "CheckTx undecodable tx", checkTx: true, decodeErr: true},
+		{name: "InsertTx rejected by preVerify", verifyErr: true},
+		{name: "CheckTx rejected by preVerify", checkTx: true, verifyErr: true},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -269,7 +273,13 @@ func TestAdmissionDecodesOnce(t *testing.T) {
 			runner := &txCapturingRunner{}
 			a := newManager(runner, tc.encCache, noopEncoder, decoder)
 			var verified sdk.Tx
-			a.SetPreVerify(func(got sdk.Tx) error { verified = got; return nil })
+			a.SetPreVerify(func(got sdk.Tx) error {
+				verified = got
+				if tc.verifyErr {
+					return sdkerrors.ErrorInvalidSigner
+				}
+				return nil
+			})
 
 			var code uint32
 			if tc.checkTx {
@@ -294,11 +304,20 @@ func TestAdmissionDecodesOnce(t *testing.T) {
 				}
 				return
 			}
+			if verified != sdk.Tx(tx) {
+				t.Fatal("preVerify must get the tx admission decoded")
+			}
+			if tc.verifyErr {
+				if code != badSigCode {
+					t.Fatalf("code=%d, want ErrorInvalidSigner %d", code, badSigCode)
+				}
+				if runner.got != nil {
+					t.Fatal("a tx preVerify rejects must not reach RunTx")
+				}
+				return
+			}
 			if code != abci.CodeTypeOK {
 				t.Fatalf("admit failed: code=%d", code)
-			}
-			if !tc.checkTx && verified != sdk.Tx(tx) {
-				t.Fatal("preVerify must get the tx admission decoded")
 			}
 			if runner.got != sdk.Tx(tx) {
 				t.Fatal("RunTx must get the decoded tx, not decode again")
