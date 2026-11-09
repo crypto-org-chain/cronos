@@ -511,9 +511,6 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolManager *cronosmempool.Manager
-	// Set inside the closure below, only when mempool.type=app has the encoder
-	// cache enabled (the fast PrepareProposal path); nil otherwise.
-	var ppHandler *MempoolProposalHandler
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -542,8 +539,7 @@ func New(
 		if encCache == nil && mempoolType == cronosmempool.TypeApp {
 			logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 		}
-		var prepareProposal sdk.PrepareProposalHandler
-		prepareProposal, ppHandler = newPrepareProposalHandler(mpool, app, encCache, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
+		prepareProposal, ppHandler := newPrepareProposalHandler(mpool, app, encCache, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
 		app.SetPrepareProposal(prepareProposal)
 
 		// The default process proposal handler do nothing when the mempool is noop,
