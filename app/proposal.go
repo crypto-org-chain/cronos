@@ -127,14 +127,23 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 	return isFull()
 }
 
-// txExpired is the ante's timeout-height check. The timeout timestamp is left out:
-// the eth ante never checks it, so gating on it could skip a valid eth tx.
+// txExpired mirrors the SDK ante's TxTimeoutHeightDecorator; goCtx is unwrapped only for a tx with a timeout.
 func txExpired(goCtx context.Context, tx sdk.Tx) bool {
-	t, ok := tx.(sdk.TxWithTimeoutHeight)
-	if !ok || t.GetTimeoutHeight() == 0 {
+	var timeoutHeight uint64
+	if t, ok := tx.(sdk.TxWithTimeoutHeight); ok {
+		timeoutHeight = t.GetTimeoutHeight()
+	}
+	var timeoutTime time.Time
+	if t, ok := tx.(sdk.TxWithTimeoutTimeStamp); ok {
+		timeoutTime = t.GetTimeoutTimeStamp()
+	}
+	hasTimeoutTime := !timeoutTime.IsZero() && timeoutTime.Unix() != 0
+	if timeoutHeight == 0 && !hasTimeoutTime {
 		return false
 	}
-	return uint64(sdk.UnwrapSDKContext(goCtx).BlockHeight()) > t.GetTimeoutHeight()
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	return (timeoutHeight > 0 && uint64(ctx.BlockHeight()) > timeoutHeight) ||
+		(hasTimeoutTime && timeoutTime.Before(ctx.BlockHeader().Time))
 }
 
 // gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
@@ -201,12 +210,7 @@ func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx fun
 	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
 }
 
-// SetMempoolManager treats a nil *Manager as no manager, so the nil checks in
-// PrepareProposal still hold.
 func (h *MempoolProposalHandler) SetMempoolManager(m recheckStager) {
-	if mgr, ok := m.(*cronosmempool.Manager); ok && mgr == nil {
-		m = nil
-	}
 	h.mempoolManager = m
 }
 

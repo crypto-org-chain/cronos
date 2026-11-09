@@ -558,7 +558,7 @@ func New(
 		// mempool.type=app with the encoder cache: the cache verifier supplies cached
 		// bytes and skips the ante re-run. Otherwise (flood mempool, or the cache
 		// disabled) the full-ante default handler; the NoOp-mempool branch echoes
-		// req.Txs (already CheckTx-decoded). Both apply the blocklist, timeout-height gate and gas/byte caps.
+		// req.Txs (already CheckTx-decoded). Both apply the blocklist, timeout gate and gas/byte caps.
 		if encCache == nil && mempoolType == cronosmempool.TypeApp {
 			logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
 		}

@@ -93,17 +93,17 @@ func TestExtTxSelector(t *testing.T) {
 		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
 	})
 
-	t.Run("timeout gate skips txs past their timeout height and keeps them for recheck", func(t *testing.T) {
+	t.Run("timeout gate skips txs past their timeout height or time and keeps them for recheck", func(t *testing.T) {
 		now := time.Unix(1_000, 0)
 		ctx := sdk.Context{}.WithBlockHeight(10).WithBlockTime(now)
 		ts := NewExtTxSelector(acceptAll, nil)
 		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 9}, []byte("expired-height"))
 		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 10}, []byte("last-height"))
-		// The eth ante never checks the timeout timestamp, so the gate must not either.
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeoutTime: now.Add(-time.Second)}, []byte("past-time"))
+		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeoutTime: now.Add(-time.Second)}, []byte("expired-time"))
+		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeoutTime: now}, []byte("last-time"))
 		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{}, []byte("no-timeout"))
-		require.Equal(t, [][]byte{[]byte("last-height"), []byte("past-time"), []byte("no-timeout")}, ts.SelectedTxs(bg))
-		require.Equal(t, [][]byte{[]byte("expired-height")}, ts.DrainGateSkipped())
+		require.Equal(t, [][]byte{[]byte("last-height"), []byte("last-time"), []byte("no-timeout")}, ts.SelectedTxs(bg))
+		require.Equal(t, [][]byte{[]byte("expired-height"), []byte("expired-time")}, ts.DrainGateSkipped())
 	})
 
 	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
@@ -167,25 +167,6 @@ func TestPrepareProposalWithoutEncoderCacheIgnoresFeeGateAndManager(t *testing.T
 }
 
 func acceptAllTxs(sdk.Tx, []byte) error { return nil }
-
-func TestSetMempoolManagerTreatsNilPointerAsNoManager(t *testing.T) {
-	testCases := []struct {
-		name    string
-		manager recheckStager
-		want    bool
-	}{
-		{name: "nil interface", manager: nil},
-		{name: "nil *Manager", manager: (*cronosmempool.Manager)(nil)},
-		{name: "manager set", manager: &recordingStager{}, want: true},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			h := &MempoolProposalHandler{}
-			h.SetMempoolManager(tc.manager)
-			require.Equal(t, tc.want, h.mempoolManager != nil)
-		})
-	}
-}
 
 func TestNewProposalEncoderCache(t *testing.T) {
 	testCases := []struct {
