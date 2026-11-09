@@ -262,9 +262,8 @@ func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
 
-// admit is the shared admission path: prepare unlocked, then RunTx(ExecModeCheck) +
-// encCache.Set under the gate. Over-capacity and,
-// for RPC txs, a full rpcTxLimit map to CodeTypeRetry.
+// admit is the shared admission path: prepare unlocked, then RunTx(ExecModeCheck) + encCache.Set
+// under the gate. Over-capacity and, for RPC txs, a full rpcTxLimit map to CodeTypeRetry.
 func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {

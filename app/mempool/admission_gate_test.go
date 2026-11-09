@@ -10,8 +10,11 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/suite"
 
+	errorsmod "cosmossdk.io/errors"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const (
@@ -239,6 +242,38 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 			}
 			s.waitRPCInflight(f, 0)
 			s.Equal(abci.CodeTypeOK, f.admitVia(tc.probePath, []byte("after")), "slots are released once admissions finish")
+		})
+	}
+}
+
+func (s *AdmissionGateTestSuite) TestPreVerifyRejectsWithoutWaitingForGate() {
+	_, badSigCode, _ := errorsmod.ABCIInfo(sdkerrors.ErrorInvalidSigner, false)
+	for _, path := range []string{pathGossip, pathRPCInsert, pathCheckTx} {
+		s.Run(path, func() {
+			f := newGateFixture(0)
+			var verified atomic.Int64
+			// The first tx passes and parks in RunTx holding the gate; every later tx has a bad signature.
+			f.a.SetPreVerify(func(sdk.Tx) error {
+				if verified.Add(1) > 1 {
+					return sdkerrors.ErrorInvalidSigner
+				}
+				return nil
+			})
+			occupied := f.startAdmits(path, 1)
+			s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
+
+			probe := make(chan uint32, 1)
+			go func() { probe <- f.admitVia(path, []byte("bad-sig")) }()
+			select {
+			case code := <-probe:
+				s.Equal(badSigCode, code)
+			case <-time.After(gateWait):
+				s.FailNow("a tx preVerify rejects must not wait for the admission gate")
+			}
+			s.Equal(int64(1), f.runner.calls.Load(), "a tx preVerify rejects must not reach RunTx")
+
+			close(f.release)
+			s.Equal(abci.CodeTypeOK, s.collect(occupied, 1)[0])
 		})
 	}
 }
