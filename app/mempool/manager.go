@@ -54,7 +54,7 @@ type Manager struct {
 	trace     bool
 	logger    log.Logger
 	// preVerify runs cheap verification lock-free before the tx admission mutex; set to nil for skip.
-	preVerify func([]byte) error
+	preVerify func(sdk.Tx) error
 
 	mpool sdkmempool.Mempool
 	// signer must key every pooled tx by the same address strings as the pool's adapter.
@@ -212,7 +212,10 @@ func (a *Manager) acquireRPCSlot() (release func(), ok bool) {
 }
 
 // SetPreVerify sets the pre-verification hook.
-func (a *Manager) SetPreVerify(fn func([]byte) error) {
+func (a *Manager) SetPreVerify(fn func(sdk.Tx) error) {
+	if fn != nil && a.decoder == nil {
+		panic("mempool: preVerify requires decoder != nil")
+	}
 	a.preVerify = fn
 }
 
@@ -259,10 +262,9 @@ func (a *Manager) RecheckDisabled() bool {
 	return a.recheckDisabled
 }
 
-// admit is the shared admission path: preVerify + decodeAndEncode unlocked (bad txs skip
+// admit is the shared admission path: decode + preVerify + encode unlocked (bad txs skip
 // the gate), then RunTx(ExecModeCheck) + encCache.Set under it. Over-capacity and,
-// for RPC txs, a full rpcTxLimit map to CodeTypeRetry. tx stays nil when
-// encCache is nil; BaseApp.RunTx accepts nil sdk.Tx (uses txBytes).
+// for RPC txs, a full rpcTxLimit map to CodeTypeRetry.
 func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -278,18 +280,20 @@ func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codesp
 		defer release()
 	}
 
+	tx, err := a.decode(txBytes)
+	if err != nil {
+		cs, c, l := errorsmod.ABCIInfo(err, false)
+		return c, cs, l
+	}
+
 	if a.preVerify != nil {
-		if err := a.preVerify(txBytes); err != nil {
+		if err := a.preVerify(tx); err != nil {
 			cs, c, l := errorsmod.ABCIInfo(err, false)
 			return c, cs, l
 		}
 	}
 
-	tx, canonical, err := a.decodeAndEncode(txBytes)
-	if err != nil {
-		cs, c, l := errorsmod.ABCIInfo(err, false)
-		return c, cs, l
-	}
+	canonical := a.encode(tx, txBytes)
 
 	a.gate.lock()
 	defer a.gate.unlock()
@@ -307,19 +311,27 @@ func (a *Manager) admit(txBytes []byte, source admitSource) (code uint32, codesp
 	return abci.CodeTypeOK, "", ""
 }
 
-// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nils without a cache, raw bytes on encode error.
-func (a *Manager) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
-	if a.encCache == nil {
-		return nil, nil, nil
+// decode returns a nil tx without a decoder; BaseApp.RunTx then decodes txBytes itself.
+func (a *Manager) decode(raw []byte) (sdk.Tx, error) {
+	if a.decoder == nil {
+		return nil, nil
 	}
 	tx, err := a.decoder(raw)
 	if err != nil {
-		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
+		return nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
+	}
+	return tx, nil
+}
+
+// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nil without a cache, raw bytes on encode error.
+func (a *Manager) encode(tx sdk.Tx, raw []byte) []byte {
+	if a.encCache == nil || tx == nil {
+		return nil
 	}
 	if bz, err := a.txEncoder(tx); err == nil {
-		return tx, bz, nil
+		return bz
 	}
-	return tx, raw, nil
+	return raw
 }
 
 // CheckTxHandler runs RPC CheckTx.
@@ -338,10 +350,11 @@ func (a *Manager) CheckTxHandler() sdk.CheckTxHandler {
 		defer release()
 
 		// Decode and encode before locking
-		tx, canonical, err := a.decodeAndEncode(req.Tx)
+		tx, err := a.decode(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}
+		canonical := a.encode(tx, req.Tx)
 
 		a.gate.lock()
 		defer a.gate.unlock()

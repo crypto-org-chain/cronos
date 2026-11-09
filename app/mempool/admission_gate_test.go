@@ -46,9 +46,9 @@ func newGateFixture(rpcMaxInflight int) *gateFixture {
 		once.Do(func() { <-f.release })
 		return nil
 	}}
-	f.a = newManager(f.runner, nil, noopEncoder, nil)
+	f.a = newManager(f.runner, nil, noopEncoder, noopDecoder)
 	f.a.SetRPCMaxInflight(rpcMaxInflight)
-	f.a.SetPreVerify(func([]byte) error {
+	f.a.SetPreVerify(func(sdk.Tx) error {
 		f.admitted.Add(1)
 		return nil
 	})

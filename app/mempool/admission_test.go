@@ -211,6 +211,46 @@ func TestPreVerifyPassesThroughNonEVMTx(t *testing.T) {
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "unsigned tx must be rejected by antehandler")
 }
 
+func TestEVMSigPreVerifier(t *testing.T) {
+	f := setupAdmissionApp(t, 2)
+	verify := mempool.NewEVMSigPreVerifier(cronos.TestAppChainID, nil)
+	require.NotNil(t, verify)
+	require.Nil(t, mempool.NewEVMSigPreVerifier("bad-chain-id", nil), "an unparsable chain ID disables the verifier")
+
+	other := f.accounts[1].Address
+	testCases := []struct {
+		name    string
+		build   func() []byte
+		wantErr error
+	}{
+		{
+			name:  "valid EVM tx passes",
+			build: func() []byte { return f.signTransfer(t, &f.accounts[0], nil) },
+		},
+		{
+			name:    "EVM tx with tampered From is rejected",
+			build:   func() []byte { return f.signTransfer(t, &f.accounts[0], &other) },
+			wantErr: sdkerrors.ErrorInvalidSigner,
+		},
+		{
+			name:  "cosmos tx defers to the locked path",
+			build: func() []byte { return f.signBankSendWithoutPubKey(t, &f.accounts[1]) },
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx, err := f.app.TxConfig().TxDecoder()(tc.build())
+			require.NoError(t, err)
+			err = verify(tx)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 // TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
 // (pre-verify lock-free, then RunTx under the admission mutex). Run with -race
 // to prove the path is concurrency-safe: the signer is pure and the decode cache

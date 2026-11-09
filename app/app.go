@@ -578,7 +578,7 @@ func New(
 			manager.SetAnteCache(anteCache)
 			manager.SetRPCMaxInflight(rpcMaxInflight)
 			var preVerifiers cronosmempool.PreVerifierRegistry
-			preVerifiers.Register(appmempool.NewEVMSigPreVerifier(app.ChainID(), activeDecoder, senderCache))
+			preVerifiers.Register(cronosmempool.NewEVMSigPreVerifier(app.ChainID(), senderCache))
 			manager.SetPreVerify(preVerifiers.Verify)
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
