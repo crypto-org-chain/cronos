@@ -129,7 +129,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 }
 
 // txExpired is the ante's timeout-height check. The timeout timestamp is left out:
-// the eth ante never checks it, so gating on it could skip a valid eth tx forever.
+// the eth ante never checks it, so gating on it could skip a valid eth tx.
 func txExpired(goCtx context.Context, tx sdk.Tx) bool {
 	t, ok := tx.(sdk.TxWithTimeoutHeight)
 	if !ok || t.GetTimeoutHeight() == 0 {
