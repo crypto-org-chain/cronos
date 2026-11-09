@@ -13,6 +13,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
@@ -98,7 +99,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Only EVM txs are cached, with signers filled first (initSigners); the EVM
+// NOT mutate them. Only EVM txs are cached, with lazy fields filled first (prepareForSharing); the EVM
 // ante and the encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
@@ -151,9 +152,7 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		// Cosmos txs stay private: multisig Address() and legacy EIP-712 checks rewrite Any amino caches on every call,
-		// and cosmos msg handlers aren't held to read-only.
-		if len(bz) <= cache.maxTxBytes && isRawEthTx(tx) && initSigners(tx) {
+		if len(bz) <= cache.maxTxBytes && prepareForSharing(tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil
@@ -163,17 +162,28 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 // ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
 var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
-// initSigners fills the SDK wrapper's lazy signers and msgsV2 before tx is shared, so
-// later readers never race on that first write; false means tx must stay private.
-func initSigners(tx sdk.Tx) (ok bool) {
-	// A malformed tx (e.g. nil AuthInfo.Fee) panics here; it must surface in runTx's recover, not in decode.
-	// The same panic keeps txs with empty auth-info bytes (the encoder writes them) private.
+// prepareForSharing fills tx's lazily written fields so sharers only read it; false keeps tx private.
+func prepareForSharing(tx sdk.Tx) (ok bool) {
+	// A malformed tx (e.g. nil AuthInfo.Fee) must fail in runTx's recover, not in decode.
 	defer func() {
 		if recover() != nil {
 			ok = false
 		}
 	}()
-	// The wrapper fills signers and msgsV2 in one call, rerun while signers is nil.
+	// Cosmos txs stay private: multisig Address() and legacy EIP-712 checks rewrite Any amino caches on every call,
+	// and cosmos msg handlers aren't held to read-only.
+	return isRawEthTx(tx) && hasFee(tx) && initSigners(tx)
+}
+
+// hasFee reports whether AuthInfo has a Fee: with it and msgs, the wire body and auth-info bytes
+// the proto decoder kept are non-empty, so the encoder never fills them.
+func hasFee(tx sdk.Tx) bool {
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
+	return ok && protoTx.GetProtoTx().GetAuthInfo().GetFee() != nil
+}
+
+// initSigners fills the SDK wrapper's lazy signers and msgsV2, which it sets in one call and reruns while signers is nil.
+func initSigners(tx sdk.Tx) bool {
 	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
 	if !isSigTx {
 		return false

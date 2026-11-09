@@ -17,6 +17,7 @@ import (
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // fakeTx stands in for the SDK wrapper of an EVM tx; GetSigners is where the wrapper fills its lazy fields.
@@ -25,7 +26,9 @@ type fakeTx struct {
 	msgs         []sdk.Msg
 	signers      [][]byte
 	err          error
-	panics       bool
+	noFee        bool
+	msgsPanic    bool
+	signersPanic bool
 	onGetSigners func()
 }
 
@@ -37,16 +40,28 @@ func newFakeEthTx() *fakeTx {
 	}
 }
 
-func (f *fakeTx) GetMsgs() []sdk.Msg                    { return f.msgs }
+func (f *fakeTx) GetMsgs() []sdk.Msg {
+	if f.msgsPanic {
+		panic("nil cached msg")
+	}
+	return f.msgs
+}
 func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 func (f *fakeTx) GetSigners() ([][]byte, error) {
 	if f.onGetSigners != nil {
 		f.onGetSigners()
 	}
-	if f.panics {
+	if f.signersPanic {
 		panic("nil AuthInfo.Fee")
 	}
 	return f.signers, f.err
+}
+
+func (f *fakeTx) GetProtoTx() *txtypes.Tx {
+	if f.noFee {
+		return &txtypes.Tx{AuthInfo: &txtypes.AuthInfo{}}
+	}
+	return &txtypes.Tx{AuthInfo: &txtypes.AuthInfo{Fee: &txtypes.Fee{}}}
 }
 
 func (f *fakeTx) GetExtensionOptions() []*codectypes.Any {
@@ -149,7 +164,9 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false},
 		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false},
 		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false},
-		{"signer panic stays private", func(tx *fakeTx) { tx.panics = true }, false},
+		{"no fee stays private", func(tx *fakeTx) { tx.noFee = true }, false},
+		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false},
+		{"msgs panic stays private", func(tx *fakeTx) { tx.msgsPanic = true }, false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
