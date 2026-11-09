@@ -89,6 +89,16 @@ func TestExtTxSelector(t *testing.T) {
 		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
 	})
 
+	t.Run("timeout gate skips txs past their timeout height and keeps them for recheck", func(t *testing.T) {
+		ctx := sdk.Context{}.WithBlockHeight(10)
+		ts := NewExtTxSelector(acceptAll, nil)
+		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 9}, []byte("expired"))
+		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 10}, []byte("last-height"))
+		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{}, []byte("no-timeout"))
+		require.Equal(t, [][]byte{[]byte("last-height"), []byte("no-timeout")}, ts.SelectedTxs(bg))
+		require.Equal(t, [][]byte{[]byte("expired")}, ts.DrainGateSkipped())
+	})
+
 	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
 		require.Nil(t, ts.DrainGateSkipped())
@@ -122,6 +132,44 @@ func TestExtTxSelector(t *testing.T) {
 		require.Empty(t, ts.SelectedTxs(bg))
 		require.Nil(t, ts.baseFee)
 	})
+}
+
+func TestSetMempoolManagerTreatsNilPointerAsNoManager(t *testing.T) {
+	testCases := []struct {
+		name    string
+		manager recheckStager
+		want    bool
+	}{
+		{name: "nil interface", manager: nil},
+		{name: "nil *Manager", manager: (*cronosmempool.Manager)(nil)},
+		{name: "nil fake", manager: (*recordingStager)(nil)},
+		{name: "manager set", manager: &recordingStager{}, want: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := &MempoolProposalHandler{}
+			h.SetMempoolManager(tc.manager)
+			require.Equal(t, tc.want, h.mempoolManager != nil)
+		})
+	}
+}
+
+func TestNewProposalEncoderCache(t *testing.T) {
+	testCases := []struct {
+		name        string
+		mempoolType string
+		txCacheSize int
+		want        bool
+	}{
+		{name: "app mempool with cache", mempoolType: cronosmempool.TypeApp, txCacheSize: 0, want: true},
+		{name: "app mempool, cache disabled", mempoolType: cronosmempool.TypeApp, txCacheSize: -1},
+		{name: "flood mempool", mempoolType: "flood", txCacheSize: 100},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, newProposalEncoderCache(tc.mempoolType, tc.txCacheSize, 0) != nil)
+		})
+	}
 }
 
 // gasOnlyTx implements sdk.FeeTx with only a gas value.

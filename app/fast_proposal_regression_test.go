@@ -108,12 +108,19 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
 		},
 		{
-			name:        "known gap: timeout height passed: fast proposes the expired tx",
+			name:        "timeout height passed: both skip the expired tx, only fast stages it for recheck, only ante evicts it",
 			pool:        []string{txAlice0, txBob0},
 			malleate:    func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight - 1 },
 			anteRejects: []string{txAlice0},
-			fast:        proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
+			fast:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txAlice0, txBob0}, staged: []string{txAlice0}},
 			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+		},
+		{
+			name:     "timeout height equal to the block height: still valid, both propose it",
+			pool:     []string{txAlice0, txBob0},
+			malleate: func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight },
+			fast:     proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
+			ante:     proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
 		},
 	}
 
@@ -328,7 +335,8 @@ func (h *proposalPathHarness) selectionOrder() []string {
 // A zero baseFee disables the gate.
 func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm bool) proposalPathResult {
 	pool := h.newPool()
-	encCache := cronosmempool.NewEncoderCache(0, 0)
+	encCache := newProposalEncoderCache(cronosmempool.TypeApp, 0, 0)
+	require.NotNil(h.t, encCache)
 	base := h.verifier(rejects)
 	if warm {
 		for name, tx := range h.txs {
@@ -340,22 +348,22 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 	if baseFee > 0 {
 		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
 	}
-	prepare, ph := newPrepareProposalHandler(pool, base, encCache, h.validateTx, feeGate, h.handlerSigner)
-	require.NotNil(h.t, ph)
 	stager := &recordingStager{}
-	ph.SetMempoolManager(stager)
-	res := h.prepare(prepare, pool)
+	res := h.prepare(newPrepareProposalHandler(pool, base, encCache, h.validateTx, feeGate, h.handlerSigner, stager), pool)
 	require.Equal(h.t, 1, stager.waits, "recheck wait")
 	res.staged = stager.staged
 	return res
 }
 
-// runAntePath drives the app's handler without the encoder cache, which runs the full ante.
+// runAntePath drives the app's handler with the tx cache disabled, which runs the full ante.
 func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
 	pool := h.newPool()
-	prepare, ph := newPrepareProposalHandler(pool, h.verifier(rejects), nil, h.validateTx, nil, h.handlerSigner)
-	require.Nil(h.t, ph)
-	return h.prepare(prepare, pool)
+	encCache := newProposalEncoderCache(cronosmempool.TypeApp, -1, 0)
+	require.Nil(h.t, encCache)
+	stager := &recordingStager{}
+	res := h.prepare(newPrepareProposalHandler(pool, h.verifier(rejects), encCache, h.validateTx, nil, h.handlerSigner, stager), pool)
+	res.staged = stager.staged
+	return res
 }
 
 func (h *proposalPathHarness) verifier(rejects []string) *diffVerifier {

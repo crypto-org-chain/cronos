@@ -518,10 +518,7 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		var encCache *cronosmempool.EncoderCache
-		if mempoolType == cronosmempool.TypeApp && txCacheSize >= 0 {
-			encCache = cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
-		}
+		encCache := newProposalEncoderCache(mempoolType, txCacheSize, maxTxBytes)
 
 		// baseFee gate source for the app-path selector; proposalFee is assigned
 		// once EVM keepers exist (the handler only runs post-startup).
@@ -531,16 +528,6 @@ func New(
 			}
 			return proposalFee(ctx)
 		}
-
-		// mempool.type=app with the encoder cache: the cache verifier supplies cached
-		// bytes and skips the ante re-run. Otherwise (flood mempool, or the cache
-		// disabled) the full-ante default handler; the NoOp-mempool branch echoes
-		// req.Txs (already CheckTx-decoded). Both apply the blocklist and gas/byte caps.
-		if encCache == nil && mempoolType == cronosmempool.TypeApp {
-			logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
-		}
-		prepareProposal, ppHandler := newPrepareProposalHandler(mpool, app, encCache, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
-		app.SetPrepareProposal(prepareProposal)
 
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
@@ -566,10 +553,16 @@ func New(
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
-			if ppHandler != nil {
-				ppHandler.SetMempoolManager(manager)
-			}
 		}
+
+		// mempool.type=app with the encoder cache: the cache verifier supplies cached
+		// bytes and skips the ante re-run. Otherwise (flood mempool, or the cache
+		// disabled) the full-ante default handler; the NoOp-mempool branch echoes
+		// req.Txs (already CheckTx-decoded). Both apply the blocklist and gas/byte caps.
+		if encCache == nil && mempoolType == cronosmempool.TypeApp {
+			logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+		}
+		app.SetPrepareProposal(newPrepareProposalHandler(mpool, app, encCache, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor, mempoolManager))
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(server.FlagBlockExecutor)) == config.BlockExecutorBlockSTM

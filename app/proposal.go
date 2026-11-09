@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"reflect"
 	"time"
 
 	"filippo.io/age"
@@ -43,8 +44,8 @@ type ExtTxSelector struct {
 	baseFee  *big.Int
 	evmDenom string
 
-	// gateSkipped accumulates raw bytes of txs rejected by the baseFee gate this
-	// round. Drained after each proposal so stranded senders are staged for recheck.
+	// gateSkipped accumulates raw bytes of txs rejected by the baseFee or timeout gate
+	// this round. Drained after each proposal so stranded senders are staged for recheck.
 	gateSkipped [][]byte
 }
 
@@ -67,7 +68,7 @@ func (ts *ExtTxSelector) Clear() {
 }
 
 // DrainGateSkipped returns and clears the raw bytes of txs rejected by the
-// baseFee gate this proposal round.
+// baseFee or timeout gate this proposal round.
 func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
 	out := ts.gateSkipped
 	ts.gateSkipped = nil
@@ -82,6 +83,16 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 
 	if err := ts.validateTx(memTx, txBz); err != nil {
 		return isFull() // blocked/invalid: skip, keep scanning
+	}
+
+	// Timeout gate: the fast path skips the ante, so without this an expired tx
+	// would take block space and then fail in FinalizeBlock without paying a fee.
+	if timeoutTx, ok := memTx.(sdk.TxWithTimeoutHeight); ok {
+		if timeout := timeoutTx.GetTimeoutHeight(); timeout > 0 && uint64(sdk.UnwrapSDKContext(goCtx).BlockHeight()) > timeout {
+			ts.gateSkipped = append(ts.gateSkipped, txBz)
+			telemetry.IncrCounter(1, "cronos", "mempool", "proposal", "gate", "expired")
+			return isFull()
+		}
 	}
 
 	txSize := cronosmempool.ProtoSizeForTx(txBz)
@@ -142,9 +153,17 @@ type MempoolProposalHandler struct {
 	inner          sdk.PrepareProposalHandler
 }
 
+// newProposalEncoderCache returns nil, which selects the full-ante proposal path,
+// unless mempool.type=app keeps a tx cache (a negative size disables it).
+func newProposalEncoderCache(mempoolType string, txCacheSize, maxTxBytes int) *cronosmempool.EncoderCache {
+	if mempoolType != cronosmempool.TypeApp || txCacheSize < 0 {
+		return nil
+	}
+	return cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
+}
+
 // newPrepareProposalHandler returns the fast handler when encCache is set, else the
-// full-ante default handler, whose MempoolProposalHandler is nil. feeGate applies
-// only to the fast path.
+// full-ante default handler. feeGate and manager apply only to the fast path; manager may be nil.
 func newPrepareProposalHandler(
 	mpool mempool.Mempool,
 	verifier baseapp.ProposalTxVerifier,
@@ -152,18 +171,20 @@ func newPrepareProposalHandler(
 	validateTx func(sdk.Tx, []byte) error,
 	feeGate func(sdk.Context) (*big.Int, string),
 	signerExtractor mempool.SignerExtractionAdapter,
-) (sdk.PrepareProposalHandler, *MempoolProposalHandler) {
+	manager recheckStager,
+) sdk.PrepareProposalHandler {
 	if encCache != nil {
 		h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(verifier, encCache))
 		ph := NewMempoolProposalHandler(h, validateTx, feeGate, signerExtractor)
-		return ph.PrepareProposalHandler(), ph
+		ph.SetMempoolManager(manager)
+		return ph.PrepareProposalHandler()
 	}
 	h := baseapp.NewDefaultProposalHandler(mpool, verifier)
 	h.SetTxSelector(NewExtTxSelector(validateTx, nil))
 	if signerExtractor != nil {
 		h.SetSignerExtractionAdapter(signerExtractor)
 	}
-	return h.PrepareProposalHandler(), nil
+	return h.PrepareProposalHandler()
 }
 
 // NewMempoolProposalHandler wraps h with the blocklist + baseFee gate ExtTxSelector.
@@ -176,7 +197,13 @@ func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx fun
 	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
 }
 
+// SetMempoolManager treats a nil pointer inside m as no manager, so the nil
+// checks in PrepareProposal still hold.
 func (h *MempoolProposalHandler) SetMempoolManager(m recheckStager) {
+	if v := reflect.ValueOf(m); !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
+		h.mempoolManager = nil
+		return
+	}
 	h.mempoolManager = m
 }
 
