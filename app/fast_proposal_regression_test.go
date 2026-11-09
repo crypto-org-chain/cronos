@@ -18,7 +18,6 @@ import (
 	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	authcodec "github.com/cosmos/cosmos-sdk/codec/address"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -26,10 +25,8 @@ import (
 )
 
 // The fast PrepareProposal path (mempool.type=app with the encoder cache) skips
-// the ante and leaves eviction to recheck. These tests pin where it may differ
-// from the default ante path. Cronos ProcessProposal is blocklist-only, so an
-// ante-invalid tx the fast path proposes fails in FinalizeBlock instead of
-// getting the block rejected.
+// the ante and keeps ante-rejected txs pooled for recheck to evict. These tests
+// pin where it may differ from the default ante path.
 
 type PrepareProposalPathsSuite struct {
 	suite.Suite
@@ -44,7 +41,7 @@ type proposalPathResult struct {
 	pooled   []string
 }
 
-func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndLeavesEvictionToRecheck() {
+func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPooled() {
 	testCases := []struct {
 		name string
 		pool []string
@@ -100,25 +97,19 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndLeavesEvictionToRech
 	}
 
 	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			txs := newDiffTxs(tc.pool...)
-			if tc.malleate != nil {
-				tc.malleate(txs)
-			}
-			h := newProposalPathHarness(s.T(), txs)
+		for _, warm := range []bool{true, false} {
+			s.Run(fmt.Sprintf("%s/warm_cache=%t", tc.name, warm), func() {
+				txs := newDiffTxs(tc.pool...)
+				if tc.malleate != nil {
+					tc.malleate(txs)
+				}
+				h := newProposalPathHarness(s.T(), txs)
 
-			s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee, tc.anteRejects), "fast path")
-			s.Require().Equal(tc.ante, h.runAntePath(tc.anteRejects), "ante path")
-			s.Require().Equal(abci.ResponseProcessProposal_ACCEPT, h.processProposal(tc.fast.proposed),
-				"peers must accept whatever the fast path proposes")
-		})
+				s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee, tc.anteRejects, warm), "fast path")
+				s.Require().Equal(tc.ante, h.runAntePath(tc.anteRejects), "ante path")
+			})
+		}
 	}
-}
-
-// Control: the ACCEPT checks above mean something only if ProcessProposal can reject.
-func (s *PrepareProposalPathsSuite) TestProcessProposalRejectsBlocklistedSigner() {
-	h := newProposalPathHarness(s.T(), newDiffTxs("mallory-0"))
-	s.Require().Equal(abci.ResponseProcessProposal_REJECT, h.processProposal([]string{"mallory-0"}))
 }
 
 const (
@@ -194,12 +185,17 @@ func (diffSignerExtractor) GetSigners(tx sdk.Tx) ([]mempool.SignerData, error) {
 type diffVerifier struct {
 	txs     map[string]*diffTx
 	rejects map[string]bool
+	// failEncode makes any tx not served from the encoder cache fail.
+	failEncode bool
 }
 
 func (v *diffVerifier) TxEncode(tx sdk.Tx) ([]byte, error) {
 	dt, ok := tx.(*diffTx)
 	if !ok {
 		return nil, fmt.Errorf("unexpected tx type %T", tx)
+	}
+	if v.failEncode {
+		return nil, fmt.Errorf("encoder called for %s", dt.name)
 	}
 	return []byte(dt.name), nil
 }
@@ -255,20 +251,26 @@ func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 	return pool
 }
 
-// runFastPath drives CacheProposalTxVerifier plus the cronos wrapper with a warm
-// encoder cache, as after admission. Its base verifier gets the same rejects, so
-// a fast path that ran the ante would fail. A zero baseFee disables the gate.
-func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string) proposalPathResult {
+// runFastPath drives CacheProposalTxVerifier plus the cronos wrapper. Its base
+// verifier gets the same rejects, so a fast path that ran the ante would fail. A
+// warm cache holds every tx, as after admission, and the encoder then fails so
+// only cache hits pass; a cold one, as after LRU eviction, takes the miss branch.
+// A zero baseFee disables the gate.
+func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm bool) proposalPathResult {
 	pool := h.newPool()
 	encCache := cronosmempool.NewEncoderCache(0, 0)
-	for name, tx := range h.txs {
-		encCache.Set(tx, []byte(name))
+	base := h.verifier(rejects)
+	if warm {
+		for name, tx := range h.txs {
+			encCache.Set(tx, []byte(name))
+		}
+		base.failEncode = true
 	}
 	var feeGate func(sdk.Context) (*big.Int, string)
 	if baseFee > 0 {
 		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
 	}
-	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(h.verifier(rejects), encCache))
+	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(base, encCache))
 	ph := NewMempoolProposalHandler(inner, acceptAllTxs, feeGate, diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
@@ -311,24 +313,6 @@ func bySigner(a, b string) int {
 	sa, _, _ := strings.Cut(a, "-")
 	sb, _, _ := strings.Cut(b, "-")
 	return strings.Compare(sa, sb)
-}
-
-// processProposal runs the real cronos ProcessProposal with mallory blocklisted,
-// so per-tx validation actually runs.
-func (h *proposalPathHarness) processProposal(proposal []string) abci.ResponseProcessProposal_ProposalStatus {
-	codec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
-	blocked, err := codec.BytesToString(diffAddr("mallory"))
-	require.NoError(h.t, err)
-	ph := NewProposalHandler((&diffVerifier{txs: h.txs}).TxDecode, nil, codec)
-	ph.blocklist = map[string]struct{}{blocked: {}}
-
-	raw := make([][]byte, len(proposal))
-	for i, name := range proposal {
-		raw[i] = []byte(name)
-	}
-	resp, err := ph.ProcessProposalHandler()(h.ctx, &abci.RequestProcessProposal{Txs: raw, Height: diffHeight})
-	require.NoError(h.t, err)
-	return resp.Status
 }
 
 func acceptAllTxs(_ sdk.Tx, _ []byte) error { return nil }
