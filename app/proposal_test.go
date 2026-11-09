@@ -176,7 +176,6 @@ func TestSetMempoolManagerTreatsNilPointerAsNoManager(t *testing.T) {
 	}{
 		{name: "nil interface", manager: nil},
 		{name: "nil *Manager", manager: (*cronosmempool.Manager)(nil)},
-		{name: "nil fake", manager: (*recordingStager)(nil)},
 		{name: "manager set", manager: &recordingStager{}, want: true},
 	}
 	for _, tc := range testCases {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"reflect"
 	"time"
 
 	"filippo.io/age"
@@ -202,12 +201,11 @@ func NewMempoolProposalHandler(h *baseapp.DefaultProposalHandler, validateTx fun
 	return &MempoolProposalHandler{extSel: extSel, inner: h.PrepareProposalHandler()}
 }
 
-// SetMempoolManager treats a nil pointer inside m as no manager, so the nil
-// checks in PrepareProposal still hold.
+// SetMempoolManager treats a nil *Manager as no manager, so the nil checks in
+// PrepareProposal still hold.
 func (h *MempoolProposalHandler) SetMempoolManager(m recheckStager) {
-	if v := reflect.ValueOf(m); !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
-		h.mempoolManager = nil
-		return
+	if mgr, ok := m.(*cronosmempool.Manager); ok && mgr == nil {
+		m = nil
 	}
 	h.mempoolManager = m
 }
