@@ -12,6 +12,8 @@ import (
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
+	"cosmossdk.io/log/v2"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -143,7 +145,10 @@ func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
 
 // NewCachingDecoder wraps base with the shared cache, so PrepareProposal and
 // BaseApp.runTx reuse each other's decodes.
-func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
+func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache, logger log.Logger) sdk.TxDecoder {
+	if logger == nil { // a nil logger would re-panic inside toBeCached's recover
+		logger = log.NewNopLogger()
+	}
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {
 			return tx, nil
@@ -152,7 +157,7 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		if len(bz) <= cache.maxTxBytes && toBeCached(tx) {
+		if len(bz) <= cache.maxTxBytes && toBeCached(logger, bz, tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil
@@ -163,10 +168,11 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
 // toBeCached also fills tx's lazily written fields, so sharers only read it; false keeps tx private.
-func toBeCached(tx sdk.Tx) (ok bool) {
-	// A malformed tx (e.g. nil AuthInfo.Fee) must fail in runTx's recover, not in decode.
+func toBeCached(logger log.Logger, bz []byte, tx sdk.Tx) (ok bool) {
+	// A malformed tx must fail in runTx's recover, not in decode.
 	defer func() {
-		if recover() != nil {
+		if r := recover(); r != nil {
+			logRecoveredPanic(logger, panicPathDecodeCache, r, "tx", txHash(bz))
 			ok = false
 		}
 	}()

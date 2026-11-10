@@ -15,6 +15,8 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
+	"cosmossdk.io/log/v2"
+
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -102,7 +104,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	raw := makeRaw(42)
 
@@ -135,7 +137,7 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	bad := []byte{1, 2} // too short → error from base
 
@@ -155,18 +157,19 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 		name       string
 		malleate   func(tx *fakeTx)
 		wantShared bool
+		wantPanic  string
 	}{
-		{"raw-format eth tx is shared", func(*fakeTx) {}, true},
-		{"cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "" }, false},
-		{"legacy EIP-712 tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx" }, false},
-		{"legacy-format eth msg stays private", func(tx *fakeTx) { tx.msgs = []sdk.Msg{&evmtypes.MsgEthereumTx{}} }, false},
-		{"non-eth msg stays private", func(tx *fakeTx) { tx.msgs = append(tx.msgs, &evmtypes.MsgUpdateParams{}) }, false},
-		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false},
-		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false},
-		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false},
-		{"no fee stays private", func(tx *fakeTx) { tx.noFee = true }, false},
-		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false},
-		{"msgs panic stays private", func(tx *fakeTx) { tx.msgsPanic = true }, false},
+		{"raw-format eth tx is shared", func(*fakeTx) {}, true, ""},
+		{"cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "" }, false, ""},
+		{"legacy EIP-712 tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx" }, false, ""},
+		{"legacy-format eth msg stays private", func(tx *fakeTx) { tx.msgs = []sdk.Msg{&evmtypes.MsgEthereumTx{}} }, false, ""},
+		{"non-eth msg stays private", func(tx *fakeTx) { tx.msgs = append(tx.msgs, &evmtypes.MsgUpdateParams{}) }, false, ""},
+		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false, ""},
+		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false, ""},
+		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false, ""},
+		{"no fee stays private", func(tx *fakeTx) { tx.noFee = true }, false, ""},
+		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false, "nil AuthInfo.Fee"},
+		{"msgs panic stays private", func(tx *fakeTx) { tx.msgsPanic = true }, false, "nil cached msg"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -182,10 +185,11 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 				}
 			}
 			var calls atomic.Int64
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
 			dec := NewCachingDecoder(func([]byte) (sdk.Tx, error) {
 				calls.Add(1)
 				return tx, nil
-			}, c)
+			}, c, logger)
 
 			for range 2 {
 				got, err := dec(raw)
@@ -206,6 +210,20 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 			if got := calls.Load(); got != wantCalls {
 				t.Fatalf("base calls = %d, want %d", got, wantCalls)
 			}
+			if tc.wantPanic == "" {
+				if len(logger.errors) != 0 {
+					t.Fatalf("logged %d errors, want none", len(logger.errors))
+				}
+				return
+			}
+			if len(logger.errors) != 2 {
+				t.Fatalf("logged %d panics, want one per decode", len(logger.errors))
+			}
+			for _, kv := range logger.errors {
+				if keyval(kv, "path") != panicPathDecodeCache || keyval(kv, "panic") != tc.wantPanic || keyval(kv, "tx") != txHash(raw) {
+					t.Fatalf("unexpected panic log %v", kv)
+				}
+			}
 		})
 	}
 }
@@ -213,7 +231,7 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	const n = 10
 	for i := uint64(0); i < n; i++ {
@@ -278,7 +296,7 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
 	const size = defaultCacheSize
 	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	for i := uint64(0); i < 2*size; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
@@ -300,7 +318,7 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	const goroutines = 16
 	const itersPerG = 200
@@ -339,7 +357,7 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 		return newCacheTx(uint64(len(bz))), nil
 	}
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	big := make([]byte, cmdcfg.DefaultTxCacheMaxTxBytes+1)
 	for i := 0; i < 3; i++ {
@@ -376,7 +394,7 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 		return tx, nil
 	}
 	c := NewDecodeCache(defaultCacheSize, customMax)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	// Above cap: each call must miss without signer init.
 	above := make([]byte, customMax+1)
