@@ -514,7 +514,7 @@ func (s *SharedDecodedTxTestSuite) TestOnlyEVMTxsAreShared() {
 			build: nilFeeTx,
 		},
 		{
-			// GetSigners returns one empty signer, and RPC's GetSenderLegacy writes From on such a msg.
+			// GetSigners passes with one empty signer and GetSenderLegacy writes From, so keep such a tx private.
 			name: "EVM transfer with empty From",
 			build: func(t *testing.T, f *admissionFixture) []byte {
 				t.Helper()
