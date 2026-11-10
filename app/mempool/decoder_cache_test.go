@@ -54,7 +54,7 @@ func (f *fakeTx) GetSigners() ([][]byte, error) {
 		f.onGetSigners()
 	}
 	if f.signersPanic {
-		panic("nil AuthInfo.Fee")
+		panic("boom in GetSigners")
 	}
 	return f.signers, f.err
 }
@@ -168,7 +168,7 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false, ""},
 		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false, ""},
 		{"no fee stays private", func(tx *fakeTx) { tx.noFee = true }, false, ""},
-		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false, "nil AuthInfo.Fee"},
+		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false, "boom in GetSigners"},
 		{"msgs panic stays private", func(tx *fakeTx) { tx.msgsPanic = true }, false, "nil cached msg"},
 	}
 	for _, tc := range testCases {
@@ -225,6 +225,22 @@ func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDecodeCache_NilLoggerRecoversPanic(t *testing.T) {
+	tx := newFakeEthTx()
+	tx.signersPanic = true
+	raw := makeRaw(1)
+	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(func([]byte) (sdk.Tx, error) { return tx, nil }, c, nil)
+
+	got, err := dec(raw)
+	if err != nil || got != tx {
+		t.Fatalf("decode = (%v, %v), want the base tx", got, err)
+	}
+	if _, hit := c.get(raw); hit {
+		t.Fatal("a tx that panics must stay out of the cache")
 	}
 }
 
