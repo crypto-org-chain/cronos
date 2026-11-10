@@ -5,6 +5,7 @@ import (
 	"container/list"
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math"
 	"sync"
 
@@ -100,9 +101,10 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 }
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
-// are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Only EVM txs are cached, with lazy fields filled first (toBeCached); the EVM
-// ante and the encoder only read them. A future EVM ante that writes would break sharing.
+// are shared across consumers (PrepareProposal, runTx, CheckTx, and the block runners, where
+// block-STM pre-estimation calls FeePayer from parallel workers) — callers MUST NOT mutate them.
+// Only EVM txs are cached, with lazy fields filled first (toBeCached); the EVM ante and the
+// encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
@@ -167,6 +169,11 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache, logger log.Logger
 // ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
 var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
+var (
+	errNoGetSigners = errors.New("tx has no GetSigners")
+	errNoSigners    = errors.New("tx has no signers")
+)
+
 // toBeCached also fills tx's lazily written fields, so sharers only read it; false keeps tx private.
 func toBeCached(logger log.Logger, bz []byte, tx sdk.Tx) (ok bool) {
 	// A malformed tx must fail in runTx's recover, not in decode.
@@ -178,7 +185,7 @@ func toBeCached(logger log.Logger, bz []byte, tx sdk.Tx) (ok bool) {
 	}()
 	// Cosmos txs stay private: multisig Address() and legacy EIP-712 checks rewrite Any amino caches on every call,
 	// and cosmos msg handlers aren't held to read-only.
-	return isRawEthTx(tx) && hasFee(tx) && initSigners(tx)
+	return isRawEthTx(tx) && hasFee(tx) && initSigners(tx) == nil
 }
 
 // A valid EVM tx's AuthInfo holds only the Fee (ethermint's ante rejects signer infos; decode doesn't), so without one
@@ -189,16 +196,22 @@ func hasFee(tx sdk.Tx) bool {
 }
 
 // initSigners fills the SDK wrapper's lazy signers and msgsV2, which it sets in one call and reruns while signers is nil.
-func initSigners(tx sdk.Tx) bool {
+func initSigners(tx sdk.Tx) error {
 	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
 	if !isSigTx {
-		return false
+		return errNoGetSigners
 	}
 	signers, err := sigTx.GetSigners()
-	return err == nil && len(signers) > 0
+	if err != nil {
+		return err
+	}
+	if len(signers) == 0 {
+		return errNoSigners
+	}
+	return nil
 }
 
-// isRawEthTx reports whether tx takes the EVM ante with only Raw-format eth msgs.
+// isRawEthTx reports whether tx takes the EVM ante with only Raw-format eth msgs that carry a From.
 func isRawEthTx(tx sdk.Tx) bool {
 	extTx, hasExt := tx.(authante.HasExtensionOptionsTx)
 	if !hasExt {
@@ -212,8 +225,9 @@ func isRawEthTx(tx sdk.Tx) bool {
 		return false
 	}
 	for _, msg := range msgs {
-		// Legacy Data-format msgs get Raw written on first AsTransaction.
-		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); !isEth || ethMsg.Raw.Transaction == nil {
+		// Legacy Data-format msgs get Raw written on first AsTransaction, and GetSenderLegacy fills an empty From.
+		// ValidateBasic rejects both, so no valid tx is lost.
+		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); !isEth || ethMsg.Raw.Transaction == nil || len(ethMsg.From) == 0 {
 			return false
 		}
 	}

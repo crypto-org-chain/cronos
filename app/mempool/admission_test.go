@@ -514,6 +514,22 @@ func (s *SharedDecodedTxTestSuite) TestOnlyEVMTxsAreShared() {
 			build: nilFeeTx,
 		},
 		{
+			// GetSigners returns one empty signer, and RPC's GetSenderLegacy writes From on such a msg.
+			name: "EVM transfer with empty From",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				tx, err := f.app.TxConfig().TxDecoder()(f.signTransfer(t, &f.accounts[0], nil))
+				require.NoError(t, err)
+				msg := tx.GetMsgs()[0].(*evmtypes.MsgEthereumTx)
+				msg.From = nil
+				built, err := msg.BuildTx(f.app.TxConfig().NewTxBuilder(), evmtypes.DefaultEVMDenom)
+				require.NoError(t, err)
+				bz, err := f.app.TxConfig().TxEncoder()(built)
+				require.NoError(t, err)
+				return bz
+			},
+		},
+		{
 			name: "cosmos MsgSend",
 			build: func(t *testing.T, f *admissionFixture) []byte {
 				t.Helper()
