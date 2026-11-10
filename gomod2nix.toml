@@ -62,8 +62,8 @@ schema = 3
     version = "v0.1.2"
     hash = "sha256-1VhdIdBDG7jaSiRTNYtoQ3WGaGm+vQ1Qf671zSiWAek="
   [mod."filippo.io/age"]
-    version = "v1.3.2"
-    hash = "sha256-A1VUzovKWxwelSc9/xofBwTfbRil9t75fRavb5p2JlA="
+    version = "v1.3.1"
+    hash = "sha256-Qs/q3zQYV0PukABBPf/aU5V1oOhw95NG6K301VYJk8A="
   [mod."filippo.io/bigmod"]
     version = "v0.1.1-0.20260103110540-f8a47775ebe5"
     hash = "sha256-Qn/oiGO9vJD3O/w+rLI98PMk6FIhK2uBO/EeyOUNtmg="

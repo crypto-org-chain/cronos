@@ -9,7 +9,7 @@ require (
 	cosmossdk.io/errors v1.1.0
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/tools/confix v0.1.2
-	filippo.io/age v1.3.2
+	filippo.io/age v1.3.1
 	github.com/99designs/keyring v1.2.2
 	github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
 	github.com/cosmos/cosmos-db v1.1.3
