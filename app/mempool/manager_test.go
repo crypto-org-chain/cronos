@@ -18,6 +18,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -36,6 +37,9 @@ func (t *ptrTx) GetTimeoutHeight() uint64            { return t.timeout }
 
 // noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
 var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }
+
+// noopDecoder is a non-nil decoder for tests that only need admission to reach preVerify.
+var noopDecoder sdk.TxDecoder = func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
 // stubRunner is a test double for txRunner.
 type stubRunner struct {
@@ -146,13 +150,15 @@ func assertPanics(t *testing.T, name string, fn func()) {
 
 func TestNewManager_PanicsOnMissingDeps(t *testing.T) {
 	enc := NewEncoderCache(0, 0)
-	noopDecoder := func([]byte) (sdk.Tx, error) { return &ptrTx{}, nil }
 
 	assertPanics(t, "nil txEncoder with encCache", func() {
 		newManager(&stubRunner{}, enc, nil, noopDecoder)
 	})
 	assertPanics(t, "nil decoder with encCache", func() {
 		newManager(&stubRunner{}, enc, noopEncoder, nil)
+	})
+	assertPanics(t, "nil decoder with preVerify", func() {
+		newManager(&stubRunner{}, nil, noopEncoder, nil).SetPreVerify(func(sdk.Tx) error { return nil })
 	})
 }
 
@@ -224,6 +230,99 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 	if _, ok := enc.Get(tx); ok {
 		t.Fatal("rejected tx must not be registered in encCache")
+	}
+}
+
+// txCapturingRunner records the decoded tx admission hands to RunTx.
+type txCapturingRunner struct{ got sdk.Tx }
+
+func (r *txCapturingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	r.got = tx
+	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func TestAdmissionDecodesOnce(t *testing.T) {
+	_, decodeErrCode, _ := errorsmod.ABCIInfo(sdkerrors.ErrTxDecode, false)
+	_, badSigCode, _ := errorsmod.ABCIInfo(sdkerrors.ErrorInvalidSigner, false)
+	testCases := []struct {
+		name      string
+		encCache  *EncoderCache
+		checkTx   bool
+		decodeErr bool
+		verifyErr bool
+	}{
+		{name: "InsertTx without encCache"},
+		{name: "InsertTx with encCache", encCache: NewEncoderCache(0, 0)},
+		{name: "CheckTx without encCache", checkTx: true},
+		{name: "InsertTx undecodable tx", decodeErr: true},
+		{name: "CheckTx undecodable tx", checkTx: true, decodeErr: true},
+		{name: "InsertTx rejected by preVerify", verifyErr: true},
+		{name: "CheckTx rejected by preVerify", checkTx: true, verifyErr: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := &ptrTx{}
+			decodes := 0
+			decoder := func([]byte) (sdk.Tx, error) {
+				decodes++
+				if tc.decodeErr {
+					return nil, errors.New("bad bytes")
+				}
+				return tx, nil
+			}
+			runner := &txCapturingRunner{}
+			a := newManager(runner, tc.encCache, noopEncoder, decoder)
+			var verified sdk.Tx
+			a.SetPreVerify(func(got sdk.Tx) error {
+				verified = got
+				if tc.verifyErr {
+					return sdkerrors.ErrorInvalidSigner
+				}
+				return nil
+			})
+
+			var code uint32
+			if tc.checkTx {
+				runTx := func(bz []byte, tx sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+					return runner.RunTx(sdk.ExecModeCheck, bz, tx, -1, nil, nil)
+				}
+				resp, _ := a.CheckTxHandler()(runTx, &abci.RequestCheckTx{Tx: []byte("tx")})
+				code = resp.Code
+			} else {
+				resp, _ := a.InsertTxHandler()(&abci.RequestInsertTx{Tx: []byte("tx")})
+				code = resp.Code
+			}
+			if decodes != 1 {
+				t.Fatalf("decoded %d times, want 1", decodes)
+			}
+			if tc.decodeErr {
+				if code != decodeErrCode {
+					t.Fatalf("code=%d, want ErrTxDecode %d", code, decodeErrCode)
+				}
+				if verified != nil || runner.got != nil {
+					t.Fatal("an undecodable tx must reach neither preVerify nor RunTx")
+				}
+				return
+			}
+			if verified != sdk.Tx(tx) {
+				t.Fatal("preVerify must get the tx admission decoded")
+			}
+			if tc.verifyErr {
+				if code != badSigCode {
+					t.Fatalf("code=%d, want ErrorInvalidSigner %d", code, badSigCode)
+				}
+				if runner.got != nil {
+					t.Fatal("a tx preVerify rejects must not reach RunTx")
+				}
+				return
+			}
+			if code != abci.CodeTypeOK {
+				t.Fatalf("admit failed: code=%d", code)
+			}
+			if runner.got != sdk.Tx(tx) {
+				t.Fatal("RunTx must get the decoded tx, not decode again")
+			}
+		})
 	}
 }
 
