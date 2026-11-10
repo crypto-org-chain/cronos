@@ -27,7 +27,9 @@ import (
 
 // The fast PrepareProposal path (mempool.type=app with the encoder cache) skips
 // the ante and keeps ante-rejected txs pooled for recheck to evict. These tests
-// pin where it may differ from the default ante path.
+// pin where it may differ from the default ante path. "known gap" cases record
+// txs the fast path proposes that then fail in FinalizeBlock without paying a
+// fee; a filter that closes a gap should flip its case, not be read as a regression.
 
 type PrepareProposalPathsSuite struct {
 	suite.Suite
@@ -47,10 +49,10 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 		name string
 		pool []string
 		// malleate changes the one field a case is about; txs default to a 1 basecro/gas fee cap.
-		malleate    func(txs map[string]*diffTx)
-		baseFee     int64
-		anteRejects []string
-		fast, ante  proposalPathResult
+		malleate func(txs map[string]*diffTx)
+		state    anteState
+		fast     proposalPathResult
+		ante     proposalPathResult
 	}{
 		{
 			name: "all valid: same proposal, nothing evicted",
@@ -65,18 +67,18 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			ante: proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txAlice2}},
 		},
 		{
-			name:        "stale nonce not yet rechecked: fast proposes it, ante drops and evicts it",
-			pool:        []string{txAlice0, txAlice1},
-			anteRejects: []string{txAlice0},
-			fast:        proposalPathResult{proposed: []string{txAlice0, txAlice1}, pooled: []string{txAlice0, txAlice1}},
-			ante:        proposalPathResult{proposed: []string{txAlice1}, pooled: []string{txAlice1}},
+			name:  "known gap: stale nonce not yet rechecked, fast proposes it, ante drops and evicts it",
+			pool:  []string{txAlice0, txAlice1},
+			state: anteState{accountSeq: map[string]uint64{alice: 1}},
+			fast:  proposalPathResult{proposed: []string{txAlice0, txAlice1}, pooled: []string{txAlice0, txAlice1}},
+			ante:  proposalPathResult{proposed: []string{txAlice1}, pooled: []string{txAlice1}},
 		},
 		{
-			name:        "recheck backlog: fast proposes the whole stale prefix",
-			pool:        []string{txAlice0, txAlice1, txAlice2, txBob0},
-			anteRejects: []string{txAlice0, txAlice1, txAlice2},
-			fast:        proposalPathResult{proposed: []string{txAlice0, txAlice1, txAlice2, txBob0}, pooled: []string{txAlice0, txAlice1, txAlice2, txBob0}},
-			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+			name:  "known gap: recheck backlog, fast proposes the whole stale prefix",
+			pool:  []string{txAlice0, txAlice1, txAlice2, txBob0},
+			state: anteState{accountSeq: map[string]uint64{alice: 3}},
+			fast:  proposalPathResult{proposed: []string{txAlice0, txAlice1, txAlice2, txBob0}, pooled: []string{txAlice0, txAlice1, txAlice2, txBob0}},
+			ante:  proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
 		},
 		{
 			name: "blocklisted signer selected first: both skip it and keep selecting, neither evicts it",
@@ -87,21 +89,33 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			ante:     proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0, txMallory0}},
 		},
 		{
-			name:        "baseFee above a fee cap: both skip it, only ante evicts it",
-			pool:        []string{txAlice0, txBob0},
-			malleate:    func(txs map[string]*diffTx) { txs[txBob0].fee *= 100 },
-			baseFee:     50,
-			anteRejects: []string{txAlice0},
-			fast:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txAlice0, txBob0}},
-			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+			name:     "baseFee above a fee cap: both skip it, only ante evicts it",
+			pool:     []string{txAlice0, txBob0},
+			malleate: func(txs map[string]*diffTx) { txs[txBob0].fee *= 100 },
+			state:    anteState{baseFee: 50},
+			fast:     proposalPathResult{proposed: []string{txBob0}, pooled: []string{txAlice0, txBob0}},
+			ante:     proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
 		},
 		{
-			name:        "timeout height passed: fast proposes the expired tx",
-			pool:        []string{txAlice0, txBob0},
-			malleate:    func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight - 1 },
-			anteRejects: []string{txAlice0},
-			fast:        proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
-			ante:        proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+			name:     "known gap: timeout height passed, fast proposes the expired tx",
+			pool:     []string{txAlice0, txBob0},
+			malleate: func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight - 1 },
+			fast:     proposalPathResult{proposed: []string{txAlice0, txBob0}, pooled: []string{txAlice0, txBob0}},
+			ante:     proposalPathResult{proposed: []string{txBob0}, pooled: []string{txBob0}},
+		},
+		{
+			name:     "timeout height equals the block height: both propose it",
+			pool:     []string{txAlice0},
+			malleate: func(txs map[string]*diffTx) { txs[txAlice0].timeout = diffHeight },
+			fast:     proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0}},
+			ante:     proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0}},
+		},
+		{
+			name:  "known gap: only a stale tx pooled, fast proposes it, ante proposes nothing and evicts it",
+			pool:  []string{txAlice0},
+			state: anteState{accountSeq: map[string]uint64{alice: 1}},
+			fast:  proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0}},
+			ante:  proposalPathResult{},
 		},
 	}
 
@@ -114,14 +128,15 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 				}
 				h := newProposalPathHarness(s.T(), txs)
 
-				s.Require().Equal(tc.fast, h.runFastPath(tc.baseFee, tc.anteRejects, warm), "fast path")
-				s.Require().Equal(tc.ante, h.runAntePath(tc.anteRejects), "ante path")
+				s.Require().Equal(tc.fast, h.runFastPath(tc.state, warm), "fast path")
+				s.Require().Equal(tc.ante, h.runAntePath(tc.state), "ante path")
 			})
 		}
 	}
 }
 
 const (
+	alice    = "alice"
 	txAlice0 = "alice-0"
 	txAlice1 = "alice-1"
 	txAlice2 = "alice-2"
@@ -192,11 +207,29 @@ func (diffSignerExtractor) GetSigners(tx sdk.Tx) ([]mempool.SignerData, error) {
 	return []mempool.SignerData{mempool.NewSignerData(dt.signer, dt.seq)}, nil
 }
 
-// diffVerifier is baseapp.ProposalTxVerifier for diffTx; rejects stands in for
-// the txs the default path's RunTx(PrepareProposal) ante would fail.
+// anteState is the chain state the modeled ante checks txs against.
+type anteState struct {
+	// accountSeq is each signer's next sequence; a missing signer is at 0.
+	accountSeq map[string]uint64
+	// baseFee in basecro/gas; zero disables both the ante fee check and the fast-path gate.
+	baseFee int64
+}
+
+// rejects models the ante checks the cases exercise: a sequence the account has
+// passed, a timeout height below the block height (TxTimeoutHeightDecorator),
+// and a fee cap below baseFee.
+func (s anteState) rejects(tx *diffTx) bool {
+	signer, _, _ := strings.Cut(tx.name, "-")
+	return tx.seq < s.accountSeq[signer] ||
+		(tx.timeout != 0 && diffHeight > tx.timeout) ||
+		tx.fee < s.baseFee*int64(tx.gas)
+}
+
+// diffVerifier is baseapp.ProposalTxVerifier for diffTx, with state standing in
+// for the default path's RunTx(PrepareProposal) ante.
 type diffVerifier struct {
-	txs     map[string]*diffTx
-	rejects map[string]bool
+	txs   map[string]*diffTx
+	state anteState
 	// failEncode makes any tx not served from the encoder cache fail.
 	failEncode bool
 }
@@ -225,16 +258,13 @@ func (v *diffVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v.rejects[string(bz)] {
+	if v.state.rejects(tx.(*diffTx)) {
 		return nil, fmt.Errorf("ante rejected %s", bz)
 	}
 	return bz, nil
 }
 
 func (v *diffVerifier) ProcessProposalVerifyTx(bz []byte) (sdk.Tx, error) {
-	if v.rejects[string(bz)] {
-		return nil, fmt.Errorf("ante rejected %s", bz)
-	}
 	return v.TxDecode(bz)
 }
 
@@ -271,14 +301,13 @@ func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 }
 
 // runFastPath drives CacheProposalTxVerifier plus the cronos wrapper. Its base
-// verifier gets the same rejects, so a fast path that ran the ante would fail. A
-// warm cache holds every tx, as after admission, and the encoder then fails so
+// verifier gets the same ante state, so a fast path that ran the ante would fail.
+// A warm cache holds every tx, as after admission, and the encoder then fails so
 // only cache hits pass; a cold one, as after LRU eviction, takes the miss branch.
-// A zero baseFee disables the gate.
-func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm bool) proposalPathResult {
+func (h *proposalPathHarness) runFastPath(state anteState, warm bool) proposalPathResult {
 	pool := h.newPool()
 	encCache := cronosmempool.NewEncoderCache(0, 0)
-	base := h.verifier(rejects)
+	base := &diffVerifier{txs: h.txs, state: state}
 	if warm {
 		for name, tx := range h.txs {
 			encCache.Set(tx, []byte(name))
@@ -286,8 +315,8 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 		base.failEncode = true
 	}
 	var feeGate func(sdk.Context) (*big.Int, string)
-	if baseFee > 0 {
-		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(baseFee), diffDenom }
+	if state.baseFee > 0 {
+		feeGate = func(sdk.Context) (*big.Int, string) { return big.NewInt(state.baseFee), diffDenom }
 	}
 	inner := baseapp.NewDefaultProposalHandler(pool, NewCacheProposalTxVerifier(base, encCache))
 	ph := NewMempoolProposalHandler(inner, h.validateTx, feeGate, diffSignerExtractor{})
@@ -296,28 +325,21 @@ func (h *proposalPathHarness) runFastPath(baseFee int64, rejects []string, warm 
 
 // runAntePath drives the default handler with a full-ante verifier, as when the
 // encoder cache is disabled.
-func (h *proposalPathHarness) runAntePath(rejects []string) proposalPathResult {
+func (h *proposalPathHarness) runAntePath(state anteState) proposalPathResult {
 	pool := h.newPool()
-	ph := baseapp.NewDefaultProposalHandler(pool, h.verifier(rejects))
+	ph := baseapp.NewDefaultProposalHandler(pool, &diffVerifier{txs: h.txs, state: state})
 	ph.SetTxSelector(NewExtTxSelector(h.validateTx, nil))
 	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
 }
 
-func (h *proposalPathHarness) verifier(rejects []string) *diffVerifier {
-	v := &diffVerifier{txs: h.txs, rejects: make(map[string]bool, len(rejects))}
-	for _, name := range rejects {
-		v.rejects[name] = true
-	}
-	return v
-}
-
 func (h *proposalPathHarness) prepare(prepare sdk.PrepareProposalHandler, pool mempool.Mempool) proposalPathResult {
 	resp, err := prepare(h.ctx, &abci.RequestPrepareProposal{MaxTxBytes: diffMaxTxB, Height: diffHeight})
 	require.NoError(h.t, err)
-	res := proposalPathResult{proposed: make([]string, len(resp.Txs))}
-	for i, bz := range resp.Txs {
-		res.proposed[i] = string(bz)
+	// Append from nil so an empty result equals proposalPathResult{}.
+	var res proposalPathResult
+	for _, bz := range resp.Txs {
+		res.proposed = append(res.proposed, string(bz))
 	}
 	for _, tx := range cronosmempool.PoolSnapshot(h.ctx, pool) {
 		res.pooled = append(res.pooled, tx.(*diffTx).name)
