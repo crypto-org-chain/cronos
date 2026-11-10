@@ -181,8 +181,8 @@ func toBeCached(logger log.Logger, bz []byte, tx sdk.Tx) (ok bool) {
 	return isRawEthTx(tx) && hasFee(tx) && initSigners(tx)
 }
 
-// hasFee reports whether AuthInfo has a Fee: with it and msgs, the wire body and auth-info bytes
-// the proto decoder kept are non-empty, so the encoder never fills them.
+// A valid EVM tx's AuthInfo holds only the Fee (ethermint rejects signer infos), so without one its wire bytes
+// are empty and the encoder's getAuthInfoBytes would store a re-marshal on the shared tx. Msgs keep the body bytes non-empty.
 func hasFee(tx sdk.Tx) bool {
 	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
 	return ok && protoTx.GetProtoTx().GetAuthInfo().GetFee() != nil
