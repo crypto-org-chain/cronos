@@ -5,13 +5,19 @@ import (
 	"container/list"
 	cryptorand "crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
+	"cosmossdk.io/log/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
 // xxhashSeed randomizes shard assignment so an attacker can't target one shard.
@@ -95,11 +101,10 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 }
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
-// are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Safe today because decode is the only writer: the EVM ante's
-// VerifySender only compares against MsgEthereumTx.From (set at proto-decode),
-// never writes it. A future ante that mutates a decoded msg would break sharing.
-// Exception: encoding fills empty body/auth-info bytes; Manager.encodeMu serializes that.
+// are shared across consumers (PrepareProposal, runTx, CheckTx, and the block runners, where
+// block-STM pre-estimation calls FeePayer from parallel workers) — callers MUST NOT mutate them.
+// Only EVM txs are cached, with lazy fields filled first (toBeCached); the EVM ante and the
+// encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
@@ -136,16 +141,16 @@ func (c *DecodeCache) get(bz []byte) (sdk.Tx, bool) {
 }
 
 func (c *DecodeCache) set(bz []byte, tx sdk.Tx) {
-	if len(bz) > c.maxTxBytes {
-		return
-	}
 	h := xxhash.Sum64(bz) ^ xxhashSeed
 	c.shards[h&shardMask].set(h, bz, tx)
 }
 
 // NewCachingDecoder wraps base with the shared cache, so PrepareProposal and
 // BaseApp.runTx reuse each other's decodes.
-func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
+func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache, logger log.Logger) sdk.TxDecoder {
+	if logger == nil { // a nil logger would re-panic inside toBeCached's recover
+		logger = log.NewNopLogger()
+	}
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {
 			return tx, nil
@@ -154,7 +159,77 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		cache.set(bz, tx)
+		if len(bz) <= cache.maxTxBytes && toBeCached(logger, bz, tx) {
+			cache.set(bz, tx)
+		}
 		return tx, nil
 	}
+}
+
+// ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
+var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
+
+var (
+	errNoGetSigners = errors.New("tx has no GetSigners")
+	errNoSigners    = errors.New("tx has no signers")
+)
+
+// toBeCached also fills tx's lazily written fields, so sharers only read it; false keeps tx private.
+func toBeCached(logger log.Logger, bz []byte, tx sdk.Tx) (ok bool) {
+	// A malformed tx must fail in runTx's recover, not in decode.
+	defer func() {
+		if r := recover(); r != nil {
+			logRecoveredPanic(logger, panicPathDecodeCache, r, "tx", txHash(bz))
+			ok = false
+		}
+	}()
+	// Cosmos txs stay private: multisig Address() and legacy EIP-712 checks rewrite Any amino caches on every call,
+	// and cosmos msg handlers aren't held to read-only.
+	return isRawEthTx(tx) && hasFee(tx) && initSigners(tx) == nil
+}
+
+// A valid EVM tx's AuthInfo holds only the Fee (ethermint's ante rejects signer infos; decode doesn't), so without one
+// its wire bytes are empty and the encoder's getAuthInfoBytes would store a re-marshal on the shared tx. Msgs keep the body bytes non-empty.
+func hasFee(tx sdk.Tx) bool {
+	protoTx, ok := tx.(interface{ GetProtoTx() *txtypes.Tx })
+	return ok && protoTx.GetProtoTx().GetAuthInfo().GetFee() != nil
+}
+
+// initSigners fills the SDK wrapper's lazy signers and msgsV2, which it sets in one call and reruns while signers is nil.
+func initSigners(tx sdk.Tx) error {
+	sigTx, isSigTx := tx.(interface{ GetSigners() ([][]byte, error) })
+	if !isSigTx {
+		return errNoGetSigners
+	}
+	signers, err := sigTx.GetSigners()
+	if err != nil {
+		return err
+	}
+	if len(signers) == 0 {
+		return errNoSigners
+	}
+	return nil
+}
+
+// isRawEthTx reports whether tx takes the EVM ante with only Raw-format eth msgs that carry a From.
+func isRawEthTx(tx sdk.Tx) bool {
+	extTx, hasExt := tx.(authante.HasExtensionOptionsTx)
+	if !hasExt {
+		return false
+	}
+	if opts := extTx.GetExtensionOptions(); len(opts) == 0 || opts[0].GetTypeUrl() != ethTxTypeURL {
+		return false
+	}
+	msgs := tx.GetMsgs()
+	if len(msgs) == 0 {
+		return false
+	}
+	for _, msg := range msgs {
+		// Legacy Data-format msgs get Raw written on first AsTransaction, and GetSenderLegacy fills an empty From.
+		// ValidateBasic rejects both, so no valid tx is lost.
+		if ethMsg, isEth := msg.(*evmtypes.MsgEthereumTx); !isEth || ethMsg.Raw.Transaction == nil || len(ethMsg.From) == 0 {
+			return false
+		}
+	}
+	return true
 }

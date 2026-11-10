@@ -11,16 +11,76 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	protov2 "google.golang.org/protobuf/proto"
 
+	"cosmossdk.io/log/v2"
+
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
-// cacheTx is a minimal sdk.Tx stub used in decode cache tests.
-type cacheTx struct{ id uint64 }
+// fakeTx stands in for the SDK wrapper of an EVM tx; GetSigners is where the wrapper fills its lazy fields.
+type fakeTx struct {
+	typeURL      string // first extension option; "" means none
+	msgs         []sdk.Msg
+	signers      [][]byte
+	err          error
+	noFee        bool
+	msgsPanic    bool
+	signersPanic bool
+	onGetSigners func()
+}
 
-func (c *cacheTx) GetMsgs() []sdk.Msg                    { return nil }
-func (c *cacheTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func newFakeEthTx() *fakeTx {
+	return &fakeTx{
+		typeURL: ethTxTypeURL,
+		msgs:    []sdk.Msg{newEthMsg(common.Address{0x1}, 0)},
+		signers: [][]byte{{1}},
+	}
+}
+
+func (f *fakeTx) GetMsgs() []sdk.Msg {
+	if f.msgsPanic {
+		panic("nil cached msg")
+	}
+	return f.msgs
+}
+func (f *fakeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (f *fakeTx) GetSigners() ([][]byte, error) {
+	if f.onGetSigners != nil {
+		f.onGetSigners()
+	}
+	if f.signersPanic {
+		panic("boom in GetSigners")
+	}
+	return f.signers, f.err
+}
+
+func (f *fakeTx) GetProtoTx() *txtypes.Tx {
+	if f.noFee {
+		return &txtypes.Tx{AuthInfo: &txtypes.AuthInfo{}}
+	}
+	return &txtypes.Tx{AuthInfo: &txtypes.AuthInfo{Fee: &txtypes.Fee{}}}
+}
+
+func (f *fakeTx) GetExtensionOptions() []*codectypes.Any {
+	if f.typeURL == "" {
+		return nil
+	}
+	return []*codectypes.Any{{TypeUrl: f.typeURL}}
+}
+func (f *fakeTx) GetNonCriticalExtensionOptions() []*codectypes.Any { return nil }
+
+// cacheTx is an EVM-shaped sdk.Tx stub, so the decode cache shares it.
+type cacheTx struct {
+	*fakeTx
+	id uint64
+}
+
+func newCacheTx(id uint64) *cacheTx { return &cacheTx{fakeTx: newFakeEthTx(), id: id} }
 
 func makeRaw(id uint64) []byte {
 	b := make([]byte, 8)
@@ -36,7 +96,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 		if len(bz) < 8 {
 			return nil, errors.New("too short")
 		}
-		return &cacheTx{id: binary.LittleEndian.Uint64(bz)}, nil
+		return newCacheTx(binary.LittleEndian.Uint64(bz)), nil
 	}
 	return dec, &calls
 }
@@ -44,7 +104,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	raw := makeRaw(42)
 
@@ -77,7 +137,7 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	bad := []byte{1, 2} // too short → error from base
 
@@ -92,10 +152,103 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	}
 }
 
+func TestDecodeCache_InitsSignersBeforeSharing(t *testing.T) {
+	testCases := []struct {
+		name       string
+		malleate   func(tx *fakeTx)
+		wantShared bool
+		wantPanic  string
+	}{
+		{"raw-format eth tx is shared", func(*fakeTx) {}, true, ""},
+		{"cosmos tx stays private", func(tx *fakeTx) { tx.typeURL = "" }, false, ""},
+		{"legacy EIP-712 tx stays private", func(tx *fakeTx) { tx.typeURL = "/ethermint.types.v1.ExtensionOptionsWeb3Tx" }, false, ""},
+		{"legacy-format eth msg stays private", func(tx *fakeTx) { tx.msgs[0].(*evmtypes.MsgEthereumTx).Raw.Transaction = nil }, false, ""},
+		{"empty From stays private", func(tx *fakeTx) { tx.msgs[0].(*evmtypes.MsgEthereumTx).From = nil }, false, ""},
+		{"non-eth msg stays private", func(tx *fakeTx) { tx.msgs = append(tx.msgs, &evmtypes.MsgUpdateParams{}) }, false, ""},
+		{"no msgs stays private", func(tx *fakeTx) { tx.msgs = nil }, false, ""},
+		{"signer error stays private", func(tx *fakeTx) { tx.err = errors.New("bad signer") }, false, ""},
+		{"no signers stays private", func(tx *fakeTx) { tx.signers = nil }, false, ""},
+		{"no fee stays private", func(tx *fakeTx) { tx.noFee = true }, false, ""},
+		{"signer panic stays private", func(tx *fakeTx) { tx.signersPanic = true }, false, "boom in GetSigners"},
+		{"msgs panic stays private", func(tx *fakeTx) { tx.msgsPanic = true }, false, "nil cached msg"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := newFakeEthTx()
+			tc.malleate(tx)
+			raw := makeRaw(1)
+			c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+			signersInited := false
+			tx.onGetSigners = func() {
+				signersInited = true
+				if _, hit := c.get(raw); hit {
+					t.Error("tx visible in the cache before signer init")
+				}
+			}
+			var calls atomic.Int64
+			logger := &recordingLogger{Logger: log.NewNopLogger()}
+			dec := NewCachingDecoder(func([]byte) (sdk.Tx, error) {
+				calls.Add(1)
+				return tx, nil
+			}, c, logger)
+
+			for range 2 {
+				got, err := dec(raw)
+				if err != nil {
+					t.Fatalf("unexpected err: %v", err)
+				}
+				if got != tx {
+					t.Fatal("decoder must return the base tx")
+				}
+			}
+			if tc.wantShared && !signersInited {
+				t.Fatal("a shared tx must have its signers filled")
+			}
+			wantCalls := int64(2)
+			if tc.wantShared {
+				wantCalls = 1
+			}
+			if got := calls.Load(); got != wantCalls {
+				t.Fatalf("base calls = %d, want %d", got, wantCalls)
+			}
+			if tc.wantPanic == "" {
+				if len(logger.errors) != 0 {
+					t.Fatalf("logged %d errors, want none", len(logger.errors))
+				}
+				return
+			}
+			if len(logger.errors) != 2 {
+				t.Fatalf("logged %d panics, want one per decode", len(logger.errors))
+			}
+			for _, kv := range logger.errors {
+				if keyval(kv, "path") != panicPathDecodeCache || keyval(kv, "panic") != tc.wantPanic || keyval(kv, "tx") != txHash(raw) {
+					t.Fatalf("unexpected panic log %v", kv)
+				}
+			}
+		})
+	}
+}
+
+func TestDecodeCache_NilLoggerRecoversPanic(t *testing.T) {
+	tx := newFakeEthTx()
+	tx.signersPanic = true
+	raw := makeRaw(1)
+	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
+	dec := NewCachingDecoder(func([]byte) (sdk.Tx, error) { return tx, nil }, c, nil)
+
+	got, err := dec(raw)
+	if err != nil || got != tx {
+		t.Fatalf("decode = (%v, %v), want the base tx", got, err)
+	}
+	if _, hit := c.get(raw); hit {
+		t.Fatal("a tx that panics must stay out of the cache")
+	}
+}
+
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	const n = 10
 	for i := uint64(0); i < n; i++ {
@@ -123,7 +276,7 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	// Fill shard to capacity with keys 0..shardCacheSize-1.
 	for i := 0; i < shardCacheSize; i++ {
 		bz := makeRaw(uint64(i))
-		s.set(xxhash.Sum64(bz), bz, &cacheTx{id: uint64(i)})
+		s.set(xxhash.Sum64(bz), bz, newCacheTx(uint64(i)))
 	}
 
 	// Access key 0 — promotes it to MRU.
@@ -135,7 +288,7 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	// Insert one new key. Shard is full, so LRU (key 1, never re-accessed)
 	// must be evicted, NOT key 0 (MRU).
 	newBz := makeRaw(uint64(shardCacheSize))
-	s.set(xxhash.Sum64(newBz), newBz, &cacheTx{id: uint64(shardCacheSize)})
+	s.set(xxhash.Sum64(newBz), newBz, newCacheTx(uint64(shardCacheSize)))
 
 	if _, ok := s.get(h0, makeRaw(0)); !ok {
 		t.Fatal("LRU evicted key 0 (recently used); should have evicted key 1")
@@ -160,7 +313,7 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
 	const size = defaultCacheSize
 	c := NewDecodeCache(size, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	for i := uint64(0); i < 2*size; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
@@ -182,7 +335,7 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	const goroutines = 16
 	const itersPerG = 200
@@ -218,10 +371,10 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 	calls := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
-		return &cacheTx{id: uint64(len(bz))}, nil
+		return newCacheTx(uint64(len(bz))), nil
 	}
 	c := NewDecodeCache(defaultCacheSize, cmdcfg.DefaultTxCacheMaxTxBytes)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
 	big := make([]byte, cmdcfg.DefaultTxCacheMaxTxBytes+1)
 	for i := 0; i < 3; i++ {
@@ -250,14 +403,17 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	const customMax = 32
 	calls := atomic.Int64{}
+	signerInits := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
-		return &cacheTx{id: uint64(len(bz))}, nil
+		tx := newCacheTx(uint64(len(bz)))
+		tx.onGetSigners = func() { signerInits.Add(1) }
+		return tx, nil
 	}
 	c := NewDecodeCache(defaultCacheSize, customMax)
-	dec := NewCachingDecoder(base, c)
+	dec := NewCachingDecoder(base, c, nil)
 
-	// Above cap: each call must miss.
+	// Above cap: each call must miss without signer init.
 	above := make([]byte, customMax+1)
 	for i := 0; i < 3; i++ {
 		if _, err := dec(above); err != nil {
@@ -266,6 +422,9 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	}
 	if got := calls.Load(); got != 3 {
 		t.Fatalf("above-cap was cached: calls=%d, want 3", got)
+	}
+	if got := signerInits.Load(); got != 0 {
+		t.Fatalf("above-cap had signers filled: signerInits=%d, want 0", got)
 	}
 
 	// Default const would cache this; with a custom cap of 32 even 33-byte

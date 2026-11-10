@@ -1,6 +1,7 @@
 package mempool_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"maps"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
@@ -22,7 +24,9 @@ import (
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
@@ -37,7 +41,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -117,10 +123,10 @@ func setupAdmissionAppWithOpts(tb testing.TB, accounts int, overrides minimalOpt
 	tb.Helper()
 
 	appOpts := minimalOptionsMap{
-		flags.FlagHome:                 tb.TempDir(),
-		cronos.FlagMempoolType:         "app",
-		server.FlagMempoolMaxTxs:       100000,
-		"cronos.mempool-tx-cache-size": 200000,
+		flags.FlagHome:           tb.TempDir(),
+		cronos.FlagMempoolType:   "app",
+		server.FlagMempoolMaxTxs: 100000,
+		cronos.FlagTxCacheSize:   200000,
 	}
 	maps.Copy(appOpts, overrides)
 	app := cronos.New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(cronos.TestAppChainID))
@@ -213,6 +219,46 @@ func TestPreVerifyPassesThroughNonEVMTx(t *testing.T) {
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code, "unsigned tx must be rejected by antehandler")
 }
 
+func TestEVMSigPreVerifier(t *testing.T) {
+	f := setupAdmissionApp(t, 2)
+	verify := mempool.NewEVMSigPreVerifier(cronos.TestAppChainID, nil)
+	require.NotNil(t, verify)
+	require.Nil(t, mempool.NewEVMSigPreVerifier("bad-chain-id", nil), "an unparsable chain ID disables the verifier")
+
+	other := f.accounts[1].Address
+	testCases := []struct {
+		name    string
+		build   func() []byte
+		wantErr error
+	}{
+		{
+			name:  "valid EVM tx passes",
+			build: func() []byte { return f.signTransfer(t, &f.accounts[0], nil) },
+		},
+		{
+			name:    "EVM tx with tampered From is rejected",
+			build:   func() []byte { return f.signTransfer(t, &f.accounts[0], &other) },
+			wantErr: sdkerrors.ErrorInvalidSigner,
+		},
+		{
+			name:  "cosmos tx defers to the locked path",
+			build: func() []byte { return f.signBankSendWithoutPubKey(t, &f.accounts[1]) },
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx, err := f.app.TxConfig().TxDecoder()(tc.build())
+			require.NoError(t, err)
+			err = verify(tx)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 // TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
 // (pre-verify lock-free, then RunTx under the admission mutex). Run with -race
 // to prove the path is concurrency-safe: the signer is pure and the decode cache
@@ -249,8 +295,7 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 	wg.Wait()
 }
 
-// The decode cache shares one wrapper for identical bytes, and encoding a wrapper with empty
-// body/auth-info bytes writes them, so concurrent admissions race without encodeMu. Run with -race.
+// Encoding a wrapper with empty body/auth-info bytes writes them, so such txs must stay private. Run with -race.
 func TestConcurrentAdmissionOfEmptyTx(t *testing.T) {
 	const goroutines = 16
 	f := setupAdmissionApp(t, 1)
@@ -329,6 +374,226 @@ func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
 
 	// Survival confirms recheck passed and the shared pointers stayed live.
 	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
+}
+
+type SharedDecodedTxTestSuite struct {
+	suite.Suite
+}
+
+func TestSharedDecodedTxTestSuite(t *testing.T) {
+	suite.Run(t, new(SharedDecodedTxTestSuite))
+}
+
+var blockSTMOpts = minimalOptionsMap{
+	server.FlagBlockExecutor:   config.BlockExecutorBlockSTM,
+	server.FlagBlockSTMWorkers: 4,
+}
+
+// TestFirstUseOfSharedWrapper races first-time users of one decode-cached wrapper; run with -race.
+func (s *SharedDecodedTxTestSuite) TestFirstUseOfSharedWrapper() {
+	testCases := []struct {
+		name      string
+		overrides minimalOptionsMap
+		race      func(t *testing.T, f *admissionFixture, bz []byte) []func()
+	}{
+		{
+			name: "gossip admission vs ProcessProposal blocklist check",
+			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
+				t.Helper()
+				processProposal := newBlocklistProposalHandler(t, f).ProcessProposalHandler()
+				return []func(){
+					func() {
+						resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: bz})
+						if assert.NoError(t, err) {
+							assert.Equal(t, abci.CodeTypeOK, resp.Code)
+						}
+					},
+					func() {
+						resp, err := processProposal(sdk.Context{}, &abci.RequestProcessProposal{Txs: [][]byte{bz}})
+						if assert.NoError(t, err) {
+							assert.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+						}
+					},
+				}
+			},
+		},
+		{
+			name:      "duplicate tx bytes in one block-stm block",
+			overrides: blockSTMOpts,
+			race: func(t *testing.T, f *admissionFixture, bz []byte) []func() {
+				t.Helper()
+				return []func(){func() { finalizeDuplicate(t, f, bz) }}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			f := setupAdmissionAppWithOpts(t, 1, tc.overrides)
+			bz := f.signTransfer(t, &f.accounts[0], nil)
+			// Seed the decode cache so every racer gets the same wrapper.
+			seeded, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			again, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			require.Same(t, seeded, again, "an uncached tx would make the race vacuous")
+
+			fns := tc.race(t, f, bz)
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			for _, fn := range fns {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					fn()
+				}()
+			}
+			close(start)
+			wg.Wait()
+		})
+	}
+}
+
+// Decode-time sharing checks must not turn a tx error into a FinalizeBlock panic (chain halt).
+func (s *SharedDecodedTxTestSuite) TestMalformedTxMatchesCacheOff() {
+	cacheOff := minimalOptionsMap{cronos.FlagTxCacheSize: -1}
+	testCases := []struct {
+		name     string
+		executor minimalOptionsMap
+	}{
+		{"sequential executor", nil},
+		{"block-stm executor", blockSTMOpts},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			var results []*abci.ExecTxResult
+			for _, cache := range []minimalOptionsMap{nil, cacheOff} {
+				opts := minimalOptionsMap{}
+				maps.Copy(opts, tc.executor)
+				maps.Copy(opts, cache)
+				f := setupAdmissionAppWithOpts(t, 1, opts)
+				bz := nilFeeTx(t, f)
+				var resp *abci.ResponseFinalizeBlock
+				require.NotPanics(t, func() {
+					var err error
+					resp, err = f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz}})
+					require.NoError(t, err)
+				})
+				results = append(results, resp.TxResults[0])
+			}
+			require.NotEqual(t, abci.CodeTypeOK, results[0].Code)
+			require.Equal(t, results[1].Code, results[0].Code, results[0].Log)
+			require.Equal(t, results[1].GasUsed, results[0].GasUsed)
+		})
+	}
+}
+
+// nilFeeTx is a decodable EVM transfer with empty auth_info, so AuthInfo.Fee is nil.
+func nilFeeTx(t *testing.T, f *admissionFixture) []byte {
+	t.Helper()
+	var raw txtypes.TxRaw
+	require.NoError(t, raw.Unmarshal(f.signTransfer(t, &f.accounts[0], nil)))
+	raw.AuthInfoBytes = nil
+	bz, err := raw.Marshal()
+	require.NoError(t, err)
+	return bz
+}
+
+func (s *SharedDecodedTxTestSuite) TestOnlyEVMTxsAreShared() {
+	testCases := []struct {
+		name       string
+		build      func(t *testing.T, f *admissionFixture) []byte
+		wantShared bool
+	}{
+		{
+			name: "EVM transfer",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				return f.signTransfer(t, &f.accounts[0], nil)
+			},
+			wantShared: true,
+		},
+		{
+			// The encoder writes empty auth-info bytes, so such a tx must stay private.
+			name:  "EVM transfer with nil fee",
+			build: nilFeeTx,
+		},
+		{
+			// GetSigners passes with one empty signer and GetSenderLegacy writes From, so keep such a tx private.
+			name: "EVM transfer with empty From",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				tx, err := f.app.TxConfig().TxDecoder()(f.signTransfer(t, &f.accounts[0], nil))
+				require.NoError(t, err)
+				msg := tx.GetMsgs()[0].(*evmtypes.MsgEthereumTx)
+				msg.From = nil
+				built, err := msg.BuildTx(f.app.TxConfig().NewTxBuilder(), evmtypes.DefaultEVMDenom)
+				require.NoError(t, err)
+				bz, err := f.app.TxConfig().TxEncoder()(built)
+				require.NoError(t, err)
+				return bz
+			},
+		},
+		{
+			name: "cosmos MsgSend",
+			build: func(t *testing.T, f *admissionFixture) []byte {
+				t.Helper()
+				from := sdk.AccAddress(f.accounts[0].Address.Bytes())
+				b := f.app.TxConfig().NewTxBuilder()
+				require.NoError(t, b.SetMsgs(banktypes.NewMsgSend(from, from, sdk.NewCoins(sdk.NewInt64Coin(evmtypes.DefaultEVMDenom, 1)))))
+				b.SetGasLimit(100000)
+				bz, err := f.app.TxConfig().TxEncoder()(b.GetTx())
+				require.NoError(t, err)
+				return bz
+			},
+		},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			t := s.T()
+			f := setupAdmissionApp(t, 1)
+			bz := tc.build(t, f)
+			first, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			second, err := f.app.TxDecode(bz)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantShared, first == second)
+		})
+	}
+}
+
+// A non-empty blocklist makes ProcessProposal decode and check signers instead of fast-accepting.
+func newBlocklistProposalHandler(t *testing.T, f *admissionFixture) *cronos.ProposalHandler {
+	t.Helper()
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+	h := cronos.NewProposalHandler(f.app.TxDecode, identity, addressCodec)
+
+	blocked, err := addressCodec.BytesToString(bytes.Repeat([]byte{0xb1}, 20))
+	require.NoError(t, err)
+	body, err := json.Marshal(cronos.BlockList{Addresses: []string{blocked}})
+	require.NoError(t, err)
+	var blob bytes.Buffer
+	w, err := age.Encrypt(&blob, identity.Recipient())
+	require.NoError(t, err)
+	_, err = w.Write(body)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	require.NoError(t, h.SetBlockList(blob.Bytes()))
+	return h
+}
+
+func finalizeDuplicate(t *testing.T, f *admissionFixture, bz []byte) {
+	t.Helper()
+	resp, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress, Txs: [][]byte{bz, bz}})
+	if assert.NoError(t, err) && assert.Len(t, resp.TxResults, 2) {
+		assert.Equal(t, abci.CodeTypeOK, resp.TxResults[0].Code, resp.TxResults[0].Log)
+		assert.Equal(t, sdkerrors.ErrInvalidSequence.ABCICode(), resp.TxResults[1].Code, resp.TxResults[1].Log)
+	}
 }
 
 func TestAppInsertTx_AcceptsAndRejects(t *testing.T) {

@@ -25,6 +25,7 @@ const (
 	panicPathRecheckTx      = "recheck_tx"      // one tx evicted
 	panicPathStageTx        = "stage_tx"        // one tx's senders not staged for recheck
 	panicPathFinalizeRemove = "finalize_remove" // block tx's result unchanged, its pool entry left for recheck
+	panicPathDecodeCache    = "decode_cache"    // one tx left out of the decode cache
 )
 
 // Only stacks are rate-limited; every panic still logs a line.

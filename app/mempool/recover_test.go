@@ -121,7 +121,8 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		{
 			name: "peer InsertTx, panic in preVerify before the admission gate",
 			malleate: func(m *Manager) {
-				m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
+				m.decoder = noopDecoder
+				m.SetPreVerify(func(sdk.Tx) error { panicking("preVerify"); return nil })
 			},
 			call:  insertViaPeer,
 			path:  panicPathAdmit,
@@ -152,6 +153,16 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			call:  checkWith(okRunTx),
 			path:  panicPathCheckTx,
 			where: decodeSite,
+		},
+		{
+			name: "CheckTx, panic in preVerify before the admission gate",
+			malleate: func(m *Manager) {
+				m.decoder = noopDecoder
+				m.SetPreVerify(func(sdk.Tx) error { panicking("preVerify"); return nil })
+			},
+			call:  checkWith(okRunTx),
+			path:  panicPathCheckTx,
+			where: "preVerify",
 		},
 		{
 			name:     "CheckTx, panic in runTx under the admission gate",
@@ -199,8 +210,6 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			release, ok := m.acquireRPCSlot()
 			s.Require().True(ok, "RPC slot must be released after a panic")
 			release()
-			s.Require().True(m.encodeMu.TryLock(), "encodeMu must be released after a panic")
-			m.encodeMu.Unlock()
 		})
 	}
 }
@@ -211,8 +220,8 @@ func (s *RecoverTestSuite) TestNewManagerLogsRecoveredPanics() {
 	// A nil logger must not re-panic inside the recover handler.
 	for _, logger := range []log.Logger{recording, nil} {
 		app := baseapp.NewBaseApp("test", log.NewNopLogger(), dbm.NewMemDB(), nil)
-		m := NewManager(app, logger, nil, noopEncoder, &fakePool{}, nil, nil, 0, 0, true, false)
-		m.SetPreVerify(func([]byte) error { panicking("preVerify"); return nil })
+		m := NewManager(app, logger, nil, noopEncoder, &fakePool{}, nil, noopDecoder, 0, 0, true, false)
+		m.SetPreVerify(func(sdk.Tx) error { panicking("preVerify"); return nil })
 
 		resp, err := m.InsertTx([]byte("tx"))
 
