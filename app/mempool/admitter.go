@@ -1,8 +1,6 @@
 package mempool
 
 import (
-	"sync"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -28,14 +26,10 @@ const (
 
 // admitter admits peer InsertTx and RPC CheckTx via RunTx under the gate.
 type admitter struct {
-	exec *txExec
-	// encodeMu serializes the pre-RunTx encode, which fills empty body/auth-info
-	// bytes in a shared decoded tx. Pooled txs were encoded at admission, so
-	// recheck's encode only reads. Never held with gate.
-	encodeMu sync.Mutex
-	trace    bool
-	// preVerify runs cheap checks before the gate; nil skips.
-	preVerify func([]byte) error
+	exec  *txExec
+	trace bool
+	// preVerify runs cheap checks on the decoded tx before the gate; nil skips.
+	preVerify func(sdk.Tx) error
 	// rpcTxLimit caps RPC admissions only; gossip is bounded by p2p concurrency.
 	rpcTxLimit inflightLimit
 }
@@ -49,7 +43,7 @@ func (a *admitter) acquireRPCSlot() (release func(), ok bool) {
 	return a.rpcTxLimit.release, true
 }
 
-// admit runs preVerify and decoding before the gate, so bad txs never take it.
+// admit prepares the tx before the gate, so bad txs never take it.
 // A full pool or rpcTxLimit maps to CodeTypeRetry.
 func (a *admitter) admit(txBytes []byte, source admitSource) (code uint32, codespace, rawLog string) {
 	defer func() {
@@ -66,14 +60,7 @@ func (a *admitter) admit(txBytes []byte, source admitSource) (code uint32, codes
 		defer release()
 	}
 
-	if a.preVerify != nil {
-		if err := a.preVerify(txBytes); err != nil {
-			cs, c, l := errorsmod.ABCIInfo(err, false)
-			return c, cs, l
-		}
-	}
-
-	tx, canonical, err := a.decodeAndEncode(txBytes)
+	tx, canonical, err := a.prepare(txBytes)
 	if err != nil {
 		cs, c, l := errorsmod.ABCIInfo(err, false)
 		return c, cs, l
@@ -95,27 +82,40 @@ func (a *admitter) admit(txBytes []byte, source admitSource) (code uint32, codes
 	return abci.CodeTypeOK, "", ""
 }
 
-// decodeAndEncode encodes before RunTx so a tx whose encode panics never reaches
-// the pool. Returns nils without a cache (RunTx then decodes), raw bytes on an encode error.
-func (a *admitter) decodeAndEncode(raw []byte) (sdk.Tx, []byte, error) {
-	if a.exec.encCache == nil {
-		return nil, nil, nil
+// prepare decodes, pre-verifies and encodes a tx outside the admission gate, so bad txs never take it.
+func (a *admitter) prepare(raw []byte) (tx sdk.Tx, canonical []byte, err error) {
+	if tx, err = a.decode(raw); err != nil {
+		return nil, nil, err
+	}
+	if a.preVerify != nil {
+		if err = a.preVerify(tx); err != nil {
+			return nil, nil, err
+		}
+	}
+	return tx, a.encode(tx, raw), nil
+}
+
+// decode returns a nil tx without a decoder; BaseApp.RunTx then decodes txBytes itself.
+func (a *admitter) decode(raw []byte) (sdk.Tx, error) {
+	if a.exec.decoder == nil {
+		return nil, nil
 	}
 	tx, err := a.exec.decoder(raw)
 	if err != nil {
-		return nil, nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
+		return nil, sdkerrors.ErrTxDecode.Wrap(err.Error())
 	}
-	if bz, err := a.encode(tx); err == nil {
-		return tx, bz, nil
-	}
-	return tx, raw, nil
+	return tx, nil
 }
 
-// Deferred unlock: a recovered encoder panic must not leave encodeMu held.
-func (a *admitter) encode(tx sdk.Tx) ([]byte, error) {
-	a.encodeMu.Lock()
-	defer a.encodeMu.Unlock()
-	return a.exec.txEncoder(tx)
+// Encoding before RunTx keeps a tx whose encoding panics out of ante and the pool; nil without a cache, raw bytes on encode error.
+func (a *admitter) encode(tx sdk.Tx, raw []byte) []byte {
+	if a.exec.encCache == nil || tx == nil {
+		return nil
+	}
+	if bz, err := a.exec.txEncoder(tx); err == nil {
+		return bz
+	}
+	return raw
 }
 
 func (a *admitter) insertTxHandler() sdk.InsertTxHandler {
@@ -141,7 +141,7 @@ func (a *admitter) checkTxHandler() sdk.CheckTxHandler {
 		}
 		defer release()
 
-		tx, canonical, err := a.decodeAndEncode(req.Tx)
+		tx, canonical, err := a.prepare(req.Tx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, nil, a.trace), nil
 		}

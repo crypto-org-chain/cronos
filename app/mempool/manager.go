@@ -84,7 +84,10 @@ func (a *Manager) RPCMaxInflight() int {
 }
 
 // SetPreVerify sets the pre-verification hook.
-func (a *Manager) SetPreVerify(fn func([]byte) error) {
+func (a *Manager) SetPreVerify(fn func(sdk.Tx) error) {
+	if fn != nil && a.exec.decoder == nil {
+		panic("mempool: preVerify requires decoder != nil")
+	}
 	a.adm.preVerify = fn
 }
 

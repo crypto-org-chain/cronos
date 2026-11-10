@@ -9,6 +9,7 @@
 ### Bug fixes
 
 * [#2159](https://github.com/crypto-org-chain/cronos/pull/2159) fix(mempool): recheck per signer group and cascade-evict only behind a proven nonce gap.
+* [#2251](https://github.com/crypto-org-chain/cronos/pull/2251) fix(mempool): fix data race on txs shared by the decode cache.
 * [#2254](https://github.com/crypto-org-chain/cronos/pull/2254) fix(mempool): keep block tx results and recheck staging independent of local mempool errors.
 * [#2244](https://github.com/crypto-org-chain/cronos/pull/2244) fix(mempool): recover panics in app-mempool CheckTx, InsertTx and ReapTxs.
 * [#2216](https://github.com/crypto-org-chain/cronos/pull/2216) fix(mempool): give Commit priority over queued admissions and cap in-flight RPC txs.
