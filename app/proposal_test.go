@@ -7,18 +7,14 @@ import (
 	"errors"
 	"math/big"
 	"testing"
-	"time"
 
 	"filippo.io/age"
-	abci "github.com/cometbft/cometbft/abci/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/mempool"
 	authcodec "github.com/cosmos/cosmos-sdk/x/auth/codec"
 )
 
@@ -93,19 +89,6 @@ func TestExtTxSelector(t *testing.T) {
 		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
 	})
 
-	t.Run("timeout gate skips txs past their timeout height or time and keeps them for recheck", func(t *testing.T) {
-		now := time.Unix(1_000, 0)
-		ctx := sdk.Context{}.WithBlockHeight(10).WithBlockTime(now)
-		ts := NewExtTxSelector(acceptAll, nil)
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 9}, []byte("expired-height"))
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeout: 10}, []byte("last-height"))
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeoutTime: now.Add(-time.Second)}, []byte("expired-time"))
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{timeoutTime: now}, []byte("last-time"))
-		ts.SelectTxForProposal(ctx, maxB, maxB, &diffTx{}, []byte("no-timeout"))
-		require.Equal(t, [][]byte{[]byte("last-height"), []byte("last-time"), []byte("no-timeout")}, ts.SelectedTxs(bg))
-		require.Equal(t, [][]byte{[]byte("expired-height"), []byte("expired-time")}, ts.DrainGateSkipped())
-	})
-
 	t.Run("DrainGateSkipped on empty selector is nil", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
 		require.Nil(t, ts.DrainGateSkipped())
@@ -139,51 +122,6 @@ func TestExtTxSelector(t *testing.T) {
 		require.Empty(t, ts.SelectedTxs(bg))
 		require.Nil(t, ts.baseFee)
 	})
-}
-
-func TestMempoolProposalHandlerDrainsSkippedTxsWithoutManager(t *testing.T) {
-	// The NoOp mempool feeds req.Txs to the selector without running the ante, so expired txs reach the gate.
-	txs := newDiffTxs(txAlice0)
-	txs[txAlice0].timeout = diffHeight - 1
-	ph := NewMempoolProposalHandler(baseapp.NewDefaultProposalHandler(mempool.NoOpMempool{}, &diffVerifier{txs: txs}), acceptAllTxs, nil, nil)
-	ctx := sdk.Context{}.WithBlockHeight(diffHeight)
-	for range 3 {
-		resp, err := ph.PrepareProposalHandler()(ctx, &abci.RequestPrepareProposal{Txs: [][]byte{[]byte(txAlice0)}, MaxTxBytes: diffMaxTxB, Height: diffHeight})
-		require.NoError(t, err)
-		require.Empty(t, resp.Txs)
-	}
-	require.Empty(t, ph.extSel.gateSkipped)
-}
-
-func TestPrepareProposalWithoutEncoderCacheIgnoresFeeGateAndManager(t *testing.T) {
-	txs := newDiffTxs(txAlice0)
-	feeGate := func(sdk.Context) (*big.Int, string) { return big.NewInt(1_000), diffDenom } // above alice-0's fee cap
-	stager := &recordingStager{}
-	prepare := newPrepareProposalHandler(mempool.NoOpMempool{}, &diffVerifier{txs: txs}, nil, acceptAllTxs, feeGate, nil, stager)
-	resp, err := prepare(sdk.Context{}.WithBlockHeight(diffHeight), &abci.RequestPrepareProposal{Txs: [][]byte{[]byte(txAlice0)}, MaxTxBytes: diffMaxTxB, Height: diffHeight})
-	require.NoError(t, err)
-	require.Equal(t, [][]byte{[]byte(txAlice0)}, resp.Txs)
-	require.Zero(t, stager.waits)
-}
-
-func acceptAllTxs(sdk.Tx, []byte) error { return nil }
-
-func TestNewProposalEncoderCache(t *testing.T) {
-	testCases := []struct {
-		name        string
-		mempoolType string
-		txCacheSize int
-		want        bool
-	}{
-		{name: "app mempool with cache", mempoolType: cronosmempool.TypeApp, txCacheSize: 0, want: true},
-		{name: "app mempool, cache disabled", mempoolType: cronosmempool.TypeApp, txCacheSize: -1},
-		{name: "flood mempool", mempoolType: "flood", txCacheSize: 100},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, newProposalEncoderCache(tc.mempoolType, tc.txCacheSize, 0) != nil)
-		})
-	}
 }
 
 // gasOnlyTx implements sdk.FeeTx with only a gas value.

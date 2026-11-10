@@ -467,8 +467,10 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		var poolSigner mempool.SignerExtractionAdapter
-		signerExtractor, poolSigner = mempoolSignerExtractors()
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyIgnore))
+		// Transitional: the pool requires a public key so admission still rejects txs without one, and this
+		// node won't propose one before all validators run this version.
+		poolSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
 		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: poolSigner,
@@ -511,6 +513,9 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolManager *cronosmempool.Manager
+	// Set inside the closure below, only when mempool.type=app has the encoder
+	// cache enabled (the fast PrepareProposal path); nil otherwise.
+	var ppHandler *MempoolProposalHandler
 	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
 	// now, assigned once EVM keepers exist (below); the handler only runs
 	// post-startup, so the nil window during construction is never hit.
@@ -518,7 +523,10 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		encCache := newProposalEncoderCache(mempoolType, txCacheSize, maxTxBytes)
+		var encCache *cronosmempool.EncoderCache
+		if mempoolType == cronosmempool.TypeApp && txCacheSize >= 0 {
+			encCache = cronosmempool.NewEncoderCache(uint(txCacheSize), uint(maxTxBytes))
+		}
 
 		// baseFee gate source for the app-path selector; proposalFee is assigned
 		// once EVM keepers exist (the handler only runs post-startup).
@@ -527,6 +535,28 @@ func New(
 				return nil, ""
 			}
 			return proposalFee(ctx)
+		}
+
+		if encCache != nil {
+			// mempool.type=app: reuse the SDK default handler. Cache verifier
+			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
+			// blocklist + baseFee gate.
+			h := baseapp.NewDefaultProposalHandler(mpool, NewCacheProposalTxVerifier(app, encCache))
+			ppHandler = NewMempoolProposalHandler(h, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor)
+			app.SetPrepareProposal(ppHandler.PrepareProposalHandler())
+		} else {
+			// flood mempool, or mempool.type=app with cache disabled: full-ante
+			// default handler. ExtTxSelector still applies the blocklist + gas/byte
+			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
+			if mempoolType == cronosmempool.TypeApp {
+				logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
+			}
+			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
+			if signerExtractor != nil {
+				defaultProposalHandler.SetSignerExtractionAdapter(signerExtractor)
+			}
+			app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 		}
 
 		// The default process proposal handler do nothing when the mempool is noop,
@@ -553,16 +583,10 @@ func New(
 			app.SetInsertTxHandler(manager.InsertTxHandler())
 			app.SetCheckTxHandler(manager.CheckTxHandler())
 			mempoolManager = manager
+			if ppHandler != nil {
+				ppHandler.SetMempoolManager(manager)
+			}
 		}
-
-		// mempool.type=app with the encoder cache: the cache verifier supplies cached
-		// bytes and skips the ante re-run. Otherwise (flood mempool, or the cache
-		// disabled) the full-ante default handler; the NoOp-mempool branch echoes
-		// req.Txs (already CheckTx-decoded). Both apply the blocklist, timeout gate and gas/byte caps.
-		if encCache == nil && mempoolType == cronosmempool.TypeApp {
-			logger.Warn("mempool.type=app: mempool-tx-cache-size=-1 disables fast PrepareProposal; using slow default handler")
-		}
-		app.SetPrepareProposal(newPrepareProposalHandler(mpool, app, encCache, blockProposalHandler.ValidateTransaction, feeGate, signerExtractor, mempoolManager))
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(server.FlagBlockExecutor)) == config.BlockExecutorBlockSTM
@@ -1163,16 +1187,6 @@ func New(
 	)
 
 	return app
-}
-
-// mempoolSignerExtractors returns the signer adapter for the proposal handler and
-// mempool manager, and the stricter one for the pool.
-func mempoolSignerExtractors() (handler, pool mempool.SignerExtractionAdapter) {
-	handler = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyIgnore))
-	// Transitional: the pool requires a public key so admission still rejects txs without one, and this
-	// node won't propose one before all validators run this version.
-	pool = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
-	return handler, pool
 }
 
 // use Ethermint's custom AnteHandler
