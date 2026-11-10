@@ -99,7 +99,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // DecodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them. Only EVM txs are cached, with lazy fields filled first (prepareForSharing); the EVM
+// NOT mutate them. Only EVM txs are cached, with lazy fields filled first (toBeCached); the EVM
 // ante and the encoder only read them. A future EVM ante that writes would break sharing.
 type DecodeCache struct {
 	shards     [shardCount]cacheShard
@@ -152,7 +152,7 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 		if err != nil {
 			return nil, err
 		}
-		if len(bz) <= cache.maxTxBytes && prepareForSharing(tx) {
+		if len(bz) <= cache.maxTxBytes && toBeCached(tx) {
 			cache.set(bz, tx)
 		}
 		return tx, nil
@@ -162,8 +162,8 @@ func NewCachingDecoder(base sdk.TxDecoder, cache *DecodeCache) sdk.TxDecoder {
 // ethTxTypeURL is the first extension option that routes a tx to ethermint's EVM ante.
 var ethTxTypeURL = sdk.MsgTypeURL(&evmtypes.ExtensionOptionsEthereumTx{})
 
-// prepareForSharing fills tx's lazily written fields so sharers only read it; false keeps tx private.
-func prepareForSharing(tx sdk.Tx) (ok bool) {
+// toBeCached also fills tx's lazily written fields, so sharers only read it; false keeps tx private.
+func toBeCached(tx sdk.Tx) (ok bool) {
 	// A malformed tx (e.g. nil AuthInfo.Fee) must fail in runTx's recover, not in decode.
 	defer func() {
 		if recover() != nil {
