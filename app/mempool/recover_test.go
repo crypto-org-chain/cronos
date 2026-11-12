@@ -13,8 +13,6 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
-	"github.com/ethereum/go-ethereum/common"
-	antecache "github.com/evmos/ethermint/ante/cache"
 	"github.com/stretchr/testify/suite"
 
 	errorsmod "cosmossdk.io/errors"
@@ -66,26 +64,23 @@ func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
 	return nil
 }
 
-// insertingRunner caches the nonce and pools the tx like BaseApp.RunTx(ExecModeCheck).
+// insertingRunner pools the tx like BaseApp.RunTx(ExecModeCheck).
 type insertingRunner struct {
 	pool sdkmempool.Mempool
-	ante *antecache.AnteCache
+	ran  atomic.Bool
 }
 
-func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-	if eth, ok := tx.(*ethTx); ok {
-		r.ante.Set(anteKey(eth))
-	}
+func (r *insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	r.ran.Store(true)
 	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
 }
 
-var encodePanicTx = newEthTx(common.Address{0x1}, 7)
+var encodePanicTx = &ptrTx{id: 7}
 
 func withEncodePanic(m *Manager) {
-	pool, ante := &storingPool{}, antecache.NewAnteCache(0)
+	pool := &storingPool{}
 	m.mpool = pool
-	m.runner = insertingRunner{pool: pool, ante: ante}
-	m.SetAnteCache(ante)
+	m.runner = &insertingRunner{pool: pool}
 	withDecodeCache(m, func([]byte) (sdk.Tx, error) { return encodePanicTx, nil }, func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil })
 }
 
@@ -208,7 +203,7 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 			s.Require().Equal(epoch, m.pendingTxCache.epoch.Load(), "a rejected tx must not invalidate the pending cache")
 			if tc.encodePanics {
 				s.Require().Empty(m.PendingTxs(), "a tx whose encoding panics must never be pooled")
-				s.Require().False(m.anteCache.Exists(anteKey(encodePanicTx)), "ante must not run for a tx whose encoding panics")
+				s.Require().False(m.runner.(*insertingRunner).ran.Load(), "RunTx must not run for a tx whose encoding panics")
 			}
 			s.Require().True(m.gate.mu.TryLock(), "admission gate must be released after a panic")
 			m.gate.mu.Unlock()
@@ -337,7 +332,21 @@ func (t *poisonTx) GetTimeoutHeight() uint64 {
 	if t.timeoutPanics {
 		panicking("GetTimeoutHeight")
 	}
-	return 0
+	return t.timeout
+}
+
+// removePanicPool panics on removing poison: a pool-internal panic, or a pool whose signer
+// extractor panics on poison too.
+type removePanicPool struct {
+	*sdkmempool.PriorityNonceMempool[int64]
+	poison sdk.Tx
+}
+
+func (p *removePanicPool) Remove(tx sdk.Tx) error {
+	if tx == p.poison {
+		panicking("Remove")
+	}
+	return p.PriorityNonceMempool.Remove(tx)
 }
 
 type poisonSigner struct {
@@ -355,33 +364,73 @@ func (p poisonSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 	alice := sdk.AccAddress("alice").String()
 
+	expire := func(f *recheckFixture, poison *poisonTx) {
+		poison.timeout = 1
+		f.a.lastCommittedHeight = 1
+	}
+
 	testCases := []struct {
-		name       string
-		malleate   func(f *recheckFixture, poison *poisonTx)
-		path       string
-		where      string
-		expEvicted bool // poison is evicted and its sibling still rechecked
-		expRunTx   bool // poison reached RunTx
+		name            string
+		replaced        bool // poison left the pool for a replacement at its key before the cycle
+		malleate        func(f *recheckFixture, poison *poisonTx)
+		path            string
+		where           []string // panic site of each logged panic, in order
+		evictFailed     bool     // the last logged panic is in an eviction (evict_failed)
+		expPoisonPooled bool
+		expAborted      bool // the sibling isn't rechecked and the cycle's work is restored
+		expRunTx        bool // poison reached RunTx
 	}{
 		{
-			name:     "panic in the pool scan aborts the cycle and keeps its senders",
-			malleate: func(f *recheckFixture, _ *poisonTx) { f.a.mpool = &panickingPool{} },
-			path:     panicPathRecheck,
-			where:    "scan",
+			name:            "panic in the pool scan aborts the cycle and keeps its senders",
+			malleate:        func(f *recheckFixture, _ *poisonTx) { f.a.mpool = &panickingPool{} },
+			path:            panicPathRecheck,
+			where:           []string{"scan"},
+			expPoisonPooled: true,
+			expAborted:      true,
 		},
 		{
-			name:       "tx whose timeout check panics is evicted",
-			malleate:   func(_ *recheckFixture, poison *poisonTx) { poison.timeoutPanics = true },
-			path:       panicPathRecheckTx,
-			where:      "GetTimeoutHeight",
-			expEvicted: true,
+			name:     "tx whose timeout check panics is evicted",
+			malleate: func(_ *recheckFixture, poison *poisonTx) { poison.timeoutPanics = true },
+			path:     panicPathRecheckTx,
+			where:    []string{"GetTimeoutHeight"},
 		},
 		{
-			name:       "tx whose signer extraction panics is evicted",
-			malleate:   func(f *recheckFixture, poison *poisonTx) { f.a.signer = poisonSigner{f.signer, poison} },
-			path:       panicPathRecheckTx,
-			where:      getSignersSite,
-			expEvicted: true,
+			name:     "tx whose signer extraction panics is evicted",
+			malleate: func(f *recheckFixture, poison *poisonTx) { f.a.signer = poisonSigner{f.signer, poison} },
+			path:     panicPathRecheckTx,
+			where:    []string{getSignersSite},
+		},
+		{
+			name: "expired tx whose signer extraction panics is evicted",
+			malleate: func(f *recheckFixture, poison *poisonTx) {
+				expire(f, poison)
+				f.a.signer = poisonSigner{f.signer, poison}
+			},
+			path:  panicPathRecheckTx,
+			where: []string{getSignersSite},
+		},
+		{
+			name: "expired tx whose eviction panics stays pooled and the cycle goes on",
+			malleate: func(f *recheckFixture, poison *poisonTx) {
+				expire(f, poison)
+				f.a.mpool = &removePanicPool{f.pool, poison}
+			},
+			path:            panicPathRecheckTx,
+			where:           []string{"Remove"},
+			evictFailed:     true,
+			expPoisonPooled: true,
+			expRunTx:        true,
+		},
+		{
+			name:     "carried tx whose key derivation panics leaves its replacement pooled",
+			replaced: true,
+			malleate: func(f *recheckFixture, poison *poisonTx) {
+				f.a.signer = poisonSigner{f.signer, poison}
+				f.a.mpool = &removePanicPool{f.pool, poison}
+			},
+			path:        panicPathRecheckTx,
+			where:       []string{getSignersSite, "Remove"},
+			evictFailed: true,
 		},
 		{
 			name: "tx whose encode panics on a cache miss is evicted",
@@ -389,17 +438,15 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 				f.enc.Evict(poison)
 				f.a.txEncoder = func(sdk.Tx) ([]byte, error) { panicking(encodeSite); return nil, nil }
 			},
-			path:       panicPathRecheckTx,
-			where:      encodeSite,
-			expEvicted: true,
+			path:  panicPathRecheckTx,
+			where: []string{encodeSite},
 		},
 		{
-			name:       "tx whose RunTx panics under the admission gate is evicted",
-			malleate:   func(f *recheckFixture, _ *poisonTx) { f.runner.panicBytes = map[string]bool{"alice-0": true} },
-			path:       panicPathRecheckTx,
-			where:      "RunTx",
-			expEvicted: true,
-			expRunTx:   true,
+			name:     "tx whose RunTx panics under the admission gate is evicted",
+			malleate: func(f *recheckFixture, _ *poisonTx) { f.runner.panicBytes = map[string]bool{"alice-0": true} },
+			path:     panicPathRecheckTx,
+			where:    []string{"RunTx"},
+			expRunTx: true,
 		},
 	}
 
@@ -415,6 +462,11 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			sibling := f.add(2, "alice", 1, "alice-1")
 			f.a.recheckSenders = map[string]struct{}{alice: {}}
 			f.a.deferred = []sdk.Tx{poison}
+			var replacement sdk.Tx
+			if tc.replaced {
+				s.Require().NoError(f.pool.Remove(poison))
+				replacement = f.add(3, "alice", 0, "alice-0-repl")
+			}
 			tc.malleate(f, poison)
 			startAsyncWorker(f)
 			defer f.a.Close()
@@ -423,13 +475,20 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			f.a.TriggerRecheck()
 
 			s.Require().False(f.a.WaitForRecheckTimedOut(context.Background(), 5*time.Second), "a panic must still release WaitForRecheck")
-			s.Require().Len(logger.errors, 1)
-			s.Require().Equal(tc.path, keyval(logger.errors[0], "path"))
-			s.Require().Equal("boom in "+tc.where, keyval(logger.errors[0], "panic"))
-			s.Require().Equal(!tc.expEvicted, poolHas(f.pool, poison))
-			s.Require().Equal(!tc.expEvicted, poolHas(f.pool, sibling))
-			s.Require().Equal(tc.expRunTx, f.runner.seen["alice-0"], "an evicted poison tx must not be rechecked")
-			if !tc.expEvicted {
+			s.Require().Len(logger.errors, len(tc.where))
+			for i, keyvals := range logger.errors {
+				s.Require().Equal(tc.path, keyval(keyvals, "path"))
+				s.Require().Equal("boom in "+tc.where[i], keyval(keyvals, "panic"))
+				s.Require().Equal(tc.evictFailed && i == len(tc.where)-1, keyval(keyvals, "evict_failed") == true)
+			}
+			s.Require().Equal(tc.expPoisonPooled, poolHas(f.pool, poison))
+			s.Require().Equal(tc.expAborted, poolHas(f.pool, sibling))
+			s.Require().Equal(tc.expRunTx, f.runner.seen["alice-0"], "only a poison tx left pooled is rechecked")
+			if tc.replaced {
+				s.Require().True(poolHas(f.pool, replacement), "a failed poison eviction must leave the replacement pooled")
+				s.Require().True(f.runner.seen["alice-0-repl"], "the replacement must still be rechecked")
+			}
+			if tc.expAborted {
 				s.Require().Contains(f.a.recheckSenders, alice, "an aborted cycle's senders must be retried")
 				s.Require().Equal([]sdk.Tx{poison}, f.a.deferred, "an aborted cycle's carry must be retried")
 			}

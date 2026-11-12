@@ -633,7 +633,11 @@ def modify_command_in_supervisor_config(ini: Path, fn, **kwargs):
 
 def build_batch_tx(w3, cli, txs, key=KEYS["validator"]):
     "return cosmos batch tx and eth tx hashes"
-    signed_txs = [sign_transaction(w3, tx, key) for tx in txs]
+    return build_batch_tx_signed(cli, [sign_transaction(w3, tx, key) for tx in txs])
+
+
+def build_batch_tx_signed(cli, signed_txs):
+    "return cosmos batch tx and eth tx hashes"
     tmp_txs = [
         cli.build_evm_tx(Web3.to_hex(signed.raw_transaction)) for signed in signed_txs
     ]

@@ -86,8 +86,8 @@ custom modules below. Read `app/app.go` to find keeper wiring, store keys, ante 
 handler registration. Related app-level files:
 - `app/upgrades.go` — chain upgrade handlers (each network upgrade adds a handler here).
 - `app/forks.go`, `app/unblockable.go`, `app/block_address.go` — block-level address blocking / forks.
-- `app/mempool/` — a custom app-side mempool with lock-free admission (`preverify.go`), gossip, and
-  encode/decode caches. Concurrency-sensitive; changes here must pass `make test-race-mempool`.
+- `app/mempool/` — a custom app-side mempool with lock-free admission (`preverify.go`), gossip,
+  encode/decode caches, and panic recovery (`recover.go`). Concurrency-sensitive; changes here must pass `make test-race-mempool`.
 
 ### Custom store backends (the performance core)
 Cronos does **not** use the vanilla IAVL store for production. Two swappable subsystems, both wired in

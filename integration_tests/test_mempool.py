@@ -206,7 +206,7 @@ def test_tx_replacement(cronos_mempool):
             },
             KEYS["validator"],
         )["transactionHash"]
-    assert "fit the replacement rule" in str(exc)
+    assert "replacement transaction underpriced" in str(exc)
 
     wait_for_new_blocks(cronos_mempool.cosmos_cli(), 1)
     nonce = get_account_nonce(w3)

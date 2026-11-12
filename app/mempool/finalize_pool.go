@@ -13,6 +13,7 @@ import (
 var (
 	_ sdkmempool.ExtMempool       = FinalizeNeutralMempool{}
 	_ sdkmempool.UnorderedMempool = FinalizeNeutralMempool{}
+	_ sdkmempool.TxLookupMempool  = FinalizeNeutralMempool{}
 )
 
 // FinalizeNeutralMempool keeps a block tx's result independent of the local pool. runTx fails the
