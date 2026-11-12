@@ -95,7 +95,7 @@ func (f *gateFixture) startAdmits(path string, n int) <-chan uint32 {
 }
 
 func (s *AdmissionGateTestSuite) waitRPCInflight(f *gateFixture, n int) {
-	s.Require().Eventually(func() bool { return f.a.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
+	s.Require().Eventually(func() bool { return f.a.adm.rpcTxLimit.n.Load() == int64(n) }, gateWait, time.Millisecond)
 }
 
 // waitStarted waits until n admissions via path are past their entry checks.
@@ -223,7 +223,7 @@ func (s *AdmissionGateTestSuite) TestRPCShedAtLimit() {
 					s.FailNow("shed admission should return immediately")
 				}
 				s.Equal(callsBefore, f.runner.calls.Load(), "shed tx must not reach RunTx")
-				s.Equal(int64(tc.occupied), f.a.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
+				s.Equal(int64(tc.occupied), f.a.adm.rpcTxLimit.n.Load(), "shed tx must not hold a slot")
 			} else {
 				// A shed returns at once; an admitted probe waits behind the blocked RunTx.
 				select {
@@ -305,7 +305,7 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 				<-unlocked
 				unlock()
 			}()
-			s.Require().Eventually(func() bool { return f.a.gate.commit.Load() != nil }, gateWait, time.Millisecond)
+			s.Require().Eventually(func() bool { return f.a.exec.gate.commit.Load() != nil }, gateWait, time.Millisecond)
 
 			select {
 			case <-acquired:
@@ -333,40 +333,61 @@ func (s *AdmissionGateTestSuite) TestCommitPriorityOverQueuedAdmissions() {
 }
 
 func (s *AdmissionGateTestSuite) TestRecheckYieldsToCommit() {
-	f := newGateFixture(0)
-	// Recheck takes the mutex per RunTx; park it inside the first one.
-	txs := make([]sdk.Tx, 8)
-	for i := range txs {
-		txs[i] = &ptrTx{id: i}
+	testCases := []struct {
+		name string
+		// groupSizes is each signer group's candidate count.
+		groupSizes []int
+	}{
+		{"between groups", []int{1, 1, 1, 1, 1, 1, 1, 1}},
+		{"inside a chunk", []int{recheckChunkSize + 8}},
 	}
-	done := make(chan struct{})
-	go func() {
-		f.a.runRecheck(txs)
-		close(done)
-	}()
-	s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
 
-	acquired := make(chan int64, 1)
-	go func() {
-		unlock := f.a.LockForCommit()
-		acquired <- f.runner.calls.Load()
-		unlock()
-	}()
-	s.Require().Eventually(func() bool { return f.a.gate.commit.Load() != nil }, gateWait, time.Millisecond)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			f := newGateFixture(0)
+			var (
+				groups []recheckGroup
+				total  int
+			)
+			for gi, n := range tc.groupSizes {
+				g := recheckGroup{key: strconv.Itoa(gi)}
+				for i := range n {
+					g.txs = append(g.txs, recheckCandidate{tx: &ptrTx{id: total}, seq: uint64(i)})
+					total++
+				}
+				groups = append(groups, g)
+			}
+			done := make(chan struct{})
+			go func() {
+				f.a.sched.runRecheck(groups, 0)
+				close(done)
+			}()
+			// Park recheck inside its first RunTx, holding the gate.
+			s.Require().Eventually(func() bool { return f.runner.calls.Load() == 1 }, gateWait, time.Millisecond)
 
-	close(f.release)
-	select {
-	case calls := <-acquired:
-		s.Equal(int64(1), calls, "recheck re-took the mutex ahead of Commit")
-	case <-time.After(gateWait):
-		s.FailNow("Commit did not acquire the mutex")
+			acquired := make(chan int64, 1)
+			go func() {
+				unlock := f.a.LockForCommit()
+				acquired <- f.runner.calls.Load()
+				unlock()
+			}()
+			s.Require().Eventually(func() bool { return f.a.exec.gate.commit.Load() != nil }, gateWait, time.Millisecond)
+
+			close(f.release)
+			select {
+			case calls := <-acquired:
+				s.Equal(int64(1), calls, "Commit must wait out only the RunTx in flight")
+			case <-time.After(gateWait):
+				s.FailNow("Commit did not acquire the gate")
+			}
+			select {
+			case <-done:
+			case <-time.After(gateWait):
+				s.FailNow("recheck did not finish after Commit released the gate")
+			}
+			s.Equal(int64(1), f.runner.calls.Load(), "the Commit stops the cycle; the rest is re-staged")
+		})
 	}
-	select {
-	case <-done:
-	case <-time.After(gateWait):
-		s.FailNow("recheck did not finish after Commit released the mutex")
-	}
-	s.Equal(int64(len(txs)), f.runner.calls.Load())
 }
 
 // exclusiveRunner fails the test if two RunTx calls, or a RunTx and Commit, overlap.
@@ -388,6 +409,67 @@ func (r *exclusiveRunner) RunTx(sdk.ExecMode, []byte, sdk.Tx, int, storetypes.Mu
 	defer r.exit()
 	time.Sleep(time.Microsecond)
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func (s *AdmissionGateTestSuite) TestLockAfterWaitersLetsQueuedAdmissionGoFirst() {
+	var g admissionGate
+	g.lock() // a recheck chunk in flight
+	order := make(chan string, 2)
+	go func() {
+		g.lock()
+		order <- "admission"
+		g.unlock()
+	}()
+	s.Require().Eventually(func() bool { return g.waiting.Load() == 1 }, gateWait, time.Millisecond)
+
+	g.unlock() // chunk boundary: without the yield, sync.Mutex lets the next chunk barge ahead
+	g.lockAfterWaiters(gateWait)
+	order <- "recheck"
+	g.unlock()
+
+	s.Equal("admission", <-order)
+}
+
+func (s *AdmissionGateTestSuite) TestLockAfterWaitersStopsYielding() {
+	testCases := []struct {
+		name string
+		// hold takes the gate so the queued waiter never acquires, and returns its release.
+		hold   func(g *admissionGate) (release func())
+		budget time.Duration
+		// within bounds how soon the caller must give up yielding and enter lock().
+		within time.Duration
+	}{
+		{
+			name:   "at the budget",
+			hold:   func(g *admissionGate) func() { g.lock(); return g.unlock },
+			budget: 5 * time.Millisecond, within: gateWait,
+		},
+		{
+			name:   "at once while a Commit is pending",
+			hold:   (*admissionGate).lockForCommit,
+			budget: gateWait, within: gateWait / 5,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			var g admissionGate
+			release := tc.hold(&g)
+			go func() { g.lock(); g.unlock() }() // queued behind the holder
+			s.Require().Eventually(func() bool { return g.waiting.Load() == 1 }, gateWait, time.Millisecond)
+
+			reachedLock := make(chan struct{})
+			go func() {
+				g.lockAfterWaiters(tc.budget)
+				close(reachedLock)
+				g.unlock()
+			}()
+			// Once the caller stops yielding it enters lock(), so waiting climbs to 2.
+			s.Require().Eventually(func() bool { return g.waiting.Load() == 2 }, tc.within, time.Millisecond)
+			release()
+			<-reachedLock
+		})
+	}
 }
 
 func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
@@ -433,5 +515,5 @@ func (s *AdmissionGateTestSuite) TestConcurrentAdmissionsAndCommits() {
 		s.FailNow("admissions and commits deadlocked")
 	}
 	s.False(runner.overlap.Load(), "RunTx overlapped another RunTx or Commit")
-	s.Equal(int64(0), a.rpcTxLimit.n.Load())
+	s.Equal(int64(0), a.adm.rpcTxLimit.n.Load())
 }
