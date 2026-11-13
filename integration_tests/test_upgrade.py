@@ -335,7 +335,8 @@ def exec(c, tmp_path_factory):
         staking_params_v19["historical_entries"]
         == staking_params_v18["historical_entries"]
     ), staking_params_v19
-    assert [p["id"] for p in cli.query_proposals()["proposals"]] == [
+    # do_upgrade submitted the v1.9 proposal after proposals_v18 was captured.
+    assert [p["id"] for p in cli.query_proposals()["proposals"]][:-1] == [
         p["id"] for p in proposals_v18
     ]
     assert cli.query_params()["cro_bridge_contract_addresses"] == (
