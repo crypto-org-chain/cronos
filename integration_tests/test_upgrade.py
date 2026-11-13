@@ -171,7 +171,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8"):
+        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8", "v1.9"):
             rsp = cli.submit_gov_proposal(
                 "community",
                 "software-upgrade",
@@ -348,7 +348,8 @@ def exec(c, tmp_path_factory):
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
-    cli = do_upgrade("v1.7", cli.block_height() + 15)
+    target_height_v17 = cli.block_height() + 15
+    cli = do_upgrade("v1.7", target_height_v17)
     check_basic_tx(c)
 
     tx_af = w3.provider.make_request(method, params)
@@ -384,6 +385,36 @@ def exec(c, tmp_path_factory):
         "0x6b1b50c2223eb31E0d4683b046ea9C6CB0D0ea4F",
         "0xCE13a6F3d4167CE958f4764D423e6D62a114c751",
     ], f"unexpected cro_bridge_contract_addresses: {cronos_params}"
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    staking_params_v18 = cli.staking_params()["params"]
+    proposals_v18 = cli.query_proposals()["proposals"]
+    target_height_v19 = cli.block_height() + 15
+    # EIP-2935 history starts at the v1.7 upgrade, so it can't serve the full
+    # header_hash_num window yet and the handler must keep historical_entries.
+    assert target_height_v19 - target_height_v17 < 256
+
+    cli = do_upgrade("v1.9", target_height_v19)
+    check_basic_tx(c)
+
+    staking_params_v19 = cli.staking_params()["params"]
+    bond_denom = staking_params_v19["bond_denom"]
+    assert staking_params_v19["key_rotation_fee"] == {
+        "denom": bond_denom,
+        "amount": "1",
+    }, staking_params_v19
+    assert (
+        staking_params_v19["historical_entries"]
+        == staking_params_v18["historical_entries"]
+    ), staking_params_v19
+    assert [p["id"] for p in cli.query_proposals()["proposals"]] == [
+        p["id"] for p in proposals_v18
+    ]
+    assert cli.query_params()["cro_bridge_contract_addresses"] == (
+        cronos_params["cro_bridge_contract_addresses"]
+    )
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af

@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#TBD](https://github.com/crypto-org-chain/cronos/pull/TBD) feat!: upgrade to cosmos-sdk v0.55 and add the v1.9 upgrade handler, see `docs/migrations/v1.8-to-v1.9.md`.
+
 ### Client Breaking
 
 * [#2223](https://github.com/crypto-org-chain/cronos/pull/2223) refactor(app): read Block-STM settings from the base `block-executor`, `block-stm-workers` and `block-stm-pre-estimate` app.toml keys; the `[evm]` copies are no longer read.

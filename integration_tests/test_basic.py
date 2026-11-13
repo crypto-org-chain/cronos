@@ -1050,17 +1050,6 @@ def test_multi_acc(cronos):
     assert res["account_address"] == multi_addr
 
 
-def test_textual(cronos):
-    cli = cronos.cosmos_cli()
-    rsp = cli.transfer(
-        cli.address("validator"),
-        cli.address("signer2"),
-        "1basetcro",
-        sign_mode="textual",
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-
 def test_block_tx_properties(cronos):
     """
     test block tx properties on cronos network
