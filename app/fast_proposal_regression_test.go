@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"maps"
 	"math/big"
 	"slices"
 	"strconv"
@@ -117,6 +118,13 @@ func (s *PrepareProposalPathsSuite) TestFastPathSkipsAnteAndKeepsRejectedTxsPool
 			fast:  proposalPathResult{proposed: []string{txAlice0}, pooled: []string{txAlice0}},
 			ante:  proposalPathResult{},
 		},
+		{
+			name:  "known gap: lowest pooled nonce ahead of the account, fast proposes it, ante proposes nothing and evicts it",
+			pool:  []string{txAlice2},
+			state: anteState{accountSeq: map[string]uint64{alice: 1}},
+			fast:  proposalPathResult{proposed: []string{txAlice2}, pooled: []string{txAlice2}},
+			ante:  proposalPathResult{},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -215,23 +223,36 @@ type anteState struct {
 	baseFee int64
 }
 
-// rejects models the ante checks the cases exercise: a sequence the account has
-// passed, a timeout height below the block height (TxTimeoutHeightDecorator),
-// and a fee cap below baseFee.
-func (s anteState) rejects(tx *diffTx) bool {
-	signer, _, _ := strings.Cut(tx.name, "-")
-	return tx.seq < s.accountSeq[signer] ||
-		(tx.timeout != 0 && diffHeight > tx.timeout) ||
-		tx.fee < s.baseFee*int64(tx.gas)
-}
-
 // diffVerifier is baseapp.ProposalTxVerifier for diffTx, with state standing in
 // for the default path's RunTx(PrepareProposal) ante.
 type diffVerifier struct {
 	txs   map[string]*diffTx
 	state anteState
+	// nextSeq starts at accountSeq and advances per accepted tx, as the ante's
+	// sequence increments carry across txs within one proposal.
+	nextSeq map[string]uint64
 	// failEncode makes any tx not served from the encoder cache fail.
 	failEncode bool
+}
+
+func newDiffVerifier(txs map[string]*diffTx, state anteState) *diffVerifier {
+	nextSeq := make(map[string]uint64, len(state.accountSeq))
+	maps.Copy(nextSeq, state.accountSeq)
+	return &diffVerifier{txs: txs, state: state, nextSeq: nextSeq}
+}
+
+// anteRejects models the ante checks the cases exercise: a sequence other than
+// the account's next one, a timeout height below the block height
+// (TxTimeoutHeightDecorator), and a fee cap below baseFee.
+func (v *diffVerifier) anteRejects(tx *diffTx) bool {
+	signer, _, _ := strings.Cut(tx.name, "-")
+	if tx.seq != v.nextSeq[signer] ||
+		(tx.timeout != 0 && diffHeight > tx.timeout) ||
+		tx.fee < v.state.baseFee*int64(tx.gas) {
+		return true
+	}
+	v.nextSeq[signer] = tx.seq + 1
+	return false
 }
 
 func (v *diffVerifier) TxEncode(tx sdk.Tx) ([]byte, error) {
@@ -258,7 +279,7 @@ func (v *diffVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v.state.rejects(tx.(*diffTx)) {
+	if v.anteRejects(tx.(*diffTx)) {
 		return nil, fmt.Errorf("ante rejected %s", bz)
 	}
 	return bz, nil
@@ -307,7 +328,7 @@ func (h *proposalPathHarness) newPool() *mempool.PriorityNonceMempool[int64] {
 func (h *proposalPathHarness) runFastPath(state anteState, warm bool) proposalPathResult {
 	pool := h.newPool()
 	encCache := cronosmempool.NewEncoderCache(0, 0)
-	base := &diffVerifier{txs: h.txs, state: state}
+	base := newDiffVerifier(h.txs, state)
 	if warm {
 		for name, tx := range h.txs {
 			encCache.Set(tx, []byte(name))
@@ -327,7 +348,7 @@ func (h *proposalPathHarness) runFastPath(state anteState, warm bool) proposalPa
 // encoder cache is disabled.
 func (h *proposalPathHarness) runAntePath(state anteState) proposalPathResult {
 	pool := h.newPool()
-	ph := baseapp.NewDefaultProposalHandler(pool, &diffVerifier{txs: h.txs, state: state})
+	ph := baseapp.NewDefaultProposalHandler(pool, newDiffVerifier(h.txs, state))
 	ph.SetTxSelector(NewExtTxSelector(h.validateTx, nil))
 	ph.SetSignerExtractionAdapter(diffSignerExtractor{})
 	return h.prepare(ph.PrepareProposalHandler(), pool)
