@@ -4,7 +4,7 @@
 
 ### State Machine Breaking
 
-* [#TBD](https://github.com/crypto-org-chain/cronos/pull/TBD) feat!: upgrade to cosmos-sdk v0.55 and add the v1.9 upgrade handler, see `docs/migrations/v1.8-to-v1.9.md`.
+* [#2263](https://github.com/crypto-org-chain/cronos/pull/2263) feat!: upgrade to cosmos-sdk v0.55 and add the v1.9 upgrade handler, see `docs/migrations/v1.8-to-v1.9.md`.
 
 ### Client Breaking
 
