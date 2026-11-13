@@ -2,16 +2,13 @@ package app
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
-	"github.com/ethereum/go-ethereum/common"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/evmos/ethermint/upgrades/ibcv1121"
 	"github.com/evmos/ethermint/upgrades/sdk55"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/math"
 
@@ -97,20 +94,14 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) error {
 		return errors.New("EIP-2935 history storage contract not deployed")
 	}
 	evmParams := app.EvmKeeper.GetParams(ctx)
-	window := evmParams.HistoryServeWindow
-	if window == 0 {
-		window = evmtypes.DefaultHistoryServeWindow
-	}
-	if window < evmParams.HeaderHashNum {
+	if window := evmParams.EffectiveHistoryServeWindow(); window < evmParams.HeaderHashNum {
 		return fmt.Errorf("history_serve_window %d is below header_hash_num %d", window, evmParams.HeaderHashNum)
 	}
-	// Reads the contract slot directly: GetHeaderHash also falls back to the legacy store, which HistoricalInfo backs up.
+	// Contract-only read: GetHeaderHash also falls back to the legacy store, which HistoricalInfo backs up.
 	upgradeHeight := uint64(ctx.BlockHeight())
 	for i := uint64(1); i <= evmParams.HeaderHashNum && i < upgradeHeight; i++ {
 		h := upgradeHeight - i
-		var slot common.Hash
-		binary.BigEndian.PutUint64(slot[24:], h%window)
-		if app.EvmKeeper.GetState(ctx, ethparams.HistoryStorageAddress, slot) == (common.Hash{}) {
+		if _, ok := app.EvmKeeper.GetHistoryContractHash(ctx, h); !ok {
 			return fmt.Errorf("no EIP-2935 header hash at height %d", h)
 		}
 	}
