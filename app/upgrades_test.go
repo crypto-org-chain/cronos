@@ -5,6 +5,10 @@ import (
 	"testing"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	connectiontypes "github.com/cosmos/ibc-go/v11/modules/core/03-connection/types"
+	channelv11 "github.com/cosmos/ibc-go/v11/modules/core/04-channel/migrations/v11"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
+	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	legacyparamstypes "github.com/crypto-org-chain/cronos/app/legacy/params/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethparams "github.com/ethereum/go-ethereum/params"
@@ -14,6 +18,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
@@ -107,6 +112,13 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			malleate: func() {
 				s.deployHistoryContract()
 				s.setHeaderHashes(upgradeTestHeight-headerHashNum+1, upgradeTestHeight-1)
+			},
+		},
+		{
+			name: "only legacy header hashes behind a deployed contract",
+			malleate: func() {
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+				s.deployHistoryContract()
 			},
 		},
 	}
@@ -271,6 +283,49 @@ func (s *UpgradeTestSuite) TestLegacyParamsProposal() {
 				return
 			}
 			s.Require().ErrorIs(err, tc.expErr)
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestIBCSendSequence() {
+	const (
+		portID    = "transfer"
+		channelID = "channel-0"
+		seq       = uint64(7)
+	)
+	v1Key := channelv11.NextSequenceSendV1Key(portID, channelID)
+	testCases := []struct {
+		name     string
+		malleate func(store storetypes.KVStore)
+	}{
+		{
+			name:     "sequence under the v1 key",
+			malleate: func(store storetypes.KVStore) { store.Set(v1Key, sdk.Uint64ToBigEndian(seq)) },
+		},
+		{
+			name: "sequence already under the v2 key",
+			malleate: func(storetypes.KVStore) {
+				s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, channelID, seq)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			s.app.IBCKeeper.ConnectionKeeper.SetConnection(s.ctx, "connection-0", connectiontypes.ConnectionEnd{ClientId: "07-tendermint-0"})
+			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, channelID, channeltypes.NewChannel(
+				channeltypes.OPEN, channeltypes.UNORDERED, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
+			))
+			store := runtime.KVStoreAdapter(runtime.NewKVStoreService(s.app.keys[ibcexported.StoreKey]).OpenKVStore(s.ctx))
+			tc.malleate(store)
+
+			s.applyUpgrade()
+
+			got, found := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
+			s.Require().True(found)
+			s.Require().Equal(seq, got)
+			s.Require().False(store.Has(v1Key))
 		})
 	}
 }

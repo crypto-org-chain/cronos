@@ -53,9 +53,6 @@ func (p Params) Validate() error {
 			return err
 		}
 	}
-	if err := validateIsUint64(p.MaxCallbackGas); err != nil {
-		return err
-	}
 	if err := validateIsEvmAddresses(p.CroBridgeContractAddresses); err != nil {
 		return err
 	}
@@ -68,41 +65,21 @@ func (p Params) String() string {
 	return string(out)
 }
 
-func validateIsIbcDenom(i interface{}) error {
-	s, ok := i.(string)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-
-	if !IsValidIBCDenom(s) {
-		return fmt.Errorf("invalid ibc denom: %T", i)
+func validateIsIbcDenom(denom string) error {
+	if !IsValidIBCDenom(denom) {
+		return fmt.Errorf("invalid ibc denom: %s", denom)
 	}
 	return nil
 }
 
-func validateIbcTimeout(i interface{}) error {
-	timeout, ok := i.(uint64)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
+func validateIbcTimeout(timeout uint64) error {
 	if timeout > MaxIbcTimeoutValue {
 		return fmt.Errorf("invalid ibc timeout %d: must not exceed %d", timeout, MaxIbcTimeoutValue)
 	}
 	return nil
 }
 
-func validateIsUint64(i interface{}) error {
-	if _, ok := i.(uint64); !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-	return nil
-}
-
-func validateIsEvmAddresses(i interface{}) error {
-	addrs, ok := i.([]string)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
+func validateIsEvmAddresses(addrs []string) error {
 	for _, addr := range addrs {
 		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
 			return fmt.Errorf("invalid evm address: %s: must be a non-zero EVM hex address", addr)

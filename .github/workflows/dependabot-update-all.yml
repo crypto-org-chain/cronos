@@ -21,7 +21,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.25.10"
+          go-version: "1.26.10"
           check-latest: true
       - name: Update ethermint to latest develop
         run: ./scripts/go-update-ethermint.sh

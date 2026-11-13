@@ -1,3 +1,5 @@
+// Package types keeps x/params' ParameterChangeProposal so pre-v1.9 gov proposals still decode.
+// params.pb.go is cosmos-sdk v0.54's x/params/types/proposal/params.pb.go with only the package renamed.
 package types
 
 import (

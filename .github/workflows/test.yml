@@ -91,7 +91,7 @@ jobs:
       - name: Convert coverage data
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         run: |
-          nix profile install ./nix#go_1_25
+          nix profile install ./nix#go_1_26
           go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'

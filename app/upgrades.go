@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
+	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	"github.com/ethereum/go-ethereum/common"
 	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/evmos/ethermint/upgrades/ibcv1121"
 	"github.com/evmos/ethermint/upgrades/sdk55"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -34,7 +37,12 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 			if err != nil {
 				return toVM, err
 			}
-			// Without crypto-org-chain/cosmos-sdk#1889 the staking migration doesn't rebuild the queue index; rerunning is idempotent.
+			// ibc-go v11.2.1 reads send sequences from a new key and registers no migration for the move.
+			ibcStore := runtime.NewKVStoreService(app.keys[ibcexported.StoreKey])
+			if err := ibcv1121.MigrateChannelSendSequences(sdkCtx, ibcStore, app.appCodec, app.IBCKeeper); err != nil {
+				return toVM, fmt.Errorf("migrate ibc channel send sequences: %w", err)
+			}
+			// v1.8 state has no pending-slot index, which end-block queue processing relies on; rebuilding is idempotent.
 			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
 				return toVM, fmt.Errorf("populate queue pending slots: %w", err)
 			}
@@ -100,9 +108,13 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) string {
 	if window < evmParams.HeaderHashNum {
 		return fmt.Sprintf("history_serve_window %d is below header_hash_num %d", window, evmParams.HeaderHashNum)
 	}
-	upgradeHeight := uint64(ctx.BlockHeight()) //nolint:gosec // block height is positive
+	// Reads the contract slot directly: GetHeaderHash also falls back to the legacy store, which HistoricalInfo backs up.
+	upgradeHeight := uint64(ctx.BlockHeight())
 	for i := uint64(1); i <= evmParams.HeaderHashNum && i < upgradeHeight; i++ {
-		if h := upgradeHeight - i; app.EvmKeeper.GetHeaderHash(ctx, h) == (common.Hash{}) {
+		h := upgradeHeight - i
+		var slot common.Hash
+		binary.BigEndian.PutUint64(slot[24:], h%window)
+		if app.EvmKeeper.GetState(ctx, ethparams.HistoryStorageAddress, slot) == (common.Hash{}) {
 			return fmt.Sprintf("no EIP-2935 header hash at height %d", h)
 		}
 	}

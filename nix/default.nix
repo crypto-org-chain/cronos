@@ -11,7 +11,7 @@ import sources.nixpkgs {
       dapptools-master = sources.dapptools-master;
     })
     (final: pkgs: {
-      go = final.go_1_25;
+      go = final.go_1_26;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         buildGoModule = pkgs.buildGoModule;
       };
@@ -20,7 +20,7 @@ import sources.nixpkgs {
         (pkgs.callPackage sources.chain-main {
           rocksdb = null;
           buildPackages = pkgs.buildPackages // {
-            go_1_23 = final.buildPackages.go_1_25;
+            go_1_23 = final.buildPackages.go_1_26;
           };
         }).overrideAttrs
           (old: {
