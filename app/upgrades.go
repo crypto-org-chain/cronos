@@ -42,10 +42,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 			if err := ibcv1121.MigrateChannelSendSequences(sdkCtx, ibcStore, app.appCodec, app.IBCKeeper); err != nil {
 				return toVM, fmt.Errorf("migrate ibc channel send sequences: %w", err)
 			}
-			// v1.8 state has no pending-slot index, which end-block queue processing relies on; rebuilding is idempotent.
-			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
-				return toVM, fmt.Errorf("populate queue pending slots: %w", err)
-			}
 			if err := app.setV19StakingParams(sdkCtx); err != nil {
 				return toVM, err
 			}
