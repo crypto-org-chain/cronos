@@ -113,6 +113,15 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expErr:        "versiondb version 98 is behind the block before upgrade height 100",
 		},
 		{
+			name:          "versiondb lags store, store two blocks before upgrade height",
+			maxVersion:    97,
+			lastVersion:   98,
+			upgradeHeight: 100,
+			upgrades:      deleteParams,
+			expCall:       "LoadVersion",
+			expVersion:    97,
+		},
+		{
 			name:          "versiondb and store both before upgrade height",
 			maxVersion:    50,
 			lastVersion:   60,
