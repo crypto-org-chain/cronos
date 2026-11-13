@@ -17,21 +17,18 @@ func MaxVersionStoreLoader(version int64) baseapp.StoreLoader {
 	}
 }
 
-// MaxVersionUpgradeStoreLoader is used to prepare baseapp with a fixed StoreLoader
+// MaxVersionUpgradeStoreLoader applies storeUpgrades when the capped version is the block before upgradeHeight.
+// It checks the capped version, not the multistore's latest, because that is the version the multistore loads.
 func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *storetypes.StoreUpgrades) baseapp.StoreLoader {
 	if version == 0 {
 		return upgradetypes.UpgradeStoreLoader(upgradeHeight, storeUpgrades)
 	}
 
 	return func(ms storetypes.CommitMultiStore) error {
-		if upgradeHeight == ms.LastCommitID().Version+1 {
-			// Check if the current commit version and upgrade height matches
-			if len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0 {
-				return ms.LoadLatestVersionAndUpgrade(storeUpgrades)
-			}
+		if upgradeHeight == version+1 &&
+			(len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0) {
+			return ms.LoadVersionAndUpgrade(version, storeUpgrades)
 		}
-
-		// Otherwise load default store loader
 		return MaxVersionStoreLoader(version)(ms)
 	}
 }

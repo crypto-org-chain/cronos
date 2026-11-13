@@ -6,11 +6,13 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	"github.com/crypto-org-chain/cronos-store/memiavl"
 	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -42,17 +44,18 @@ func numOpenFDs(t *testing.T) int {
 }
 
 // setupMemIAVLAppWithHistory builds an app backed by the on-disk memiavl store,
-// commits `blocks` empty blocks, and returns the app plus a funded account.
-func setupMemIAVLAppWithHistory(t *testing.T, blocks int64) (*App, sdk.AccAddress) {
+// commits `blocks` empty blocks, and returns the app, a funded account, and a
+// historical height whose read-only load mmaps a non-empty snapshot.
+func setupMemIAVLAppWithHistory(t *testing.T, blocks int64) (*App, sdk.AccAddress, int64) {
 	t.Helper()
 
+	home := t.TempDir()
 	appOpts := MinimalOptionsMap{
-		flags.FlagHome:           t.TempDir(),
+		flags.FlagHome:           home,
 		flags.FlagChainID:        TestAppChainID,
 		memiavlstore.FlagMemIAVL: true,
 	}
 	app := New(log.NewNopLogger(), nil, true, appOpts, baseapp.SetChainID(TestAppChainID))
-	t.Cleanup(func() { _ = app.Close() })
 
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
@@ -86,23 +89,35 @@ func setupMemIAVLAppWithHistory(t *testing.T, blocks int64) (*App, sdk.AccAddres
 	})
 	require.NoError(t, err)
 
-	for h := int64(1); h <= blocks; h++ {
-		_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: h, ProposerAddress: consAddress})
-		require.NoError(t, err)
-		_, err = app.Commit()
-		require.NoError(t, err)
+	commitBlocks := func(from, to int64) {
+		for h := from; h <= to; h++ {
+			_, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: h, ProposerAddress: consAddress})
+			require.NoError(t, err)
+			_, err = app.Commit()
+			require.NoError(t, err)
+		}
 	}
-	return app, acctAddr
+	commitBlocks(1, blocks)
+	require.NoError(t, app.Close())
+
+	// The WAL reader holds no fds, so a leaked read-only DB is only visible through
+	// a snapshot's mmapped files; write one synchronously so no rewrite runs in the background.
+	db, err := memiavl.Load(filepath.Join(home, "data", "memiavl.db"), memiavl.Options{}, TestAppChainID)
+	require.NoError(t, err)
+	require.NoError(t, db.RewriteSnapshot())
+	require.NoError(t, db.Close())
+
+	app = New(log.NewNopLogger(), nil, true, appOpts, baseapp.SetChainID(TestAppChainID))
+	t.Cleanup(func() { _ = app.Close() })
+	commitBlocks(blocks+1, blocks+2)
+	return app, acctAddr, blocks + 1
 }
 
 // TestHistoricalQueryClosesMemIAVLDB checks that historical queries don't leak fds.
 // A query below the latest height opens a read-only memiavl DB; baseapp must close
 // it (fork #1816), otherwise every such query leaks an fd.
 func TestHistoricalQueryClosesMemIAVLDB(t *testing.T) {
-	app, acctAddr := setupMemIAVLAppWithHistory(t, 10)
-
-	// height strictly below latest -> read-only memiavl.Load path
-	const histHeight = int64(3)
+	app, acctAddr, histHeight := setupMemIAVLAppWithHistory(t, 10)
 	reqData, err := (&banktypes.QueryBalanceRequest{
 		Address: acctAddr.String(),
 		Denom:   evmtypes.DefaultEVMDenom,
@@ -136,7 +151,7 @@ func TestHistoricalQueryClosesMemIAVLDB(t *testing.T) {
 // TestCacheMultiStoreWithVersionLeaksWhenNotClosed confirms the leak is real:
 // opening historical read-only stores without closing them grows the fd count.
 func TestCacheMultiStoreWithVersionLeaksWhenNotClosed(t *testing.T) {
-	app, _ := setupMemIAVLAppWithHistory(t, 10)
+	app, _, histHeight := setupMemIAVLAppWithHistory(t, 10)
 	cms := app.CommitMultiStore()
 
 	const iters = 5
@@ -149,7 +164,7 @@ func TestCacheMultiStoreWithVersionLeaksWhenNotClosed(t *testing.T) {
 
 	before := numOpenFDs(t)
 	for i := 0; i < iters; i++ {
-		s, err := cms.CacheMultiStoreWithVersion(3)
+		s, err := cms.CacheMultiStoreWithVersion(histHeight)
 		require.NoError(t, err)
 		c, ok := s.(io.Closer)
 		require.True(t, ok, "historical CacheMultiStoreWithVersion must return an io.Closer")

@@ -73,7 +73,7 @@ func (ts *ExtTxSelector) DrainGateSkipped() [][]byte {
 	return out
 }
 
-func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte, gasWanted uint64) bool {
 	// returned bool = stop iterating; true once the block is full.
 	isFull := func() bool {
 		return uint64(ts.totalBytes) >= maxTxBytes || (maxBlockGas > 0 && ts.totalGas >= maxBlockGas)
@@ -104,13 +104,13 @@ func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, 
 		}
 	}
 
-	if maxBlockGas > 0 && isFeeTx {
-		gasWanted := feeTx.GetGas()
+	if maxBlockGas > 0 {
+		txGas := cronosmempool.BlockGas(memTx, gasWanted)
 		// Overflow-safe: totalGas <= maxBlockGas by induction.
-		if gasWanted > maxBlockGas-ts.totalGas {
+		if txGas > maxBlockGas-ts.totalGas {
 			return isFull()
 		}
-		ts.totalGas += gasWanted
+		ts.totalGas += txGas
 	}
 
 	ts.selectedTxs = append(ts.selectedTxs, txBz)

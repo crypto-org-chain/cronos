@@ -26,10 +26,19 @@ func preallocEntries(capacity int) int {
 
 // PoolSnapshot returns a snapshot of the current mempool transactions.
 func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
+	return poolSnapshot(ctx, mp, func(ptx sdkmempool.PooledTx) sdk.Tx { return ptx.Tx })
+}
+
+// PooledSnapshot is PoolSnapshot keeping the ante-reported gas wanted of each tx.
+func PooledSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdkmempool.PooledTx {
+	return poolSnapshot(ctx, mp, func(ptx sdkmempool.PooledTx) sdkmempool.PooledTx { return ptx })
+}
+
+func poolSnapshot[T any](ctx context.Context, mp sdkmempool.Mempool, project func(sdkmempool.PooledTx) T) []T {
 	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot")
-	snap := make([]sdk.Tx, 0, mp.CountTx())
-	sdkmempool.SelectBy(ctx, mp, nil, func(tx sdk.Tx) bool {
-		snap = append(snap, tx)
+	snap := make([]T, 0, mp.CountTx())
+	sdkmempool.SelectBy(ctx, mp, nil, func(ptx sdkmempool.PooledTx) bool {
+		snap = append(snap, project(ptx))
 		return true
 	})
 	return snap
@@ -39,6 +48,18 @@ func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 func UnorderedPoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	defer telemetry.MeasureSince(telemetry.Now(), "cronos", "mempool", "pool", "snapshot", "unordered")
 	return sdkmempool.UnorderedTxs(ctx, mp)
+}
+
+// BlockGas mirrors baseapp's ProcessProposal accounting: the ante-reported gas
+// wanted, else the declared gas. Proposals built with it are never rejected for MaxGas.
+func BlockGas(tx sdk.Tx, gasWanted uint64) uint64 {
+	if gasWanted > 0 {
+		return gasWanted
+	}
+	if gasTx, ok := tx.(sdk.GasTx); ok {
+		return gasTx.GetGas()
+	}
+	return 0
 }
 
 // EncodeTx returns the raw bytes of a transaction, prioritizing the cache if available.

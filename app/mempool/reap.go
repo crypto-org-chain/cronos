@@ -30,7 +30,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			}
 		}()
 
-		snapshot := PoolSnapshot(context.Background(), mpool)
+		snapshot := PooledSnapshot(context.Background(), mpool)
 
 		now := time.Now().UnixNano()
 		var (
@@ -41,8 +41,8 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			deduped    float32
 		)
 		txs := make([][]byte, 0, len(snapshot))
-		for _, tx := range snapshot {
-			bz, hash, gas, hit, err := prepareForReap(encCache, txEncoder, tx, logger)
+		for _, ptx := range snapshot {
+			bz, hash, gas, hit, err := prepareForReap(encCache, txEncoder, ptx, logger)
 			if hit {
 				cacheHits++
 			} else {
@@ -87,7 +87,8 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 }
 
 // prepareForReap recovers per tx so one bad tx can't stall gossip for the pool.
-func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
+func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, ptx mempool.PooledTx, logger log.Logger) (bz []byte, hash [32]byte, gas uint64, hit bool, err error) {
+	tx := ptx.Tx
 	defer func() {
 		if r := recover(); r != nil {
 			var keyvals []any
@@ -102,8 +103,5 @@ func prepareForReap(encCache *EncoderCache, txEncoder sdk.TxEncoder, tx sdk.Tx, 
 		logger.Error("reap encode failed; skipping tx", "err", err)
 		return nil, hash, 0, hit, err
 	}
-	if feeTx, ok := tx.(sdk.FeeTx); ok {
-		gas = feeTx.GetGas()
-	}
-	return bz, encCache.HashTx(tx, bz), gas, hit, nil
+	return bz, encCache.HashTx(tx, bz), BlockGas(tx, ptx.GasWanted), hit, nil
 }

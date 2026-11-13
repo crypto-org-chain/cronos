@@ -674,17 +674,17 @@ func TestManagerInsertTx_SharesAdmitWithHandler(t *testing.T) {
 // fakePool is a minimal ExtMempool: PoolSnapshot iterates it via SelectBy.
 type fakePool struct{ txs []sdk.Tx }
 
-func (p *fakePool) Insert(context.Context, sdk.Tx) error                 { return nil }
-func (p *fakePool) Select(context.Context, [][]byte) sdkmempool.Iterator { return nil }
-func (p *fakePool) CountTx() int                                         { return len(p.txs) }
-func (p *fakePool) Remove(sdk.Tx) error                                  { return nil }
+func (p *fakePool) Insert(context.Context, sdk.Tx, sdkmempool.InsertOption) error { return nil }
+func (p *fakePool) Select(context.Context, [][]byte) sdkmempool.Iterator          { return nil }
+func (p *fakePool) CountTx() int                                                  { return len(p.txs) }
+func (p *fakePool) Remove(sdk.Tx) error                                           { return nil }
 func (p *fakePool) RemoveWithReason(context.Context, sdk.Tx, sdkmempool.RemoveReason) error {
 	return nil
 }
 
-func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+func (p *fakePool) SelectBy(_ context.Context, _ [][]byte, cb func(sdkmempool.PooledTx) bool) {
 	for _, tx := range p.txs {
-		if !cb(tx) {
+		if !cb(sdkmempool.NewPooledTx(tx, 0)) {
 			return
 		}
 	}
@@ -832,7 +832,7 @@ type countingPool struct {
 	scans *atomic.Int64
 }
 
-func (p *countingPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+func (p *countingPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdkmempool.PooledTx) bool) {
 	p.scans.Add(1)
 	p.fakePool.SelectBy(ctx, txs, cb)
 }
@@ -848,7 +848,7 @@ type hookPool struct {
 	onScan func()
 }
 
-func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdk.Tx) bool) {
+func (p *hookPool) SelectBy(ctx context.Context, txs [][]byte, cb func(sdkmempool.PooledTx) bool) {
 	if p.onScan != nil {
 		hook := p.onScan
 		p.onScan = nil

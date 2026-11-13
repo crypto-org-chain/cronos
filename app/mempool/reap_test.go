@@ -47,18 +47,18 @@ func (it *stubIterator) Next() sdkmempool.Iterator {
 	return it
 }
 
-func (it *stubIterator) Tx() sdk.Tx {
+func (it *stubIterator) Tx() sdkmempool.PooledTx {
 	if it.i >= len(it.txs) {
-		return nil
+		return sdkmempool.PooledTx{}
 	}
-	return it.txs[it.i]
+	return sdkmempool.NewPooledTx(it.txs[it.i], 0)
 }
 
 type stubMempool struct {
 	txs []sdk.Tx
 }
 
-func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx) error {
+func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx, _ sdkmempool.InsertOption) error {
 	m.txs = append(m.txs, tx)
 	return nil
 }
@@ -201,7 +201,7 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 			sender:    sender,
 			nonce:     uint64(n),
 		}
-		if err := mp.Insert(ctx, tx); err != nil {
+		if err := mp.Insert(ctx, tx, sdkmempool.InsertOption{}); err != nil {
 			t.Fatalf("insert nonce=%d: %v", n, err)
 		}
 	}
@@ -235,7 +235,7 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 			nonce:     0,
 		}
 		ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(p)
-		if err := mp.Insert(ctx, tx); err != nil {
+		if err := mp.Insert(ctx, tx, sdkmempool.InsertOption{}); err != nil {
 			t.Fatalf("insert priority=%d: %v", p, err)
 		}
 	}
@@ -315,7 +315,7 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 					sender:    sender,
 					nonce:     n,
 				}
-				if err := mp.Insert(insertCtx, tx); err != nil {
+				if err := mp.Insert(insertCtx, tx, sdkmempool.InsertOption{}); err != nil {
 					t.Errorf("insert err: %v", err)
 					return
 				}
