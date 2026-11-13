@@ -1021,7 +1021,7 @@ func New(
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 	// Make sure it's called after `app.mm` and `app.configurator` are set.
-	storeLoaderOverritten := app.RegisterUpgradeHandlers(app.appCodec, qmsVersion)
+	storeLoaderOverritten := app.RegisterUpgradeHandlers(qmsVersion)
 	if !storeLoaderOverritten {
 		// Register the default store loader
 		app.SetStoreLoader(MaxVersionStoreLoader(qmsVersion))

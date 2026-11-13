@@ -9,7 +9,6 @@ import (
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
-// ErrRemoved rejects new params proposals: x/params was removed in v1.9 and the type is kept only to decode history.
 var ErrRemoved = errors.New("x/params has been removed; ParameterChangeProposal is decode-only")
 
 var _ govv1beta1.Content = (*ParameterChangeProposal)(nil)

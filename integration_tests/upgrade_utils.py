@@ -23,13 +23,12 @@ def prepare_upgrade_binaries(path, genesis="genesis", plans=None):
     # copy the content so the new directory is writable.
     result = Path("./result")
     upgrades = path / "upgrades"
-    if genesis == "genesis" and plans is None:
-        shutil.copytree(result, upgrades)
-    else:
-        upgrades.mkdir()
-        shutil.copytree(result / genesis, upgrades / "genesis")
-        for plan in plans or []:
-            shutil.copytree(result / plan, upgrades / plan)
+    upgrades.mkdir()
+    shutil.copytree(result / genesis, upgrades / "genesis")
+    if plans is None:
+        plans = [d.name for d in result.iterdir() if d.name != "genesis"]
+    for plan in plans:
+        shutil.copytree(result / plan, upgrades / plan)
     mod = stat.S_IRWXU
     upgrades.chmod(mod)
     for d in upgrades.iterdir():

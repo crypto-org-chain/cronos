@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
@@ -14,7 +15,6 @@ import (
 
 	"cosmossdk.io/math"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -26,7 +26,7 @@ import (
 const planName = "v1.9"
 
 // RegisterUpgradeHandlers returns true if it installed the upgrade store loader.
-func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
+func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -72,8 +72,8 @@ func (app *App) setV19StakingParams(ctx sdk.Context) error {
 	// Most operators hold no liquid bond denom, so the default fee would block their rotations.
 	params.KeyRotationFee = sdk.NewCoin(params.BondDenom, math.OneInt())
 
-	if reason := app.blockHashHistoryGap(ctx); reason != "" {
-		ctx.Logger().Info("keeping staking historical_entries", "value", params.HistoricalEntries, "reason", reason)
+	if err := app.blockHashHistoryGap(ctx); err != nil {
+		ctx.Logger().Info("keeping staking historical_entries", "value", params.HistoricalEntries, "reason", err)
 	} else {
 		params.HistoricalEntries = 0
 	}
@@ -90,11 +90,11 @@ func (app *App) setV19StakingParams(ctx sdk.Context) error {
 	return nil
 }
 
-// blockHashHistoryGap returns why the EIP-2935 contract can't serve BLOCKHASH for the last header_hash_num blocks, or "" if it can.
-func (app *App) blockHashHistoryGap(ctx sdk.Context) string {
+// blockHashHistoryGap returns why the EIP-2935 contract can't serve BLOCKHASH for the last header_hash_num blocks, or nil if it can.
+func (app *App) blockHashHistoryGap(ctx sdk.Context) error {
 	acct := app.EvmKeeper.GetAccount(ctx, ethparams.HistoryStorageAddress)
 	if acct == nil || !acct.IsContract() {
-		return "EIP-2935 history storage contract not deployed"
+		return errors.New("EIP-2935 history storage contract not deployed")
 	}
 	evmParams := app.EvmKeeper.GetParams(ctx)
 	window := evmParams.HistoryServeWindow
@@ -102,7 +102,7 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) string {
 		window = evmtypes.DefaultHistoryServeWindow
 	}
 	if window < evmParams.HeaderHashNum {
-		return fmt.Sprintf("history_serve_window %d is below header_hash_num %d", window, evmParams.HeaderHashNum)
+		return fmt.Errorf("history_serve_window %d is below header_hash_num %d", window, evmParams.HeaderHashNum)
 	}
 	// Reads the contract slot directly: GetHeaderHash also falls back to the legacy store, which HistoricalInfo backs up.
 	upgradeHeight := uint64(ctx.BlockHeight())
@@ -111,16 +111,16 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) string {
 		var slot common.Hash
 		binary.BigEndian.PutUint64(slot[24:], h%window)
 		if app.EvmKeeper.GetState(ctx, ethparams.HistoryStorageAddress, slot) == (common.Hash{}) {
-			return fmt.Sprintf("no EIP-2935 header hash at height %d", h)
+			return fmt.Errorf("no EIP-2935 header hash at height %d", h)
 		}
 	}
-	return ""
+	return nil
 }
 
 // pruneHistoricalInfo deletes entries from the block before the upgrade downward, since TrackHistoricalInfo
 // with zero entries stops at the current height. Raw keys avoid failing on an entry that no longer decodes.
 func (app *App) pruneHistoricalInfo(ctx sdk.Context) {
-	store := runtime.KVStoreAdapter(runtime.NewKVStoreService(app.keys[stakingtypes.StoreKey]).OpenKVStore(ctx))
+	store := ctx.KVStore(app.keys[stakingtypes.StoreKey])
 	for h := ctx.BlockHeight() - 1; h >= 0; h-- {
 		key := stakingtypes.GetHistoricalInfoKey(h)
 		if !store.Has(key) {

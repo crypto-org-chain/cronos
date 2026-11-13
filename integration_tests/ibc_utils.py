@@ -181,7 +181,8 @@ def prepare_network(
         post_init=post_init,
         relayer=relayer,
     ) as cronos:
-        # setup_custom_cronos's chain_binary would also replace chainmain's binary.
+        # Set per chain: setup_custom_cronos's chain_binary would replace
+        # chainmain's binary too.
         if cronos_binary is not None:
             cronos.chain_binary = cronos_binary
         cli = cronos.cosmos_cli()

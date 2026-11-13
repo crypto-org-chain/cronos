@@ -17,7 +17,6 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 
-	"github.com/cosmos/cosmos-sdk/runtime"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -69,11 +68,6 @@ func (s *UpgradeTestSuite) setHeaderHashes(from, to int64) {
 	for h := from; h <= to; h++ {
 		s.app.EvmKeeper.SetHeaderHash(s.ctx.WithBlockHeight(h).WithHeaderHash(testHeaderHash(h).Bytes()))
 	}
-}
-
-func (s *UpgradeTestSuite) historicalInfoStoreHas(h int64) bool {
-	store := runtime.KVStoreAdapter(runtime.NewKVStoreService(s.app.keys[stakingtypes.StoreKey]).OpenKVStore(s.ctx))
-	return store.Has(stakingtypes.GetHistoricalInfoKey(h))
 }
 
 func (s *UpgradeTestSuite) TestHistoricalEntries() {
@@ -136,7 +130,7 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 				s.Require().NoError(s.app.StakingKeeper.SetHistoricalInfo(s.ctx, h, &hi))
 			}
 			// an entry that no longer decodes must not stop the pruning
-			store := runtime.KVStoreAdapter(runtime.NewKVStoreService(s.app.keys[stakingtypes.StoreKey]).OpenKVStore(s.ctx))
+			store := s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey])
 			store.Set(stakingtypes.GetHistoricalInfoKey(upgradeTestHeight-2), []byte{0xff})
 			tc.malleate()
 
@@ -146,7 +140,7 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			s.Require().NoError(err)
 			s.Require().Equal(sdk.NewCoin(params.BondDenom, sdkmath.OneInt()), params.KeyRotationFee)
 			for h := firstHistorical; h < upgradeTestHeight; h++ {
-				s.Require().Equal(!tc.expDisabled, s.historicalInfoStoreHas(h), "height %d", h)
+				s.Require().Equal(!tc.expDisabled, store.Has(stakingtypes.GetHistoricalInfoKey(h)), "height %d", h)
 			}
 			if !tc.expDisabled {
 				s.Require().Equal(before.HistoricalEntries, params.HistoricalEntries)
@@ -170,19 +164,12 @@ func (s *UpgradeTestSuite) TestKeyRotationFeePool() {
 		expBalance sdk.Coins
 	}{
 		{
-			name: "no account at the pool address",
-			malleate: func() {
-				if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
-					s.app.AccountKeeper.RemoveAccount(s.ctx, acc)
-				}
-			},
+			name:     "no account at the pool address",
+			malleate: func() {},
 		},
 		{
 			name: "plain account pre-funded at the pool address",
 			malleate: func() {
-				if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
-					s.app.AccountKeeper.RemoveAccount(s.ctx, acc)
-				}
 				s.Require().NoError(s.app.BankKeeper.MintCoins(s.ctx, minttypes.ModuleName, squatCoins))
 				s.Require().NoError(s.app.BankKeeper.SendCoins(s.ctx, authtypes.NewModuleAddress(minttypes.ModuleName), poolAddr, squatCoins))
 				_, isModule := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr).(sdk.ModuleAccountI)
@@ -199,6 +186,9 @@ func (s *UpgradeTestSuite) TestKeyRotationFeePool() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			s.SetupTest()
+			if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
+				s.app.AccountKeeper.RemoveAccount(s.ctx, acc)
+			}
 			tc.malleate()
 			var accNum *uint64
 			if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
@@ -317,7 +307,7 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, channelID, channeltypes.NewChannel(
 				channeltypes.OPEN, channeltypes.UNORDERED, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
 			))
-			store := runtime.KVStoreAdapter(runtime.NewKVStoreService(s.app.keys[ibcexported.StoreKey]).OpenKVStore(s.ctx))
+			store := s.ctx.KVStore(s.app.keys[ibcexported.StoreKey])
 			tc.malleate(store)
 
 			s.applyUpgrade()
