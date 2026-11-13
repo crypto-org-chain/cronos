@@ -45,7 +45,9 @@ jobs:
             integration_tests/test_upgrade.py
             integration_tests/test_ibc_upgrade.py
             integration_tests/upgrade_utils.py
+            integration_tests/ibc_utils.py
             integration_tests/configs/cosmovisor.jsonnet
+            integration_tests/configs/ibc.jsonnet
             integration_tests/configs/ibc_upgrade.jsonnet
             integration_tests/configs/upgrade-test-package.nix
       - id: skip-upgrade
