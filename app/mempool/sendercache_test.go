@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cronos "github.com/crypto-org-chain/cronos/app"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSenderCacheServesFinalizeBlockAfterDecodeCacheEviction(t *testing.T) {
 	const accounts = 4
-	f := setupAdmissionAppWithOpts(t, accounts, minimalOptionsMap{"cronos.mempool-tx-cache-size": 1})
+	f := setupAdmissionAppWithOpts(t, accounts, minimalOptionsMap{cronos.FlagTxCacheSize: 1})
 	require.NotNil(t, f.app.SenderCache(), "sender cache must be enabled by default")
 
 	txBytes := f.signTransfer(t, &f.accounts[0], nil)
