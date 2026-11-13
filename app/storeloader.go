@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -25,9 +27,18 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 	}
 
 	return func(ms storetypes.CommitMultiStore) error {
-		if upgradeHeight == version+1 &&
-			(len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0) {
+		hasUpgrades := len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0
+		if hasUpgrades && upgradeHeight == version+1 {
 			return ms.LoadVersionAndUpgrade(version, storeUpgrades)
+		}
+		// Store upgrades only apply at load time, so loading below upgradeHeight-1 would replay
+		// the upgrade block without them and fork. Loading the uncapped latest instead would leave
+		// a gap in versiondb.
+		if hasUpgrades && version+1 < upgradeHeight && upgradeHeight <= ms.LastCommitID().Version+1 {
+			return fmt.Errorf(
+				"versiondb version %d is behind the block before upgrade height %d: run the previous binary until it halts at the upgrade, then restart",
+				version, upgradeHeight,
+			)
 		}
 		return MaxVersionStoreLoader(version)(ms)
 	}

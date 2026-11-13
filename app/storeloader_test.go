@@ -60,6 +60,7 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 		expCall       string
 		expVersion    int64
 		expUpgrades   *storetypes.StoreUpgrades
+		expErr        string
 	}{
 		{
 			name:          "no versiondb, at upgrade height",
@@ -96,6 +97,40 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expVersion:    100,
 		},
 		{
+			name:          "versiondb lags store at upgrade height",
+			maxVersion:    98,
+			lastVersion:   99,
+			upgradeHeight: 100,
+			upgrades:      deleteParams,
+			expErr:        "versiondb version 98 is behind the block before upgrade height 100",
+		},
+		{
+			name:          "versiondb lags store already past upgrade height",
+			maxVersion:    98,
+			lastVersion:   105,
+			upgradeHeight: 100,
+			upgrades:      deleteParams,
+			expErr:        "versiondb version 98 is behind the block before upgrade height 100",
+		},
+		{
+			name:          "versiondb and store both before upgrade height",
+			maxVersion:    50,
+			lastVersion:   60,
+			upgradeHeight: 100,
+			upgrades:      deleteParams,
+			expCall:       "LoadVersion",
+			expVersion:    50,
+		},
+		{
+			name:          "versiondb lags store at upgrade height, no store changes",
+			maxVersion:    98,
+			lastVersion:   99,
+			upgradeHeight: 100,
+			upgrades:      &storetypes.StoreUpgrades{},
+			expCall:       "LoadVersion",
+			expVersion:    98,
+		},
+		{
 			name:          "versiondb at upgrade height, no store changes",
 			maxVersion:    99,
 			lastVersion:   99,
@@ -109,7 +144,12 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			ms := &recordingMultiStore{lastVersion: tc.lastVersion}
-			s.Require().NoError(MaxVersionUpgradeStoreLoader(tc.maxVersion, tc.upgradeHeight, tc.upgrades)(ms))
+			err := MaxVersionUpgradeStoreLoader(tc.maxVersion, tc.upgradeHeight, tc.upgrades)(ms)
+			if tc.expErr != "" {
+				s.Require().ErrorContains(err, tc.expErr)
+			} else {
+				s.Require().NoError(err)
+			}
 			s.Require().Equal(tc.expCall, ms.call)
 			s.Require().Equal(tc.expVersion, ms.loadedVer)
 			s.Require().Equal(tc.expUpgrades, ms.loadedUpgrds)
