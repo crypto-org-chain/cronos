@@ -1,7 +1,4 @@
 import json
-import shutil
-import stat
-import subprocess
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -11,19 +8,18 @@ import pytest
 import requests
 from hexbytes import HexBytes
 from pystarport import ports
-from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
 from .ibc_v18 import check_ibc_client_states, preupgrade_ibc_snapshot
 from .network import Cronos, setup_custom_cronos
 from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
+from .upgrade_utils import post_init, prepare_upgrade_binaries, propose_software_upgrade
 from .utils import (
     ADDRS,
     CONTRACTS,
     approve_proposal,
     assert_gov_params,
     deploy_contract,
-    edit_ini_sections,
     eth_to_bech32,
     get_consensus_params,
     get_send_enable,
@@ -50,68 +46,14 @@ def get_txs(base_port, end):
     return res
 
 
-def init_cosmovisor(home):
-    """
-    build and setup cosmovisor directory structure in each node's home directory
-    """
-    cosmovisor = home / "cosmovisor"
-    cosmovisor.mkdir()
-    (cosmovisor / "upgrades").symlink_to("../../../upgrades")
-    (cosmovisor / "genesis").symlink_to("./upgrades/genesis")
-
-
-def post_init(path, base_port, config):
-    """
-    prepare cosmovisor for each node
-    """
-    chain_id = "cronos_777-1"
-    data = path / chain_id
-    cfg = json.loads((data / "config.json").read_text())
-    for i, _ in enumerate(cfg["validators"]):
-        home = data / f"node{i}"
-        init_cosmovisor(home)
-
-    edit_ini_sections(
-        chain_id,
-        data / SUPERVISOR_CONFIG_FILE,
-        lambda i, _: {
-            "command": f"cosmovisor run start --home %(here)s/node{i}",
-            "environment": (
-                "DAEMON_NAME=cronosd,"
-                "DAEMON_SHUTDOWN_GRACE=1m,"
-                "UNSAFE_SKIP_BACKUP=true,"
-                f"DAEMON_HOME=%(here)s/node{i}"
-            ),
-        },
-    )
-
-
 def setup_cronos_test(tmp_path_factory):
     path = tmp_path_factory.mktemp("upgrade")
-    port = 26200
-    nix_name = "upgrade-test-package"
-    cfg_name = "cosmovisor"
-    configdir = Path(__file__).parent
-    cmd = [
-        "nix-build",
-        configdir / f"configs/{nix_name}.nix",
-    ]
-    print(*cmd)
-    subprocess.run(cmd, check=True)
-
-    # copy the content so the new directory is writable.
-    upgrades = path / "upgrades"
-    shutil.copytree("./result", upgrades)
-    mod = stat.S_IRWXU
-    upgrades.chmod(mod)
-    for d in upgrades.iterdir():
-        d.chmod(mod)
-
+    upgrades = prepare_upgrade_binaries(path)
     # init with genesis binary
     with contextmanager(setup_custom_cronos)(
         path,
-        port,
-        configdir / f"configs/{cfg_name}.jsonnet",
+        26200,
+        Path(__file__).parent / "configs/cosmovisor.jsonnet",
         post_init=post_init,
         chain_binary=str(upgrades / "genesis/bin/cronosd"),
     ) as cronos:
@@ -172,23 +114,7 @@ def exec(c, tmp_path_factory):
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
         if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8", "v1.9"):
-            rsp = cli.submit_gov_proposal(
-                "community",
-                "software-upgrade",
-                {
-                    "name": plan_name,
-                    "title": "upgrade test",
-                    "note": "ditto",
-                    "upgrade-height": target,
-                    "summary": "summary",
-                    "deposit": "10000basetcro",
-                },
-                broadcast_mode="sync",
-            )
-            assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(
-                c, rsp["events"], msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade"
-            )
+            propose_software_upgrade(c, plan_name, target)
         else:
             rsp = cli.gov_propose_legacy(
                 "community",
