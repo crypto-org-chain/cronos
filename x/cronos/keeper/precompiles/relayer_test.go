@@ -19,7 +19,7 @@ func TestRelayerContractTestSuite(t *testing.T) {
 
 func (s *RelayerContractTestSuite) TestRequiredGas() {
 	rules := params.Rules{IsHomestead: true, IsIstanbul: true, IsShanghai: true, IsCancun: true, IsPrague: true, IsOsaka: true}
-	// Pinned to the pre-go-ethereum-v1.17 intrinsic gas: 21000 plus 16 per nonzero and 4 per zero calldata byte.
+	// Pinned to the pre-Amsterdam intrinsic gas: 21000 plus 16 per nonzero and 4 per zero calldata byte.
 	testCases := []struct {
 		name   string
 		input  []byte

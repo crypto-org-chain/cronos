@@ -232,6 +232,7 @@ func (s *UpgradeTestSuite) TestModuleMigrations() {
 				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
 
 				// v1.8 params have no key_rotation_fee field, which decodes differently from an encoded empty coin.
+				// The handler then overwrites the fee, so this only shows staking's migration accepts v1.8 params.
 				stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
 				s.Require().NoError(err)
 				bz, err := s.app.appCodec.Marshal(&stakingParams)

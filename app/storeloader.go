@@ -19,8 +19,7 @@ func MaxVersionStoreLoader(version int64) baseapp.StoreLoader {
 	}
 }
 
-// MaxVersionUpgradeStoreLoader applies storeUpgrades when the capped version is the block before upgradeHeight.
-// It keys on the capped version, not the multistore's latest, because the capped version is the one loaded.
+// MaxVersionUpgradeStoreLoader applies storeUpgrades when the loaded version is the block before upgradeHeight.
 func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *storetypes.StoreUpgrades) baseapp.StoreLoader {
 	if version == 0 {
 		return upgradetypes.UpgradeStoreLoader(upgradeHeight, storeUpgrades)
@@ -28,21 +27,19 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 
 	return func(ms storetypes.CommitMultiStore) error {
 		hasUpgrades := len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0
-		if hasUpgrades && upgradeHeight == version+1 {
-			// memiavl loads its latest for a higher target, which would apply the store upgrades below the upgrade height.
-			if last := ms.LastCommitID().Version; last < version {
-				return fmt.Errorf(
-					"store version %d is behind versiondb version %d at the block before upgrade height %d: run the previous binary until it halts at the upgrade, then restart",
-					last, version, upgradeHeight,
-				)
-			}
-			return ms.LoadVersionAndUpgrade(version, storeUpgrades)
+		if !hasUpgrades {
+			return MaxVersionStoreLoader(version)(ms)
 		}
-		// A lower cap either halts in x/upgrade (once state holds an earlier upgrade or the plan) or
-		// replays the upgrade block without the store upgrades and forks; fail early with recovery
-		// advice. Loading the uncapped latest instead fails the post-load versiondb lag check.
-		if hasUpgrades && version+1 < upgradeHeight {
-			last := ms.LastCommitID().Version
+		// memiavl loads its latest for a higher target, so the store's own height also bounds the loaded version.
+		last := ms.LastCommitID().Version
+		loaded := min(version, last)
+		if loaded == upgradeHeight-1 {
+			return ms.LoadVersionAndUpgrade(loaded, storeUpgrades)
+		}
+		// Loading below the block before the upgrade either halts in x/upgrade (once state holds an earlier
+		// upgrade or the plan) or replays the upgrade block without the store upgrades and forks; fail early
+		// with recovery advice. Loading the uncapped latest instead fails the post-load versiondb lag check.
+		if loaded < upgradeHeight-1 {
 			switch {
 			case upgradeHeight <= last:
 				return fmt.Errorf(
@@ -53,6 +50,11 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 				return fmt.Errorf(
 					"versiondb version %d is behind the block before upgrade height %d: run the previous binary until it halts at the upgrade, then restart",
 					version, upgradeHeight,
+				)
+			case version >= upgradeHeight-1:
+				return fmt.Errorf(
+					"store version %d is behind the block before upgrade height %d while versiondb is at %d: run the previous binary until it halts at the upgrade, then restart",
+					last, upgradeHeight, version,
 				)
 			}
 		}
