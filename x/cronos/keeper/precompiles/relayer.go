@@ -106,12 +106,10 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc         codec.Codec
-	ibcKeeper   types.IbcKeeper
-	logger      log.Logger
-	isHomestead bool
-	isIstanbul  bool
-	isShanghai  bool
+	cdc       codec.Codec
+	ibcKeeper types.IbcKeeper
+	logger    log.Logger
+	rules     params.Rules
 }
 
 func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
@@ -119,9 +117,7 @@ func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
-		isHomestead:  rules.IsHomestead,
-		isIstanbul:   rules.IsIstanbul,
-		isShanghai:   rules.IsShanghai,
+		rules:        rules,
 		logger:       logger.With("precompiles", "relayer"),
 	}
 }
@@ -137,7 +133,7 @@ func (bc *RelayerContract) Name() string {
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, common.Address{}, &relayerContractAddress, nil, bc.rules)
 	// base cost to prevent large input size
 	inputLen := len(input)
 	baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte

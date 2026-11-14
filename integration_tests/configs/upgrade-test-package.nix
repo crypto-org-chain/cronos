@@ -68,6 +68,11 @@ let
     (fetchFlake "crypto-org-chain/cronos" "40032610e530cc2c0c2fc83f104d6d19efa08ada"
       "0hqac845h690szany9rs8f4y9a12q95zlid82pcafd8a7776wakp"
     ).default;
+  # release/v1.8.2
+  released1_8 =
+    (fetchFlake "crypto-org-chain/cronos" "f5ec24a8cacbb74b603c501b6189d5e36314987a"
+      "1f6k6cscv34x4d6c60fvkdbf5cah95awdci77xkcc19scrjiqafv"
+    ).default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
@@ -105,6 +110,10 @@ pkgs.linkFarm "upgrade-test-package" [
   }
   {
     name = "v1.8";
+    path = released1_8;
+  }
+  {
+    name = "v1.9";
     path = current;
   }
 ]

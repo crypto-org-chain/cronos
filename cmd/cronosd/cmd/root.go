@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"os"
-	"slices"
 
 	tmcfg "github.com/cometbft/cometbft/config"
 	cmtcli "github.com/cometbft/cometbft/libs/cli"
@@ -40,10 +39,7 @@ import (
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
-	"github.com/cosmos/cosmos-sdk/x/auth/tx"
-	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
@@ -103,26 +99,6 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			// This needs to go after ReadFromClientConfig, as that function
-			// sets the RPC client needed for SIGN_MODE_TEXTUAL. This sign mode
-			// is only available if the client is online.
-			if !initClientCtx.Offline {
-				enabledSignModes := slices.Clone(tx.DefaultSignModes)
-				enabledSignModes = append(enabledSignModes, signing.SignMode_SIGN_MODE_TEXTUAL)
-				txConfigOpts := tx.ConfigOptions{
-					EnabledSignModes:           enabledSignModes,
-					TextualCoinMetadataQueryFn: txmodule.NewGRPCCoinMetadataQueryFn(initClientCtx),
-				}
-				txConfig, err := tx.NewTxConfigWithOptions(
-					initClientCtx.Codec,
-					txConfigOpts,
-				)
-				if err != nil {
-					return err
-				}
-
-				initClientCtx = initClientCtx.WithTxConfig(txConfig)
-			}
 			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
 				return err
 			}

@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25.11'
+          go-version: '1.26.10'
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
         with:

@@ -12,6 +12,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
+	"github.com/stretchr/testify/suite"
 	protov2 "google.golang.org/protobuf/proto"
 
 	"cosmossdk.io/log/v2"
@@ -35,8 +36,9 @@ func (s *stubFeeTx) FeePayer() []byte                      { return nil }
 func (s *stubFeeTx) FeeGranter() []byte                    { return nil }
 
 type stubIterator struct {
-	txs []sdk.Tx
-	i   int
+	txs       []sdk.Tx
+	gasWanted map[sdk.Tx]uint64
+	i         int
 }
 
 func (it *stubIterator) Next() sdkmempool.Iterator {
@@ -47,18 +49,20 @@ func (it *stubIterator) Next() sdkmempool.Iterator {
 	return it
 }
 
-func (it *stubIterator) Tx() sdk.Tx {
+func (it *stubIterator) Tx() sdkmempool.PooledTx {
 	if it.i >= len(it.txs) {
-		return nil
+		return sdkmempool.PooledTx{}
 	}
-	return it.txs[it.i]
+	tx := it.txs[it.i]
+	return sdkmempool.NewPooledTx(tx, it.gasWanted[tx])
 }
 
 type stubMempool struct {
-	txs []sdk.Tx
+	txs       []sdk.Tx
+	gasWanted map[sdk.Tx]uint64 // ante-reported gas; missing means 0
 }
 
-func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx) error {
+func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx, _ sdkmempool.InsertOption) error {
 	m.txs = append(m.txs, tx)
 	return nil
 }
@@ -67,7 +71,7 @@ func (m *stubMempool) Select(_ context.Context, _ [][]byte) sdkmempool.Iterator 
 	if len(m.txs) == 0 {
 		return nil
 	}
-	return &stubIterator{txs: m.txs}
+	return &stubIterator{txs: m.txs, gasWanted: m.gasWanted}
 }
 func (m *stubMempool) CountTx() int          { return len(m.txs) }
 func (m *stubMempool) Remove(_ sdk.Tx) error { return nil }
@@ -201,7 +205,7 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 			sender:    sender,
 			nonce:     uint64(n),
 		}
-		if err := mp.Insert(ctx, tx); err != nil {
+		if err := mp.Insert(ctx, tx, sdkmempool.InsertOption{}); err != nil {
 			t.Fatalf("insert nonce=%d: %v", n, err)
 		}
 	}
@@ -235,7 +239,7 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 			nonce:     0,
 		}
 		ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(p)
-		if err := mp.Insert(ctx, tx); err != nil {
+		if err := mp.Insert(ctx, tx, sdkmempool.InsertOption{}); err != nil {
 			t.Fatalf("insert priority=%d: %v", p, err)
 		}
 	}
@@ -315,7 +319,7 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 					sender:    sender,
 					nonce:     n,
 				}
-				if err := mp.Insert(insertCtx, tx); err != nil {
+				if err := mp.Insert(insertCtx, tx, sdkmempool.InsertOption{}); err != nil {
 					t.Errorf("insert err: %v", err)
 					return
 				}
@@ -409,5 +413,38 @@ func TestReapTxs_GossipCountCap(t *testing.T) {
 	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp.Txs); got != 0 {
 		t.Fatalf("post-drain reap returned %d, want 0", got)
+	}
+}
+
+type ReapGasTestSuite struct {
+	suite.Suite
+}
+
+func TestReapGasTestSuite(t *testing.T) {
+	suite.Run(t, new(ReapGasTestSuite))
+}
+
+func (s *ReapGasTestSuite) TestGasCapUsesAnteGasWanted() {
+	testCases := []struct {
+		name      string
+		declared  uint64
+		gasWanted uint64
+		expTxs    int
+	}{
+		{"ante gas below declared fits more txs", 100_000, 50_000, 2},
+		{"ante gas above declared fits fewer txs", 50_000, 100_000, 1},
+		{"no ante gas falls back to declared", 50_000, 0, 2},
+	}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			pool := newPool(3, tc.declared, 8)
+			pool.gasWanted = make(map[sdk.Tx]uint64, len(pool.txs))
+			for _, tx := range pool.txs {
+				pool.gasWanted[tx] = tc.gasWanted
+			}
+			resp, err := newReapHandler(pool, encoderFixedWire, nil)(&abci.RequestReapTxs{MaxGas: 100_000})
+			s.Require().NoError(err)
+			s.Require().Len(resp.Txs, tc.expTxs)
+		})
 	}
 }

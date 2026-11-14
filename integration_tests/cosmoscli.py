@@ -131,20 +131,6 @@ class CosmosCLI:
         )
         return cls(data_dir, node_rpc, cmd)
 
-    def migrate_sdk_genesis(self, version, path):
-        return json.loads(self.raw("migrate", version, path))
-
-    def migrate_cronos_genesis(self, version, path):
-        return json.loads(
-            self.raw(
-                "tx",
-                "cronos",
-                "migrate",
-                version,
-                path,
-            )
-        )
-
     def validate_genesis(self, path):
         return self.raw("validate-genesis", path)
 
@@ -1560,6 +1546,23 @@ class CosmosCLI:
                 "ibc",
                 "channel",
                 "end",
+                port_id,
+                channel_id,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_query_packet_commitments(self, port_id, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "packet-commitments",
                 port_id,
                 channel_id,
                 **(default_kwargs | kwargs),

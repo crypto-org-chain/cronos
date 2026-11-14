@@ -104,7 +104,7 @@ func (f *recheckFixture) insert(id int, first sdk.AccAddress, seq uint64, rest .
 		sigs = append(sigs, sdkmempool.NewSignerData(r, seq))
 	}
 	f.signer.m[tx] = sigs
-	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+	if err := f.pool.Insert(sdk.Context{}, tx, sdkmempool.InsertOption{}); err != nil {
 		panic(err)
 	}
 	return tx
@@ -115,7 +115,7 @@ func (f *recheckFixture) insert(id int, first sdk.AccAddress, seq uint64, rest .
 func (f *recheckFixture) addTimeout(id int, sender string, seq uint64, bz string, timeout uint64) *ptrTx {
 	tx := &ptrTx{id: id, timeout: timeout}
 	f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress(sender), seq)}
-	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+	if err := f.pool.Insert(sdk.Context{}, tx, sdkmempool.InsertOption{}); err != nil {
 		panic(err)
 	}
 	f.enc.Set(tx, []byte(bz))
@@ -124,8 +124,8 @@ func (f *recheckFixture) addTimeout(id int, sender string, seq uint64, bz string
 
 func poolHas(pool *sdkmempool.PriorityNonceMempool[int64], target sdk.Tx) bool {
 	found := false
-	sdkmempool.SelectBy(context.Background(), pool, nil, func(tx sdk.Tx) bool {
-		if tx == target {
+	sdkmempool.SelectBy(context.Background(), pool, nil, func(ptx sdkmempool.PooledTx) bool {
+		if ptx.Tx == target {
 			found = true
 			return false
 		}
@@ -422,7 +422,7 @@ type lockTrackingMempool struct {
 	inSelect bool
 }
 
-func (m *lockTrackingMempool) Insert(_ context.Context, tx sdk.Tx) error {
+func (m *lockTrackingMempool) Insert(_ context.Context, tx sdk.Tx, _ sdkmempool.InsertOption) error {
 	m.txs = append(m.txs, tx)
 	return nil
 }
@@ -438,11 +438,11 @@ func (m *lockTrackingMempool) Remove(tx sdk.Tx) error {
 	return nil
 }
 
-func (m *lockTrackingMempool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+func (m *lockTrackingMempool) SelectBy(_ context.Context, _ [][]byte, cb func(sdkmempool.PooledTx) bool) {
 	m.inSelect = true
 	defer func() { m.inSelect = false }()
 	for _, tx := range m.txs {
-		if !cb(tx) {
+		if !cb(sdkmempool.NewPooledTx(tx, 0)) {
 			return
 		}
 	}
@@ -624,7 +624,7 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
-	_ = pool.Insert(context.Background(), tx)
+	_ = pool.Insert(context.Background(), tx, sdkmempool.InsertOption{})
 	a.recheckSenders = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
 	a.RecheckTxs()
@@ -983,7 +983,7 @@ func TestRecheckTxs_NilEncCacheEvictionNoPanic(t *testing.T) {
 
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
-	if err := pool.Insert(sdk.Context{}, tx); err != nil {
+	if err := pool.Insert(sdk.Context{}, tx, sdkmempool.InsertOption{}); err != nil {
 		t.Fatal(err)
 	}
 

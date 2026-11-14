@@ -43,7 +43,12 @@ jobs:
             app/**
             x/**
             integration_tests/test_upgrade.py
+            integration_tests/test_ibc_upgrade.py
+            integration_tests/upgrade_utils.py
+            integration_tests/ibc_utils.py
             integration_tests/configs/cosmovisor.jsonnet
+            integration_tests/configs/ibc.jsonnet
+            integration_tests/configs/ibc_upgrade.jsonnet
             integration_tests/configs/upgrade-test-package.nix
       - id: skip-upgrade
         if: matrix.tests == 'upgrade' && github.event_name == 'pull_request' && steps.changed-upgrade-files.outputs.any_changed == 'false'
@@ -91,7 +96,7 @@ jobs:
       - name: Convert coverage data
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         run: |
-          nix profile install ./nix#go_1_25
+          nix profile install ./nix#go_1_26
           go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
         if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'

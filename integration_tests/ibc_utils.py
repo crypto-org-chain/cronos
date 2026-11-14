@@ -152,6 +152,8 @@ def prepare_network(
     need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
     is_ibc_transfer=False,
+    post_init=None,
+    cronos_binary=None,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
@@ -176,8 +178,13 @@ def prepare_network(
         tmp_path,
         26700,
         Path(__file__).parent / file_path,
+        post_init=post_init,
         relayer=relayer,
     ) as cronos:
+        # Set per chain: setup_custom_cronos's chain_binary would replace
+        # chainmain's binary too.
+        if cronos_binary is not None:
+            cronos.chain_binary = cronos_binary
         cli = cronos.cosmos_cli()
         path = cronos.base_dir.parent / "relayer"
         if grantee:

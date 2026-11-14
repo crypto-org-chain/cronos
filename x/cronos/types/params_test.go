@@ -5,130 +5,59 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	sdkmath "cosmossdk.io/math"
+	"github.com/stretchr/testify/suite"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func Test_validateIsIbcDenomParam(t *testing.T) {
-	type args struct {
-		i interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"invalid type", args{sdkmath.OneInt()}, true},
+type ParamsTestSuite struct {
+	suite.Suite
+}
 
-		{"wrong length", args{"ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD"}, true},
-		{"invalid denom", args{"aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"}, true},
-		{"correct IBC denom", args{IbcCroDenomDefaultValue}, false},
+func TestParamsTestSuite(t *testing.T) {
+	suite.Run(t, new(ParamsTestSuite))
+}
+
+func (s *ParamsTestSuite) TestValidate() {
+	testCases := []struct {
+		name     string
+		malleate func(*Params)
+		expErr   bool
+	}{
+		{"default", func(*Params) {}, false},
+		{"ibc denom of wrong length", func(p *Params) { p.IbcCroDenom = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD" }, true},
+		{"ibc denom without ibc prefix", func(p *Params) {
+			p.IbcCroDenom = "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
+		}, true},
+		{"zero ibc timeout", func(p *Params) { p.IbcTimeout = 0 }, false},
+		{"ibc timeout at max", func(p *Params) { p.IbcTimeout = MaxIbcTimeoutValue }, false},
+		{"ibc timeout above max", func(p *Params) { p.IbcTimeout = MaxIbcTimeoutValue + 1 }, true},
+		{"max uint64 ibc timeout wraps into the past", func(p *Params) { p.IbcTimeout = math.MaxUint64 }, true},
+		{"admin address", func(p *Params) { p.CronosAdmin = sdk.AccAddress(make([]byte, 20)).String() }, false},
+		{"malformed admin address", func(p *Params) { p.CronosAdmin = "a" }, true},
+		{"bridge contract addresses", func(p *Params) {
+			p.CroBridgeContractAddresses = []string{"0x0000000000000000000000000000000000000001"}
+		}, false},
+		{"malformed bridge contract address", func(p *Params) { p.CroBridgeContractAddresses = []string{"0x1"} }, true},
+		{"zero bridge contract address", func(p *Params) {
+			p.CroBridgeContractAddresses = []string{"0x0000000000000000000000000000000000000000"}
+		}, true},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.wantErr, validateIsIbcDenom(tt.args.i) != nil)
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			params := DefaultParams()
+			tc.malleate(&params)
+			err := params.Validate()
+			if tc.expErr {
+				s.Require().Error(err)
+			} else {
+				s.Require().NoError(err)
+			}
 		})
 	}
 }
 
-func Test_validateIsUint64(t *testing.T) {
-	type args struct {
-		i interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"invalid type", args{"a"}, true},
-		{"correct IBC timeout", args{IbcTimeoutDefaultValue}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.wantErr, validateIsUint64(tt.args.i) != nil)
-		})
-	}
-}
-
-func Test_validateIsBool(t *testing.T) {
-	type args struct {
-		i interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"invalid bool", args{"a"}, true},
-		{"correct bool", args{true}, false},
-		{"correct bool", args{false}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.wantErr, validateIsBool(tt.args.i) != nil)
-		})
-	}
-}
-
-func Test_validateIsAddress(t *testing.T) {
-	config := sdk.GetConfig()
-	config.SetBech32PrefixForAccount("crc", "crc"+sdk.PrefixPublic)
-
-	type args struct {
-		i interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"invalid address", args{"a"}, true},
-		{"invalid bech32 prefix", args{"tcrc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp"}, true},
-		{"correct bech32 address", args{"crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp"}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.wantErr, validateIsAddress(tt.args.i) != nil)
-		})
-	}
-}
-
-func Test_validateIbcTimeout(t *testing.T) {
-	type args struct {
-		i interface{}
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"invalid type", args{"a"}, true},
-		{"zero is valid", args{uint64(0)}, false},
-		{"default", args{IbcTimeoutDefaultValue}, false},
-		{"at max", args{MaxIbcTimeoutValue}, false},
-		{"above max", args{MaxIbcTimeoutValue + 1}, true},
-		{"max uint64 wraps the timeout into the past", args{uint64(math.MaxUint64)}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.wantErr, validateIbcTimeout(tt.args.i) != nil)
-		})
-	}
-}
-
-func Test_validateIbcTimeoutCannotOverflowBlockTime(t *testing.T) {
-	require.NoError(t, validateIbcTimeout(MaxIbcTimeoutValue))
-	require.Greater(t, uint64(math.MaxUint64)-MaxIbcTimeoutValue, uint64(time.Now().UnixNano()))
-}
-
-func Test_ParamsValidateRejectsOversizedIbcTimeout(t *testing.T) {
-	params := DefaultParams()
-	params.IbcTimeout = math.MaxUint64
-	require.Error(t, params.Validate())
-
-	params.IbcTimeout = IbcTimeoutDefaultValue
-	require.NoError(t, params.Validate())
+func (s *ParamsTestSuite) TestMaxIbcTimeoutCannotOverflowBlockTime() {
+	s.Require().Greater(uint64(math.MaxUint64)-MaxIbcTimeoutValue, uint64(time.Now().UnixNano()))
 }

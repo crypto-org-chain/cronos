@@ -31,6 +31,8 @@ func (app *App) ExportAppStateAndValidators(
 		if err := app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
+		// At height 0, WriteValidators picks the same pre-rotation keys InitGenesis will.
+		ctx = ctx.WithBlockHeight(height)
 	}
 
 	genState, err := app.ModuleManager.ExportGenesisForModules(ctx, app.appCodec, modulesToExport)
@@ -229,6 +231,11 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 	}
 
 	if _, err := app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx); err != nil {
+		return err
+	}
+
+	// Rebases pending key rotations onto the restarted chain's first heights.
+	if err := app.StakingKeeper.PrepareConsKeyRotationsForZeroHeightExport(ctx); err != nil {
 		return err
 	}
 
