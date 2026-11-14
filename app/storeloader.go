@@ -37,8 +37,9 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 			return ms.LoadVersionAndUpgrade(loaded, storeUpgrades)
 		}
 		// Loading below the block before the upgrade either halts in x/upgrade (once state holds an earlier
-		// upgrade or the plan) or replays the upgrade block without the store upgrades and forks; fail early
-		// with recovery advice. Loading the uncapped latest instead fails the post-load versiondb lag check.
+		// upgrade or the plan) or replays the upgrade block without the store upgrades and forks, so fail early
+		// with recovery advice when either side has reached it. When versiondb lags, loading the uncapped latest
+		// instead fails the post-load versiondb lag check. When both are behind, x/upgrade halts the node before it reaches the upgrade.
 		if loaded < upgradeHeight-1 {
 			switch {
 			case upgradeHeight <= last:
@@ -53,8 +54,8 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 				)
 			case version >= upgradeHeight-1:
 				return fmt.Errorf(
-					"store version %d is behind the block before upgrade height %d while versiondb is at %d: run the previous binary until it halts at the upgrade, then restart",
-					last, upgradeHeight, version,
+					"store version %d is behind the block before upgrade height %d while versiondb is at %d: on memiavl, run the previous binary until it halts at the upgrade, then restart; on iavl, restore the store to at least version %d",
+					last, upgradeHeight, version, upgradeHeight-1,
 				)
 			}
 		}

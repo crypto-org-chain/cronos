@@ -3,7 +3,11 @@ package app
 import (
 	"testing"
 
+	"github.com/crypto-org-chain/cronos-store/memiavl"
+	"github.com/crypto-org-chain/cronos-store/store/rootmulti"
 	"github.com/stretchr/testify/suite"
+
+	"cosmossdk.io/log/v2"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 )
@@ -78,7 +82,7 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expCall:       "LoadLatestVersion",
 		},
 		{
-			name:          "versiondb at upgrade height, store ahead of versiondb",
+			name:          "versiondb at the block before upgrade height, store ahead of versiondb",
 			maxVersion:    99,
 			lastVersion:   105,
 			upgradeHeight: 100,
@@ -98,12 +102,13 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expUpgrades:   deleteParams,
 		},
 		{
-			name:          "versiondb at upgrade height, store behind versiondb",
+			name:          "versiondb at the block before upgrade height, store behind versiondb",
 			maxVersion:    99,
 			lastVersion:   50,
 			upgradeHeight: 100,
 			upgrades:      deleteParams,
-			expErr:        "store version 50 is behind the block before upgrade height 100 while versiondb is at 99: run the previous binary",
+			expErr: "store version 50 is behind the block before upgrade height 100 while versiondb is at 99: " +
+				"on memiavl, run the previous binary until it halts at the upgrade, then restart; on iavl, restore the store to at least version 99",
 		},
 		{
 			name:          "versiondb past upgrade height, store well before it",
@@ -143,7 +148,7 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expVersion:    105,
 		},
 		{
-			name:          "versiondb lags store at upgrade height",
+			name:          "versiondb lags store at the block before upgrade height",
 			maxVersion:    98,
 			lastVersion:   99,
 			upgradeHeight: 100,
@@ -185,7 +190,16 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expVersion:    50,
 		},
 		{
-			name:          "versiondb lags store at upgrade height, no store changes",
+			name:          "store behind versiondb, both before upgrade height",
+			maxVersion:    60,
+			lastVersion:   50,
+			upgradeHeight: 100,
+			upgrades:      deleteParams,
+			expCall:       "LoadVersion",
+			expVersion:    60,
+		},
+		{
+			name:          "versiondb lags store at the block before upgrade height, no store changes",
 			maxVersion:    98,
 			lastVersion:   99,
 			upgradeHeight: 100,
@@ -194,7 +208,7 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			expVersion:    98,
 		},
 		{
-			name:          "versiondb at upgrade height, no store changes",
+			name:          "versiondb at the block before upgrade height, no store changes",
 			maxVersion:    99,
 			lastVersion:   99,
 			upgradeHeight: 100,
@@ -216,6 +230,53 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			s.Require().Equal(tc.expCall, ms.call)
 			s.Require().Equal(tc.expVersion, ms.loadedVer)
 			s.Require().Equal(tc.expUpgrades, ms.loadedUpgrds)
+		})
+	}
+}
+
+// Pins the memiavl behavior the loader relies on: before load, LastCommitID reports the version a higher target clamps to.
+func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoaderOnMemIAVL() {
+	const (
+		chainID       = "test_chain"
+		upgradeHeight = int64(4)
+	)
+	testCases := []struct {
+		name       string
+		maxVersion int64
+	}{
+		{name: "versiondb at the block before upgrade height", maxVersion: upgradeHeight - 1},
+		{name: "versiondb at the upgrade block", maxVersion: upgradeHeight},
+		{name: "versiondb past upgrade height", maxVersion: upgradeHeight + 5},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			dir := s.T().TempDir()
+			db, err := memiavl.Load(dir, memiavl.Options{
+				CreateIfMissing:   true,
+				InitialStores:     []string{"params", "test"},
+				AsyncCommitBuffer: -1,
+			}, chainID)
+			s.Require().NoError(err)
+			for range upgradeHeight - 1 {
+				_, err = db.Commit()
+				s.Require().NoError(err)
+			}
+			s.Require().NoError(db.Close())
+
+			ms := rootmulti.NewStore(dir, log.NewNopLogger(), false, false, chainID)
+			ms.MountStoreWithDB(storetypes.NewKVStoreKey("test"), storetypes.StoreTypeIAVL, nil)
+			upgrades := &storetypes.StoreUpgrades{Deleted: []string{"params"}}
+			s.Require().NoError(MaxVersionUpgradeStoreLoader(tc.maxVersion, upgradeHeight, upgrades)(ms))
+			s.Require().Equal(upgradeHeight-1, ms.LastCommitID().Version)
+			ms.Commit()
+			s.Require().NoError(ms.Close())
+
+			db, err = memiavl.Load(dir, memiavl.Options{ReadOnly: true}, chainID)
+			s.Require().NoError(err)
+			defer db.Close()
+			s.Require().Equal(upgradeHeight, db.Version())
+			s.Require().Nil(db.TreeByName("params"))
 		})
 	}
 }
