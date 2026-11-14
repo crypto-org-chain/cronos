@@ -14,6 +14,7 @@ import (
 	ethparams "github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/encoding/protowire"
 
 	sdkmath "cosmossdk.io/math"
 
@@ -209,6 +210,82 @@ func (s *UpgradeTestSuite) TestKeyRotationFeePool() {
 			s.Require().True(tc.expBalance.Equal(s.app.BankKeeper.GetAllBalances(s.ctx, poolAddr)))
 		})
 	}
+}
+
+func (s *UpgradeTestSuite) TestModuleMigrations() {
+	const customMlDsaCost = uint64(123)
+	testCases := []struct {
+		name         string
+		malleate     func()
+		expMlDsaCost uint64
+	}{
+		{
+			name: "staking and auth at their v1.8 versions with v1.8 params",
+			malleate: func() {
+				vm, err := s.app.UpgradeKeeper.GetModuleVersionMap(s.ctx)
+				s.Require().NoError(err)
+				vm[stakingtypes.ModuleName], vm[authtypes.ModuleName] = 5, 6
+				s.Require().NoError(s.app.UpgradeKeeper.SetModuleVersionMap(s.ctx, vm))
+
+				authParams := s.app.AccountKeeper.GetParams(s.ctx)
+				authParams.SigVerifyCostMlDsa65 = 0
+				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
+
+				// v1.8 params have no key_rotation_fee field, which decodes differently from an encoded empty coin.
+				stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
+				s.Require().NoError(err)
+				bz, err := s.app.appCodec.Marshal(&stakingParams)
+				s.Require().NoError(err)
+				s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey]).Set(stakingtypes.ParamsKey, s.dropProtoField(bz, 7))
+				stakingParams, err = s.app.StakingKeeper.GetParams(s.ctx)
+				s.Require().NoError(err)
+				s.Require().True(stakingParams.KeyRotationFee.Amount.IsNil())
+			},
+			expMlDsaCost: authtypes.DefaultSigVerifyCostMlDsa65,
+		},
+		{
+			name: "modules already at current versions skip their migrations",
+			malleate: func() {
+				authParams := s.app.AccountKeeper.GetParams(s.ctx)
+				authParams.SigVerifyCostMlDsa65 = customMlDsaCost
+				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
+			},
+			expMlDsaCost: customMlDsaCost,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.malleate()
+
+			s.applyUpgrade()
+
+			vm, err := s.app.UpgradeKeeper.GetModuleVersionMap(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Equal(uint64(6), vm[stakingtypes.ModuleName])
+			s.Require().Equal(uint64(7), vm[authtypes.ModuleName])
+			s.Require().Equal(tc.expMlDsaCost, s.app.AccountKeeper.GetParams(s.ctx).SigVerifyCostMlDsa65)
+			stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Equal(sdk.NewCoin(stakingParams.BondDenom, sdkmath.OneInt()), stakingParams.KeyRotationFee)
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) dropProtoField(bz []byte, field protowire.Number) []byte {
+	var out []byte
+	for len(bz) > 0 {
+		num, typ, tagLen := protowire.ConsumeTag(bz)
+		s.Require().GreaterOrEqual(tagLen, 0)
+		valLen := protowire.ConsumeFieldValue(num, typ, bz[tagLen:])
+		s.Require().GreaterOrEqual(valLen, 0)
+		if num != field {
+			out = append(out, bz[:tagLen+valLen]...)
+		}
+		bz = bz[tagLen+valLen:]
+	}
+	return out
 }
 
 func (s *UpgradeTestSuite) TestLegacyParamsProposal() {

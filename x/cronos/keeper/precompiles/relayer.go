@@ -133,6 +133,7 @@ func (bc *RelayerContract) Name() string {
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
+	// Amsterdam rules (EIP-2780) change the intrinsic gas and so this result; the gas table predates them.
 	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, common.Address{}, &relayerContractAddress, nil, bc.rules)
 	// base cost to prevent large input size
 	inputLen := len(input)

@@ -20,7 +20,7 @@ func MaxVersionStoreLoader(version int64) baseapp.StoreLoader {
 }
 
 // MaxVersionUpgradeStoreLoader applies storeUpgrades when the capped version is the block before upgradeHeight.
-// It checks the capped version, not the multistore's latest, because that is the version the multistore loads.
+// It keys on the capped version, not the multistore's latest, because the capped version is the one loaded.
 func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *storetypes.StoreUpgrades) baseapp.StoreLoader {
 	if version == 0 {
 		return upgradetypes.UpgradeStoreLoader(upgradeHeight, storeUpgrades)
@@ -29,6 +29,13 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 	return func(ms storetypes.CommitMultiStore) error {
 		hasUpgrades := len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 || len(storeUpgrades.Added) > 0
 		if hasUpgrades && upgradeHeight == version+1 {
+			// memiavl loads its latest for a higher target, which would apply the store upgrades below the upgrade height.
+			if last := ms.LastCommitID().Version; last < version {
+				return fmt.Errorf(
+					"store version %d is behind versiondb version %d at the block before upgrade height %d: run the previous binary until it halts at the upgrade, then restart",
+					last, version, upgradeHeight,
+				)
+			}
 			return ms.LoadVersionAndUpgrade(version, storeUpgrades)
 		}
 		// A lower cap either halts in x/upgrade (once state holds an earlier upgrade or the plan) or
