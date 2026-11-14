@@ -27,7 +27,8 @@ def ibc(tmp_path_factory):
 
 def send_to_chainmain(ibc, relayed=True):
     """
-    send 1basecro worth of basetcro back to chainmain, return the packet sequence
+    send 1basecro worth of basetcro back to chainmain, return the packet sequence;
+    when relayed, wait until the packet is received and acked
     """
     cli = ibc.cronos.cosmos_cli()
     src_addr = cli.address("signer2")
@@ -35,10 +36,21 @@ def send_to_chainmain(ibc, relayed=True):
     old_dst_balance = get_balance(ibc.chainmain, dst_addr, "basecro")
     rsp = cli.transfer_tokens(src_addr, dst_addr, f"{RATIO}basetcro")
     assert rsp["code"] == 0, rsp["raw_log"]
+    ev = find_log_event_attrs(rsp["events"], "send_packet")
+    seq = int(ev["packet_sequence"])
     if relayed:
         wait_for_balance(ibc.chainmain, dst_addr, old_dst_balance + 1)
-    ev = find_log_event_attrs(rsp["events"], "send_packet")
-    return int(ev["packet_sequence"])
+        # hermes' startup scan checks only the oldest commitment; if it is received but
+        # unacked, later packets are never relayed after a restart
+        port, channel = ev["packet_src_port"], ev["packet_src_channel"]
+        wait_for_fn(
+            "packet ack",
+            lambda: all(
+                int(c["sequence"]) != seq
+                for c in cli.ibc_query_packet_commitments(port, channel)["commitments"]
+            ),
+        )
+    return seq
 
 
 def wait_for_balance(chain, addr, expected):

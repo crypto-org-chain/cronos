@@ -1552,6 +1552,23 @@ class CosmosCLI:
             )
         )
 
+    def ibc_query_packet_commitments(self, port_id, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "packet-commitments",
+                port_id,
+                channel_id,
+                **(default_kwargs | kwargs),
+            )
+        )
+
     def ibc_query_ack(self, port_id, channel_id, packet_seq, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,
