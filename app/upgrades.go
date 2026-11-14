@@ -27,7 +27,7 @@ func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			// Before migrations: anyone can pre-fund the pool address, and a plain account there makes every key rotation panic.
+			// Anyone can pre-fund the pool address, and a plain account there makes every key rotation panic.
 			sdk55.EnsureModuleAccount(sdkCtx, app.AccountKeeper, stakingtypes.KeyRotationFeePoolName)
 
 			toVM, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)

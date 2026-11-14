@@ -50,8 +50,8 @@ func UnorderedPoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx 
 	return sdkmempool.UnorderedTxs(ctx, mp)
 }
 
-// BlockGas mirrors baseapp's ProcessProposal accounting: the ante-reported gas
-// wanted, else the declared gas. Proposals built with it are never rejected for MaxGas.
+// BlockGas is the gas a tx counts against MaxGas: the ante-reported gas wanted, else the
+// declared gas, so proposal building and reaping use the same figure as the SDK's accounting.
 // Must stay in sync with the unexported baseapp txGasForBlockAccounting.
 func BlockGas(tx sdk.Tx, gasWanted uint64) uint64 {
 	if gasWanted > 0 {
