@@ -32,6 +32,15 @@ in
             null;
       in
       final.lib.optional (final.stdenv.targetPlatform.isMinGW && threadsPkg != null) threadsPkg;
+    # Cross builds link the toolchain's own Windows tools externally, and those pure-Go
+    # tools lack runtime/cgo's _cgo_stub_export; export it only when it is defined.
+    postPatch =
+      (old.postPatch or "")
+      + final.lib.optionalString final.stdenv.targetPlatform.isWindows ''
+        substituteInPlace src/cmd/link/internal/ld/pe.go \
+          --replace-fail 'if len(exports) == 0 {' \
+            'if len(exports) == 0 && ldr.Lookup("_cgo_stub_export", 0) != 0 {'
+      '';
     meta = old.meta // {
       platforms = final.lib.unique (
         (old.meta.platforms or [ ])
