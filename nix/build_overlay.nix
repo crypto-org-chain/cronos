@@ -34,6 +34,7 @@ in
       final.lib.optional (final.stdenv.targetPlatform.isMinGW && threadsPkg != null) threadsPkg;
     # Cross builds link the toolchain's own Windows tools externally, and those pure-Go
     # tools lack runtime/cgo's _cgo_stub_export; export it only when it is defined.
+    # Pure-Go binaries linked externally then lose PIE, as on Go 1.25; cgo binaries are unchanged.
     postPatch =
       (old.postPatch or "")
       + final.lib.optionalString final.stdenv.targetPlatform.isWindows ''

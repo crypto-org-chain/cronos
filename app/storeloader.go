@@ -31,8 +31,8 @@ func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *s
 		if hasUpgrades && upgradeHeight == version+1 {
 			return ms.LoadVersionAndUpgrade(version, storeUpgrades)
 		}
-		// Store upgrades only apply at load time, so loading below upgradeHeight-1 would replay
-		// the upgrade block without them and fork. Loading the uncapped latest instead fails the
+		// x/upgrade halts this binary on any block below upgradeHeight, so a lower cap can never
+		// catch up; fail early with recovery advice. Loading the uncapped latest instead fails the
 		// post-load versiondb lag check.
 		if hasUpgrades && version+1 < upgradeHeight {
 			last := ms.LastCommitID().Version
