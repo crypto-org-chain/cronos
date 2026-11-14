@@ -116,7 +116,7 @@ func (s *StoreLoaderTestSuite) TestMaxVersionUpgradeStoreLoader() {
 			lastVersion:   50,
 			upgradeHeight: 100,
 			upgrades:      deleteParams,
-			expErr:        "store version 50 is behind the block before upgrade height 100 while versiondb is at 105",
+			expErr:        "while versiondb is at 105: on memiavl, run the previous binary until it halts at the upgrade, then restart; on iavl, restore the store to at least version 105",
 		},
 		{
 			name:          "versiondb at the upgrade block, store at the block before it",
