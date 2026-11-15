@@ -20,8 +20,8 @@ from .utils import (
     MLDSA65,
     approve_proposal,
     assert_gov_params,
-    comet_rpc,
-    comet_validators,
+    block_signers,
+    comet_validator,
     deploy_contract,
     eth_to_bech32,
     find_log_event_attrs,
@@ -379,17 +379,10 @@ def check_mldsa65_rotation(c, path):
     ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
     swap_consensus_keys(c, {2: key_file}, int(ev["apply_height"]))
 
-    rotated = [v for v in comet_validators(c) if v["pub_key"]["value"] == pubkey["key"]]
-    assert len(rotated) == 1, rotated
+    addr = comet_validator(c, pubkey["key"])["address"]
     end = wait_for_new_blocks(cli, 5)
     wait_for_block(cli2, end)
-    signed = any(
-        rotated[0]["address"] == s["validator_address"]
-        for h in range(end - 4, end + 1)
-        for s in comet_rpc(c, 0, "block", height=h)["block"]["last_commit"][
-            "signatures"
-        ]
-    )
+    signed = any(addr in block_signers(c, h) for h in range(end - 4, end + 1))
     assert signed, "node2 never signed with its ML-DSA-65 key"
 
 

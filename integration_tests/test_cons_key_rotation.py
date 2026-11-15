@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-import requests
-from pystarport import ports
 
 from .cosmoscli import DEFAULT_GAS, module_address
 from .network import Cronos, setup_custom_cronos
@@ -13,6 +11,7 @@ from .utils import (
     MLDSA65,
     bech32_to_eth,
     comet_rpc,
+    comet_validator,
     comet_validators,
     find_log_event_attrs,
     gen_mldsa65_key,
@@ -67,12 +66,6 @@ def cronos_rotation(tmp_path_factory):
     )
 
 
-def comet_addr(cronos, key):
-    return next(
-        v["address"] for v in comet_validators(cronos) if v["pub_key"]["value"] == key
-    )
-
-
 def signed_rotations_tx(clis, pubkeys, path):
     """One tx with every operator's rotation, so they all apply in the same block."""
     first, *rest = clis
@@ -86,16 +79,7 @@ def signed_rotations_tx(clis, pubkeys, path):
         # amino-json signs neither signer_infos nor other signatures, so each
         # operator can append its signature without invalidating the earlier ones
         tx = clis[i].sign_single_tx(path, "validator", sign_mode="amino-json")
-    path.write_text(json.dumps(tx))
-    return clis[first].encode_signed_tx(path).decode().strip()
-
-
-def broadcast_tx_sync(cronos, tx):
-    req = {"jsonrpc": "2.0", "id": 1, "method": "broadcast_tx_sync"}
-    url = f"http://127.0.0.1:{ports.rpc_port(cronos.base_port(0))}"
-    rsp = requests.post(url, json=req | {"params": {"tx": tx}}).json()
-    assert rsp["result"]["code"] == 0, rsp
-    return rsp["result"]["hash"]
+    return tx
 
 
 def create_cronos_client(cli, height, path):
@@ -167,12 +151,14 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     assert params["validator"]["pub_key_types"] == ["ed25519", MLDSA65]
 
     old_pubkeys = {i: show_validator(clis[i]) for i in ROTATED}
-    old_addrs = {i: comet_addr(cronos, old_pubkeys[i]["key"]) for i in ROTATED}
+    old_addrs = {
+        i: comet_validator(cronos, old_pubkeys[i]["key"])["address"] for i in ROTATED
+    }
     operators = {i: clis[i].address("validator") for i in ROTATED}
     stakes = {i: clis[i].balance(operators[i], "stake") for i in ROTATED}
 
     tx = signed_rotations_tx(clis, new_pubkeys, tmp_path / "rotate.json")
-    rsp = cli0.event_query_tx_for(broadcast_tx_sync(cronos, tx))
+    rsp = cli0.broadcast_tx_json(tx)
     assert rsp["code"] == 0, rsp["raw_log"]
     apply_heights = set()
     for i in ROTATED:
@@ -190,15 +176,12 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
 
     swap_consensus_keys(cronos, {i: new_keys[i][1] for i in ROTATED}, apply_height)
 
-    validators = comet_validators(cronos)
-    addresses = [v["address"] for v in validators]
+    addresses = [v["address"] for v in comet_validators(cronos)]
     new_addrs = {}
     for i in ROTATED:
-        key = new_pubkeys[i]["key"]
-        rotated = [v for v in validators if v["pub_key"]["value"] == key]
-        assert len(rotated) == 1, validators
-        assert rotated[0]["pub_key"]["type"] == "cometbft/PubKeyMlDsa65"
-        new_addrs[i] = rotated[0]["address"]
+        rotated = comet_validator(cronos, new_pubkeys[i]["key"])
+        assert rotated["pub_key"]["type"] == "cometbft/PubKeyMlDsa65"
+        new_addrs[i] = rotated["address"]
         assert old_addrs[i] not in addresses
         # the rotated nodes may still be catching up past the apply height
         val = cli0.validator(clis[i].address("validator", bech="val"))

@@ -885,27 +885,20 @@ def fund_acc(w3, acc, fund=3000000000000000000):
         assert w3.eth.get_balance(addr, "latest") == fund
 
 
-def remove_cancun_prague_params(cronos):
+def submit_gov_update_params(cronos, msg, **fields):
     from .cosmoscli import module_address as cosmos_module_address
 
+    content = {"@type": msg, "authority": cosmos_module_address("gov"), **fields}
+    submit_gov_proposal(cronos, msg, messages=[content])
+
+
+def remove_cancun_prague_params(cronos):
     cli = cronos.cosmos_cli()
     p = cli.query_params("evm")
     del p["chain_config"]["cancun_time"]
     del p["chain_config"]["prague_time"]
     del p["chain_config"]["osaka_time"]
-    authority = cosmos_module_address("gov")
-    msg = "/ethermint.evm.v1.MsgUpdateParams"
-    submit_gov_proposal(
-        cronos,
-        msg,
-        messages=[
-            {
-                "@type": msg,
-                "authority": authority,
-                "params": p,
-            }
-        ],
-    )
+    submit_gov_update_params(cronos, "/ethermint.evm.v1.MsgUpdateParams", params=p)
     p = cli.query_params("evm")
     assert not p["chain_config"]["cancun_time"]
     assert not p["chain_config"]["prague_time"]
@@ -926,6 +919,17 @@ def comet_validators(cronos, i=0):
     return comet_rpc(cronos, i, "validators", per_page=100)["validators"]
 
 
+def comet_validator(cronos, pubkey):
+    found = [v for v in comet_validators(cronos) if v["pub_key"]["value"] == pubkey]
+    assert len(found) == 1, found
+    return found[0]
+
+
+def block_signers(cronos, height):
+    block = comet_rpc(cronos, 0, "block", height=height)["block"]
+    return [s["validator_address"] for s in block["last_commit"]["signatures"]]
+
+
 def show_validator(cli, home=None):
     return json.loads(cli.raw("comet", "show-validator", home=home or cli.data_dir))
 
@@ -942,22 +946,17 @@ def gen_mldsa65_key(cli, home):
 
 
 def update_validator_pubkey_types(cronos, pub_key_types):
-    from .cosmoscli import module_address as cosmos_module_address
-
     params = cronos.cosmos_cli().query_params("consensus")
-    msg = "/cosmos.consensus.v1.MsgUpdateParams"
     # x/consensus rejects the msg unless block, evidence and validator are all set
-    content = {
-        "@type": msg,
-        "authority": cosmos_module_address("gov"),
+    fields = {
         "block": params["block"],
         "evidence": params["evidence"],
         "validator": {"pub_key_types": pub_key_types},
     }
     for field in ("abci", "auth"):
         if params.get(field):
-            content[field] = params[field]
-    submit_gov_proposal(cronos, msg, messages=[content])
+            fields[field] = params[field]
+    submit_gov_update_params(cronos, "/cosmos.consensus.v1.MsgUpdateParams", **fields)
 
 
 def swap_consensus_keys(cronos, key_files, apply_height):
@@ -970,4 +969,5 @@ def swap_consensus_keys(cronos, key_files, apply_height):
     wait_for_block(cronos.cosmos_cli(), apply_height)
     for i in key_files:
         cronos.supervisorctl("start", names[i])
+    for i in key_files:
         wait_for_port(ports.evmrpc_port(cronos.base_port(i)))
