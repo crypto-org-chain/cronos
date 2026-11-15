@@ -122,7 +122,8 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     assert rotated[0]["pub_key"]["type"] == "cometbft/PubKeyMlDsa65"
     assert old_comet_addr not in [v["address"] for v in validators]
 
-    val = cli.validator(val_addr)
+    # node3 may still be catching up past the apply height
+    val = cronos.cosmos_cli(0).validator(val_addr)
     val = val.get("validator") or val
     assert val["consensus_pubkey"] == {
         "type": new_pubkey["@type"],
