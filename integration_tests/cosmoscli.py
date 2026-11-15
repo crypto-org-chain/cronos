@@ -573,7 +573,7 @@ class CosmosCLI:
             signed_tx,
         )
 
-    def sign_single_tx(self, tx_file, signer_name):
+    def sign_single_tx(self, tx_file, signer_name, **kwargs):
         return json.loads(
             self.raw(
                 "tx",
@@ -584,6 +584,7 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                **kwargs,
             )
         )
 

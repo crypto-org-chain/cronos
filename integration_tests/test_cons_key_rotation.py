@@ -7,7 +7,7 @@ import pytest
 import requests
 from pystarport import ports
 
-from .cosmoscli import module_address
+from .cosmoscli import DEFAULT_GAS, module_address
 from .network import Cronos, setup_custom_cronos
 from .utils import (
     MLDSA65,
@@ -73,11 +73,21 @@ def comet_addr(cronos, key):
     )
 
 
-def signed_rotation_tx(cli, pubkey, path):
-    path.write_text(json.dumps(cli.rotate_cons_pubkey(pubkey, generate_only=True)))
-    signed = path.with_suffix(".signed.json")
-    signed.write_text(json.dumps(cli.sign_single_tx(path, "validator")))
-    return cli.encode_signed_tx(signed).decode().strip()
+def signed_rotations_tx(clis, pubkeys, path):
+    """One tx with every operator's rotation, so they all apply in the same block."""
+    first, *rest = clis
+    gas = int(DEFAULT_GAS) * len(clis)
+    tx = clis[first].rotate_cons_pubkey(pubkeys[first], generate_only=True, gas=gas)
+    for i in rest:
+        other = clis[i].rotate_cons_pubkey(pubkeys[i], generate_only=True)
+        tx["body"]["messages"] += other["body"]["messages"]
+    for i in clis:
+        path.write_text(json.dumps(tx))
+        # amino-json signs neither signer_infos nor other signatures, so each
+        # operator can append its signature without invalidating the earlier ones
+        tx = clis[i].sign_single_tx(path, "validator", sign_mode="amino-json")
+    path.write_text(json.dumps(tx))
+    return clis[first].encode_signed_tx(path).decode().strip()
 
 
 def broadcast_tx_sync(cronos, tx):
@@ -161,23 +171,21 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     operators = {i: clis[i].address("validator") for i in ROTATED}
     stakes = {i: clis[i].balance(operators[i], "stake") for i in ROTATED}
 
-    # sign both up front so they land in the same block and apply together
-    txs = [
-        signed_rotation_tx(clis[i], new_pubkeys[i], tmp_path / f"rotate{i}.json")
-        for i in ROTATED
-    ]
-    tx_hashes = [broadcast_tx_sync(cronos, tx) for tx in txs]
-    rsps = [cli0.event_query_tx_for(h) for h in tx_hashes]
+    tx = signed_rotations_tx(clis, new_pubkeys, tmp_path / "rotate.json")
+    rsp = cli0.event_query_tx_for(broadcast_tx_sync(cronos, tx))
+    assert rsp["code"] == 0, rsp["raw_log"]
     apply_heights = set()
-    for i, rsp in zip(ROTATED, rsps):
-        assert rsp["code"] == 0, rsp["raw_log"]
-        ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
+    for i in ROTATED:
+        valoper = clis[i].address("validator", bech="val")
+        ev = find_log_event_attrs(
+            rsp["events"], "rotate_cons_pubkey", lambda a: a["validator"] == valoper
+        )
         assert ev["fee_burned"] == "1stake", ev
         apply_heights.add(int(ev["apply_height"]))
         assert clis[i].balance(operators[i], "stake") == stakes[i] - 1
     assert len(apply_heights) == 1, apply_heights
     apply_height = apply_heights.pop()
-    rotation_height = int(rsps[0]["height"])
+    rotation_height = int(rsp["height"])
     assert cli0.balance(module_address("key_rotation_fee_pool"), "stake") == 0
 
     swap_consensus_keys(cronos, {i: new_keys[i][1] for i in ROTATED}, apply_height)
