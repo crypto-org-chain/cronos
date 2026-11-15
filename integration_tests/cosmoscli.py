@@ -31,6 +31,7 @@ class ModuleAccount(enum.Enum):
     BondedPool = "bonded_tokens_pool"
     NotBondedPool = "not_bonded_tokens_pool"
     IBCTransfer = "transfer"
+    KeyRotationFeePool = "key_rotation_fee_pool"
 
 
 @format_doc_string(
@@ -739,6 +740,29 @@ class CosmosCLI:
                 **{k: v for k, v in options.items() if v is not None},
             )
         )
+
+    def rotate_cons_pubkey(self, pubkey, **kwargs):
+        """MsgRotateConsPubKey"""
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "staking",
+                "rotate-cons-pub-key",
+                json.dumps(pubkey),
+                "-y",
+                from_=self.address("validator"),
+                home=self.data_dir,
+                node=self.node_rpc,
+                keyring_backend="test",
+                chain_id=self.chain_id,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def gov_propose_legacy(self, proposer, kind, proposal, mode="block", **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
