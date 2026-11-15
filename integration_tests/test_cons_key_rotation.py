@@ -211,11 +211,11 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
 
     # a rejoining validator starts with low proposer priority, so allow ~3 rounds
     end = wait_for_new_blocks(cli0, 24)
-    for i in ROTATED:
-        wait_for_block(clis[i], end)
+    nodes = range(len(cronos.config["validators"]))
+    for i in nodes:
+        wait_for_block(cronos.cosmos_cli(i), end)
     hashes = {
-        comet_rpc(cronos, i, "block", height=end)["block_id"]["hash"]
-        for i in range(len(cronos.config["validators"]))
+        comet_rpc(cronos, i, "block", height=end)["block_id"]["hash"] for i in nodes
     }
     assert len(hashes) == 1, hashes
 
@@ -237,7 +237,8 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     # with node1 down, the commit only reaches 2/3 with both ML-DSA-65 signatures,
     # so the light client cannot skip verifying them
     client_id = create_cronos_client(cli0, rotation_height, tmp_path)
-    cronos.supervisorctl("stop", "cronos_777-1-node1")
+    node1 = f"{cli0.chain_id}-node1"
+    cronos.supervisorctl("stop", node1)
     target = wait_for_new_blocks(cli0, 3)
     header = cli0.ibc_query_client_header(target)
     assert set(new_addrs.values()) < commit_signers(header), header
@@ -273,4 +274,4 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
         client_id, header_file, from_="community", gas=1000000
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    cronos.supervisorctl("start", "cronos_777-1-node1")
+    cronos.supervisorctl("start", node1)

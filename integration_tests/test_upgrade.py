@@ -369,7 +369,8 @@ def check_mldsa65_rotation(c, path):
     val1 = c.cosmos_cli(1).address("validator", bech="val")
     rsp = cli.delegate(val1, "100000000000000000000stake", "community1")
     assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli, 2)
+    rsp = cli.event_query_tx_for(rsp["txhash"])
+    assert rsp["code"] == 0, rsp["raw_log"]
 
     update_validator_pubkey_types(c, ["ed25519", MLDSA65])
     pubkey, key_file = gen_mldsa65_key(cli2, path)
