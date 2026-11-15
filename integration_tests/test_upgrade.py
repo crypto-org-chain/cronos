@@ -17,13 +17,20 @@ from .upgrade_utils import post_init, prepare_upgrade_binaries, propose_software
 from .utils import (
     ADDRS,
     CONTRACTS,
+    MLDSA65,
     approve_proposal,
     assert_gov_params,
+    comet_rpc,
+    comet_validators,
     deploy_contract,
     eth_to_bech32,
+    find_log_event_attrs,
+    gen_mldsa65_key,
     get_consensus_params,
     get_send_enable,
     send_transaction,
+    swap_consensus_keys,
+    update_validator_pubkey_types,
     wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
@@ -345,6 +352,44 @@ def exec(c, tmp_path_factory):
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    check_mldsa65_rotation(c, tmp_path_factory.mktemp("rotation"))
+
+
+def check_mldsa65_rotation(c, path):
+    """Rotate node2 to ML-DSA-65 on state upgraded from v1.8."""
+    cli = c.cosmos_cli()
+    cli2 = c.cosmos_cli(2)
+    operator = cli2.address("validator")
+    # all genesis stake is bonded, so fund the rotation fee
+    rsp = cli.transfer("community1", operator, "1stake")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    # validator0 was unbonded before v1.8, so node1 must outweigh node2 for the
+    # chain to keep committing while node2 swaps keys
+    val1 = c.cosmos_cli(1).address("validator", bech="val")
+    rsp = cli.delegate(val1, "100000000000000000000stake", "community1")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 2)
+
+    update_validator_pubkey_types(c, ["ed25519", MLDSA65])
+    pubkey, key_file = gen_mldsa65_key(cli2, path)
+    rsp = cli2.rotate_cons_pubkey(pubkey)
+    assert rsp["code"] == 0, rsp["raw_log"]
+    ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
+    swap_consensus_keys(c, {2: key_file}, int(ev["apply_height"]))
+
+    rotated = [v for v in comet_validators(c) if v["pub_key"]["value"] == pubkey["key"]]
+    assert len(rotated) == 1, rotated
+    end = wait_for_new_blocks(cli, 5)
+    wait_for_block(cli2, end)
+    signed = any(
+        rotated[0]["address"] == s["validator_address"]
+        for h in range(end - 4, end + 1)
+        for s in comet_rpc(c, 0, "block", height=h)["block"]["last_commit"][
+            "signatures"
+        ]
+    )
+    assert signed, "node2 never signed with its ML-DSA-65 key"
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
