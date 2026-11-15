@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	connectiontypes "github.com/cosmos/ibc-go/v11/modules/core/03-connection/types"
 	channelv11 "github.com/cosmos/ibc-go/v11/modules/core/04-channel/migrations/v11"
 	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/encoding/protowire"
 
@@ -394,6 +396,32 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.Require().True(found)
 			s.Require().Equal(seq, got)
 			s.Require().False(store.Has(v1Key))
+		})
+	}
+}
+
+// v1.9 sizes the commit reserve for ML-DSA-65 signatures for every validator, so
+// a live chain's block.max_bytes must still fit a full validator set.
+func TestCommitReserveFitsLiveBlockSize(t *testing.T) {
+	testCases := []struct {
+		name          string
+		maxBytes      int64
+		evidenceBytes int64
+		maxValidators int
+	}{
+		// values from consensus and staking params as of 2026-11-14
+		{name: "mainnet", maxBytes: 1048576, evidenceBytes: 150000, maxValidators: 30},
+		{name: "testnet", maxBytes: 1048576, evidenceBytes: 150000, maxValidators: 35},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var dataBytes int64
+			require.NotPanics(t, func() {
+				dataBytes = cmttypes.MaxDataBytes(tc.maxBytes, tc.evidenceBytes, tc.maxValidators)
+			})
+			// keep at least half the block for transactions
+			require.GreaterOrEqual(t, dataBytes, tc.maxBytes/2)
 		})
 	}
 }
