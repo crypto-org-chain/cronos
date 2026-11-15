@@ -4,11 +4,12 @@ from pathlib import Path
 import pytest
 from pystarport import cluster, ports
 
+from .cosmoscli import signed_rotations_tx
 from .ibc_utils import call_rly_cmd, ibc_denom
 from .network import Cronos, setup_custom_cronos
-from .test_cons_key_rotation import ROTATED, signed_rotations_tx
 from .utils import (
     MLDSA65,
+    ROTATED,
     comet_validators,
     find_log_event_attrs,
     gen_mldsa65_key,
@@ -20,8 +21,10 @@ from .utils import (
     wait_for_port,
 )
 
+# the marker only picks the CI shard; nothing here is EVM-specific
 pytestmark = pytest.mark.ibc_rly_evm
 
+ROTATED_CHAIN = "cronos_777-1"
 COUNTERPARTY = "cronos_778-1"
 CHANNEL = "channel-0"
 DENOM = "basetcro"
@@ -38,19 +41,19 @@ def rotate_to_mldsa65(cronos, tmp_path):
     rsp = cli.broadcast_tx_json(tx)
     assert rsp["code"] == 0, rsp["raw_log"]
     ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
-    swap_consensus_keys(
-        cronos, {i: keys[i][1] for i in ROTATED}, int(ev["apply_height"])
-    )
+    apply_height = int(ev["apply_height"])
+    swap_consensus_keys(cronos, {i: keys[i][1] for i in ROTATED}, apply_height)
     key_types = [v["pub_key"]["type"] for v in comet_validators(cronos)]
     assert key_types.count("cometbft/PubKeyMlDsa65") == len(ROTATED), key_types
     height = wait_for_new_blocks(cli, 1)
     for i in ROTATED:
         wait_for_block(clis[i], height)
+    return apply_height
 
 
 @pytest.fixture(scope="module")
-def chains(tmp_path_factory):
-    """Two cronos chains joined by rly, the first with ML-DSA-65 validators."""
+def network(tmp_path_factory):
+    """Two cronos chains joined by rly, and the height the first one rotates at."""
     with contextmanager(setup_custom_cronos)(
         tmp_path_factory.mktemp("ibc_rly_mldsa65"),
         26700,
@@ -70,15 +73,16 @@ def chains(tmp_path_factory):
         )
         # started before the rotation, so rly has to process the validator update
         cronos.supervisorctl("start", "relayer-demo")
-        rotate_to_mldsa65(cronos, tmp_path_factory.mktemp("mldsa65_keys"))
-        yield {cronos.cosmos_cli().chain_id: cronos, COUNTERPARTY: counterparty}
+        height = rotate_to_mldsa65(cronos, tmp_path_factory.mktemp("mldsa65_keys"))
+        yield {ROTATED_CHAIN: cronos, COUNTERPARTY: counterparty}, height
 
 
 @pytest.mark.parametrize(
     "src,dst",
-    [("cronos_777-1", COUNTERPARTY), (COUNTERPARTY, "cronos_777-1")],
+    [(ROTATED_CHAIN, COUNTERPARTY), (COUNTERPARTY, ROTATED_CHAIN)],
 )
-def test_relay_with_mldsa65_validators(chains, src, dst):
+def test_relay_with_mldsa65_validators(network, src, dst):
+    chains, apply_height = network
     src_cli = chains[src].cosmos_cli()
     dst_cli = chains[dst].cosmos_cli()
     receiver = dst_cli.address("signer2")
@@ -101,3 +105,9 @@ def test_relay_with_mldsa65_validators(chains, src, dst):
         return not rsp.get("commitments")
 
     wait_for_fn("packet acknowledged", acknowledged)
+
+    # either direction needs the counterparty to verify a post-rotation header
+    cli = chains[COUNTERPARTY].cosmos_cli()
+    client = cli.ibc_query_client_state("transfer", CHANNEL)
+    latest = int(client["client_state"]["latest_height"]["revision_height"])
+    assert latest > apply_height, latest

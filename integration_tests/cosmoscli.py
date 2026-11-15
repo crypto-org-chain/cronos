@@ -47,6 +47,22 @@ def module_address(name, prefix=CRONOS_ADDRESS_PREFIX):
     return bech32.bech32_encode(prefix, bech32.convertbits(data, 8, 5))
 
 
+def signed_rotations_tx(clis, pubkeys, path):
+    """One tx with every operator's rotation, so they all apply in the same block."""
+    first, *rest = clis
+    gas = int(DEFAULT_GAS) * len(clis)
+    tx = clis[first].rotate_cons_pubkey(pubkeys[first], generate_only=True, gas=gas)
+    for i in rest:
+        other = clis[i].rotate_cons_pubkey(pubkeys[i], generate_only=True)
+        tx["body"]["messages"] += other["body"]["messages"]
+    for i in clis:
+        path.write_text(json.dumps(tx))
+        # amino-json signs neither signer_infos nor other signatures, so each
+        # operator can append its signature without invalidating the earlier ones
+        tx = clis[i].sign_single_tx(path, "validator", sign_mode="amino-json")
+    return tx
+
+
 class ChainCommand:
     def __init__(self, cmd):
         self.cmd = cmd

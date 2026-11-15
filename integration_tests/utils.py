@@ -906,6 +906,8 @@ def remove_cancun_prague_params(cronos):
 
 
 MLDSA65 = "ml_dsa_65"
+# cons_key_rotation.jsonnet validators that rotate; the other two hold 5/7 power
+ROTATED = (2, 3)
 
 
 def comet_rpc(cronos, i, path, **params):

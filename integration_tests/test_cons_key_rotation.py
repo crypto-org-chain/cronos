@@ -5,10 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from .cosmoscli import DEFAULT_GAS, module_address
+from .cosmoscli import module_address, signed_rotations_tx
 from .network import Cronos, setup_custom_cronos
 from .utils import (
     MLDSA65,
+    ROTATED,
     bech32_to_eth,
     comet_rpc,
     comet_validator,
@@ -24,7 +25,6 @@ from .utils import (
 
 pytestmark = pytest.mark.gov
 
-ROTATED = (2, 3)
 SHA256_LEAF = {
     "hash": "SHA256",
     "prehash_key": "NO_HASH",
@@ -64,22 +64,6 @@ def cronos_rotation(tmp_path_factory):
         27200,
         Path(__file__).parent / "configs/cons_key_rotation.jsonnet",
     )
-
-
-def signed_rotations_tx(clis, pubkeys, path):
-    """One tx with every operator's rotation, so they all apply in the same block."""
-    first, *rest = clis
-    gas = int(DEFAULT_GAS) * len(clis)
-    tx = clis[first].rotate_cons_pubkey(pubkeys[first], generate_only=True, gas=gas)
-    for i in rest:
-        other = clis[i].rotate_cons_pubkey(pubkeys[i], generate_only=True)
-        tx["body"]["messages"] += other["body"]["messages"]
-    for i in clis:
-        path.write_text(json.dumps(tx))
-        # amino-json signs neither signer_infos nor other signatures, so each
-        # operator can append its signature without invalidating the earlier ones
-        tx = clis[i].sign_single_tx(path, "validator", sign_mode="amino-json")
-    return tx
 
 
 def create_cronos_client(cli, height, path):
