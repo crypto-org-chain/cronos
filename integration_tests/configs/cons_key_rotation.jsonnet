@@ -1,10 +1,19 @@
 local config = import 'default.jsonnet';
 
-// 4 equal validators, so the chain keeps 3/4 of the power while the rotated node restarts.
+// Power 3:2:1:1. Rotating node2 and node3 together, or stopping node1, leaves
+// 5/7 online; with node1 down every commit needs both rotated validators.
 config {
   'cronos_777-1'+: {
-    validators+: [{
+    validators: [super.validators[0] {
+      coins: '3000000000000000000stake,10000000000000000000000basetcro',
+      staked: '3000000000000000000stake',
+    }, super.validators[1] {
+      coins: '2000000000000000000stake,10000000000000000000000basetcro',
+      staked: '2000000000000000000stake',
+    }, super.validators[2] {
       // liquid stake pays the key rotation fee
+      coins: '1000000000000000001stake,10000000000000000000000basetcro',
+    }, {
       coins: '1000000000000000001stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${SIGNER3_MNEMONIC}',

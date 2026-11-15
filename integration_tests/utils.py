@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -25,7 +26,7 @@ from eth_account import Account
 from eth_utils import abi, to_checksum_address
 from eth_utils.abi import abi_to_signature
 from hexbytes import HexBytes
-from pystarport import ledger
+from pystarport import ledger, ports
 from web3 import Web3
 from web3._utils.contracts import find_matching_event_abi
 from web3._utils.events import get_event_data
@@ -909,3 +910,64 @@ def remove_cancun_prague_params(cronos):
     assert not p["chain_config"]["cancun_time"]
     assert not p["chain_config"]["prague_time"]
     assert not p["chain_config"]["osaka_time"]
+
+
+MLDSA65 = "ml_dsa_65"
+
+
+def comet_rpc(cronos, i, path, **params):
+    port = ports.rpc_port(cronos.base_port(i))
+    return requests.get(f"http://127.0.0.1:{port}/{path}", params=params).json()[
+        "result"
+    ]
+
+
+def comet_validators(cronos, i=0):
+    return comet_rpc(cronos, i, "validators", per_page=100)["validators"]
+
+
+def show_validator(cli, home=None):
+    return json.loads(cli.raw("comet", "show-validator", home=home or cli.data_dir))
+
+
+def gen_mldsa65_key(cli, home):
+    cli.raw(
+        "init",
+        "pq",
+        consensus_key_algo=MLDSA65,
+        chain_id=cli.chain_id,
+        home=home,
+    )
+    return show_validator(cli, home), home / "config/priv_validator_key.json"
+
+
+def update_validator_pubkey_types(cronos, pub_key_types):
+    from .cosmoscli import module_address as cosmos_module_address
+
+    params = cronos.cosmos_cli().query_params("consensus")
+    msg = "/cosmos.consensus.v1.MsgUpdateParams"
+    # x/consensus rejects the msg unless block, evidence and validator are all set
+    content = {
+        "@type": msg,
+        "authority": cosmos_module_address("gov"),
+        "block": params["block"],
+        "evidence": params["evidence"],
+        "validator": {"pub_key_types": pub_key_types},
+    }
+    for field in ("abci", "auth"):
+        if params.get(field):
+            content[field] = params[field]
+    submit_gov_proposal(cronos, msg, messages=[content])
+
+
+def swap_consensus_keys(cronos, key_files, apply_height):
+    """Restart validators on their rotated keys; the others must hold over 2/3."""
+    names = {i: f"{cronos.cosmos_cli(i).chain_id}-node{i}" for i in key_files}
+    for i, key_file in key_files.items():
+        cronos.supervisorctl("stop", names[i])
+        dst = cronos.cosmos_cli(i).data_dir / "config/priv_validator_key.json"
+        shutil.copy(key_file, dst)
+    wait_for_block(cronos.cosmos_cli(), apply_height)
+    for i in key_files:
+        cronos.supervisorctl("start", names[i])
+        wait_for_port(ports.evmrpc_port(cronos.base_port(i)))

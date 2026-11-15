@@ -741,7 +741,7 @@ class CosmosCLI:
             )
         )
 
-    def rotate_cons_pubkey(self, pubkey, **kwargs):
+    def rotate_cons_pubkey(self, pubkey, generate_only=False, **kwargs):
         """MsgRotateConsPubKey"""
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
@@ -752,6 +752,7 @@ class CosmosCLI:
                 "rotate-cons-pub-key",
                 json.dumps(pubkey),
                 "-y",
+                "--generate-only" if generate_only else None,
                 from_=self.address("validator"),
                 home=self.data_dir,
                 node=self.node_rpc,
@@ -760,7 +761,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )
-        if rsp["code"] == 0:
+        if not generate_only and rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
@@ -1661,9 +1662,28 @@ class CosmosCLI:
             )
         )
 
+    def ibc_create_client(self, client_state, consensus_state, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "ibc",
+                "client",
+                "create",
+                client_state,
+                consensus_state,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def ibc_update_client_with_header(self, client_id, header, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc",
@@ -1676,6 +1696,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_gravity_contract_by_denom(self, denom: str):
         "query CosmosERC20 contract address by denom"

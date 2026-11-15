@@ -1,5 +1,6 @@
+import base64
+import copy
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -9,18 +10,52 @@ from pystarport import ports
 from .cosmoscli import module_address
 from .network import Cronos, setup_custom_cronos
 from .utils import (
+    MLDSA65,
     bech32_to_eth,
+    comet_rpc,
+    comet_validators,
     find_log_event_attrs,
-    submit_gov_proposal,
+    gen_mldsa65_key,
+    show_validator,
+    swap_consensus_keys,
+    update_validator_pubkey_types,
     wait_for_block,
     wait_for_new_blocks,
-    wait_for_port,
 )
 
 pytestmark = pytest.mark.gov
 
-ROTATED = 3
-MLDSA65 = "ml_dsa_65"
+ROTATED = (2, 3)
+SHA256_LEAF = {
+    "hash": "SHA256",
+    "prehash_key": "NO_HASH",
+    "prehash_value": "SHA256",
+    "length": "VAR_PROTO",
+    "prefix": "AA==",
+}
+# ibc-go GetSDKSpecs: iavl then tendermint
+SDK_PROOF_SPECS = [
+    {
+        "leaf_spec": SHA256_LEAF,
+        "inner_spec": {
+            "child_order": [0, 1],
+            "child_size": 33,
+            "min_prefix_length": 4,
+            "max_prefix_length": 12,
+            "hash": "SHA256",
+        },
+    },
+    {
+        "leaf_spec": SHA256_LEAF,
+        "inner_spec": {
+            "child_order": [0, 1],
+            "child_size": 32,
+            "min_prefix_length": 1,
+            "max_prefix_length": 1,
+            "hash": "SHA256",
+        },
+    },
+]
 
 
 @pytest.fixture(scope="module")
@@ -32,120 +67,210 @@ def cronos_rotation(tmp_path_factory):
     )
 
 
-def comet_rpc(cronos, i, path, **params):
-    url = f"http://127.0.0.1:{ports.rpc_port(cronos.base_port(i))}/{path}"
-    return requests.get(url, params=params).json()["result"]
-
-
-def comet_validators(cronos, i=0):
-    return comet_rpc(cronos, i, "validators", per_page=100)["validators"]
-
-
-def gen_mldsa65_key(cli, home):
-    cli.raw(
-        "init",
-        "pq",
-        consensus_key_algo=MLDSA65,
-        chain_id=cli.chain_id,
-        home=home,
+def comet_addr(cronos, key):
+    return next(
+        v["address"] for v in comet_validators(cronos) if v["pub_key"]["value"] == key
     )
-    pubkey = json.loads(cli.raw("comet", "show-validator", home=home))
-    return pubkey, home / "config/priv_validator_key.json"
 
 
-def update_validator_pubkey_types(cronos, pub_key_types):
-    params = cronos.cosmos_cli().query_params("consensus")
-    msg = "/cosmos.consensus.v1.MsgUpdateParams"
-    # x/consensus rejects the msg unless block, evidence and validator are all set
-    content = {
-        "@type": msg,
-        "authority": module_address("gov"),
-        "block": params["block"],
-        "evidence": params["evidence"],
-        "validator": {"pub_key_types": pub_key_types},
+def signed_rotation_tx(cli, pubkey, path):
+    path.write_text(json.dumps(cli.rotate_cons_pubkey(pubkey, generate_only=True)))
+    signed = path.with_suffix(".signed.json")
+    signed.write_text(json.dumps(cli.sign_single_tx(path, "validator")))
+    return cli.encode_signed_tx(signed).decode().strip()
+
+
+def broadcast_tx_sync(cronos, tx):
+    req = {"jsonrpc": "2.0", "id": 1, "method": "broadcast_tx_sync"}
+    url = f"http://127.0.0.1:{ports.rpc_port(cronos.base_port(0))}"
+    rsp = requests.post(url, json=req | {"params": {"tx": tx}}).json()
+    assert rsp["result"]["code"] == 0, rsp
+    return rsp["result"]["hash"]
+
+
+def create_cronos_client(cli, height, path):
+    """Light client of cronos hosted on cronos itself, trusting the given height."""
+    header = cli.ibc_query_client_header(height)["signed_header"]["header"]
+    client_state = path / "client_state.json"
+    client_state.write_text(
+        json.dumps(
+            {
+                "@type": "/ibc.lightclients.tendermint.v1.ClientState",
+                "chain_id": cli.chain_id,
+                "trust_level": {"numerator": "1", "denominator": "3"},
+                "trusting_period": "1209600s",
+                "unbonding_period": "1814400s",
+                "max_clock_drift": "10s",
+                "frozen_height": {"revision_number": "0", "revision_height": "0"},
+                "latest_height": {"revision_number": "1", "revision_height": height},
+                "proof_specs": SDK_PROOF_SPECS,
+                "upgrade_path": ["upgrade", "upgradedIBCState"],
+            }
+        )
+    )
+    consensus_state = path / "consensus_state.json"
+    consensus_state.write_text(
+        json.dumps(
+            {
+                "@type": "/ibc.lightclients.tendermint.v1.ConsensusState",
+                "timestamp": header["time"],
+                "root": {"hash": header["app_hash"]},
+                # HexBytes in the consensus state, base64 in the header
+                "next_validators_hash": base64.b64decode(
+                    header["next_validators_hash"]
+                ).hex(),
+            }
+        )
+    )
+    rsp = cli.ibc_create_client(client_state, consensus_state, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    return find_log_event_attrs(rsp["events"], "create_client")["client_id"]
+
+
+def commit_signers(header):
+    return {
+        base64.b64decode(s["validator_address"]).hex().upper()
+        for s in header["signed_header"]["commit"]["signatures"]
+        if s["block_id_flag"] == "BLOCK_ID_FLAG_COMMIT"
     }
-    for field in ("abci", "auth"):
-        if params.get(field):
-            content[field] = params[field]
-    submit_gov_proposal(cronos, msg, messages=[content])
 
 
 def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     cronos = cronos_rotation
-    cli = cronos.cosmos_cli(ROTATED)
+    cli0 = cronos.cosmos_cli(0)
+    clis = {i: cronos.cosmos_cli(i) for i in ROTATED}
     w3 = cronos.node_w3(0)
-    params = cli.query_params("consensus")
+    params = cli0.query_params("consensus")
     assert params["validator"]["pub_key_types"] == ["ed25519"]
 
-    new_pubkey, new_key_file = gen_mldsa65_key(cli, tmp_path)
-    assert new_pubkey["@type"] == "/cosmos.crypto.mldsa65.PubKey"
+    new_keys = {i: gen_mldsa65_key(clis[i], tmp_path / f"node{i}") for i in ROTATED}
+    new_pubkeys = {i: new_keys[i][0] for i in ROTATED}
+    for pubkey in new_pubkeys.values():
+        assert pubkey["@type"] == "/cosmos.crypto.mldsa65.PubKey", pubkey
 
-    rsp = cli.rotate_cons_pubkey(new_pubkey)
+    rsp = clis[3].rotate_cons_pubkey(new_pubkeys[3])
     assert rsp["code"] != 0
     assert "not supported" in rsp["raw_log"], rsp["raw_log"]
 
     update_validator_pubkey_types(cronos, ["ed25519", MLDSA65])
-    params = cli.query_params("consensus")
+    params = cli0.query_params("consensus")
     assert params["validator"]["pub_key_types"] == ["ed25519", MLDSA65]
 
-    old_key = json.loads(cli.raw("comet", "show-validator", home=cli.data_dir))["key"]
-    old_comet_addr = next(
-        v["address"]
-        for v in comet_validators(cronos)
-        if v["pub_key"]["value"] == old_key
-    )
-    operator = cli.address("validator")
-    val_addr = cli.address("validator", bech="val")
-    stake_before = cli.balance(operator, "stake")
+    old_pubkeys = {i: show_validator(clis[i]) for i in ROTATED}
+    old_addrs = {i: comet_addr(cronos, old_pubkeys[i]["key"]) for i in ROTATED}
+    operators = {i: clis[i].address("validator") for i in ROTATED}
+    stakes = {i: clis[i].balance(operators[i], "stake") for i in ROTATED}
 
-    rsp = cli.rotate_cons_pubkey(new_pubkey)
-    assert rsp["code"] == 0, rsp["raw_log"]
-    ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
-    assert ev["fee_burned"] == "1stake", ev
-    apply_height = int(ev["apply_height"])
-    rotation_height = int(rsp["height"])
-    assert cli.balance(operator, "stake") == stake_before - 1
-    assert cli.balance(module_address("key_rotation_fee_pool"), "stake") == 0
+    # sign both up front so they land in the same block and apply together
+    txs = [
+        signed_rotation_tx(clis[i], new_pubkeys[i], tmp_path / f"rotate{i}.json")
+        for i in ROTATED
+    ]
+    tx_hashes = [broadcast_tx_sync(cronos, tx) for tx in txs]
+    rsps = [cli0.event_query_tx_for(h) for h in tx_hashes]
+    apply_heights = set()
+    for i, rsp in zip(ROTATED, rsps):
+        assert rsp["code"] == 0, rsp["raw_log"]
+        ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
+        assert ev["fee_burned"] == "1stake", ev
+        apply_heights.add(int(ev["apply_height"]))
+        assert clis[i].balance(operators[i], "stake") == stakes[i] - 1
+    assert len(apply_heights) == 1, apply_heights
+    apply_height = apply_heights.pop()
+    rotation_height = int(rsps[0]["height"])
+    assert cli0.balance(module_address("key_rotation_fee_pool"), "stake") == 0
 
-    # 3 of 4 equal validators keep consensus while the rotated node restarts
-    node = f"cronos_777-1-node{ROTATED}"
-    cronos.supervisorctl("stop", node)
-    shutil.copy(new_key_file, cli.data_dir / "config/priv_validator_key.json")
-    wait_for_block(cronos.cosmos_cli(0), apply_height)
-    cronos.supervisorctl("start", node)
-    wait_for_port(ports.evmrpc_port(cronos.base_port(ROTATED)))
+    swap_consensus_keys(cronos, {i: new_keys[i][1] for i in ROTATED}, apply_height)
 
     validators = comet_validators(cronos)
-    rotated = [v for v in validators if v["pub_key"]["value"] == new_pubkey["key"]]
-    assert len(rotated) == 1, validators
-    new_comet_addr = rotated[0]["address"]
-    assert rotated[0]["pub_key"]["type"] == "cometbft/PubKeyMlDsa65"
-    assert old_comet_addr not in [v["address"] for v in validators]
+    addresses = [v["address"] for v in validators]
+    new_addrs = {}
+    for i in ROTATED:
+        key = new_pubkeys[i]["key"]
+        rotated = [v for v in validators if v["pub_key"]["value"] == key]
+        assert len(rotated) == 1, validators
+        assert rotated[0]["pub_key"]["type"] == "cometbft/PubKeyMlDsa65"
+        new_addrs[i] = rotated[0]["address"]
+        assert old_addrs[i] not in addresses
+        # the rotated nodes may still be catching up past the apply height
+        val = cli0.validator(clis[i].address("validator", bech="val"))
+        val = val.get("validator") or val
+        assert val["consensus_pubkey"] == {
+            "type": new_pubkeys[i]["@type"],
+            "value": new_pubkeys[i]["key"],
+        }
 
-    # node3 may still be catching up past the apply height
-    val = cronos.cosmos_cli(0).validator(val_addr)
-    val = val.get("validator") or val
-    assert val["consensus_pubkey"] == {
-        "type": new_pubkey["@type"],
-        "value": new_pubkey["key"],
-    }
+    extra_pubkey, _ = gen_mldsa65_key(clis[3], tmp_path / "extra")
+    rsp = clis[3].rotate_cons_pubkey(extra_pubkey)
+    assert rsp["code"] != 0
+    assert "max consensus pubkey rotations" in rsp["raw_log"], rsp["raw_log"]
+    # a retired key stays locked for the unbonding window
+    rsp = cronos.cosmos_cli(1).rotate_cons_pubkey(old_pubkeys[3])
+    assert rsp["code"] != 0
+    assert "previously rotated away" in rsp["raw_log"], rsp["raw_log"]
 
-    end = wait_for_new_blocks(cronos.cosmos_cli(0), 12)
-    wait_for_block(cli, end)
+    # a rejoining validator starts with low proposer priority, so allow ~3 rounds
+    end = wait_for_new_blocks(cli0, 24)
+    for i in ROTATED:
+        wait_for_block(clis[i], end)
     hashes = {
         comet_rpc(cronos, i, "block", height=end)["block_id"]["hash"]
         for i in range(len(cronos.config["validators"]))
     }
     assert len(hashes) == 1, hashes
 
-    expected_miner = "0x" + bech32_to_eth(operator)
-    signed, proposed = False, []
+    signed = {i: False for i in ROTATED}
+    proposed = {i: [] for i in ROTATED}
     for height in range(rotation_height, end + 1):
         block = comet_rpc(cronos, 0, "block", height=height)["block"]
         signers = [s["validator_address"] for s in block["last_commit"]["signatures"]]
-        signed |= new_comet_addr in signers
-        if block["header"]["proposer_address"] in (old_comet_addr, new_comet_addr):
-            proposed.append(height)
-            assert w3.eth.get_block(height).miner.lower() == expected_miner, height
-    assert signed, "rotated validator never signed with the ML-DSA-65 key"
-    assert any(h >= apply_height for h in proposed), proposed
+        for i in ROTATED:
+            signed[i] |= new_addrs[i] in signers
+            if block["header"]["proposer_address"] in (old_addrs[i], new_addrs[i]):
+                proposed[i].append(height)
+                miner = w3.eth.get_block(height).miner.lower()
+                assert miner == "0x" + bech32_to_eth(operators[i]), height
+    for i in ROTATED:
+        assert signed[i], f"node{i} never signed with its ML-DSA-65 key"
+        assert any(h >= apply_height for h in proposed[i]), (i, proposed[i])
+
+    # with node1 down, the commit only reaches 2/3 with both ML-DSA-65 signatures,
+    # so the light client cannot skip verifying them
+    client_id = create_cronos_client(cli0, rotation_height, tmp_path)
+    cronos.supervisorctl("stop", "cronos_777-1-node1")
+    target = wait_for_new_blocks(cli0, 3)
+    header = cli0.ibc_query_client_header(target)
+    assert set(new_addrs.values()) < commit_signers(header), header
+    assert len(commit_signers(header)) == 3, header
+    header |= {
+        "@type": "/ibc.lightclients.tendermint.v1.Header",
+        "trusted_height": {
+            "revision_number": "1",
+            "revision_height": str(rotation_height),
+        },
+        "trusted_validators": cli0.ibc_query_client_header(rotation_height + 1)[
+            "validator_set"
+        ],
+    }
+    header_file = tmp_path / "header.json"
+    tampered = copy.deepcopy(header)
+    sig = next(
+        s
+        for s in tampered["signed_header"]["commit"]["signatures"]
+        if base64.b64decode(s["validator_address"]).hex().upper() == new_addrs[3]
+    )
+    raw = bytearray(base64.b64decode(sig["signature"]))
+    raw[0] ^= 1
+    sig["signature"] = base64.b64encode(raw).decode()
+    header_file.write_text(json.dumps(tampered))
+    # ML-DSA-65 signatures and keys push the header past the 200k default gas
+    rsp = cli0.ibc_update_client_with_header(
+        client_id, header_file, from_="community", gas=1000000
+    )
+    assert rsp["code"] != 0, "tampered ML-DSA-65 signature accepted"
+    header_file.write_text(json.dumps(header))
+    rsp = cli0.ibc_update_client_with_header(
+        client_id, header_file, from_="community", gas=1000000
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    cronos.supervisorctl("start", "cronos_777-1-node1")
