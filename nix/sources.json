@@ -73,16 +73,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "hermes": {
-        "branch": "main",
+        "branch": "feat/mldsa65",
         "description": "Rust implementation of an Inter-Blockchain Communication (IBC) relayer",
         "homepage": "",
-        "owner": "informalsystems",
+        "owner": "crypto-org-chain",
         "repo": "hermes",
-        "rev": "bab3b80df71f6a3c73af7c2602a3daf614a643fa",
-        "sha256": "0r6jgi7sdrxq6my3ba5llq1rn50ps8g7h14xn0sfxhbhx3gb18p4",
+        "rev": "256618e2c725440d108a7cd8fdb365029c4d74ec",
+        "sha256": "06fvzj835q2f316vc1d0xjcpbfll9hz9c0kgy8s5n2v5ydzqjw1k",
         "tag": "",
         "type": "tarball",
-        "url": "https://github.com/informalsystems/hermes/archive/bab3b80df71f6a3c73af7c2602a3daf614a643fa.tar.gz",
+        "url": "https://github.com/crypto-org-chain/hermes/archive/256618e2c725440d108a7cd8fdb365029c4d74ec.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
