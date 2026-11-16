@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	channelv11 "github.com/cosmos/ibc-go/v11/modules/core/04-channel/migrations/v11"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	ethparams "github.com/ethereum/go-ethereum/params"
-	"github.com/evmos/ethermint/upgrades/ibcv1121"
 	"github.com/evmos/ethermint/upgrades/sdk55"
 
 	"cosmossdk.io/math"
@@ -34,9 +35,9 @@ func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
 			if err != nil {
 				return toVM, err
 			}
-			// ibc-go v11.2.1 reads send sequences from a new key and registers no migration for the move.
-			ibcStore := runtime.NewKVStoreService(app.keys[ibcexported.StoreKey])
-			if err := ibcv1121.MigrateChannelSendSequences(sdkCtx, ibcStore, app.appCodec, app.IBCKeeper); err != nil {
+			// After RunMigrations, so an unguarded copy of this migration that a later ibc-go
+			// release registers runs first and this run keeps its result.
+			if err := app.migrateChannelSendSequences(sdkCtx); err != nil {
 				return toVM, fmt.Errorf("migrate ibc channel send sequences: %w", err)
 			}
 			if err := app.setV19StakingParams(sdkCtx); err != nil {
@@ -58,6 +59,35 @@ func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
 	}
 	app.SetStoreLoader(MaxVersionUpgradeStoreLoader(maxVersion, upgradeInfo.Height, &storeUpgrades))
 	return true
+}
+
+// migrateChannelSendSequences moves IBC v1 channel send sequences to the key ibc-go v11.2.1 reads,
+// which ibc-go registers no migration for. Safe to repeat and to run after an upstream copy of the
+// migration, but it cannot restore a sequence that a repeated upstream run already set to 0.
+func (app *App) migrateChannelSendSequences(ctx sdk.Context) error {
+	// ibc-go's MigrateStore sets every channel without a v1 key to sequence 0, so first copy an
+	// already-migrated sequence back to the v1 key for it to move again.
+	ibcStore := runtime.NewKVStoreService(app.keys[ibcexported.StoreKey])
+	store := ibcStore.OpenKVStore(ctx)
+	var err error
+	app.IBCKeeper.ChannelKeeper.IterateChannels(ctx, func(ic channeltypes.IdentifiedChannel) bool {
+		v1Key := channelv11.NextSequenceSendV1Key(ic.PortId, ic.ChannelId)
+		var has bool
+		if has, err = store.Has(v1Key); err != nil {
+			return true
+		}
+		if has {
+			return false
+		}
+		if seq, found := app.IBCKeeper.ChannelKeeperV2.GetNextSequenceSend(ctx, ic.ChannelId); found {
+			err = store.Set(v1Key, sdk.Uint64ToBigEndian(seq))
+		}
+		return err != nil
+	})
+	if err != nil {
+		return err
+	}
+	return channelv11.MigrateStore(ctx, ibcStore, app.appCodec, app.IBCKeeper)
 }
 
 // setV19StakingParams sets the smallest valid key rotation fee, and drops HistoricalInfo once EIP-2935 serves BLOCKHASH.

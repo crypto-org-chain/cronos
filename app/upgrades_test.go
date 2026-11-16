@@ -396,6 +396,16 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.Require().True(found)
 			s.Require().Equal(seq, got)
 			s.Require().False(store.Has(v1Key))
+			aliasedClient, found := s.app.IBCKeeper.ChannelKeeperV2.GetClientForAlias(s.ctx, channelID)
+			s.Require().True(found, "an OPEN UNORDERED channel must get an IBC v2 alias")
+			s.Require().Equal("07-tendermint-0", aliasedClient)
+			counterparty, found := s.app.IBCKeeper.ClientV2Keeper.GetClientCounterparty(s.ctx, channelID)
+			s.Require().True(found)
+			s.Require().Equal("channel-9", counterparty.ClientId)
+
+			s.Require().NoError(s.app.migrateChannelSendSequences(s.ctx))
+			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
+			s.Require().Equal(seq, got, "a second run must keep the send sequence")
 		})
 	}
 }
