@@ -583,23 +583,23 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 			signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
 				pooled: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
 			}}
-			pool := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
-				TxPriority:      sdkmempool.NewDefaultTxPriority(),
-				SignerExtractor: poisonSigner{signer, poison},
-			})
-			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
 			recorder := &recordingLogger{Logger: log.NewNopLogger()}
 			var logger log.Logger = recorder
 			if tc.nilLogger {
 				logger = nil
 			}
+			pool := NewFinalizeNeutralMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+				TxPriority:      sdkmempool.NewDefaultTxPriority(),
+				SignerExtractor: poisonSigner{signer, poison},
+			}, logger)
+			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
 
 			var err error
 			s.Require().NotPanics(func() {
-				err = NewFinalizeNeutralMempool(pool, logger).RemoveWithReason(context.Background(), tc.tx, tc.reason)
+				err = pool.RemoveWithReason(context.Background(), tc.tx, tc.reason)
 			})
 			s.Require().Equal(tc.expErr, err != nil, err)
-			s.Require().Equal(tc.expPooled, poolHas(pool, pooled))
+			s.Require().Equal(tc.expPooled, poolHas(pool.PriorityNonceMempool, pooled))
 			if !tc.expLogged {
 				s.Require().Empty(recorder.errors)
 				return

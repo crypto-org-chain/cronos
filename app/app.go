@@ -471,7 +471,7 @@ func New(
 		// Transitional: the pool requires a public key so admission still rejects txs without one, and this
 		// node won't propose one before all validators run this version.
 		poolSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
-		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: poolSigner,
 			MaxTx:           mempoolMaxTxs,
@@ -481,7 +481,7 @@ func New(
 				threshold := 100 + feeBump
 				return np >= op*threshold/100
 			},
-		}), logger.With("module", "app-mempool"))
+		}, logger.With("module", "app-mempool"))
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
