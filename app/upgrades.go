@@ -22,9 +22,8 @@ import (
 
 const planName = "v1.9"
 
-// RegisterUpgradeHandlers returns true if it installed the upgrade store loader.
-// v1.9 adds and deletes no stores (params stays mounted for historical queries), so it never does.
-func (app *App) RegisterUpgradeHandlers(_ int64) bool {
+// RegisterUpgradeHandlers installs no store loader: v1.9 adds and deletes no stores (params stays mounted for historical queries).
+func (app *App) RegisterUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -46,7 +45,6 @@ func (app *App) RegisterUpgradeHandlers(_ int64) bool {
 			return toVM, nil
 		},
 	)
-	return false
 }
 
 // migrateChannelSendSequences moves IBC v1 channel send sequences to the key ibc-go v11.2.1 reads,
