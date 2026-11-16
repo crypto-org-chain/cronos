@@ -56,6 +56,7 @@ def call_hermes_cmd(
     incentivized,
     version,
     is_ibc_transfer=False,
+    hostchain="chainmain-1",
 ):
     if connection_only:
         subprocess.check_call(
@@ -68,7 +69,7 @@ def call_hermes_cmd(
                 "--a-chain",
                 "cronos_777-1",
                 "--b-chain",
-                "chainmain-1",
+                hostchain,
             ]
         )
     else:
@@ -86,7 +87,7 @@ def call_hermes_cmd(
                 "--a-chain",
                 "cronos_777-1",
                 "--b-chain",
-                "chainmain-1",
+                hostchain,
                 "--new-client-connection",
                 "--yes",
             ]

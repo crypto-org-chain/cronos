@@ -5,8 +5,8 @@ import pytest
 from pystarport import cluster, ports
 
 from .cosmoscli import signed_rotations_tx
-from .ibc_utils import call_rly_cmd, ibc_denom
-from .network import Cronos, setup_custom_cronos
+from .ibc_utils import call_hermes_cmd, call_rly_cmd, ibc_denom
+from .network import Cronos, Hermes, setup_custom_cronos
 from .utils import (
     MLDSA65,
     ROTATED,
@@ -20,9 +20,6 @@ from .utils import (
     wait_for_new_blocks,
     wait_for_port,
 )
-
-# the marker only picks the CI shard; nothing here is EVM-specific
-pytestmark = pytest.mark.ibc_rly_evm
 
 ROTATED_CHAIN = "cronos_777-1"
 COUNTERPARTY = "cronos_778-1"
@@ -51,27 +48,48 @@ def rotate_to_mldsa65(cronos, tmp_path):
     return apply_height
 
 
-@pytest.fixture(scope="module")
-def network(tmp_path_factory):
-    """Two cronos chains joined by rly, and the height the first one rotates at."""
+# the marks only pick the CI shard; nothing here is EVM-specific
+@pytest.fixture(
+    scope="module",
+    params=[
+        pytest.param(cluster.Relayer.RLY.value, marks=pytest.mark.ibc_rly_evm),
+        pytest.param(
+            cluster.Relayer.HERMES.value, marks=pytest.mark.ibc_update_client
+        ),
+    ],
+)
+def network(request, tmp_path_factory):
+    """Two cronos chains joined by a relayer, and the height the first one rotates at."""
+    relayer = request.param
     with contextmanager(setup_custom_cronos)(
-        tmp_path_factory.mktemp("ibc_rly_mldsa65"),
+        tmp_path_factory.mktemp(f"ibc_{relayer}_mldsa65"),
         26700,
-        Path(__file__).parent / "configs/ibc_rly_mldsa65.jsonnet",
-        relayer=cluster.Relayer.RLY.value,
+        Path(__file__).parent / "configs/ibc_mldsa65.jsonnet",
+        relayer=relayer,
     ) as cronos:
         counterparty = Cronos(cronos.base_dir.parent / COUNTERPARTY)
         for chain in (cronos, counterparty):
             wait_for_port(ports.grpc_port(chain.base_port(0)))
             wait_for_new_blocks(chain.cosmos_cli(), 1)
-        call_rly_cmd(
-            cronos.base_dir.parent / "relayer",
-            connection_only=False,
-            incentivized=False,
-            version="ics20-1",
-            hostchain=COUNTERPARTY,
-        )
-        # started before the rotation, so rly has to process the validator update
+        path = cronos.base_dir.parent / "relayer"
+        if relayer == cluster.Relayer.HERMES.value:
+            call_hermes_cmd(
+                Hermes(path.with_suffix(".toml")),
+                connection_only=False,
+                incentivized=False,
+                version="ics20-1",
+                is_ibc_transfer=True,
+                hostchain=COUNTERPARTY,
+            )
+        else:
+            call_rly_cmd(
+                path,
+                connection_only=False,
+                incentivized=False,
+                version="ics20-1",
+                hostchain=COUNTERPARTY,
+            )
+        # started before the rotation, so the relayer has to process the validator update
         cronos.supervisorctl("start", "relayer-demo")
         height = rotate_to_mldsa65(cronos, tmp_path_factory.mktemp("mldsa65_keys"))
         yield {ROTATED_CHAIN: cronos, COUNTERPARTY: counterparty}, height
