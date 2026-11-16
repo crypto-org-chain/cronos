@@ -53,13 +53,11 @@ def rotate_to_mldsa65(cronos, tmp_path):
     scope="module",
     params=[
         pytest.param(cluster.Relayer.RLY.value, marks=pytest.mark.ibc_rly_evm),
-        pytest.param(
-            cluster.Relayer.HERMES.value, marks=pytest.mark.ibc_update_client
-        ),
+        pytest.param(cluster.Relayer.HERMES.value, marks=pytest.mark.ibc_update_client),
     ],
 )
 def network(request, tmp_path_factory):
-    """Two cronos chains joined by a relayer, and the height the first one rotates at."""
+    """Two cronos chains joined by a relayer, and the first one's rotation height."""
     relayer = request.param
     with contextmanager(setup_custom_cronos)(
         tmp_path_factory.mktemp(f"ibc_{relayer}_mldsa65"),
@@ -89,7 +87,7 @@ def network(request, tmp_path_factory):
                 version="ics20-1",
                 hostchain=COUNTERPARTY,
             )
-        # started before the rotation, so the relayer has to process the validator update
+        # started before the rotation, so the relayer must process the validator update
         cronos.supervisorctl("start", "relayer-demo")
         height = rotate_to_mldsa65(cronos, tmp_path_factory.mktemp("mldsa65_keys"))
         yield {ROTATED_CHAIN: cronos, COUNTERPARTY: counterparty}, height
