@@ -391,7 +391,7 @@ replace (
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20261029080720-43022f1730ed
 
 	// jt/sdk-v0.55-port (crypto-org-chain/ethermint#1146)
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.1-0.20261116020742-a6b68a4ea3f6
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.24.1-0.20261116031118-a079a387ca72
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )

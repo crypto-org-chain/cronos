@@ -33,7 +33,6 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v11/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v11/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
-	legacyparamstypes "github.com/crypto-org-chain/cronos/app/legacy/params/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/crypto-org-chain/cronos/client/docs"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
@@ -59,6 +58,7 @@ import (
 	evmante "github.com/evmos/ethermint/evmd/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
+	"github.com/evmos/ethermint/types/legacyparams"
 	"github.com/evmos/ethermint/x/evm"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -153,6 +153,8 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
+	paramsStoreKey = "params"
+
 	FlagBlockedAddresses             = "blocked-addresses"
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
@@ -228,6 +230,9 @@ func StoreKeys() (
 		// upgrade is required and any legacy ICA state remains readable.
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
+		// x/params is gone, but its store stays mounted, frozen, so EVM queries at heights
+		// before evm and feemarket left x/params still read that height's params.
+		paramsStoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// e2ee keys
@@ -335,8 +340,6 @@ func New(
 	cdc := encodingConfig.Amino
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
-	// Stored gov proposals still embed ParameterChangeProposal after x/params removal, so the node must decode it.
-	legacyparamstypes.RegisterInterfaces(interfaceRegistry)
 	txDecoder := txConfig.TxDecoder()
 	txsPerBlock := cmdcfg.DefaultMaxTxPerBlock
 	if v := appOpts.Get(FlagMaxTxPerBlock); v != nil {
@@ -741,12 +744,14 @@ func New(
 		appCodec,
 		authtypes.NewModuleAddress(govtypes.ModuleName),
 		keys[feemarkettypes.StoreKey],
+		legacyparams.NewSubspace(keys[paramsStoreKey], feemarkettypes.ModuleName),
 	)
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec,
 		keys[evmtypes.StoreKey], okeys[evmtypes.ObjectStoreKey], authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.FeeMarketKeeper,
 		tracer,
+		legacyparams.NewSubspace(keys[paramsStoreKey], evmtypes.ModuleName),
 		[]evmkeeper.CustomContractFn{},
 		cast.ToUint64(appOpts.Get(server.FlagQueryGasLimit)),
 	)

@@ -14,7 +14,6 @@ import (
 	"cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
-	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -24,7 +23,8 @@ import (
 const planName = "v1.9"
 
 // RegisterUpgradeHandlers returns true if it installed the upgrade store loader.
-func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
+// v1.9 adds and deletes no stores (params stays mounted for historical queries), so it never does.
+func (app *App) RegisterUpgradeHandlers(_ int64) bool {
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -46,19 +46,7 @@ func (app *App) RegisterUpgradeHandlers(maxVersion int64) bool {
 			return toVM, nil
 		},
 	)
-
-	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
-	if err != nil {
-		panic(fmt.Sprintf("failed to read upgrade info from disk: %s", err))
-	}
-	if upgradeInfo.Name != planName || app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		return false
-	}
-	storeUpgrades := storetypes.StoreUpgrades{
-		Deleted: []string{"params"},
-	}
-	app.SetStoreLoader(MaxVersionUpgradeStoreLoader(maxVersion, upgradeInfo.Height, &storeUpgrades))
-	return true
+	return false
 }
 
 // migrateChannelSendSequences moves IBC v1 channel send sequences to the key ibc-go v11.2.1 reads,
