@@ -14,12 +14,14 @@ import (
 	ethparams "github.com/ethereum/go-ethereum/params"
 	legacyparamstypes "github.com/evmos/ethermint/types/legacyparams"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/encoding/protowire"
 
 	sdkmath "cosmossdk.io/math"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -353,6 +355,42 @@ func (s *UpgradeTestSuite) TestLegacyParamsProposal() {
 				return
 			}
 			s.Require().ErrorIs(err, tc.expErr)
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestHistoricalParamsFromLegacyStore() {
+	amino := codec.NewLegacyAmino()
+	baseFee := sdkmath.NewInt(5000)
+
+	testCases := []struct {
+		name     string
+		malleate func(params storetypes.KVStore)
+		check    func()
+	}{
+		{
+			name: "evm reads its x/params subspace",
+			malleate: func(params storetypes.KVStore) {
+				s.ctx.KVStore(s.app.GetKey(evmtypes.StoreKey)).Delete(evmtypes.KeyPrefixParams)
+				params.Set([]byte("evm/EVMDenom"), amino.MustMarshalJSON("basetcro"))
+			},
+			check: func() { s.Require().Equal("basetcro", s.app.EvmKeeper.GetParams(s.ctx).EvmDenom) },
+		},
+		{
+			name: "feemarket reads its x/params subspace",
+			malleate: func(params storetypes.KVStore) {
+				s.ctx.KVStore(s.app.GetKey(feemarkettypes.StoreKey)).Delete(feemarkettypes.ParamsKey)
+				params.Set([]byte("feemarket/BaseFee"), amino.MustMarshalJSON(baseFee))
+			},
+			check: func() { s.Require().Equal(baseFee, s.app.FeeMarketKeeper.GetParams(s.ctx).BaseFee) },
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.malleate(s.ctx.KVStore(s.app.GetKey(paramsStoreKey)))
+			tc.check()
 		})
 	}
 }
