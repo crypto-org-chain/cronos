@@ -231,7 +231,7 @@ func StoreKeys() (
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
 		// x/params is gone, but its store stays mounted, frozen, so EVM queries at heights
-		// before evm and feemarket left x/params still read that height's params.
+		// before evm consensus version 5 or feemarket version 4 still read that height's params.
 		paramsStoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
