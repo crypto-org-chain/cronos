@@ -141,7 +141,7 @@ upstream project on GitHub — the fork can and does differ. Resolve the actual 
 | EVM crypto / core types | `github.com/ethereum/go-ethereum` | **`github.com/crypto-org-chain/go-ethereum`** (fork) | `v1.10.20-...20261029080720-43022f1730ed` (v1.17 line) |
 | IBC | `github.com/cosmos/ibc-go/v11` | upstream | `v11.2.1-rc1` |
 
-`x/params` is removed; ethermint's `types/legacyparams` keeps `ParameterChangeProposal` decode-only for stored gov proposals (registered by `evmenc.MakeConfig`). The `params` store stays mounted, read-only, so queries at old heights read that height's evm and feemarket params.
+`x/params` is removed; ethermint's `types/legacyparams` keeps `ParameterChangeProposal` decode-only for stored gov proposals (registered by `evmenc.MakeConfig`). The `params` store stays mounted and frozen (no module writes it), so queries at heights before evm and feemarket moved their params out of x/params still read them.
 
 **Security-review scope, in priority order:**
 1. **`x/cronos` (this repo)** — precompiles, EVM hooks, token mapping, permissions: the bespoke,
