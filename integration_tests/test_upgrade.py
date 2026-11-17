@@ -67,10 +67,14 @@ def setup_cronos_test(tmp_path_factory):
         yield cronos
 
 
-def assert_evm_params(cli, expected, height):
-    params = cli.query_params("evm", height=height)
-    del params["header_hash_num"]
-    assert expected == params
+def assert_params(cli, module, expected, height):
+    params = cli.query_params(module, height=height)
+    for key, value in expected.items():
+        got = params[key]
+        if isinstance(value, dict):
+            # later binaries add fields, e.g. new forks in chain_config
+            got = {k: got.get(k) for k in value}
+        assert value == got, key
 
 
 def check_basic_tx(c):
@@ -220,6 +224,12 @@ def exec(c, tmp_path_factory):
     f1 = cli.query_params("feemarket", height=target_height1 - 1)
     assert e0["evm_denom"] == e1["evm_denom"] == "basetcro"
 
+    def check_pre_migration_params(cli):
+        assert_params(cli, "evm", e0, target_height0 - 1)
+        assert_params(cli, "evm", e1, target_height1 - 1)
+        assert_params(cli, "feemarket", f0, target_height0 - 1)
+        assert_params(cli, "feemarket", f1, target_height1 - 1)
+
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)
     newtime = newtime.replace(tzinfo=None).isoformat("T") + "Z"
@@ -260,10 +270,7 @@ def exec(c, tmp_path_factory):
 
     cli = do_upgrade("v1.4", cli.block_height() + 15)
 
-    assert_evm_params(cli, e0, target_height0 - 1)
-    assert_evm_params(cli, e1, target_height1 - 1)
-    assert f0 == cli.query_params("feemarket", height=target_height0 - 1)
-    assert f1 == cli.query_params("feemarket", height=target_height1 - 1)
+    check_pre_migration_params(cli)
     assert cli.query_params("evm")["header_hash_num"] == "256", p
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
@@ -348,6 +355,12 @@ def exec(c, tmp_path_factory):
     ]
     assert cli.query_params()["cro_bridge_contract_addresses"] == (
         cronos_params["cro_bridge_contract_addresses"]
+    )
+
+    # x/params is gone, but these heights still read its frozen store
+    check_pre_migration_params(cli)
+    assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
+        ADDRS["validator"]
     )
 
     tx_af = w3.provider.make_request(method, params)
