@@ -28,8 +28,8 @@ type CronosConfig struct {
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
 	// MaxTxPerBlock is the shared budget used as both the gossip-reap cap
-	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
-	// Commit cycle ≈ one block of senders). <=0 uses the default.
+	// (txs per 500ms tick ≈ one block) and a soft recheck-batch cap: applied
+	// between signer groups, so the first group always runs whole. <=0 uses the default.
 	MaxTxPerBlock int `mapstructure:"mempool-txs-per-block"`
 	// MempoolTxTTLEnabled evicts mempool.type=app txs older than
 	// DefaultMempoolTTLNumBlocks blocks (by arrival height), draining
