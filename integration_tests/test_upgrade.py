@@ -357,7 +357,7 @@ def exec(c, tmp_path_factory):
         cronos_params["cro_bridge_contract_addresses"]
     )
 
-    # x/params is gone, but these heights still read its frozen store
+    # x/params is gone, but the genesis-era height still reads its frozen store
     check_pre_migration_params(cli)
     assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
         ADDRS["validator"]
