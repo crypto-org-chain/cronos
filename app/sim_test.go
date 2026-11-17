@@ -15,7 +15,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
-	"github.com/evmos/ethermint/ante/cache"
 	evmante "github.com/evmos/ethermint/evmd/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
@@ -76,7 +75,6 @@ func NewSimApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*baseapp.Bas
 		IBCKeeper:       app.IBCKeeper,
 		EvmKeeper:       app.EvmKeeper,
 		FeeMarketKeeper: app.FeeMarketKeeper,
-		AnteCache:       cache.NewAnteCache(0),
 	})
 	if err != nil {
 		return nil, err

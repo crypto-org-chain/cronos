@@ -24,16 +24,17 @@ func TestPriorityPoolTestSuite(t *testing.T) {
 
 func (s *PriorityPoolTestSuite) TestInsertResend() {
 	sender := common.Address{0x1}
-	pooledEth := newEthTx(sender, 0)
-	resendEth := newEthTx(sender, 0)
+	pooledMsg, resendMsg := newEthMsg(sender, 0), newEthMsg(sender, 0)
 	bumpedMsg := evmtypes.NewTx(nil, 0, &common.Address{0xab}, big.NewInt(0), 21000, big.NewInt(2), nil, nil, nil, nil)
 	bumpedMsg.From = sender.Bytes()
-	bumpedEth := &ethTx{msg: bumpedMsg}
+	pooledEth := &multiMsgTx{msgs: []sdk.Msg{pooledMsg}}
+	resendEth := &multiMsgTx{msgs: []sdk.Msg{resendMsg}}
+	bumpedEth := &multiMsgTx{msgs: []sdk.Msg{bumpedMsg}}
 	pooledCosmos, resendCosmos := &ptrTx{id: 1}, &ptrTx{id: 2}
 	errRejected := errors.New("replacement rejected")
 
-	s.Require().Equal(pooledEth.msg.Hash(), resendEth.msg.Hash())
-	s.Require().NotEqual(pooledEth.msg.Hash(), bumpedEth.msg.Hash())
+	s.Require().Equal(pooledMsg.Hash(), resendMsg.Hash())
+	s.Require().NotEqual(pooledMsg.Hash(), bumpedMsg.Hash())
 
 	testCases := []struct {
 		name       string
@@ -50,8 +51,8 @@ func (s *PriorityPoolTestSuite) TestInsertResend() {
 		{name: "different eth tx keeps the rule's rejection", pooled: pooledEth, tx: bumpedEth, expErr: errRejected},
 		{name: "non-eth tx still goes through the rule", pooled: pooledCosmos, tx: resendCosmos, allow: true, expReplace: true},
 		{name: "exact eth resend into a full pool is reported as in mempool", pooled: pooledEth, tx: resendEth, allow: true, maxTx: 1, expErr: sdkerrors.ErrTxInMempoolCache},
-		{name: "different eth tx into a full pool keeps the capacity error", pooled: pooledEth, tx: bumpedEth, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
-		{name: "non-eth tx into a full pool keeps the capacity error", pooled: pooledCosmos, tx: resendCosmos, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
+		{name: "different eth tx replaces in a full pool", pooled: pooledEth, tx: bumpedEth, allow: true, maxTx: 1, expReplace: true},
+		{name: "non-eth tx replaces in a full pool", pooled: pooledCosmos, tx: resendCosmos, allow: true, maxTx: 1, expReplace: true},
 	}
 
 	for _, tc := range testCases {
@@ -87,7 +88,9 @@ func (s *PriorityPoolTestSuite) TestInsertResend() {
 
 func (s *PriorityPoolTestSuite) TestInsertResendDoesNotLeak() {
 	sender := common.Address{0x1}
-	first, resend, next := newEthTx(sender, 0), newEthTx(sender, 0), newEthTx(sender, 1)
+	first := &multiMsgTx{msgs: []sdk.Msg{newEthMsg(sender, 0)}}
+	resend := &multiMsgTx{msgs: []sdk.Msg{newEthMsg(sender, 0)}}
+	next := &multiMsgTx{msgs: []sdk.Msg{newEthMsg(sender, 1)}}
 	alice := sdk.AccAddress("alice")
 	pool := NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority: sdkmempool.NewDefaultTxPriority(),

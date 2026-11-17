@@ -10,8 +10,9 @@ AnteHandler before mempool admission. These tests verify:
   - replacement tx (RBF) at same nonce with higher fee is admitted
   - replacement tx with insufficient fee bump is rejected at admission
   - bad-sig / under-fee tx is rejected at admission, not at block time
-  - with disable-tx-replacement=true, same-nonce tx fails at nonce check
-    (ErrInvalidSequence), not at the feebump rule
+  - with disable-tx-replacement=true, a same-nonce tx never replaces the
+    original (nonce error, or the pool rule after a Commit reset)
+  - eth batches must come from one sender; their msgs can't be replaced
   - txpool RPC namespace (content, inspect, status, contentFrom) backed by
     the app mempool via MempoolClient.PendingTxs
 """
@@ -23,7 +24,14 @@ import web3
 from web3 import Web3
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    KEYS,
+    build_batch_tx_signed,
+    deploy_contract,
+    sign_transaction,
+)
 
 pytestmark = pytest.mark.slow
 
@@ -162,15 +170,15 @@ def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
 def test_tx_replacement_rfc(cronos_app_mempool):
     """Same-nonce tx with +20% gasPrice replaces the original in mempool.
 
-    Verifies the three-cache interaction path:
-      send_raw(A') -> insertSeenCache miss (different bytes)
-                   -> RunTx -> AnteCache.Exists(X, N) == true
+    Verifies the admission path:
+      send_raw(A') -> RunTx -> pool holds a single-msg eth tx at (X, N)
                    -> nonce check skipped (replacement allowed)
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.
 
-    Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100
-    (Go integer arithmetic). base*12//10 satisfies this for all integer base >= 0.
+    Config: default.jsonnet feebump=10 requires a strictly higher fee cap and both
+    caps >= old*110/100. A legacy gasPrice sets both caps, so base*12//10 satisfies
+    this for any base gas price >= 5.
 
     Marked flaky because A can be reaped into a block before A' arrives if the
     500ms reap_interval fires in the window between the two send_raw calls. This
@@ -201,8 +209,7 @@ def test_tx_replacement_rfc(cronos_app_mempool):
     except web3.exceptions.TransactionNotFound:
         pass
 
-    # tx A': same nonce, higher gasPrice — satisfies feebump=10 threshold
-    # (base*12//10 >= base*110//100 for all integer base >= 0)
+    # tx A': same nonce, +20% gasPrice — clears the feebump=10 threshold
     tx_a_prime = {
         "to": ADDRS["community"],
         "value": 2,
@@ -230,9 +237,9 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     """Same-nonce replacement with insufficient fee bump is rejected at admission.
 
     Exercises the app-mempool path where:
-      1. Tx A passes CheckTx -> AnteCache.Set(addr, N)
-      2. Tx A' (same nonce, +5% tip) passes AnteCache skip (Exists=true)
-      3. PriorityNonceMempool.Insert calls TxReplacement: np < op*110/100 -> rejected
+      1. Tx A passes CheckTx and is pooled at (addr, N)
+      2. Tx A' (same nonce, +5% tip) skips the nonce check: A is pooled at (addr, N)
+      3. PriorityNonceMempool.Insert calls TxReplacement: caps under +10% -> rejected
 
     Complements test_tx_replacement_rfc (success path) by covering the failure
     branch of TxReplacement inside the app-mempool admission path.
@@ -244,7 +251,7 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
     key = KEYS["validator"]
     nonce = w3.eth.get_transaction_count(ADDRS["validator"])
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
-    # Ensure non-zero tip so % bumps are meaningful — priority = tip / 1e6.
+    # Ensure a non-zero tip so the % bump on the tip cap is meaningful.
     priority_fee = max(w3.eth.max_priority_fee, w3.to_wei(1, "gwei"))
 
     tx_orig = {
@@ -280,12 +287,59 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
         w3.eth.send_raw_transaction(signed_under.raw_transaction)
     msg = str(exc_info.value).lower()
     assert (
-        "replacement rule" in msg or "replacement" in msg
+        "replacement transaction underpriced" in msg
     ), f"expected feebump rejection but got: {msg}"
 
     # Wait for original tx to mine so sender state is clean for subsequent tests.
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
     assert receipt.status == 1
+
+
+# ---------------------------------------------------------------------------
+# eth batch admission
+# ---------------------------------------------------------------------------
+
+
+def _signed_transfer(w3, name, **kw):
+    tx = {"to": ADDRS["validator"], "value": 1, **kw}
+    return sign_transaction(w3, tx, KEYS[name])
+
+
+def test_multi_sender_batch_rejected(cronos_app_mempool):
+    """Eth msgs in one cosmos tx must share a sender."""
+    w3: Web3 = cronos_app_mempool.w3
+    cli = cronos_app_mempool.cosmos_cli()
+    nonce_b = w3.eth.get_transaction_count(ADDRS["signer1"])
+    signed_a = _signed_transfer(w3, "community")
+    batch, _ = build_batch_tx_signed(cli, [_signed_transfer(w3, "signer1"), signed_a])
+    hash_a = w3.eth.send_raw_transaction(signed_a.raw_transaction)
+
+    rsp = cli.broadcast_tx_json(batch, wait=False)
+    assert rsp["code"] != 0, f"batch was admitted: {rsp}"
+    assert "share a sender" in rsp["raw_log"], rsp["raw_log"]
+
+    assert w3.eth.wait_for_transaction_receipt(hash_a, timeout=30).status == 1
+    assert w3.eth.get_transaction_count(ADDRS["signer1"]) == nonce_b
+
+
+def test_batch_later_msg_not_poolable(cronos_app_mempool):
+    """[X@n, X@n+1] is pooled; X@n+1 alone is rejected: the pool keys it by msg 0."""
+    w3: Web3 = cronos_app_mempool.w3
+    cli = cronos_app_mempool.cosmos_cli()
+    nonce = w3.eth.get_transaction_count(ADDRS["signer2"])
+    signed = [_signed_transfer(w3, "signer2", nonce=nonce + i) for i in range(2)]
+    batch, hashes = build_batch_tx_signed(cli, signed)
+
+    rsp = cli.broadcast_tx_json(batch, wait=False)
+    assert rsp["code"] == 0, rsp["raw_log"]
+    # The strict nonce check's text, not the pool lookup's "held by a pooled tx":
+    # the lookup must not match a batch's later msg. The expected nonce depends on
+    # whether a Commit reset checkState before the recheck replayed the batch.
+    with pytest.raises(Exception, match=f"got {nonce + 1}, expected"):
+        w3.eth.send_raw_transaction(signed[1].raw_transaction)
+
+    for h in hashes:
+        assert w3.eth.wait_for_transaction_receipt(h, timeout=30).status == 1
 
 
 # ---------------------------------------------------------------------------
@@ -297,9 +351,9 @@ def test_tx_replacement_under_fee_rejected(cronos_app_mempool):
 def cronos_app_no_replace(tmp_path_factory):
     """App-mempool node with cronos.disable-tx-replacement=true.
 
-    AnteCache becomes a no-op (maxTx=-1): same-nonce replacements hit the
-    normal nonce check and fail with ErrInvalidSequence before reaching
-    PriorityNonceMempool.Insert.
+    The ante gets no pool to look up, so a same-nonce replacement fails the
+    normal nonce check, or, after a Commit resets checkState, the disabled
+    pool rule.
     """
     path = tmp_path_factory.mktemp("cronos-app-no-replace")
     yield from setup_custom_cronos(
@@ -308,18 +362,18 @@ def cronos_app_no_replace(tmp_path_factory):
 
 
 def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
-    """With disable-tx-replacement=true, same-nonce tx fails at nonce check.
+    """With disable-tx-replacement=true, a same-nonce tx never replaces the original.
 
     Path verified:
-      AnteCache.maxTx = -1 (no-op)
-      Tx A CheckTx: checkState seq N -> N+1; AnteCache.Set is no-op
-      Tx A' (same nonce N, +20% fee): AnteCache.Exists(addr,N) = false
+      ante TxPool = nil
+      Tx A CheckTx: checkState seq N -> N+1
+      Tx A' (same nonce N, +20% fee): no pool lookup
         -> normal nonce check: expectedNonce=N+1, txNonce=N
         -> ErrInvalidSequence: "invalid nonce; got N, expected N+1"
+      If a Commit reset checkState to N while A was pooled, A' passes the
+      nonce check and the pool rejects it, also as an invalid nonce.
 
-    The error must contain "nonce" or "sequence", NOT "replacement" or
-    "fit the replacement rule" — that would indicate the cache skip fired
-    and the feebump rule was reached instead, meaning the flag had no effect.
+    The flag had no effect only if A' is accepted.
     """
     w3: Web3 = cronos_app_no_replace.w3
     key = KEYS["validator"]
@@ -338,7 +392,7 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     signed_orig = sign_transaction(w3, tx_orig, key)
     hash_orig = w3.eth.send_raw_transaction(signed_orig.raw_transaction)
 
-    # +20% fee — sufficient for feebump rule, but must fail at nonce check
+    # +20% fee: enough for the feebump rule if replacement were enabled
     tx_replace = {
         "to": ADDRS["community"],
         "value": 2,
@@ -351,16 +405,11 @@ def test_tx_replacement_disabled_rejects_same_nonce(cronos_app_no_replace):
     with pytest.raises(Exception) as exc_info:
         w3.eth.send_raw_transaction(signed_replace.raw_transaction)
     msg = str(exc_info.value).lower()
+    # No fee bump can help, so it must not read as geth's underpriced replacement.
+    assert "invalid nonce" in msg, f"expected an invalid nonce error but got: {msg}"
+    assert "underpriced" not in msg, msg
 
-    # Must be a nonce/sequence error — NOT the feebump rule
-    assert any(
-        s in msg for s in ("nonce", "sequence")
-    ), f"expected nonce/sequence error but got: {msg}"
-    assert (
-        "replacement" not in msg
-    ), f"got feebump rule error — cache skip fired when it should not: {msg}"
-
-    # Original tx must still mine (chain is functional)
+    # The original tx, not the replacement, must mine
     receipt = w3.eth.wait_for_transaction_receipt(hash_orig, timeout=30)
     assert receipt.status == 1
 

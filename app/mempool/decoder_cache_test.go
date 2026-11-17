@@ -37,7 +37,7 @@ type fakeTx struct {
 func newFakeEthTx() *fakeTx {
 	return &fakeTx{
 		typeURL: ethTxTypeURL,
-		msgs:    []sdk.Msg{newEthTx(common.Address{0x1}, 0).msg},
+		msgs:    []sdk.Msg{newEthMsg(common.Address{0x1}, 0)},
 		signers: [][]byte{{1}},
 	}
 }

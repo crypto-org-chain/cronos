@@ -86,8 +86,8 @@ custom modules below. Read `app/app.go` to find keeper wiring, store keys, ante 
 handler registration. Related app-level files:
 - `app/upgrades.go` — chain upgrade handlers (each network upgrade adds a handler here).
 - `app/forks.go`, `app/unblockable.go`, `app/block_address.go` — block-level address blocking / forks.
-- `app/mempool/` — a custom app-side mempool with lock-free admission (`preverify.go`), gossip, and
-  encode/decode caches. Concurrency-sensitive; changes here must pass `make test-race-mempool`.
+- `app/mempool/` — a custom app-side mempool with lock-free admission (`preverify.go`), gossip,
+  encode/decode caches, and panic recovery (`recover.go`). Concurrency-sensitive; changes here must pass `make test-race-mempool`.
 
 ### Custom store backends (the performance core)
 Cronos does **not** use the vanilla IAVL store for production. Two swappable subsystems, both wired in
@@ -139,7 +139,7 @@ upstream project on GitHub — the fork can and does differ. Resolve the actual 
 | Consensus / networking / mempool | `github.com/cometbft/cometbft` | **`github.com/crypto-org-chain/cometbft`** (fork) | `v0.0.0-...20260729145603-14b7b93046e3` |
 | Custom store: memiavl, versiondb, store | `github.com/crypto-org-chain/cronos-store/{memiavl,versiondb,store}` | **`crypto-org-chain/cronos-store`** (fork target pins) | `...20260923061457-2d12c238d139` (= tag `v1.9.0`) |
 | EVM crypto / core types | `github.com/ethereum/go-ethereum` | **`github.com/crypto-org-chain/go-ethereum`** (fork) | `v1.10.20-...20260521015249` |
-| IBC | `github.com/cosmos/ibc-go/v11` | upstream | `v11.1.0` |
+| IBC | `github.com/cosmos/ibc-go/v11` | upstream | `v11.2.0` |
 
 **Security-review scope, in priority order:**
 1. **`x/cronos` (this repo)** — precompiles, EVM hooks, token mapping, permissions: the bespoke,
