@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"filippo.io/age"
@@ -71,6 +72,9 @@ func TestValidateMsgStoreBlockList(t *testing.T) {
 
 	from := "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp"
 	blob := []byte("valid blob data")
+	ageHeader := func(stanzas string) []byte {
+		return []byte("age-encryption.org/v1\n" + stanzas + "--- " + strings.Repeat("A", 43) + "\n")
+	}
 	testCases := []struct {
 		name        string
 		msg         *types.MsgStoreBlockList
@@ -98,6 +102,35 @@ func TestValidateMsgStoreBlockList(t *testing.T) {
 			true,
 			true,
 			"failed to read header",
+		},
+		// Consensus behavior: age v1.3.2 rejects the headers below, so an age bump changes ValidateBasic results.
+		{
+			"header without recipient stanzas",
+			types.NewMsgStoreBlockList(from, ageHeader("")),
+			true,
+			false,
+			"",
+		},
+		{
+			"header with more than 1024 recipient stanzas",
+			types.NewMsgStoreBlockList(from, ageHeader(strings.Repeat("-> X25519 abc\nAAAA\n", 1025))),
+			true,
+			false,
+			"",
+		},
+		{
+			"stanza with more than 128 arguments",
+			types.NewMsgStoreBlockList(from, ageHeader("-> X"+strings.Repeat(" a", 129)+"\nAAAA\n")),
+			true,
+			false,
+			"",
+		},
+		{
+			"header larger than 2 MiB",
+			types.NewMsgStoreBlockList(from, ageHeader("-> X "+strings.Repeat("a", 2<<20)+"\nAAAA\n")),
+			true,
+			false,
+			"",
 		},
 	}
 
