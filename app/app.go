@@ -465,19 +465,16 @@ func New(
 
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
-		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyIgnore))
 		// Transitional: the pool requires a public key so admission still rejects txs without one, and this
 		// node won't propose one before all validators run this version.
 		poolSigner := evmapp.NewEthSignerExtractionAdapter(cronosmempool.NewMsgSignerExtractionAdapter(cronosmempool.PubKeyRequire))
-		mpool = cronosmempool.NewFinalizeNeutralMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		mpool = cronosmempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: poolSigner,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
-				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
-				// otherwise, the Insert will return error
 				threshold := 100 + feeBump
 				return np >= op*threshold/100
 			},

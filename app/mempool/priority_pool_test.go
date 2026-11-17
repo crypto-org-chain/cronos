@@ -14,15 +14,15 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-type FinalizePoolTestSuite struct {
+type PriorityPoolTestSuite struct {
 	suite.Suite
 }
 
-func TestFinalizePoolTestSuite(t *testing.T) {
-	suite.Run(t, new(FinalizePoolTestSuite))
+func TestPriorityPoolTestSuite(t *testing.T) {
+	suite.Run(t, new(PriorityPoolTestSuite))
 }
 
-func (s *FinalizePoolTestSuite) TestInsertResend() {
+func (s *PriorityPoolTestSuite) TestInsertResend() {
 	sender := common.Address{0x1}
 	pooledEth := newEthTx(sender, 0)
 	resendEth := newEthTx(sender, 0)
@@ -49,7 +49,6 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 		{name: "different eth tx replaces when the rule allows", pooled: pooledEth, tx: bumpedEth, allow: true, expReplace: true},
 		{name: "different eth tx keeps the rule's rejection", pooled: pooledEth, tx: bumpedEth, expErr: errRejected},
 		{name: "non-eth tx still goes through the rule", pooled: pooledCosmos, tx: resendCosmos, allow: true, expReplace: true},
-		// A full pool rejects before TxReplacement runs, so the resend must be detected separately.
 		{name: "exact eth resend into a full pool is reported as in mempool", pooled: pooledEth, tx: resendEth, allow: true, maxTx: 1, expErr: sdkerrors.ErrTxInMempoolCache},
 		{name: "different eth tx into a full pool keeps the capacity error", pooled: pooledEth, tx: bumpedEth, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
 		{name: "non-eth tx into a full pool keeps the capacity error", pooled: pooledCosmos, tx: resendCosmos, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
@@ -58,7 +57,7 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			signerData := []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
-			pool := NewFinalizeNeutralMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+			pool := NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 				TxPriority: sdkmempool.NewDefaultTxPriority(),
 				SignerExtractor: fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
 					tc.pooled: signerData,
@@ -86,12 +85,11 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 	}
 }
 
-// A detected resend must not leak into the next Insert's result.
-func (s *FinalizePoolTestSuite) TestInsertResendDoesNotLeak() {
+func (s *PriorityPoolTestSuite) TestInsertResendDoesNotLeak() {
 	sender := common.Address{0x1}
 	first, resend, next := newEthTx(sender, 0), newEthTx(sender, 0), newEthTx(sender, 1)
 	alice := sdk.AccAddress("alice")
-	pool := NewFinalizeNeutralMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+	pool := NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority: sdkmempool.NewDefaultTxPriority(),
 		SignerExtractor: fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
 			first:  {sdkmempool.NewSignerData(alice, 0)},
