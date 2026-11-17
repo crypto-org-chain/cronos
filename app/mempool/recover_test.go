@@ -120,8 +120,8 @@ func (s *RecoverTestSuite) TestAdmissionRecoversPanics() {
 		malleate     func(m *Manager)
 		call         func(m *Manager) (uint32, string, error)
 		path         string
-		where        string // the panic site, as passed to panicking
-		encodePanics bool   // the tx must be rejected before RunTx touches ante state or the pool
+		where        string
+		encodePanics bool // the tx must be rejected before RunTx touches ante state or the pool
 	}{
 		{
 			name: "peer InsertTx, panic in preVerify before the admission gate",
@@ -272,7 +272,7 @@ func (s *RecoverTestSuite) TestReapRecoversPanics() {
 		pool     sdkmempool.Mempool
 		expTxs   []string
 		expPath  any // path field of each error line; nil for a plain encode error
-		expPanic any // panic field of each error line
+		expPanic any
 		expTx    any // tx field of each error line; nil when the tx has no bytes yet
 	}{
 		{
@@ -556,7 +556,7 @@ func (s *RecoverTestSuite) TestStagingSkipsPanickingTx() {
 	}
 }
 
-func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
+func (s *RecoverTestSuite) TestPriorityMempoolFinalizeRemove() {
 	pooled, poison, unkeyed := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
 	finalize := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxFinalize}
 	recheck := sdkmempool.RemoveReason{Caller: sdkmempool.CallerRunTxRecheck}
@@ -567,7 +567,7 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 		reason    sdkmempool.RemoveReason
 		nilLogger bool
 		expErr    bool
-		expLogged bool // the panic is logged under panicPathFinalizeRemove
+		expLogged bool
 		expPooled bool
 	}{
 		{name: "finalize removes the pooled tx", tx: pooled, reason: finalize},
@@ -583,23 +583,23 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 			signer := fakeSigner{m: map[sdk.Tx][]sdkmempool.SignerData{
 				pooled: {sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)},
 			}}
-			pool := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
-				TxPriority:      sdkmempool.NewDefaultTxPriority(),
-				SignerExtractor: poisonSigner{signer, poison},
-			})
-			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
 			recorder := &recordingLogger{Logger: log.NewNopLogger()}
 			var logger log.Logger = recorder
 			if tc.nilLogger {
 				logger = nil
 			}
+			pool := NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+				TxPriority:      sdkmempool.NewDefaultTxPriority(),
+				SignerExtractor: poisonSigner{signer, poison},
+			}, logger)
+			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
 
 			var err error
 			s.Require().NotPanics(func() {
-				err = NewFinalizeNeutralMempool(pool, logger).RemoveWithReason(context.Background(), tc.tx, tc.reason)
+				err = pool.RemoveWithReason(context.Background(), tc.tx, tc.reason)
 			})
 			s.Require().Equal(tc.expErr, err != nil, err)
-			s.Require().Equal(tc.expPooled, poolHas(pool, pooled))
+			s.Require().Equal(tc.expPooled, poolHas(pool.PriorityNonceMempool, pooled))
 			if !tc.expLogged {
 				s.Require().Empty(recorder.errors)
 				return
@@ -612,7 +612,7 @@ func (s *RecoverTestSuite) TestFinalizeNeutralMempoolRemove() {
 
 type recordingLogger struct {
 	log.Logger
-	errors [][]any // keyvals of each Error call
+	errors [][]any
 }
 
 func (l *recordingLogger) Error(_ string, keyvals ...any) { l.errors = append(l.errors, keyvals) }
