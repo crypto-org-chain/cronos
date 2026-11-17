@@ -61,27 +61,11 @@ func (p *PriorityMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	defer p.insertMu.Unlock()
 	p.resendSeen = false
 	err := p.PriorityNonceMempool.Insert(ctx, tx)
-	if p.resendSeen || p.isResendIntoFullPool(ctx, tx, err) {
+	// A full pool still runs TxReplacement for a pooled sender-nonce, so resendSeen covers it too.
+	if p.resendSeen {
 		return sdkerrors.ErrTxInMempoolCache
 	}
 	return err
-}
-
-// A full pool rejects before TxReplacement runs, so the resend can only be found by scanning.
-func (p *PriorityMempool) isResendIntoFullPool(ctx context.Context, tx sdk.Tx, err error) bool {
-	if !errors.Is(err, sdkmempool.ErrMempoolTxMaxCapacity) {
-		return false
-	}
-	hashes, ok := ethTxHashes(tx)
-	if !ok {
-		return false
-	}
-	for _, pooled := range p.UnorderedTxs(ctx) {
-		if matchesEthHashes(pooled, hashes) {
-			return true
-		}
-	}
-	return false
 }
 
 func (p *PriorityMempool) RemoveWithReason(ctx context.Context, tx sdk.Tx, reason sdkmempool.RemoveReason) error {
@@ -109,33 +93,16 @@ func (p *PriorityMempool) removeBlockTx(tx sdk.Tx) {
 
 // The eth hash covers the signature, so equal hashes mean an exact resend.
 func sameEthTxs(a, b sdk.Tx) bool {
-	hashes, ok := ethTxHashes(a)
-	return ok && matchesEthHashes(b, hashes)
-}
-
-func ethTxHashes(tx sdk.Tx) ([]common.Hash, bool) {
-	msgs := tx.GetMsgs()
-	if len(msgs) == 0 {
-		return nil, false
-	}
-	hashes := make([]common.Hash, len(msgs))
-	for i, msg := range msgs {
-		h, ok := ethTxHash(msg)
-		if !ok {
-			return nil, false
-		}
-		hashes[i] = h
-	}
-	return hashes, true
-}
-
-func matchesEthHashes(tx sdk.Tx, hashes []common.Hash) bool {
-	msgs := tx.GetMsgs()
-	if len(msgs) != len(hashes) {
+	aMsgs, bMsgs := a.GetMsgs(), b.GetMsgs()
+	if len(aMsgs) == 0 || len(aMsgs) != len(bMsgs) {
 		return false
 	}
-	for i, msg := range msgs {
-		if h, ok := ethTxHash(msg); !ok || h != hashes[i] {
+	for i := range aMsgs {
+		aHash, ok := ethTxHash(aMsgs[i])
+		if !ok {
+			return false
+		}
+		if bHash, ok := ethTxHash(bMsgs[i]); !ok || aHash != bHash {
 			return false
 		}
 	}
