@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/log/v2"
@@ -66,10 +67,25 @@ func (p FinalizeNeutralMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	defer p.resend.mu.Unlock()
 	p.resend.seen = false
 	err := p.PriorityNonceMempool.Insert(ctx, tx)
-	if p.resend.seen {
+	if p.resend.seen || (errors.Is(err, sdkmempool.ErrMempoolTxMaxCapacity) && p.containsEthTx(ctx, tx)) {
 		return sdkerrors.ErrTxInMempoolCache
 	}
 	return err
+}
+
+// containsEthTx is O(n), so it only runs once the pool is full: the SDK then rejects before
+// TxReplacement can spot the resend.
+func (p FinalizeNeutralMempool) containsEthTx(ctx context.Context, tx sdk.Tx) bool {
+	hashes, ok := ethTxHashes(tx)
+	if !ok {
+		return false
+	}
+	for _, pooled := range p.UnorderedTxs(ctx) {
+		if matchesEthHashes(pooled, hashes) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p FinalizeNeutralMempool) RemoveWithReason(ctx context.Context, tx sdk.Tx, reason sdkmempool.RemoveReason) error {
@@ -91,23 +107,49 @@ func (p FinalizeNeutralMempool) RemoveWithReason(ctx context.Context, tx sdk.Tx,
 // sameEthTxs reports whether a and b carry the same signed eth txs; the eth hash covers the
 // signature, so equal hashes mean an exact resend. Txs with any non-eth message never match.
 func sameEthTxs(a, b sdk.Tx) bool {
-	am, bm := a.GetMsgs(), b.GetMsgs()
-	if len(am) == 0 || len(am) != len(bm) {
+	hashes, ok := ethTxHashes(a)
+	return ok && matchesEthHashes(b, hashes)
+}
+
+// ethTxHashes returns the eth hash of each of tx's messages, or false if tx has no messages or
+// any of them is not an eth tx.
+func ethTxHashes(tx sdk.Tx) ([]common.Hash, bool) {
+	msgs := tx.GetMsgs()
+	if len(msgs) == 0 {
+		return nil, false
+	}
+	hashes := make([]common.Hash, len(msgs))
+	for i, msg := range msgs {
+		h, ok := ethTxHash(msg)
+		if !ok {
+			return nil, false
+		}
+		hashes[i] = h
+	}
+	return hashes, true
+}
+
+func matchesEthHashes(tx sdk.Tx, hashes []common.Hash) bool {
+	msgs := tx.GetMsgs()
+	if len(msgs) != len(hashes) {
 		return false
 	}
-	for i := range am {
-		ae, ok := am[i].(*evmtypes.MsgEthereumTx)
-		if !ok {
-			return false
-		}
-		be, ok := bm[i].(*evmtypes.MsgEthereumTx)
-		if !ok {
-			return false
-		}
-		at, bt := ae.AsTransaction(), be.AsTransaction()
-		if at == nil || bt == nil || at.Hash() != bt.Hash() {
+	for i, msg := range msgs {
+		if h, ok := ethTxHash(msg); !ok || h != hashes[i] {
 			return false
 		}
 	}
 	return true
+}
+
+func ethTxHash(msg sdk.Msg) (common.Hash, bool) {
+	ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
+	if !ok {
+		return common.Hash{}, false
+	}
+	ethTx := ethMsg.AsTransaction()
+	if ethTx == nil {
+		return common.Hash{}, false
+	}
+	return ethTx.Hash(), true
 }

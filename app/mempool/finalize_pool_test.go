@@ -40,6 +40,7 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 		pooled     sdk.Tx
 		tx         sdk.Tx
 		allow      bool
+		maxTx      int
 		expErr     error
 		expReplace bool
 	}{
@@ -48,6 +49,10 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 		{name: "different eth tx replaces when the rule allows", pooled: pooledEth, tx: bumpedEth, allow: true, expReplace: true},
 		{name: "different eth tx keeps the rule's rejection", pooled: pooledEth, tx: bumpedEth, expErr: errRejected},
 		{name: "non-eth tx still goes through the rule", pooled: pooledCosmos, tx: resendCosmos, allow: true, expReplace: true},
+		// A full pool rejects before TxReplacement runs, so the resend must be detected separately.
+		{name: "exact eth resend into a full pool is reported as in mempool", pooled: pooledEth, tx: resendEth, allow: true, maxTx: 1, expErr: sdkerrors.ErrTxInMempoolCache},
+		{name: "different eth tx into a full pool keeps the capacity error", pooled: pooledEth, tx: bumpedEth, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
+		{name: "non-eth tx into a full pool keeps the capacity error", pooled: pooledCosmos, tx: resendCosmos, allow: true, maxTx: 1, expErr: sdkmempool.ErrMempoolTxMaxCapacity},
 	}
 
 	for _, tc := range testCases {
@@ -60,6 +65,7 @@ func (s *FinalizePoolTestSuite) TestInsertResend() {
 					tc.tx:     signerData,
 				}},
 				TxReplacement: func(_, _ int64, _, _ sdk.Tx) bool { return tc.allow },
+				MaxTx:         tc.maxTx,
 			}, nil)
 			s.Require().NoError(pool.Insert(sdk.Context{}, tc.pooled))
 
