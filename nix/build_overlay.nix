@@ -9,13 +9,13 @@ let
     if len == 0 then [ ] else final.lib.lists.take (len - 1) l ++ [ newVal ];
 in
 {
-  # Dependencies require go 1.26.10, newer than nixpkgs' go_1_26.
+  # Dependencies require go 1.26.11, newer than nixpkgs' go_1_26.
   # Native nixpkgs go lists no Windows platforms; see https://github.com/crypto-org-chain/chain-main/pull/1220
   go_1_26 = super.go_1_26.overrideAttrs (old: rec {
-    version = "1.26.10";
+    version = "1.26.11";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-/WPog7ovK/ypPBZGsx6+9j4rHk0rMXyXidl2po2B828=";
+      hash = "sha256-1EEBsP8n7SpMda1GwXucdDWSCeLrLKfJ32y0/baOGWk=";
     };
     # Some cross toolchains (notably MinGW with LLVM) don't expose `threads`
     # in targetPackages; fall back to the pthreads implementation when
