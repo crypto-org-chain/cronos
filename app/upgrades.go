@@ -57,16 +57,8 @@ func (app *App) migrateChannelSendSequences(ctx sdk.Context) error {
 	store := ibcStore.OpenKVStore(ctx)
 	var err error
 	app.IBCKeeper.ChannelKeeper.IterateChannels(ctx, func(ic channeltypes.IdentifiedChannel) bool {
-		v1Key := channelv11.NextSequenceSendV1Key(ic.PortId, ic.ChannelId)
-		var has bool
-		if has, err = store.Has(v1Key); err != nil {
-			return true
-		}
-		if has {
-			return false
-		}
 		if seq, found := app.IBCKeeper.ChannelKeeperV2.GetNextSequenceSend(ctx, ic.ChannelId); found {
-			err = store.Set(v1Key, sdk.Uint64ToBigEndian(seq))
+			err = store.Set(channelv11.NextSequenceSendV1Key(ic.PortId, ic.ChannelId), sdk.Uint64ToBigEndian(seq))
 		}
 		return err != nil
 	})

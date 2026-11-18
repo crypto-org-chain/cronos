@@ -51,6 +51,7 @@ jobs:
             nix/**
             Makefile
             scripts/run-integration-tests
+            scripts/gen-bindings-contracts
             scripts/.env
             .github/workflows/test.yml
             integration_tests/conftest.py
