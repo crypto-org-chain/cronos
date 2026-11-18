@@ -10,7 +10,7 @@
 # validator keys (tendermint-rs backport of cometbft/tendermint-rs#1533).
 rustPlatform.buildRustPackage {
   pname = "hermes";
-  version = "1.13.3-mldsa65";
+  version = "1.13.2-unstable-2026-11-18";
   src = sources.hermes;
   # tendermint-rs is a git dependency pinned by commit in Cargo.lock
   cargoLock = {

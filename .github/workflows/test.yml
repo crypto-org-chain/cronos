@@ -42,10 +42,23 @@ jobs:
           files: |
             app/**
             x/**
+            cmd/**
+            client/**
             go.mod
             go.sum
             gomod2nix.toml
+            default.nix
             nix/**
+            Makefile
+            scripts/run-integration-tests
+            scripts/.env
+            .github/workflows/test.yml
+            integration_tests/conftest.py
+            integration_tests/shell.nix
+            integration_tests/pyproject.toml
+            integration_tests/poetry.lock
+            integration_tests/contracts/**
+            integration_tests/configs/default.jsonnet
             integration_tests/utils.py
             integration_tests/cosmoscli.py
             integration_tests/network.py

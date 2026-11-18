@@ -410,25 +410,27 @@ func (s *UpgradeTestSuite) TestHistoricalParamsFromLegacyStore() {
 
 func (s *UpgradeTestSuite) TestIBCSendSequence() {
 	const (
-		portID    = "transfer"
-		channelID = "channel-0"
-		seq       = uint64(7)
+		portID          = "transfer"
+		channelID       = "channel-0"
+		seq             = uint64(7)
+		migratedChannel = "channel-1"
+		migratedSeq     = uint64(11)
 	)
 	v1Key := channelv11.NextSequenceSendV1Key(portID, channelID)
 	setV1Seq := func(store storetypes.KVStore) { store.Set(v1Key, sdk.Uint64ToBigEndian(seq)) }
 	testCases := []struct {
-		name        string
-		state       channeltypes.State
-		ordering    channeltypes.Order
-		malleate    func(store storetypes.KVStore)
-		expectAlias bool
+		name     string
+		state    channeltypes.State
+		ordering channeltypes.Order
+		malleate func(store storetypes.KVStore)
+		expAlias bool
 	}{
 		{
-			name:        "open unordered channel, sequence under the v1 key",
-			state:       channeltypes.OPEN,
-			ordering:    channeltypes.UNORDERED,
-			malleate:    setV1Seq,
-			expectAlias: true,
+			name:     "open unordered channel, sequence under the v1 key",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.UNORDERED,
+			malleate: setV1Seq,
+			expAlias: true,
 		},
 		{
 			name:     "open unordered channel, sequence already under the v2 key",
@@ -437,7 +439,7 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			malleate: func(storetypes.KVStore) {
 				s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, channelID, seq)
 			},
-			expectAlias: true,
+			expAlias: true,
 		},
 		{
 			name:     "open ordered channel",
@@ -460,20 +462,28 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, channelID, channeltypes.NewChannel(
 				tc.state, tc.ordering, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
 			))
+			// a second, already-migrated channel iterated after channel-0 catches a copy-back pass that stops early
+			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, migratedChannel, channeltypes.NewChannel(
+				channeltypes.OPEN, channeltypes.UNORDERED, channeltypes.NewCounterparty(portID, "channel-8"), []string{"connection-0"}, "ics20-1",
+			))
+			s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, migratedChannel, migratedSeq)
 			store := s.ctx.KVStore(s.app.keys[ibcexported.StoreKey])
 			tc.malleate(store)
 
 			s.applyUpgrade()
+
+			got, _ := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, migratedChannel)
+			s.Require().Equal(migratedSeq, got)
 
 			got, found := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
 			s.Require().True(found)
 			s.Require().Equal(seq, got)
 			s.Require().False(store.Has(v1Key))
 			aliasedClient, found := s.app.IBCKeeper.ChannelKeeperV2.GetClientForAlias(s.ctx, channelID)
-			s.Require().Equal(tc.expectAlias, found, "only an OPEN UNORDERED channel gets an IBC v2 alias")
+			s.Require().Equal(tc.expAlias, found, "only an OPEN UNORDERED channel gets an IBC v2 alias")
 			counterparty, counterpartyFound := s.app.IBCKeeper.ClientV2Keeper.GetClientCounterparty(s.ctx, channelID)
-			s.Require().Equal(tc.expectAlias, counterpartyFound)
-			if tc.expectAlias {
+			s.Require().Equal(tc.expAlias, counterpartyFound)
+			if tc.expAlias {
 				s.Require().Equal("07-tendermint-0", aliasedClient)
 				s.Require().Equal("channel-9", counterparty.ClientId)
 			}
@@ -481,6 +491,8 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.Require().NoError(s.app.migrateChannelSendSequences(s.ctx))
 			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
 			s.Require().Equal(seq, got, "a second run must keep the send sequence")
+			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, migratedChannel)
+			s.Require().Equal(migratedSeq, got, "a second run must keep the send sequence")
 		})
 	}
 }
