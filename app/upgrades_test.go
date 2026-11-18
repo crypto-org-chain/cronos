@@ -15,7 +15,6 @@ import (
 	legacyparamstypes "github.com/evmos/ethermint/types/legacyparams"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/encoding/protowire"
 
@@ -416,19 +415,41 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 		seq       = uint64(7)
 	)
 	v1Key := channelv11.NextSequenceSendV1Key(portID, channelID)
+	setV1Seq := func(store storetypes.KVStore) { store.Set(v1Key, sdk.Uint64ToBigEndian(seq)) }
 	testCases := []struct {
-		name     string
-		malleate func(store storetypes.KVStore)
+		name        string
+		state       channeltypes.State
+		ordering    channeltypes.Order
+		malleate    func(store storetypes.KVStore)
+		expectAlias bool
 	}{
 		{
-			name:     "sequence under the v1 key",
-			malleate: func(store storetypes.KVStore) { store.Set(v1Key, sdk.Uint64ToBigEndian(seq)) },
+			name:        "open unordered channel, sequence under the v1 key",
+			state:       channeltypes.OPEN,
+			ordering:    channeltypes.UNORDERED,
+			malleate:    setV1Seq,
+			expectAlias: true,
 		},
 		{
-			name: "sequence already under the v2 key",
+			name:     "open unordered channel, sequence already under the v2 key",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.UNORDERED,
 			malleate: func(storetypes.KVStore) {
 				s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, channelID, seq)
 			},
+			expectAlias: true,
+		},
+		{
+			name:     "open ordered channel",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.ORDERED,
+			malleate: setV1Seq,
+		},
+		{
+			name:     "closed unordered channel",
+			state:    channeltypes.CLOSED,
+			ordering: channeltypes.UNORDERED,
+			malleate: setV1Seq,
 		},
 	}
 
@@ -437,7 +458,7 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.SetupTest()
 			s.app.IBCKeeper.ConnectionKeeper.SetConnection(s.ctx, "connection-0", connectiontypes.ConnectionEnd{ClientId: "07-tendermint-0"})
 			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, channelID, channeltypes.NewChannel(
-				channeltypes.OPEN, channeltypes.UNORDERED, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
+				tc.state, tc.ordering, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
 			))
 			store := s.ctx.KVStore(s.app.keys[ibcexported.StoreKey])
 			tc.malleate(store)
@@ -449,11 +470,13 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			s.Require().Equal(seq, got)
 			s.Require().False(store.Has(v1Key))
 			aliasedClient, found := s.app.IBCKeeper.ChannelKeeperV2.GetClientForAlias(s.ctx, channelID)
-			s.Require().True(found, "an OPEN UNORDERED channel must get an IBC v2 alias")
-			s.Require().Equal("07-tendermint-0", aliasedClient)
-			counterparty, found := s.app.IBCKeeper.ClientV2Keeper.GetClientCounterparty(s.ctx, channelID)
-			s.Require().True(found)
-			s.Require().Equal("channel-9", counterparty.ClientId)
+			s.Require().Equal(tc.expectAlias, found, "only an OPEN UNORDERED channel gets an IBC v2 alias")
+			counterparty, counterpartyFound := s.app.IBCKeeper.ClientV2Keeper.GetClientCounterparty(s.ctx, channelID)
+			s.Require().Equal(tc.expectAlias, counterpartyFound)
+			if tc.expectAlias {
+				s.Require().Equal("07-tendermint-0", aliasedClient)
+				s.Require().Equal("channel-9", counterparty.ClientId)
+			}
 
 			s.Require().NoError(s.app.migrateChannelSendSequences(s.ctx))
 			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
@@ -464,7 +487,7 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 
 // v1.9 sizes the commit reserve for ML-DSA-65 signatures for every validator, so
 // a live chain's block.max_bytes must still fit a full validator set.
-func TestCommitReserveFitsLiveBlockSize(t *testing.T) {
+func (s *UpgradeTestSuite) TestCommitReserveFitsLiveBlockSize() {
 	testCases := []struct {
 		name          string
 		maxBytes      int64
@@ -477,13 +500,13 @@ func TestCommitReserveFitsLiveBlockSize(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		s.Run(tc.name, func() {
 			var dataBytes int64
-			require.NotPanics(t, func() {
+			s.Require().NotPanics(func() {
 				dataBytes = cmttypes.MaxDataBytes(tc.maxBytes, tc.evidenceBytes, tc.maxValidators)
 			})
 			// keep at least half the block for transactions
-			require.GreaterOrEqual(t, dataBytes, tc.maxBytes/2)
+			s.Require().GreaterOrEqual(dataBytes, tc.maxBytes/2)
 		})
 	}
 }

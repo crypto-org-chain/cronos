@@ -42,6 +42,15 @@ jobs:
           files: |
             app/**
             x/**
+            go.mod
+            go.sum
+            gomod2nix.toml
+            nix/**
+            integration_tests/utils.py
+            integration_tests/cosmoscli.py
+            integration_tests/network.py
+            integration_tests/ibc_v18.py
+            integration_tests/staking_v1_8.py
             integration_tests/test_upgrade.py
             integration_tests/test_ibc_upgrade.py
             integration_tests/upgrade_utils.py
