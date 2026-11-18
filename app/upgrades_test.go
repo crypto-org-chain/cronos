@@ -19,12 +19,14 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/encoding/protowire"
 
+	"cosmossdk.io/collections"
 	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -218,17 +220,23 @@ func (s *UpgradeTestSuite) TestKeyRotationFeePool() {
 
 func (s *UpgradeTestSuite) TestModuleMigrations() {
 	const customMlDsaCost = uint64(123)
+	encodedTrue, err := collections.BoolValue.Encode(true)
+	s.Require().NoError(err)
+	// The feegrant v1 to v2 migration wrote queue entries with an empty value, which the keeper can't decode.
+	feegrantQueueKey := append([]byte{0x01}, "queued-allowance"...)
+
 	testCases := []struct {
-		name         string
-		malleate     func()
-		expMlDsaCost uint64
+		name                  string
+		malleate              func()
+		expMlDsaCost          uint64
+		expFeegrantQueueValue []byte
 	}{
 		{
-			name: "staking and auth at their v1.8 versions with v1.8 params",
+			name: "staking, auth and feegrant at their v1.8 versions with v1.8 state",
 			malleate: func() {
 				vm, err := s.app.UpgradeKeeper.GetModuleVersionMap(s.ctx)
 				s.Require().NoError(err)
-				vm[stakingtypes.ModuleName], vm[authtypes.ModuleName] = 5, 6
+				vm[stakingtypes.ModuleName], vm[authtypes.ModuleName], vm[feegrant.ModuleName] = 5, 6, 2
 				s.Require().NoError(s.app.UpgradeKeeper.SetModuleVersionMap(s.ctx, vm))
 
 				authParams := s.app.AccountKeeper.GetParams(s.ctx)
@@ -246,7 +254,8 @@ func (s *UpgradeTestSuite) TestModuleMigrations() {
 				s.Require().NoError(err)
 				s.Require().True(stakingParams.KeyRotationFee.Amount.IsNil())
 			},
-			expMlDsaCost: authtypes.DefaultSigVerifyCostMlDsa65,
+			expMlDsaCost:          authtypes.DefaultSigVerifyCostMlDsa65,
+			expFeegrantQueueValue: encodedTrue,
 		},
 		{
 			name: "modules already at current versions skip their migrations",
@@ -255,13 +264,16 @@ func (s *UpgradeTestSuite) TestModuleMigrations() {
 				authParams.SigVerifyCostMlDsa65 = customMlDsaCost
 				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
 			},
-			expMlDsaCost: customMlDsaCost,
+			expMlDsaCost:          customMlDsaCost,
+			expFeegrantQueueValue: []byte{},
 		},
 	}
 
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			s.SetupTest()
+			feegrantStore := s.ctx.KVStore(s.app.keys[feegrant.StoreKey])
+			feegrantStore.Set(feegrantQueueKey, []byte{})
 			tc.malleate()
 
 			s.applyUpgrade()
@@ -270,6 +282,8 @@ func (s *UpgradeTestSuite) TestModuleMigrations() {
 			s.Require().NoError(err)
 			s.Require().Equal(uint64(6), vm[stakingtypes.ModuleName])
 			s.Require().Equal(uint64(7), vm[authtypes.ModuleName])
+			s.Require().Equal(uint64(3), vm[feegrant.ModuleName])
+			s.Require().Equal(tc.expFeegrantQueueValue, feegrantStore.Get(feegrantQueueKey))
 			s.Require().Equal(tc.expMlDsaCost, s.app.AccountKeeper.GetParams(s.ctx).SigVerifyCostMlDsa65)
 			stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
 			s.Require().NoError(err)
