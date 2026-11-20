@@ -28,6 +28,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	"github.com/cosmos/cosmos-sdk/x/gov"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -404,6 +405,39 @@ func (s *UpgradeTestSuite) TestLegacyParamsProposal() {
 					return err
 				}
 				s.Require().Len(genesis.Proposals, 1)
+				return nil
+			},
+		},
+		{
+			name: "proposal in voting at the upgrade fails at execution and refunds its deposit",
+			run: func() error {
+				proposal, err := govv1.NewProposal([]sdk.Msg{msg}, 1, s.ctx.BlockTime(), s.ctx.BlockTime(), "", "title", "summary", proposer, false)
+				s.Require().NoError(err)
+				s.Require().NoError(s.app.GovKeeper.ActivateVotingPeriod(s.ctx, proposal))
+
+				params, err := s.app.GovKeeper.Params.Get(s.ctx)
+				s.Require().NoError(err)
+				deposit := sdk.NewCoins(params.MinDeposit...)
+				s.Require().NoError(s.app.BankKeeper.MintCoins(s.ctx, minttypes.ModuleName, deposit))
+				s.Require().NoError(s.app.BankKeeper.SendCoinsFromModuleToAccount(s.ctx, minttypes.ModuleName, proposer, deposit))
+				_, err = s.app.GovKeeper.AddDeposit(s.ctx, proposal.Id, proposer, deposit)
+				s.Require().NoError(err)
+
+				delegations, err := s.app.StakingKeeper.GetAllDelegations(s.ctx)
+				s.Require().NoError(err)
+				voter := sdk.MustAccAddressFromBech32(delegations[0].DelegatorAddress)
+				s.Require().NoError(s.app.GovKeeper.AddVote(s.ctx, proposal.Id, voter, govv1.NewNonSplitVoteOption(govv1.OptionYes), ""))
+
+				endCtx := s.ctx.WithBlockTime(s.ctx.BlockTime().Add(*params.VotingPeriod))
+				if err := gov.EndBlocker(endCtx, &s.app.GovKeeper); err != nil {
+					return err
+				}
+
+				executed, err := s.app.GovKeeper.Proposals.Get(endCtx, proposal.Id)
+				s.Require().NoError(err)
+				s.Require().Equal(govv1.StatusFailed, executed.Status)
+				s.Require().Contains(executed.FailedReason, govtypes.ErrNoProposalHandlerExists.Error())
+				s.Require().Equal(deposit, s.app.BankKeeper.GetAllBalances(endCtx, proposer))
 				return nil
 			},
 		},
