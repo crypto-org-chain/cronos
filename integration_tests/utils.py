@@ -927,8 +927,11 @@ def comet_validator(cronos, pubkey):
     return found[0]
 
 
-def block_signers(cronos, height):
-    block = comet_rpc(cronos, 0, "block", height=height)["block"]
+def comet_block(cronos, height):
+    return comet_rpc(cronos, 0, "block", height=height)["block"]
+
+
+def block_signers(block):
     return [s["validator_address"] for s in block["last_commit"]["signatures"]]
 
 

@@ -21,6 +21,7 @@ from .utils import (
     approve_proposal,
     assert_gov_params,
     block_signers,
+    comet_block,
     comet_validator,
     deploy_contract,
     eth_to_bech32,
@@ -395,7 +396,9 @@ def check_mldsa65_rotation(c, path):
     addr = comet_validator(c, pubkey["key"])["address"]
     end = wait_for_new_blocks(cli, 5)
     wait_for_block(cli2, end)
-    signed = any(addr in block_signers(c, h) for h in range(end - 4, end + 1))
+    signed = any(
+        addr in block_signers(comet_block(c, h)) for h in range(end - 4, end + 1)
+    )
     assert signed, "node2 never signed with its ML-DSA-65 key"
 
 

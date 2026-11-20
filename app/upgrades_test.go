@@ -3,6 +3,7 @@ package app
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -138,6 +139,9 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			// an entry that no longer decodes must not stop the pruning
 			store := s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey])
 			store.Set(stakingtypes.GetHistoricalInfoKey(upgradeTestHeight-2), []byte{0xff})
+			// nor a gap, below which nothing else would ever prune
+			const gapHeight = upgradeTestHeight - 5
+			store.Delete(stakingtypes.GetHistoricalInfoKey(gapHeight))
 			tc.malleate()
 
 			s.applyUpgrade()
@@ -146,7 +150,7 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			s.Require().NoError(err)
 			s.Require().Equal(sdk.NewCoin(params.BondDenom, sdkmath.OneInt()), params.KeyRotationFee)
 			for h := firstHistorical; h < upgradeTestHeight; h++ {
-				s.Require().Equal(!tc.expDisabled, store.Has(stakingtypes.GetHistoricalInfoKey(h)), "height %d", h)
+				s.Require().Equal(!tc.expDisabled && h != gapHeight, store.Has(stakingtypes.GetHistoricalInfoKey(h)), "height %d", h)
 			}
 			if !tc.expDisabled {
 				s.Require().Equal(before.HistoricalEntries, params.HistoricalEntries)
@@ -157,6 +161,64 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			for h := upgradeTestHeight - headerHashNum; h < upgradeTestHeight; h++ {
 				s.Require().Equal(testHeaderHash(h), getHash(uint64(h)), "BLOCKHASH(%d)", h)
 			}
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestStakingQueuePendingSlots() {
+	completion := time.Unix(1_900_000_000, 0).UTC()
+	testCases := []struct {
+		name     string
+		indexKey []byte
+		malleate func()
+		slots    func() ([]time.Time, error)
+	}{
+		{
+			name:     "unbonding delegation queue",
+			indexKey: stakingtypes.UBDQueuePendingSlotsKey,
+			malleate: func() {
+				s.Require().NoError(s.app.StakingKeeper.SetUBDQueueTimeSlice(s.ctx, completion, []stakingtypes.DVPair{{}}))
+			},
+			slots: func() ([]time.Time, error) { return s.app.StakingKeeper.GetUBDQueuePendingSlots(s.ctx) },
+		},
+		{
+			name:     "redelegation queue",
+			indexKey: stakingtypes.RedelegationQueuePendingSlotsKey,
+			malleate: func() {
+				s.Require().NoError(s.app.StakingKeeper.SetRedelegationQueueTimeSlice(s.ctx, completion, []stakingtypes.DVVTriplet{{}}))
+			},
+			slots: func() ([]time.Time, error) { return s.app.StakingKeeper.GetRedelegationQueuePendingSlots(s.ctx) },
+		},
+		{
+			name:     "unbonding validator queue",
+			indexKey: stakingtypes.ValidatorQueuePendingSlotsKey,
+			malleate: func() {
+				s.Require().NoError(s.app.StakingKeeper.SetUnbondingValidatorsQueue(s.ctx, completion, upgradeTestHeight, []string{"validator"}))
+			},
+			slots: func() ([]time.Time, error) {
+				slots, err := s.app.StakingKeeper.GetValidatorQueuePendingSlots(s.ctx)
+				times := make([]time.Time, 0, len(slots))
+				for _, slot := range slots {
+					times = append(times, slot.Time)
+				}
+				return times, err
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.malleate()
+			// a queue entry with no index, as on a chain that never ran the v1.8 handler
+			s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey]).Delete(tc.indexKey)
+
+			s.applyUpgrade()
+
+			slots, err := tc.slots()
+			s.Require().NoError(err)
+			s.Require().Len(slots, 1)
+			s.Require().True(completion.Equal(slots[0]), "got %s", slots[0])
 		})
 	}
 }
@@ -472,12 +534,14 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 
 			s.applyUpgrade()
 
-			got, _ := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, migratedChannel)
-			s.Require().Equal(migratedSeq, got)
-
-			got, found := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
-			s.Require().True(found)
-			s.Require().Equal(seq, got)
+			requireSeqs := func(msg string) {
+				for id, exp := range map[string]uint64{channelID: seq, migratedChannel: migratedSeq} {
+					got, found := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, id)
+					s.Require().True(found, msg)
+					s.Require().Equal(exp, got, msg)
+				}
+			}
+			requireSeqs("the upgrade must keep the send sequence")
 			s.Require().False(store.Has(v1Key))
 			aliasedClient, found := s.app.IBCKeeper.ChannelKeeperV2.GetClientForAlias(s.ctx, channelID)
 			s.Require().Equal(tc.expAlias, found, "only an OPEN UNORDERED channel gets an IBC v2 alias")
@@ -489,10 +553,7 @@ func (s *UpgradeTestSuite) TestIBCSendSequence() {
 			}
 
 			s.Require().NoError(s.app.migrateChannelSendSequences(s.ctx))
-			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, channelID)
-			s.Require().Equal(seq, got, "a second run must keep the send sequence")
-			got, _ = s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, migratedChannel)
-			s.Require().Equal(migratedSeq, got, "a second run must keep the send sequence")
+			requireSeqs("a second run must keep the send sequence")
 		})
 	}
 }

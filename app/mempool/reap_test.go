@@ -37,7 +37,7 @@ func (s *stubFeeTx) FeeGranter() []byte                    { return nil }
 
 type stubIterator struct {
 	txs       []sdk.Tx
-	gasWanted map[sdk.Tx]uint64
+	gasWanted uint64
 	i         int
 }
 
@@ -53,13 +53,12 @@ func (it *stubIterator) Tx() sdkmempool.PooledTx {
 	if it.i >= len(it.txs) {
 		return sdkmempool.PooledTx{}
 	}
-	tx := it.txs[it.i]
-	return sdkmempool.NewPooledTx(tx, it.gasWanted[tx])
+	return sdkmempool.NewPooledTx(it.txs[it.i], it.gasWanted)
 }
 
 type stubMempool struct {
 	txs       []sdk.Tx
-	gasWanted map[sdk.Tx]uint64 // ante-reported gas; missing means 0
+	gasWanted uint64 // ante-reported gas for every tx; 0 means none
 }
 
 func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx, _ sdkmempool.InsertOption) error {
@@ -438,10 +437,7 @@ func (s *ReapGasTestSuite) TestGasCapUsesAnteGasWanted() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			pool := newPool(3, tc.declared, 8)
-			pool.gasWanted = make(map[sdk.Tx]uint64, len(pool.txs))
-			for _, tx := range pool.txs {
-				pool.gasWanted[tx] = tc.gasWanted
-			}
+			pool.gasWanted = tc.gasWanted
 			resp, err := newReapHandler(pool, encoderFixedWire, nil)(&abci.RequestReapTxs{MaxGas: 100_000})
 			s.Require().NoError(err)
 			s.Require().Len(resp.Txs, tc.expTxs)

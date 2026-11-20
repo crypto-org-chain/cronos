@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	channelv11 "github.com/cosmos/ibc-go/v11/modules/core/04-channel/migrations/v11"
-	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/evmos/ethermint/upgrades/sdk55"
@@ -14,6 +13,7 @@ import (
 	"cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -34,8 +34,11 @@ func (app *App) RegisterUpgradeHandlers() {
 			if err != nil {
 				return toVM, err
 			}
-			// After RunMigrations, so an unguarded copy of this migration that a later ibc-go
-			// release registers runs first and this run keeps its result.
+			// Queue entries missing from the pending-slot index never mature; the rebuild is a full scan and safe to repeat.
+			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
+				return toVM, fmt.Errorf("populate staking queue pending slots: %w", err)
+			}
+			// After RunMigrations, so a copy of this migration a later ibc-go release registers runs first and this run keeps its result.
 			if err := app.migrateChannelSendSequences(sdkCtx); err != nil {
 				return toVM, fmt.Errorf("migrate ibc channel send sequences: %w", err)
 			}
@@ -47,23 +50,20 @@ func (app *App) RegisterUpgradeHandlers() {
 	)
 }
 
-// migrateChannelSendSequences moves IBC v1 channel send sequences to the key ibc-go v11.2.1 reads,
-// which ibc-go registers no migration for. Safe to repeat and to run after an upstream copy of the
-// migration, but it cannot restore a sequence that a repeated upstream run already set to 0.
+// migrateChannelSendSequences runs the send-sequence migration ibc-go v11.2.1 ships but never registers.
+// Safe to repeat, but it cannot restore a sequence that a repeated upstream run already set to 0.
 func (app *App) migrateChannelSendSequences(ctx sdk.Context) error {
-	// ibc-go's MigrateStore sets every channel without a v1 key to sequence 0, so first copy an
-	// already-migrated sequence back to the v1 key for it to move again.
+	// MigrateStore sets every channel without a v1 key to sequence 0, so copy an already-migrated sequence back first.
 	ibcStore := runtime.NewKVStoreService(app.keys[ibcexported.StoreKey])
 	store := ibcStore.OpenKVStore(ctx)
-	var err error
-	app.IBCKeeper.ChannelKeeper.IterateChannels(ctx, func(ic channeltypes.IdentifiedChannel) bool {
-		if seq, found := app.IBCKeeper.ChannelKeeperV2.GetNextSequenceSend(ctx, ic.ChannelId); found {
-			err = store.Set(channelv11.NextSequenceSendV1Key(ic.PortId, ic.ChannelId), sdk.Uint64ToBigEndian(seq))
+	for _, ic := range app.IBCKeeper.ChannelKeeper.GetAllChannels(ctx) {
+		seq, found := app.IBCKeeper.ChannelKeeperV2.GetNextSequenceSend(ctx, ic.ChannelId)
+		if !found {
+			continue
 		}
-		return err != nil
-	})
-	if err != nil {
-		return err
+		if err := store.Set(channelv11.NextSequenceSendV1Key(ic.PortId, ic.ChannelId), sdk.Uint64ToBigEndian(seq)); err != nil {
+			return err
+		}
 	}
 	return channelv11.MigrateStore(ctx, ibcStore, app.appCodec, app.IBCKeeper)
 }
@@ -116,15 +116,16 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) error {
 	return nil
 }
 
-// pruneHistoricalInfo deletes entries from the block before the upgrade downward, since TrackHistoricalInfo
-// with zero entries stops at the current height. Raw keys avoid failing on an entry that no longer decodes.
+// pruneHistoricalInfo deletes by raw key prefix: TrackHistoricalInfo with zero entries prunes nothing older, and an entry may no longer decode.
 func (app *App) pruneHistoricalInfo(ctx sdk.Context) {
 	store := ctx.KVStore(app.keys[stakingtypes.StoreKey])
-	for h := ctx.BlockHeight() - 1; h >= 0; h-- {
-		key := stakingtypes.GetHistoricalInfoKey(h)
-		if !store.Has(key) {
-			return
-		}
+	var keys [][]byte
+	iter := storetypes.KVStorePrefixIterator(store, stakingtypes.HistoricalInfoKey)
+	for ; iter.Valid(); iter.Next() {
+		keys = append(keys, iter.Key())
+	}
+	iter.Close()
+	for _, key := range keys {
 		store.Delete(key)
 	}
 }

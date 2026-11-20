@@ -11,6 +11,8 @@ from .utils import (
     MLDSA65,
     ROTATED,
     bech32_to_eth,
+    block_signers,
+    comet_block,
     comet_rpc,
     comet_validator,
     comet_validators,
@@ -197,8 +199,8 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     signed = {i: False for i in ROTATED}
     proposed = {i: [] for i in ROTATED}
     for height in range(rotation_height, end + 1):
-        block = comet_rpc(cronos, 0, "block", height=height)["block"]
-        signers = [s["validator_address"] for s in block["last_commit"]["signatures"]]
+        block = comet_block(cronos, height)
+        signers = block_signers(block)
         for i in ROTATED:
             signed[i] |= new_addrs[i] in signers
             if block["header"]["proposer_address"] in (old_addrs[i], new_addrs[i]):
