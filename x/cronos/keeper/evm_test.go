@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"math/big"
 
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
@@ -18,6 +19,37 @@ func (suite *KeeperTestSuite) TestDeployContract() {
 
 	_, err := keeper.DeployModuleCRC21(suite.ctx, "test")
 	suite.Require().NoError(err)
+}
+
+func (suite *KeeperTestSuite) TestCallEVMValue() {
+	testCases := []struct {
+		name   string
+		value  *big.Int
+		expErr error
+	}{
+		{
+			name:  "zero",
+			value: big.NewInt(0),
+		},
+		{
+			name:   "above uint256",
+			value:  new(big.Int).Lsh(big.NewInt(1), 256),
+			expErr: types.ErrCallValueOverflow,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			to := common.BytesToAddress([]byte("receiver"))
+			_, _, err := suite.app.CronosKeeper.CallEVM(suite.ctx, &to, nil, tc.value, cronosmodulekeeper.DefaultGasCap)
+			if tc.expErr != nil {
+				suite.Require().ErrorIs(err, tc.expErr)
+				return
+			}
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func (suite *KeeperTestSuite) TestTokenConversion() {

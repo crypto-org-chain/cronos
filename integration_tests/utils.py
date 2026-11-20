@@ -912,9 +912,8 @@ ROTATED = (2, 3)
 
 def comet_rpc(cronos, i, path, **params):
     port = ports.rpc_port(cronos.base_port(i))
-    return requests.get(f"http://127.0.0.1:{port}/{path}", params=params).json()[
-        "result"
-    ]
+    url = f"http://127.0.0.1:{port}/{path}"
+    return requests.get(url, params=params, timeout=10).json()["result"]
 
 
 def comet_validators(cronos, i=0):

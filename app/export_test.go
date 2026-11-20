@@ -48,6 +48,7 @@ func (s *ExportTestSuite) uncachedCtx() sdk.Context {
 }
 
 func (s *ExportTestSuite) finalizeAndCommit() {
+	s.T().Helper()
 	_, err := s.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height:          s.app.LastBlockHeight() + 1,
 		Hash:            s.app.LastCommitID().Hash,

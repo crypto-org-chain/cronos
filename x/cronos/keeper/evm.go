@@ -13,6 +13,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/holiman/uint256"
 
+	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -25,7 +26,7 @@ const DefaultGasCap uint64 = 25000000
 func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*core.Message, *evmtypes.EVMResult, error) {
 	amount, overflow := uint256.FromBig(value)
 	if overflow {
-		return nil, nil, fmt.Errorf("call value overflows uint256: %s", value)
+		return nil, nil, errorsmod.Wrapf(types.ErrCallValueOverflow, "value %s", value)
 	}
 	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
 	msg := &core.Message{
