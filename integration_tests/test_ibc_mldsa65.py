@@ -5,8 +5,8 @@ import pytest
 from pystarport import cluster, ports
 
 from .cosmoscli import signed_rotations_tx
-from .ibc_utils import call_hermes_cmd, call_rly_cmd, ibc_denom
-from .network import Cronos, Hermes, setup_custom_cronos
+from .ibc_utils import RATIO, call_hermes_cmd, call_rly_cmd, ibc_denom
+from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
 from .utils import (
     MLDSA65,
     ROTATED,
@@ -22,10 +22,20 @@ from .utils import (
 )
 
 ROTATED_CHAIN = "cronos_777-1"
-COUNTERPARTY = "cronos_778-1"
+CHAINMAIN = "chainmain-1"
+CRONOS_PEER = "cronos_778-1"
 CHANNEL = "channel-0"
-DENOM = "basetcro"
 AMOUNT = 100
+DENOMS = {ROTATED_CHAIN: "basetcro", CRONOS_PEER: "basetcro", CHAINMAIN: "basecro"}
+CONFIGS = {
+    CHAINMAIN: "configs/ibc_mldsa65_chainmain.jsonnet",
+    CRONOS_PEER: "configs/ibc_mldsa65.jsonnet",
+}
+# the marks only pick the CI shard; nothing here is EVM-specific
+RELAYER_MARKS = {
+    cluster.Relayer.RLY.value: pytest.mark.ibc_rly_evm,
+    cluster.Relayer.HERMES.value: pytest.mark.ibc_update_client,
+}
 
 
 def rotate_to_mldsa65(cronos, tmp_path):
@@ -48,24 +58,25 @@ def rotate_to_mldsa65(cronos, tmp_path):
     return apply_height
 
 
-# the marks only pick the CI shard; nothing here is EVM-specific
 @pytest.fixture(
     scope="module",
     params=[
-        pytest.param(cluster.Relayer.RLY.value, marks=pytest.mark.ibc_rly_evm),
-        pytest.param(cluster.Relayer.HERMES.value, marks=pytest.mark.ibc_update_client),
+        pytest.param((relayer, peer), marks=mark, id=f"{relayer}-{peer}")
+        for relayer, mark in RELAYER_MARKS.items()
+        for peer in CONFIGS
     ],
 )
 def network(request, tmp_path_factory):
-    """Two cronos chains joined by a relayer, and the first one's rotation height."""
-    relayer = request.param
+    """The rotated cronos chain and a counterparty joined by a relayer."""
+    relayer, peer = request.param
     with contextmanager(setup_custom_cronos)(
-        tmp_path_factory.mktemp(f"ibc_{relayer}_mldsa65"),
+        tmp_path_factory.mktemp(f"ibc_{relayer}_{peer}_mldsa65"),
         26700,
-        Path(__file__).parent / "configs/ibc_mldsa65.jsonnet",
+        Path(__file__).parent / CONFIGS[peer],
         relayer=relayer,
     ) as cronos:
-        counterparty = Cronos(cronos.base_dir.parent / COUNTERPARTY)
+        peer_cls = Chainmain if peer == CHAINMAIN else Cronos
+        counterparty = peer_cls(cronos.base_dir.parent / peer)
         for chain in (cronos, counterparty):
             wait_for_port(ports.grpc_port(chain.base_port(0)))
             wait_for_new_blocks(chain.cosmos_cli(), 1)
@@ -77,7 +88,7 @@ def network(request, tmp_path_factory):
                 incentivized=False,
                 version="ics20-1",
                 is_ibc_transfer=True,
-                hostchain=COUNTERPARTY,
+                hostchain=peer,
             )
         else:
             call_rly_cmd(
@@ -85,33 +96,36 @@ def network(request, tmp_path_factory):
                 connection_only=False,
                 incentivized=False,
                 version="ics20-1",
-                hostchain=COUNTERPARTY,
+                hostchain=peer,
             )
         # started before the rotation, so the relayer must process the validator update
         cronos.supervisorctl("start", "relayer-demo")
         height = rotate_to_mldsa65(cronos, tmp_path_factory.mktemp("mldsa65_keys"))
-        yield {ROTATED_CHAIN: cronos, COUNTERPARTY: counterparty}, height
+        yield {ROTATED_CHAIN: cronos, peer: counterparty}, peer, height
 
 
-@pytest.mark.parametrize(
-    "src,dst",
-    [(ROTATED_CHAIN, COUNTERPARTY), (COUNTERPARTY, ROTATED_CHAIN)],
-)
-def test_relay_with_mldsa65_validators(network, src, dst):
-    chains, apply_height = network
+@pytest.mark.parametrize("outbound", [True, False], ids=["from_rotated", "to_rotated"])
+def test_relay_with_mldsa65_validators(network, outbound):
+    chains, peer, apply_height = network
+    src, dst = (ROTATED_CHAIN, peer) if outbound else (peer, ROTATED_CHAIN)
     src_cli = chains[src].cosmos_cli()
     dst_cli = chains[dst].cosmos_cli()
     receiver = dst_cli.address("signer2")
-    voucher = ibc_denom(CHANNEL, DENOM)
-    old_balance = dst_cli.balance(receiver, voucher)
+    denom = DENOMS[src]
+    if src == CHAINMAIN:
+        # cronos converts the CRO voucher to basetcro, with 10 more decimals
+        dst_denom, dst_amount = DENOMS[ROTATED_CHAIN], AMOUNT * RATIO
+    else:
+        dst_denom, dst_amount = ibc_denom(CHANNEL, denom), AMOUNT
+    old_balance = dst_cli.balance(receiver, dst_denom)
 
     rsp = src_cli.ibc_transfer(
-        "signer2", receiver, f"{AMOUNT}{DENOM}", CHANNEL, event_query_tx_for=True
+        "signer2", receiver, f"{AMOUNT}{denom}", CHANNEL, event_query_tx_for=True
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
     def received():
-        return dst_cli.balance(receiver, voucher) == old_balance + AMOUNT
+        return dst_cli.balance(receiver, dst_denom) == old_balance + dst_amount
 
     wait_for_fn("packet received", received)
 
@@ -123,7 +137,7 @@ def test_relay_with_mldsa65_validators(network, src, dst):
     wait_for_fn("packet acknowledged", acknowledged)
 
     # either direction needs the counterparty to verify a post-rotation header
-    cli = chains[COUNTERPARTY].cosmos_cli()
+    cli = chains[peer].cosmos_cli()
     client = cli.ibc_query_client_state("transfer", CHANNEL)
     latest = int(client["client_state"]["latest_height"]["revision_height"])
     assert latest > apply_height, latest

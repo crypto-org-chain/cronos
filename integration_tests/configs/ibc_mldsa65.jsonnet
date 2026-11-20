@@ -1,20 +1,13 @@
 local ibc = import 'ibc.jsonnet';
-local rotation = import 'cons_key_rotation.jsonnet';
+local rotated = import 'ibc_mldsa65_chainmain.jsonnet';
 local cronos = ibc['cronos_777-1'];
 local relayer_chain = ibc.relayer.chains[0];
 
-// The pinned chain-main's cometbft predates ML-DSA-65 support (v0.38.26), so
-// the counterparty is a second cronos chain.
+// Same rotated chain as the chain-main case, with a second cronos chain as the
+// counterparty to cover Cronos's own light client.
 {
   dotenv: ibc.dotenv,
-  'cronos_777-1': cronos {
-    validators: rotation['cronos_777-1'].validators,
-    genesis+: {
-      app_state+: {
-        staking: rotation['cronos_777-1'].genesis.app_state.staking,
-      },
-    },
-  },
+  'cronos_777-1': rotated['cronos_777-1'],
   'cronos_778-1': cronos {
     'app-config'+: {
       chain_id: 'cronos_778-1',
