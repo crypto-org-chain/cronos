@@ -56,6 +56,7 @@ def call_hermes_cmd(
     incentivized,
     version,
     is_ibc_transfer=False,
+    hostchain="chainmain-1",
 ):
     if connection_only:
         subprocess.check_call(
@@ -68,7 +69,7 @@ def call_hermes_cmd(
                 "--a-chain",
                 "cronos_777-1",
                 "--b-chain",
-                "chainmain-1",
+                hostchain,
             ]
         )
     else:
@@ -86,7 +87,7 @@ def call_hermes_cmd(
                 "--a-chain",
                 "cronos_777-1",
                 "--b-chain",
-                "chainmain-1",
+                hostchain,
                 "--new-client-connection",
                 "--yes",
             ]
@@ -152,6 +153,8 @@ def prepare_network(
     need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
     is_ibc_transfer=False,
+    post_init=None,
+    cronos_binary=None,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
@@ -176,8 +179,13 @@ def prepare_network(
         tmp_path,
         26700,
         Path(__file__).parent / file_path,
+        post_init=post_init,
         relayer=relayer,
     ) as cronos:
+        # Set per chain: setup_custom_cronos's chain_binary would replace
+        # chainmain's binary too.
+        if cronos_binary is not None:
+            cronos.chain_binary = cronos_binary
         cli = cronos.cosmos_cli()
         path = cronos.base_dir.parent / "relayer"
         if grantee:

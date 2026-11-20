@@ -55,11 +55,11 @@ func (p *PriorityMempool) rejectResend(replace func(op, np int64, oTx, nTx sdk.T
 	}
 }
 
-func (p *PriorityMempool) Insert(ctx context.Context, tx sdk.Tx) error {
+func (p *PriorityMempool) Insert(ctx context.Context, tx sdk.Tx, opt sdkmempool.InsertOption) error {
 	p.insertMu.Lock()
 	defer p.insertMu.Unlock()
 	p.resendSeen = false
-	err := p.PriorityNonceMempool.Insert(ctx, tx)
+	err := p.PriorityNonceMempool.Insert(ctx, tx, opt)
 	if p.resendSeen || p.isResendIntoFullPool(ctx, tx, err) {
 		return sdkerrors.ErrTxInMempoolCache
 	}

@@ -36,8 +36,8 @@ func TestExtTxSelector(t *testing.T) {
 
 	t.Run("blocklist reject skips tx, keeps scanning", func(t *testing.T) {
 		ts := NewExtTxSelector(rejectInvalid, nil)
-		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte(invalidTx))
-		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("ok"))
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte(invalidTx), 0)
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("ok"), 0)
 		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
@@ -45,25 +45,33 @@ func TestExtTxSelector(t *testing.T) {
 		orig := &stubTx{}
 		var captured sdk.Tx
 		ts := NewExtTxSelector(func(tx sdk.Tx, _ []byte) error { captured = tx; return nil }, nil)
-		ts.SelectTxForProposal(bg, maxB, maxB, orig, []byte("ok"))
+		ts.SelectTxForProposal(bg, maxB, maxB, orig, []byte("ok"), 0)
 		require.Same(t, orig, captured)
 	})
 
 	t.Run("MaxTxBytes: too-large tx skipped, block fills to budget", func(t *testing.T) {
 		// "raw-X" framed = tag(1)+len(1)+5 = 7 bytes. Budget 14 → two fit.
 		ts := NewExtTxSelector(acceptAll, nil)
-		require.False(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-1")))
-		require.True(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-2")), "full at 14 bytes")
-		ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-3")) // would overflow → skipped
+		require.False(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-1"), 0))
+		require.True(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-2"), 0), "full at 14 bytes")
+		ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-3"), 0) // would overflow → skipped
 		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, ts.SelectedTxs(bg))
 	})
 
 	t.Run("MaxBlockGas: over-budget tx skipped, smaller still fits", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
-		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("a"))
-		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("b")) // 60k+60k>100k → skip
-		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 40_000}, []byte("c")) // 60k+40k=100k → fits
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("a"), 0)
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("b"), 0) // 60k+60k>100k → skip
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 40_000}, []byte("c"), 0) // 60k+40k=100k → fits
 		require.Equal(t, [][]byte{[]byte("a"), []byte("c")}, ts.SelectedTxs(bg))
+	})
+
+	t.Run("MaxBlockGas: ante gasWanted overrides declared gas", func(t *testing.T) {
+		ts := NewExtTxSelector(acceptAll, nil)
+		for _, bz := range []string{"a", "b", "c"} {
+			ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte(bz), 30_000)
+		}
+		require.Equal(t, [][]byte{[]byte("a"), []byte("b"), []byte("c")}, ts.SelectedTxs(bg))
 	})
 
 	t.Run("baseFee gate excludes feeCap below baseFee", func(t *testing.T) {
@@ -72,8 +80,8 @@ func TestExtTxSelector(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))} // 10 < 20 → excluded
 		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // 40 >= 20 → kept
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"), 0)
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"), 0)
 		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
@@ -83,8 +91,8 @@ func TestExtTxSelector(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))} // feeCap=10 < 20 → skip
 		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // feeCap=40 >= 20 → select
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"), 0)
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"), 0)
 		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped())
 		require.Nil(t, ts.DrainGateSkipped(), "second drain must be nil")
 	})
@@ -101,7 +109,7 @@ func TestExtTxSelector(t *testing.T) {
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"), 0)
 		ts.Clear() // simulates the defer inside DefaultProposalHandler.PrepareProposalHandler
 		require.Equal(t, [][]byte{[]byte("low")}, ts.DrainGateSkipped(), "gateSkipped must survive Clear()")
 		require.Nil(t, ts.DrainGateSkipped(), "DrainGateSkipped itself must null the slice")
@@ -111,13 +119,13 @@ func TestExtTxSelector(t *testing.T) {
 		feeFn := func(_ sdk.Context) (*big.Int, string) { return nil, "basecro" }
 		ts := NewExtTxSelector(acceptAll, feeFn)
 		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin("basecro", 1))}
-		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"), 0)
 		require.Equal(t, [][]byte{[]byte("low")}, ts.SelectedTxs(bg))
 	})
 
 	t.Run("Clear resets selection and baseFee cache", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
-		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("a"))
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("a"), 0)
 		ts.Clear()
 		require.Empty(t, ts.SelectedTxs(bg))
 		require.Nil(t, ts.baseFee)

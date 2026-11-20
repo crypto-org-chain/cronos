@@ -31,6 +31,7 @@ class ModuleAccount(enum.Enum):
     BondedPool = "bonded_tokens_pool"
     NotBondedPool = "not_bonded_tokens_pool"
     IBCTransfer = "transfer"
+    KeyRotationFeePool = "key_rotation_fee_pool"
 
 
 @format_doc_string(
@@ -44,6 +45,22 @@ def module_address(name, prefix=CRONOS_ADDRESS_PREFIX):
     """
     data = hashlib.sha256(ModuleAccount(name).value.encode()).digest()[:20]
     return bech32.bech32_encode(prefix, bech32.convertbits(data, 8, 5))
+
+
+def signed_rotations_tx(clis, pubkeys, path):
+    """One tx with every operator's rotation, so they all apply in the same block."""
+    first, *rest = clis
+    gas = int(DEFAULT_GAS) * len(clis)
+    tx = clis[first].rotate_cons_pubkey(pubkeys[first], generate_only=True, gas=gas)
+    for i in rest:
+        other = clis[i].rotate_cons_pubkey(pubkeys[i], generate_only=True)
+        tx["body"]["messages"] += other["body"]["messages"]
+    for i in clis:
+        path.write_text(json.dumps(tx))
+        # amino-json signs neither signer_infos nor other signatures, so each
+        # operator can append its signature without invalidating the earlier ones
+        tx = clis[i].sign_single_tx(path, "validator", sign_mode="amino-json")
+    return tx
 
 
 class ChainCommand:
@@ -130,20 +147,6 @@ class CosmosCLI:
             home=data_dir,
         )
         return cls(data_dir, node_rpc, cmd)
-
-    def migrate_sdk_genesis(self, version, path):
-        return json.loads(self.raw("migrate", version, path))
-
-    def migrate_cronos_genesis(self, version, path):
-        return json.loads(
-            self.raw(
-                "tx",
-                "cronos",
-                "migrate",
-                version,
-                path,
-            )
-        )
 
     def validate_genesis(self, path):
         return self.raw("validate-genesis", path)
@@ -586,7 +589,7 @@ class CosmosCLI:
             signed_tx,
         )
 
-    def sign_single_tx(self, tx_file, signer_name):
+    def sign_single_tx(self, tx_file, signer_name, **kwargs):
         return json.loads(
             self.raw(
                 "tx",
@@ -597,6 +600,7 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                **kwargs,
             )
         )
 
@@ -753,6 +757,30 @@ class CosmosCLI:
                 **{k: v for k, v in options.items() if v is not None},
             )
         )
+
+    def rotate_cons_pubkey(self, pubkey, generate_only=False, **kwargs):
+        """MsgRotateConsPubKey"""
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "staking",
+                "rotate-cons-pub-key",
+                json.dumps(pubkey),
+                "-y",
+                "--generate-only" if generate_only else None,
+                from_=self.address("validator"),
+                home=self.data_dir,
+                node=self.node_rpc,
+                keyring_backend="test",
+                chain_id=self.chain_id,
+                **kwargs,
+            )
+        )
+        if not generate_only and rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def gov_propose_legacy(self, proposer, kind, proposal, mode="block", **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
@@ -1566,6 +1594,23 @@ class CosmosCLI:
             )
         )
 
+    def ibc_query_packet_commitments(self, port_id, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "packet-commitments",
+                port_id,
+                channel_id,
+                **(default_kwargs | kwargs),
+            )
+        )
+
     def ibc_query_ack(self, port_id, channel_id, packet_seq, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,
@@ -1634,9 +1679,28 @@ class CosmosCLI:
             )
         )
 
+    def ibc_create_client(self, client_state, consensus_state, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "ibc",
+                "client",
+                "create",
+                client_state,
+                consensus_state,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def ibc_update_client_with_header(self, client_id, header, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc",
@@ -1649,6 +1713,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_gravity_contract_by_denom(self, denom: str):
         "query CosmosERC20 contract address by denom"

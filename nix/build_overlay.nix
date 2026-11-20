@@ -9,31 +9,14 @@ let
     if len == 0 then [ ] else final.lib.lists.take (len - 1) l ++ [ newVal ];
 in
 {
-  # Override go_1_24 to create go_1_25 with Windows platform support
-  # Native nixpkgs go_1_25 doesn't support Windows (x86_64-windows not in meta.platforms)
-  # By overriding go_1_24, we inherit its Windows support
-  # See: https://github.com/crypto-org-chain/chain-main/pull/1220
-  go_1_25 = super.go_1_24.overrideAttrs (old: rec {
-    version = "1.25.11";
+  # Dependencies require go 1.26.11, newer than nixpkgs' go_1_26.
+  # Native nixpkgs go lists no Windows platforms; see https://github.com/crypto-org-chain/chain-main/pull/1220
+  go_1_26 = super.go_1_26.overrideAttrs (old: rec {
+    version = "1.26.11";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-e05bB5s8m8QgNzymhiGilrTRPBBzXUrKxBcZKNcPVIA=";
+      hash = "sha256-1EEBsP8n7SpMda1GwXucdDWSCeLrLKfJ32y0/baOGWk=";
     };
-    # Filter out patches that don't apply to Go 1.25
-    patches = builtins.filter (
-      patch:
-      let
-        name = builtins.baseNameOf (builtins.toString patch);
-      in
-      !(final.lib.hasSuffix "iana-etc-1.17.patch" name)
-    ) (old.patches or [ ]);
-    # Apply the iana-etc substitutions manually for Go 1.25
-    postPatch = (old.postPatch or "") + ''
-      substituteInPlace src/net/lookup_unix.go \
-        --replace 'open("/etc/protocols")' 'open("${final.iana-etc}/etc/protocols")'
-      substituteInPlace src/net/port_unix.go \
-        --replace 'open("/etc/services")' 'open("${final.iana-etc}/etc/services")'
-    '';
     # Some cross toolchains (notably MinGW with LLVM) don't expose `threads`
     # in targetPackages; fall back to the pthreads implementation when
     # available to keep cross builds evaluable.
@@ -49,6 +32,16 @@ in
             null;
       in
       final.lib.optional (final.stdenv.targetPlatform.isMinGW && threadsPkg != null) threadsPkg;
+    # Cross builds link the toolchain's own Windows tools externally, and those pure-Go
+    # tools lack runtime/cgo's _cgo_stub_export; export it only when it is defined.
+    # Pure-Go binaries linked externally then lose PIE, as on Go 1.25; cgo binaries are unchanged.
+    postPatch =
+      (old.postPatch or "")
+      + final.lib.optionalString final.stdenv.targetPlatform.isWindows ''
+        substituteInPlace src/cmd/link/internal/ld/pe.go \
+          --replace-fail 'if len(exports) == 0 {' \
+            'if len(exports) == 0 && ldr.Lookup("_cgo_stub_export", 0) != 0 {'
+      '';
     meta = old.meta // {
       platforms = final.lib.unique (
         (old.meta.platforms or [ ])

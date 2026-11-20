@@ -11,23 +11,17 @@ import sources.nixpkgs {
       dapptools-master = sources.dapptools-master;
     })
     (final: pkgs: {
-      go = final.go_1_25;
+      go = final.go_1_26;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         buildGoModule = pkgs.buildGoModule;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind =
-        (pkgs.callPackage sources.chain-main {
-          rocksdb = null;
-          buildPackages = pkgs.buildPackages // {
-            go_1_23 = final.buildPackages.go_1_25;
-          };
-        }).overrideAttrs
-          (old: {
-            # Fix modRoot issue - gomod2nix builder needs modRoot set to non-null
-            # See: https://github.com/crypto-org-chain/chain-main/pull/1220
-            modRoot = ".";
-          });
+      chain-maind = pkgs.callPackage sources.chain-main {
+        rocksdb = null;
+        buildPackages = pkgs.buildPackages // {
+          go_1_25 = final.buildPackages.go_1_26;
+        };
+      };
     })
     (import "${sources.poetry2nix}/overlay.nix")
     (
@@ -78,7 +72,7 @@ import sources.nixpkgs {
         };
       };
     })
-    (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { }; })
+    (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { inherit sources; }; })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
@@ -86,7 +80,7 @@ import sources.nixpkgs {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorHash = "sha256-dwKZZu9wKOo2u1/8AAWFx89iC9pWZbCxAERMMAOFsts=";
+        vendorHash = "sha256-nOPSprQKYlEu6UWEX16c6Qww6wjxS/W8rschZQZl8Eo=";
         doCheck = false;
         env.GOWORK = "off";
         postInstall = ''

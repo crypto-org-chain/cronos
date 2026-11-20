@@ -66,9 +66,9 @@ func (s *PriorityPoolTestSuite) TestInsertResend() {
 				TxReplacement: func(_, _ int64, _, _ sdk.Tx) bool { return tc.allow },
 				MaxTx:         tc.maxTx,
 			}, nil)
-			s.Require().NoError(pool.Insert(sdk.Context{}, tc.pooled))
+			s.Require().NoError(pool.Insert(sdk.Context{}, tc.pooled, sdkmempool.InsertOption{}))
 
-			err := pool.Insert(sdk.Context{}, tc.tx)
+			err := pool.Insert(sdk.Context{}, tc.tx, sdkmempool.InsertOption{})
 			switch {
 			case errors.Is(tc.expErr, errRejected):
 				s.Require().Error(err)
@@ -98,8 +98,8 @@ func (s *PriorityPoolTestSuite) TestInsertResendDoesNotLeak() {
 		}},
 	}, nil)
 
-	s.Require().NoError(pool.Insert(sdk.Context{}, first))
-	s.Require().ErrorIs(pool.Insert(sdk.Context{}, resend), sdkerrors.ErrTxInMempoolCache)
-	s.Require().NoError(pool.Insert(sdk.Context{}, next))
+	s.Require().NoError(pool.Insert(sdk.Context{}, first, sdkmempool.InsertOption{}))
+	s.Require().ErrorIs(pool.Insert(sdk.Context{}, resend, sdkmempool.InsertOption{}), sdkerrors.ErrTxInMempoolCache)
+	s.Require().NoError(pool.Insert(sdk.Context{}, next, sdkmempool.InsertOption{}))
 	s.Require().Equal(2, pool.CountTx())
 }

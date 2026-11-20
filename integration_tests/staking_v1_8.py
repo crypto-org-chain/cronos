@@ -231,9 +231,10 @@ def preupgrade_staking_setup(cli, cronos):
     # Enable basetcro transfers via governance (disabled in genesis)
     set_send_enabled(cronos, [{"denom": "basetcro", "enabled": True}])
 
-    # Update unbonding_time to 180s
+    # Long enough for the entries to outlive the upgrade, short enough that the
+    # v1.9 upgrade still lands within 256 blocks of v1.7 (see test_upgrade.py).
     updated_params = cli.staking_params()["params"].copy()
-    updated_params["unbonding_time"] = "180s"
+    updated_params["unbonding_time"] = "120s"
     update_staking_params(cronos, updated_params)
     staking_params = cli.staking_params()["params"]
     new_unbonding_time = staking_params.get("unbonding_time")
