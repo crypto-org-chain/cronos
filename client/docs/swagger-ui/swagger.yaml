@@ -231,7 +231,7 @@ paths:
               auto_contract:
                 type: string
             title: >-
-              ContractByDenomRequest is the response type of ContractByDenom
+              ContractByDenomResponse is the response type of ContractByDenom
               call
         default:
           description: An unexpected error response.
@@ -48065,7 +48065,7 @@ definitions:
         type: string
       auto_contract:
         type: string
-    title: ContractByDenomRequest is the response type of ContractByDenom call
+    title: ContractByDenomResponse is the response type of ContractByDenom call
   cronos.DenomByContractResponse:
     type: object
     properties:
