@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethparams "github.com/ethereum/go-ethereum/params"
 	legacyparamstypes "github.com/evmos/ethermint/types/legacyparams"
+	evmv0types "github.com/evmos/ethermint/x/evm/migrations/v0/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	"github.com/stretchr/testify/suite"
@@ -450,6 +451,24 @@ func (s *UpgradeTestSuite) TestHistoricalParamsFromLegacyStore() {
 				params.Set([]byte("evm/EVMDenom"), amino.MustMarshalJSON("basetcro"))
 			},
 			check: func() { s.Require().Equal("basetcro", s.app.EvmKeeper.GetParams(s.ctx).EvmDenom) },
+		},
+		{
+			name: "evm version 4 layout reads x/params for a param it left unset",
+			malleate: func(params storetypes.KVStore) {
+				homestead := sdkmath.ZeroInt()
+				chainConfig := evmv0types.V0ChainConfig{HomesteadBlock: &homestead}
+				evmStore := s.ctx.KVStore(s.app.GetKey(evmtypes.StoreKey))
+				evmStore.Delete(evmtypes.KeyPrefixParams)
+				evmStore.Set(evmv0types.ParamStoreKeyChainConfig, s.app.AppCodec().MustMarshal(&chainConfig))
+				evmStore.Set(evmv0types.ParamStoreKeyEVMDenom, []byte("basetcro"))
+				params.Set([]byte("evm/EnableCreate"), amino.MustMarshalJSON(true))
+			},
+			check: func() {
+				params := s.app.EvmKeeper.GetParams(s.ctx)
+				s.Require().Equal("basetcro", params.EvmDenom)
+				s.Require().True(params.EnableCreate)
+				s.Require().False(params.EnableCall)
+			},
 		},
 		{
 			name: "feemarket reads its x/params subspace",
