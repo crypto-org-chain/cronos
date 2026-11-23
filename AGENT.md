@@ -99,6 +99,9 @@ Cronos does **not** use the vanilla IAVL store for production. Two swappable sub
   `versiondb.enable`). When on, a custom store loader (`app/storeloader.go`) constrains the loaded IAVL
   version to not exceed the versiondb version to avoid gaps. Managed via `cronosd` subcommands in
   `cmd/cronosd/cmd/versiondb.go`.
+- **inter-block cache** — `app.New` always drops it (`baseapp.SetInterBlockCache(nil)`), so the
+  `inter-block-cache` flag has no effect. On IAVL a checkState read racing a FinalizeBlock write can
+  leave a stale value in it and diverge the app hash; memiavl never used it.
 DB opening / migration lives in `cmd/cronosd/opendb/` and `cmd/cronosd/dbmigrate/`.
 
 ### `x/cronos` — the glue module (`x/cronos/`)
