@@ -23,6 +23,7 @@ import (
 const planName = "v1.9"
 
 // RegisterUpgradeHandlers installs no store loader: v1.9 adds and deletes no stores (params stays mounted for historical queries).
+// An upgrade that adds or deletes stores must swap app.go's MaxVersionStoreLoader for MaxVersionUpgradeStoreLoader, so versiondb nodes keep their version cap.
 func (app *App) RegisterUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
@@ -119,13 +120,18 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) error {
 // pruneHistoricalInfo deletes by raw key prefix: TrackHistoricalInfo with zero entries prunes nothing older, and an entry may no longer decode.
 func (app *App) pruneHistoricalInfo(ctx sdk.Context) {
 	store := ctx.KVStore(app.keys[stakingtypes.StoreKey])
+	for _, key := range prefixKeys(store, stakingtypes.HistoricalInfoKey) {
+		store.Delete(key)
+	}
+}
+
+// prefixKeys closes its iterator before returning, so callers can write to the store.
+func prefixKeys(store storetypes.KVStore, prefix []byte) [][]byte {
+	iter := storetypes.KVStorePrefixIterator(store, prefix)
+	defer iter.Close()
 	var keys [][]byte
-	iter := storetypes.KVStorePrefixIterator(store, stakingtypes.HistoricalInfoKey)
 	for ; iter.Valid(); iter.Next() {
 		keys = append(keys, iter.Key())
 	}
-	iter.Close()
-	for _, key := range keys {
-		store.Delete(key)
-	}
+	return keys
 }

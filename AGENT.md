@@ -137,7 +137,7 @@ upstream project on GitHub — the fork can and does differ. Resolve the actual 
 | Cosmos SDK (app framework, auth/bank/gov/staking, ante handlers, baseapp) | `github.com/cosmos/cosmos-sdk` | **`github.com/crypto-org-chain/cosmos-sdk`** (fork) | `v0.50.6-...20261118030422-b495f1d247db` (v0.55.1) |
 | EVM execution & JSON-RPC (`x/evm`, `x/feemarket`, statedb) | `github.com/evmos/ethermint` | **`github.com/crypto-org-chain/ethermint`** (fork) | `v0.24.1-...20261118154753-41ba4415db69` |
 | Consensus / networking / mempool | `github.com/cometbft/cometbft` | **`github.com/crypto-org-chain/cometbft`** (fork) | `v0.0.0-...20261105212524-34b0a74b4248` (v0.40 line) |
-| Custom store: memiavl, versiondb, store | `github.com/crypto-org-chain/cronos-store/{memiavl,versiondb,store}` | **`crypto-org-chain/cronos-store`** (fork target pins) | `...20261118150928-72555e5a9823` |
+| Custom store: memiavl, versiondb, store | `github.com/crypto-org-chain/cronos-store/{memiavl,versiondb,store}` | **`crypto-org-chain/cronos-store`** (fork target pins) | `...20261123153221-aaec48773d7d` |
 | EVM crypto / core types | `github.com/ethereum/go-ethereum` | **`github.com/crypto-org-chain/go-ethereum`** (fork) | `v1.10.20-...20261029080720-43022f1730ed` (v1.17 line) |
 | IBC | `github.com/cosmos/ibc-go/v11` | upstream | `v11.2.1-rc1` |
 

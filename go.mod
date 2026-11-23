@@ -185,7 +185,7 @@ require (
 	cloud.google.com/go/iam v1.11.0 // indirect
 	cloud.google.com/go/monitoring v1.29.0 // indirect
 	cloud.google.com/go/storage v1.62.1 // indirect
-	cosmossdk.io/collections v1.4.0 // indirect
+	cosmossdk.io/collections v1.4.0
 	cosmossdk.io/depinject v1.2.1 // indirect
 	cosmossdk.io/log/v2 v2.1.0
 	cosmossdk.io/schema v1.1.0 // indirect
@@ -384,10 +384,10 @@ replace (
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20261105212524-34b0a74b4248
 	// jt/v0.55.x-sync-v0.55.1 (crypto-org-chain/cosmos-sdk#1906, release/v0.55.x synced with v0.55.1)
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20261118030422-b495f1d247db
-	// claude/cosmos-sdk-v0-55-upgrade-22c610 (crypto-org-chain/cronos-store#154)
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20261118150928-72555e5a9823
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20261118150928-72555e5a9823
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20261118150928-72555e5a9823
+	// master (crypto-org-chain/cronos-store#154 merged)
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20261123153221-aaec48773d7d
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20261123153221-aaec48773d7d
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20261123153221-aaec48773d7d
 	// release/v1.17
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20261029080720-43022f1730ed
 

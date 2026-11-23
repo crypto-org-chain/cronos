@@ -31,7 +31,7 @@ func (app *App) ExportAppStateAndValidators(
 		if err := app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
-		// At height 0, WriteValidators picks the same pre-rotation keys InitGenesis will.
+		// Every module and WriteValidators export at the restarted chain's height 0; today only staking reads it, to keep pending key rotations where InitGenesis expects them.
 		ctx = ctx.WithBlockHeight(height)
 	}
 
