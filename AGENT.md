@@ -101,6 +101,10 @@ Cronos does **not** use the vanilla IAVL store for production. Two swappable sub
   `cmd/cronosd/cmd/versiondb.go`.
 DB opening / migration lives in `cmd/cronosd/opendb/` and `cmd/cronosd/dbmigrate/`.
 
+The SDK inter-block cache is always off: `app.New` appends `baseapp.SetInterBlockCache(nil)`, so the
+`inter-block-cache` flag has no effect. On IAVL a checkState read racing a FinalizeBlock write can
+leave a stale value in it and diverge the app hash; memiavl never used it.
+
 ### `x/cronos` — the glue module (`x/cronos/`)
 The core custom module. It "glues IBC, gravity bridge, and Ethermint together through hooks and token
 mapping" (see `x/cronos/spec/`). Key responsibilities:

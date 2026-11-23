@@ -596,6 +596,12 @@ func New(
 	}
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, chainId, baseAppOptions)
 
+	// A checkState read (app-mempool admission, Simulate) racing a FinalizeBlock write can leave a stale value in the inter-block cache, so the next block diverges the app hash.
+	if cast.ToBool(appOpts.Get(server.FlagInterBlockCache)) && !cast.ToBool(appOpts.Get(memiavlstore.FlagMemIAVL)) {
+		logger.Warn("inter-block-cache is ignored, it is unsafe with concurrent state reads")
+	}
+	baseAppOptions = append(baseAppOptions, baseapp.SetInterBlockCache(nil))
+
 	// The default value of optimisticExecution is enabled.
 	if !optimisticExecutionDisabled {
 		// enable optimistic execution
