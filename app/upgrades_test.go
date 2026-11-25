@@ -100,11 +100,12 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			},
 		},
 		{
-			name: "history_serve_window below header_hash_num",
+			// The upgrade block's own hash then takes the slot of the oldest height BLOCKHASH serves.
+			name: "history_serve_window equal to header_hash_num",
 			malleate: func() {
 				s.deployHistoryContract()
 				params := s.app.EvmKeeper.GetParams(s.ctx)
-				params.HistoryServeWindow = params.HeaderHashNum - 1
+				params.HistoryServeWindow = params.HeaderHashNum
 				s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, params))
 				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
 			},

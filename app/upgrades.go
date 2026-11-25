@@ -113,8 +113,9 @@ func (app *App) blockHashHistoryGap(ctx sdk.Context) error {
 		return errors.New("EIP-2935 history storage contract not deployed")
 	}
 	evmParams := app.EvmKeeper.GetParams(ctx)
-	if window := evmParams.EffectiveHistoryServeWindow(); window < evmParams.HeaderHashNum {
-		return fmt.Errorf("history_serve_window %d is below header_hash_num %d", window, evmParams.HeaderHashNum)
+	// Strictly greater: each block's hash overwrites the slot of the height one window back.
+	if window := evmParams.EffectiveHistoryServeWindow(); window <= evmParams.HeaderHashNum {
+		return fmt.Errorf("history_serve_window %d must exceed header_hash_num %d", window, evmParams.HeaderHashNum)
 	}
 	// Contract-only read: GetHeaderHash also falls back to the legacy store, which HistoricalInfo backs up.
 	upgradeHeight := uint64(ctx.BlockHeight())

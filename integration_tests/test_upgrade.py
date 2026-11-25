@@ -33,6 +33,7 @@ from .utils import (
     swap_consensus_keys,
     update_validator_pubkey_types,
     wait_for_block,
+    wait_for_fn,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -403,14 +404,18 @@ def check_mldsa65_rotation(c, path):
     swap_consensus_keys(c, {2: key_file}, apply_height)
 
     addr = comet_validator(c, pubkey["key"])["address"]
+    scanned = apply_height - 1
+
     # the node may still be catching up when its RPC port opens
-    end = wait_for_new_blocks(cli, 10)
-    wait_for_block(cli2, end)
-    signed = any(
-        addr in block_signers(comet_block(c, h))
-        for h in range(apply_height, end + 1)
-    )
-    assert signed, "node2 never signed with its ML-DSA-65 key"
+    def node2_signed():
+        nonlocal scanned
+        for height in range(scanned + 1, cli.block_height() + 1):
+            if addr in block_signers(comet_block(c, height)):
+                return True
+            scanned = height
+        return False
+
+    wait_for_fn("node2 to sign with its ML-DSA-65 key", node2_signed)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

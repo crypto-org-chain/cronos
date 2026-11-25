@@ -206,8 +206,7 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
                     assert miner == "0x" + bech32_to_eth(operators[i]), height
             scanned = height
         return all(
-            signed[i] and any(h >= apply_height for h in proposed[i])
-            for i in ROTATED
+            signed[i] and any(h >= apply_height for h in proposed[i]) for i in ROTATED
         )
 
     # a rejoining validator starts with low proposer priority, so it may take
