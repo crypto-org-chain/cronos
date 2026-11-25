@@ -236,8 +236,8 @@ def preupgrade_staking_setup(cli, cronos):
     # Enable basetcro transfers via governance (disabled in genesis)
     set_send_enabled(cronos, [{"denom": "basetcro", "enabled": True}])
 
-    # Long enough for the entries to outlive the upgrade, short enough that the
-    # v1.9 upgrade still lands within 256 blocks of v1.7 (see test_upgrade.py).
+    # long enough for the entries to outlive the v1.8 upgrade, short enough to wait
+    # for them to mature after it
     updated_params = cli.staking_params()["params"].copy()
     updated_params["unbonding_time"] = "120s"
     update_staking_params(cronos, updated_params)
@@ -277,10 +277,16 @@ def preupgrade_staking_setup(cli, cronos):
         f"{len(redelegations_before)} redelegations"
     )
 
+    completion_times = collect_completion_times(
+        cli, cli.validators(), redelegations_before
+    )
+    assert completion_times, "No unbonding or redelegation entries were created"
+
     return {
         "unbonding_validators_before": unbonding_validators_before,
         "unbonding_delegations_before": unbonding_delegations_before,
         "redelegations_before": redelegations_before,
+        "earliest_completion_before": min(completion_times),
     }
 
 
@@ -318,16 +324,13 @@ def postupgrade_check_staking(cli, preupgrade_staking_info):
     redelegations_before = preupgrade_staking_info["redelegations_before"]
 
     all_validators = cli.validators()
-    completion_times = collect_completion_times(
-        cli, all_validators, redelegations_before
-    )
-    assert completion_times, "No completion times found; nothing to wait for"
 
     # --- Immediate post-upgrade checks: entries should still be present ---
 
+    earliest = preupgrade_staking_info["earliest_completion_before"]
     now = isoparse(get_sync_info(cli.status())["latest_block_time"])
-    assert now < min(completion_times), (
-        f"unbonding entries matured at {min(completion_times)} before the post-upgrade "
+    assert now < earliest, (
+        f"unbonding entries matured at {earliest} before the post-upgrade "
         f"check at {now}; the upgrade took longer than the unbonding time"
     )
 
@@ -353,6 +356,10 @@ def postupgrade_check_staking(cli, preupgrade_staking_info):
 
     # --- Wait for full maturation ---
 
+    completion_times = collect_completion_times(
+        cli, all_validators, redelegations_before
+    )
+    assert completion_times, "No completion times found; nothing to wait for"
     max_completion_time = max(completion_times)
     print(f"Waiting for all entries to mature by {max_completion_time}...")
     wait_for_block_time(cli, max_completion_time)

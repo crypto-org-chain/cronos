@@ -193,7 +193,8 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
 
     def rotated_nodes_signed_and_proposed():
         nonlocal scanned
-        for height in range(scanned + 1, cli0.block_height() + 1):
+        # the tip block may be stored before its results, which get_block needs
+        for height in range(scanned + 1, cli0.block_height()):
             block = comet_block(cronos, height)
             signers = block_signers(block)
             for i in ROTATED:
