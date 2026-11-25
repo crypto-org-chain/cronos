@@ -111,6 +111,17 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			},
 		},
 		{
+			name: "history_serve_window one above header_hash_num",
+			malleate: func() {
+				s.deployHistoryContract()
+				params := s.app.EvmKeeper.GetParams(s.ctx)
+				params.HistoryServeWindow = params.HeaderHashNum + 1
+				s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, params))
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+			},
+			expDisabled: true,
+		},
+		{
 			name: "contract deployed less than header_hash_num blocks ago",
 			malleate: func() {
 				s.deployHistoryContract()
@@ -159,6 +170,8 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 				return
 			}
 			s.Require().Zero(params.HistoricalEntries)
+			// BeginBlock writes the upgrade block's own hash after the handler runs.
+			s.setHeaderHashes(upgradeTestHeight, upgradeTestHeight)
 			getHash := s.app.EvmKeeper.GetHashFn(s.ctx, uint64(headerHashNum))
 			for h := upgradeTestHeight - headerHashNum; h < upgradeTestHeight; h++ {
 				s.Require().Equal(testHeaderHash(h), getHash(uint64(h)), "BLOCKHASH(%d)", h)
