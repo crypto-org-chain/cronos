@@ -43,9 +43,7 @@ func numOpenFDs(t *testing.T) int {
 	return int(n)
 }
 
-// setupMemIAVLAppWithHistory builds an app backed by the on-disk memiavl store,
-// commits `blocks` empty blocks, and returns the app, a funded account, and a
-// historical height whose read-only load mmaps a non-empty snapshot.
+// The returned historical height's read-only load mmaps a non-empty snapshot.
 func setupMemIAVLAppWithHistory(t *testing.T, blocks int64) (*App, sdk.AccAddress, int64) {
 	t.Helper()
 

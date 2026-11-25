@@ -69,7 +69,6 @@ def test_ibc_upgrade(ibc):
     ibc_transfer(ibc)
     seq = send_to_chainmain(ibc)
 
-    # leave a packet in flight over the upgrade
     c.supervisorctl("stop", "relayer-demo")
     assert send_to_chainmain(ibc, relayed=False) == seq + 1
     dst_addr = ibc.chainmain.cosmos_cli().address("signer2")

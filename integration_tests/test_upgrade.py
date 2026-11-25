@@ -332,10 +332,8 @@ def exec(c, tmp_path_factory):
 
     staking_params_v18 = cli.staking_params()["params"]
     proposals_v18 = cli.query_proposals()["proposals"]
+    header_hash_num = int(cli.query_params("evm")["header_hash_num"])
     target_height_v19 = cli.block_height() + 15
-    # EIP-2935 history starts at the v1.7 upgrade, so it can't serve the full
-    # header_hash_num window yet and the handler must keep historical_entries.
-    assert target_height_v19 - target_height_v17 < 256
 
     cli = do_upgrade("v1.9", target_height_v19)
     check_basic_tx(c)
@@ -346,10 +344,21 @@ def exec(c, tmp_path_factory):
         "denom": bond_denom,
         "amount": "1",
     }, staking_params_v19
-    assert (
-        staking_params_v19["historical_entries"]
-        == staking_params_v18["historical_entries"]
-    ), staking_params_v19
+    # EIP-2935 history starts at the v1.7 upgrade; the handler keeps historical_entries
+    # until that history covers the header_hash_num window. One height on each side
+    # of the boundary depends on when the contract stores its first hash, so skip it.
+    history_len = target_height_v19 - target_height_v17
+    if history_len < header_hash_num - 1:
+        expected_entries = staking_params_v18["historical_entries"]
+    elif history_len > header_hash_num:
+        expected_entries = 0
+    else:
+        expected_entries = staking_params_v19["historical_entries"]
+    assert staking_params_v19["historical_entries"] == expected_entries, (
+        history_len,
+        header_hash_num,
+        staking_params_v19,
+    )
     # do_upgrade submitted the v1.9 proposal after proposals_v18 was captured.
     assert [p["id"] for p in cli.query_proposals()["proposals"]][:-1] == [
         p["id"] for p in proposals_v18
@@ -358,7 +367,6 @@ def exec(c, tmp_path_factory):
         cronos_params["cro_bridge_contract_addresses"]
     )
 
-    # x/params is gone, but the genesis-era height still reads its frozen store
     check_pre_migration_params(cli)
     assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
         ADDRS["validator"]
@@ -391,13 +399,16 @@ def check_mldsa65_rotation(c, path):
     rsp = cli2.rotate_cons_pubkey(pubkey)
     assert rsp["code"] == 0, rsp["raw_log"]
     ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
-    swap_consensus_keys(c, {2: key_file}, int(ev["apply_height"]))
+    apply_height = int(ev["apply_height"])
+    swap_consensus_keys(c, {2: key_file}, apply_height)
 
     addr = comet_validator(c, pubkey["key"])["address"]
-    end = wait_for_new_blocks(cli, 5)
+    # the node may still be catching up when its RPC port opens
+    end = wait_for_new_blocks(cli, 10)
     wait_for_block(cli2, end)
     signed = any(
-        addr in block_signers(comet_block(c, h)) for h in range(end - 4, end + 1)
+        addr in block_signers(comet_block(c, h))
+        for h in range(apply_height, end + 1)
     )
     assert signed, "node2 never signed with its ML-DSA-65 key"
 

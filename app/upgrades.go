@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -35,15 +36,14 @@ func (app *App) RegisterUpgradeHandlers() {
 			if err != nil {
 				return toVM, err
 			}
-			// Queue entries missing from the pending-slot index never mature; the rebuild is a full scan and safe to repeat.
-			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
-				return toVM, fmt.Errorf("populate staking queue pending slots: %w", err)
-			}
 			// After RunMigrations, so a copy of this migration a later ibc-go release registers runs first and this run keeps its result.
 			if err := app.migrateChannelSendSequences(sdkCtx); err != nil {
 				return toVM, fmt.Errorf("migrate ibc channel send sequences: %w", err)
 			}
-			if err := app.setV19StakingParams(sdkCtx); err != nil {
+			if err := app.setMinKeyRotationFee(sdkCtx); err != nil {
+				return toVM, err
+			}
+			if err := app.disableHistoricalInfo(sdkCtx); err != nil {
 				return toVM, err
 			}
 			return toVM, nil
@@ -69,29 +69,39 @@ func (app *App) migrateChannelSendSequences(ctx sdk.Context) error {
 	return channelv11.MigrateStore(ctx, ibcStore, app.appCodec, app.IBCKeeper)
 }
 
-// setV19StakingParams sets the smallest valid key rotation fee, and drops HistoricalInfo once EIP-2935 serves BLOCKHASH.
-func (app *App) setV19StakingParams(ctx sdk.Context) error {
+// Most operators hold no liquid bond denom, so the default fee would block their rotations.
+func (app *App) setMinKeyRotationFee(ctx sdk.Context) error {
+	return app.updateStakingParams(ctx, func(params *stakingtypes.Params) {
+		params.KeyRotationFee = sdk.NewCoin(params.BondDenom, math.OneInt())
+	})
+}
+
+// disableHistoricalInfo stops storing HistoricalInfo and deletes what is stored, but only once EIP-2935 serves BLOCKHASH.
+func (app *App) disableHistoricalInfo(ctx sdk.Context) error {
+	if err := app.blockHashHistoryGap(ctx); err != nil {
+		ctx.Logger().Info("keeping staking historical_entries", "reason", err)
+		return nil
+	}
+	if err := app.updateStakingParams(ctx, func(params *stakingtypes.Params) {
+		params.HistoricalEntries = 0
+	}); err != nil {
+		return err
+	}
+	app.pruneHistoricalInfo(ctx)
+	return nil
+}
+
+func (app *App) updateStakingParams(ctx sdk.Context, update func(*stakingtypes.Params)) error {
 	params, err := app.StakingKeeper.GetParams(ctx)
 	if err != nil {
 		return fmt.Errorf("get staking params: %w", err)
 	}
-	// Most operators hold no liquid bond denom, so the default fee would block their rotations.
-	params.KeyRotationFee = sdk.NewCoin(params.BondDenom, math.OneInt())
-
-	if err := app.blockHashHistoryGap(ctx); err != nil {
-		ctx.Logger().Info("keeping staking historical_entries", "value", params.HistoricalEntries, "reason", err)
-	} else {
-		params.HistoricalEntries = 0
-	}
-
+	update(&params)
 	if err := params.Validate(); err != nil {
 		return fmt.Errorf("validate staking params: %w", err)
 	}
 	if err := app.StakingKeeper.SetParams(ctx, params); err != nil {
 		return fmt.Errorf("set staking params: %w", err)
-	}
-	if params.HistoricalEntries == 0 {
-		app.pruneHistoricalInfo(ctx)
 	}
 	return nil
 }
@@ -125,13 +135,13 @@ func (app *App) pruneHistoricalInfo(ctx sdk.Context) {
 	}
 }
 
-// prefixKeys closes its iterator before returning, so callers can write to the store.
 func prefixKeys(store storetypes.KVStore, prefix []byte) [][]byte {
 	iter := storetypes.KVStorePrefixIterator(store, prefix)
 	defer iter.Close()
 	var keys [][]byte
 	for ; iter.Valid(); iter.Next() {
-		keys = append(keys, iter.Key())
+		// The iterator contract lets a backend reuse the key buffer on Next.
+		keys = append(keys, bytes.Clone(iter.Key()))
 	}
 	return keys
 }

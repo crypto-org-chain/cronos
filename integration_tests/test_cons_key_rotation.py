@@ -22,6 +22,7 @@ from .utils import (
     swap_consensus_keys,
     update_validator_pubkey_types,
     wait_for_block,
+    wait_for_fn,
     wait_for_new_blocks,
 )
 
@@ -186,8 +187,35 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
     assert rsp["code"] != 0
     assert "previously rotated away" in rsp["raw_log"], rsp["raw_log"]
 
-    # a rejoining validator starts with low proposer priority, so allow ~3 rounds
-    end = wait_for_new_blocks(cli0, 24)
+    signed = {i: False for i in ROTATED}
+    proposed = {i: [] for i in ROTATED}
+    scanned = rotation_height - 1
+
+    def rotated_nodes_signed_and_proposed():
+        nonlocal scanned
+        for height in range(scanned + 1, cli0.block_height() + 1):
+            block = comet_block(cronos, height)
+            signers = block_signers(block)
+            for i in ROTATED:
+                signed[i] |= new_addrs[i] in signers
+                proposer = block["header"]["proposer_address"]
+                if proposer in (old_addrs[i], new_addrs[i]):
+                    proposed[i].append(height)
+                    miner = w3.eth.get_block(height).miner.lower()
+                    assert miner == "0x" + bech32_to_eth(operators[i]), height
+            scanned = height
+        return all(
+            signed[i] and any(h >= apply_height for h in proposed[i])
+            for i in ROTATED
+        )
+
+    # a rejoining validator starts with low proposer priority, so it may take
+    # several rounds before it proposes
+    wait_for_fn(
+        "rotated validators to sign and propose", rotated_nodes_signed_and_proposed
+    )
+
+    end = scanned
     nodes = range(len(cronos.config["validators"]))
     for i in nodes:
         wait_for_block(cronos.cosmos_cli(i), end)
@@ -195,21 +223,6 @@ def test_rotate_ed25519_to_mldsa65(cronos_rotation: Cronos, tmp_path):
         comet_rpc(cronos, i, "block", height=end)["block_id"]["hash"] for i in nodes
     }
     assert len(hashes) == 1, hashes
-
-    signed = {i: False for i in ROTATED}
-    proposed = {i: [] for i in ROTATED}
-    for height in range(rotation_height, end + 1):
-        block = comet_block(cronos, height)
-        signers = block_signers(block)
-        for i in ROTATED:
-            signed[i] |= new_addrs[i] in signers
-            if block["header"]["proposer_address"] in (old_addrs[i], new_addrs[i]):
-                proposed[i].append(height)
-                miner = w3.eth.get_block(height).miner.lower()
-                assert miner == "0x" + bech32_to_eth(operators[i]), height
-    for i in ROTATED:
-        assert signed[i], f"node{i} never signed with its ML-DSA-65 key"
-        assert any(h >= apply_height for h in proposed[i]), (i, proposed[i])
 
     # with node1 down, the commit only reaches 2/3 with both ML-DSA-65 signatures,
     # so the light client cannot skip verifying them

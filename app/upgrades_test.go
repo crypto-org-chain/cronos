@@ -3,7 +3,6 @@ package app
 import (
 	"math/big"
 	"testing"
-	"time"
 
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -163,64 +162,6 @@ func (s *UpgradeTestSuite) TestHistoricalEntries() {
 			for h := upgradeTestHeight - headerHashNum; h < upgradeTestHeight; h++ {
 				s.Require().Equal(testHeaderHash(h), getHash(uint64(h)), "BLOCKHASH(%d)", h)
 			}
-		})
-	}
-}
-
-func (s *UpgradeTestSuite) TestStakingQueuePendingSlots() {
-	completion := time.Unix(1_900_000_000, 0).UTC()
-	testCases := []struct {
-		name     string
-		indexKey []byte
-		malleate func()
-		slots    func() ([]time.Time, error)
-	}{
-		{
-			name:     "unbonding delegation queue",
-			indexKey: stakingtypes.UBDQueuePendingSlotsKey,
-			malleate: func() {
-				s.Require().NoError(s.app.StakingKeeper.SetUBDQueueTimeSlice(s.ctx, completion, []stakingtypes.DVPair{{}}))
-			},
-			slots: func() ([]time.Time, error) { return s.app.StakingKeeper.GetUBDQueuePendingSlots(s.ctx) },
-		},
-		{
-			name:     "redelegation queue",
-			indexKey: stakingtypes.RedelegationQueuePendingSlotsKey,
-			malleate: func() {
-				s.Require().NoError(s.app.StakingKeeper.SetRedelegationQueueTimeSlice(s.ctx, completion, []stakingtypes.DVVTriplet{{}}))
-			},
-			slots: func() ([]time.Time, error) { return s.app.StakingKeeper.GetRedelegationQueuePendingSlots(s.ctx) },
-		},
-		{
-			name:     "unbonding validator queue",
-			indexKey: stakingtypes.ValidatorQueuePendingSlotsKey,
-			malleate: func() {
-				s.Require().NoError(s.app.StakingKeeper.SetUnbondingValidatorsQueue(s.ctx, completion, upgradeTestHeight, []string{"validator"}))
-			},
-			slots: func() ([]time.Time, error) {
-				slots, err := s.app.StakingKeeper.GetValidatorQueuePendingSlots(s.ctx)
-				times := make([]time.Time, 0, len(slots))
-				for _, slot := range slots {
-					times = append(times, slot.Time)
-				}
-				return times, err
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		s.Run(tc.name, func() {
-			s.SetupTest()
-			tc.malleate()
-			// a queue entry with no index, as on a chain that never ran the v1.8 handler
-			s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey]).Delete(tc.indexKey)
-
-			s.applyUpgrade()
-
-			slots, err := tc.slots()
-			s.Require().NoError(err)
-			s.Require().Len(slots, 1)
-			s.Require().True(completion.Equal(slots[0]), "got %s", slots[0])
 		})
 	}
 }
@@ -631,7 +572,6 @@ func (s *UpgradeTestSuite) TestCommitReserveFitsLiveBlockSize() {
 			s.Require().NotPanics(func() {
 				dataBytes = cmttypes.MaxDataBytes(tc.maxBytes, tc.evidenceBytes, tc.maxValidators)
 			})
-			// keep at least half the block for transactions
 			s.Require().GreaterOrEqual(dataBytes, tc.maxBytes/2)
 		})
 	}

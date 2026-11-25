@@ -230,8 +230,8 @@ func StoreKeys() (
 		// upgrade is required and any legacy ICA state remains readable.
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
-		// x/params is gone, but its store stays mounted, frozen, so EVM queries at heights
-		// before evm consensus version 5 or feemarket version 4 still read that height's params.
+		// EVM queries at heights before evm consensus version 5 or feemarket version 4
+		// still read that height's params from this frozen store.
 		paramsStoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,

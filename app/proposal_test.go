@@ -54,15 +54,15 @@ func TestExtTxSelector(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
 		require.False(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-1"), 0))
 		require.True(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-2"), 0), "full at 14 bytes")
-		ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-3"), 0) // would overflow → skipped
+		ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-3"), 0)
 		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, ts.SelectedTxs(bg))
 	})
 
 	t.Run("MaxBlockGas: over-budget tx skipped, smaller still fits", func(t *testing.T) {
 		ts := NewExtTxSelector(acceptAll, nil)
 		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("a"), 0)
-		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("b"), 0) // 60k+60k>100k → skip
-		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 40_000}, []byte("c"), 0) // 60k+40k=100k → fits
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("b"), 0)
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 40_000}, []byte("c"), 0)
 		require.Equal(t, [][]byte{[]byte("a"), []byte("c")}, ts.SelectedTxs(bg))
 	})
 

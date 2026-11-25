@@ -234,7 +234,6 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		return err
 	}
 
-	// Rebases pending key rotations onto the restarted chain's first heights.
 	if err := app.StakingKeeper.PrepareConsKeyRotationsForZeroHeightExport(ctx); err != nil {
 		return err
 	}

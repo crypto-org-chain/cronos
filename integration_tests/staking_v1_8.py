@@ -8,7 +8,12 @@ before and after the v1.8 upgrade.
 from dateutil.parser import isoparse
 
 from .cosmoscli import module_address
-from .utils import submit_gov_proposal, wait_for_block_time, wait_for_new_blocks
+from .utils import (
+    get_sync_info,
+    submit_gov_proposal,
+    wait_for_block_time,
+    wait_for_new_blocks,
+)
 
 
 def set_send_enabled(cronos, send_enabled_list):
@@ -279,6 +284,26 @@ def preupgrade_staking_setup(cli, cronos):
     }
 
 
+def collect_completion_times(cli, validators, redelegations_before):
+    completion_times = []
+    for val in validators:
+        for ubd in cli.validator_unbonding_delegations(val["operator_address"]):
+            for entry in ubd.get("entries", []):
+                completion_times.append(isoparse(entry["completion_time"]))
+    for redel_before in redelegations_before:
+        redel_responses = cli.redelegations(
+            redel_before["delegator_addr"],
+            redel_before["validator_src_addr"],
+            redel_before["validator_dst_addr"],
+        )
+        for redel in redel_responses:
+            for entry in redel.get("entries", []):
+                completion_times.append(
+                    isoparse(entry["redelegation_entry"]["completion_time"])
+                )
+    return completion_times
+
+
 def postupgrade_check_staking(cli, preupgrade_staking_info):
     """
     Verify that unbonding validators, unbonding delegations, and redelegations
@@ -293,8 +318,18 @@ def postupgrade_check_staking(cli, preupgrade_staking_info):
     redelegations_before = preupgrade_staking_info["redelegations_before"]
 
     all_validators = cli.validators()
+    completion_times = collect_completion_times(
+        cli, all_validators, redelegations_before
+    )
+    assert completion_times, "No completion times found; nothing to wait for"
 
     # --- Immediate post-upgrade checks: entries should still be present ---
+
+    now = isoparse(get_sync_info(cli.status())["latest_block_time"])
+    assert now < min(completion_times), (
+        f"unbonding entries matured at {min(completion_times)} before the post-upgrade "
+        f"check at {now}; the upgrade took longer than the unbonding time"
+    )
 
     unbonding_validators_after = get_val_addr_by_status(cli, "BOND_STATUS_UNBONDING")
     unbonding_delegations_after = get_unbonding_delegations(cli)
@@ -316,27 +351,8 @@ def postupgrade_check_staking(cli, preupgrade_staking_info):
         redelegations_before
     ), "Redelegations should still be present after upgrade"
 
-    # --- Collect all completion times and wait for full maturation ---
+    # --- Wait for full maturation ---
 
-    completion_times = []
-    for val in all_validators:
-        for ubd in cli.validator_unbonding_delegations(val["operator_address"]):
-            for entry in ubd.get("entries", []):
-                completion_times.append(isoparse(entry["completion_time"]))
-    # Use stored redelegations to query completion times
-    for redel_before in redelegations_before:
-        redel_responses = cli.redelegations(
-            redel_before["delegator_addr"],
-            redel_before["validator_src_addr"],
-            redel_before["validator_dst_addr"],
-        )
-        for redel in redel_responses:
-            for entry in redel.get("entries", []):
-                completion_times.append(
-                    isoparse(entry["redelegation_entry"]["completion_time"])
-                )
-
-    assert completion_times, "No completion times found; nothing to wait for"
     max_completion_time = max(completion_times)
     print(f"Waiting for all entries to mature by {max_completion_time}...")
     wait_for_block_time(cli, max_completion_time)
