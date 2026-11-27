@@ -3,10 +3,10 @@
   fetchFromGitHub,
   lib,
   installShellFiles,
-  go_1_25,
+  go_1_26,
 }:
 
-(buildGoModule.override { go = go_1_25; }) rec {
+(buildGoModule.override { go = go_1_26; }) rec {
   pname = "golangci-lint";
   version = "2.1.6";
 

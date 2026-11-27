@@ -1,7 +1,4 @@
 import json
-import shutil
-import stat
-import subprocess
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -11,24 +8,32 @@ import pytest
 import requests
 from hexbytes import HexBytes
 from pystarport import ports
-from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
 from .ibc_v18 import check_ibc_client_states, preupgrade_ibc_snapshot
 from .network import Cronos, setup_custom_cronos
 from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
+from .upgrade_utils import post_init, prepare_upgrade_binaries, propose_software_upgrade
 from .utils import (
     ADDRS,
     CONTRACTS,
+    MLDSA65,
     approve_proposal,
     assert_gov_params,
+    block_signers,
+    comet_block,
+    comet_validator,
     deploy_contract,
-    edit_ini_sections,
     eth_to_bech32,
+    find_log_event_attrs,
+    gen_mldsa65_key,
     get_consensus_params,
     get_send_enable,
     send_transaction,
+    swap_consensus_keys,
+    update_validator_pubkey_types,
     wait_for_block,
+    wait_for_fn,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -50,78 +55,28 @@ def get_txs(base_port, end):
     return res
 
 
-def init_cosmovisor(home):
-    """
-    build and setup cosmovisor directory structure in each node's home directory
-    """
-    cosmovisor = home / "cosmovisor"
-    cosmovisor.mkdir()
-    (cosmovisor / "upgrades").symlink_to("../../../upgrades")
-    (cosmovisor / "genesis").symlink_to("./upgrades/genesis")
-
-
-def post_init(path, base_port, config):
-    """
-    prepare cosmovisor for each node
-    """
-    chain_id = "cronos_777-1"
-    data = path / chain_id
-    cfg = json.loads((data / "config.json").read_text())
-    for i, _ in enumerate(cfg["validators"]):
-        home = data / f"node{i}"
-        init_cosmovisor(home)
-
-    edit_ini_sections(
-        chain_id,
-        data / SUPERVISOR_CONFIG_FILE,
-        lambda i, _: {
-            "command": f"cosmovisor run start --home %(here)s/node{i}",
-            "environment": (
-                "DAEMON_NAME=cronosd,"
-                "DAEMON_SHUTDOWN_GRACE=1m,"
-                "UNSAFE_SKIP_BACKUP=true,"
-                f"DAEMON_HOME=%(here)s/node{i}"
-            ),
-        },
-    )
-
-
 def setup_cronos_test(tmp_path_factory):
     path = tmp_path_factory.mktemp("upgrade")
-    port = 26200
-    nix_name = "upgrade-test-package"
-    cfg_name = "cosmovisor"
-    configdir = Path(__file__).parent
-    cmd = [
-        "nix-build",
-        configdir / f"configs/{nix_name}.nix",
-    ]
-    print(*cmd)
-    subprocess.run(cmd, check=True)
-
-    # copy the content so the new directory is writable.
-    upgrades = path / "upgrades"
-    shutil.copytree("./result", upgrades)
-    mod = stat.S_IRWXU
-    upgrades.chmod(mod)
-    for d in upgrades.iterdir():
-        d.chmod(mod)
-
+    upgrades = prepare_upgrade_binaries(path)
     # init with genesis binary
     with contextmanager(setup_custom_cronos)(
         path,
-        port,
-        configdir / f"configs/{cfg_name}.jsonnet",
+        26200,
+        Path(__file__).parent / "configs/cosmovisor.jsonnet",
         post_init=post_init,
         chain_binary=str(upgrades / "genesis/bin/cronosd"),
     ) as cronos:
         yield cronos
 
 
-def assert_evm_params(cli, expected, height):
-    params = cli.query_params("evm", height=height)
-    del params["header_hash_num"]
-    assert expected == params
+def assert_params(cli, module, expected, height):
+    params = cli.query_params(module, height=height)
+    for key, value in expected.items():
+        got = params[key]
+        if isinstance(value, dict):
+            # later binaries add fields, e.g. new forks in chain_config
+            got = {k: got.get(k) for k in value}
+        assert value == got, key
 
 
 def check_basic_tx(c):
@@ -171,24 +126,8 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8"):
-            rsp = cli.submit_gov_proposal(
-                "community",
-                "software-upgrade",
-                {
-                    "name": plan_name,
-                    "title": "upgrade test",
-                    "note": "ditto",
-                    "upgrade-height": target,
-                    "summary": "summary",
-                    "deposit": "10000basetcro",
-                },
-                broadcast_mode="sync",
-            )
-            assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(
-                c, rsp["events"], msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade"
-            )
+        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8", "v1.9"):
+            propose_software_upgrade(c, plan_name, target)
         else:
             rsp = cli.gov_propose_legacy(
                 "community",
@@ -287,6 +226,12 @@ def exec(c, tmp_path_factory):
     f1 = cli.query_params("feemarket", height=target_height1 - 1)
     assert e0["evm_denom"] == e1["evm_denom"] == "basetcro"
 
+    def check_pre_migration_params(cli):
+        assert_params(cli, "evm", e0, target_height0 - 1)
+        assert_params(cli, "evm", e1, target_height1 - 1)
+        assert_params(cli, "feemarket", f0, target_height0 - 1)
+        assert_params(cli, "feemarket", f1, target_height1 - 1)
+
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)
     newtime = newtime.replace(tzinfo=None).isoformat("T") + "Z"
@@ -327,10 +272,7 @@ def exec(c, tmp_path_factory):
 
     cli = do_upgrade("v1.4", cli.block_height() + 15)
 
-    assert_evm_params(cli, e0, target_height0 - 1)
-    assert_evm_params(cli, e1, target_height1 - 1)
-    assert f0 == cli.query_params("feemarket", height=target_height0 - 1)
-    assert f1 == cli.query_params("feemarket", height=target_height1 - 1)
+    check_pre_migration_params(cli)
     assert cli.query_params("evm")["header_hash_num"] == "256", p
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
@@ -348,7 +290,8 @@ def exec(c, tmp_path_factory):
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
-    cli = do_upgrade("v1.7", cli.block_height() + 15)
+    target_height_v17 = cli.block_height() + 15
+    cli = do_upgrade("v1.7", target_height_v17)
     check_basic_tx(c)
 
     tx_af = w3.provider.make_request(method, params)
@@ -387,6 +330,92 @@ def exec(c, tmp_path_factory):
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    staking_params_v18 = cli.staking_params()["params"]
+    proposals_v18 = cli.query_proposals()["proposals"]
+    header_hash_num = int(cli.query_params("evm")["header_hash_num"])
+    target_height_v19 = cli.block_height() + 15
+
+    cli = do_upgrade("v1.9", target_height_v19)
+    check_basic_tx(c)
+
+    staking_params_v19 = cli.staking_params()["params"]
+    bond_denom = staking_params_v19["bond_denom"]
+    assert staking_params_v19["key_rotation_fee"] == {
+        "denom": bond_denom,
+        "amount": "1",
+    }, staking_params_v19
+    # EIP-2935 history starts at the v1.7 upgrade; the handler keeps historical_entries
+    # until that history covers the header_hash_num window. One height on each side
+    # of the boundary depends on when the contract stores its first hash, so skip it.
+    history_len = target_height_v19 - target_height_v17
+    if history_len < header_hash_num - 1:
+        expected_entries = staking_params_v18["historical_entries"]
+    elif history_len > header_hash_num:
+        expected_entries = 0
+    else:
+        expected_entries = staking_params_v19["historical_entries"]
+    assert staking_params_v19["historical_entries"] == expected_entries, (
+        history_len,
+        header_hash_num,
+        staking_params_v19,
+    )
+    # do_upgrade submitted the v1.9 proposal after proposals_v18 was captured.
+    assert [p["id"] for p in cli.query_proposals()["proposals"]][:-1] == [
+        p["id"] for p in proposals_v18
+    ]
+    assert cli.query_params()["cro_bridge_contract_addresses"] == (
+        cronos_params["cro_bridge_contract_addresses"]
+    )
+
+    check_pre_migration_params(cli)
+    assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
+        ADDRS["validator"]
+    )
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    check_mldsa65_rotation(c, tmp_path_factory.mktemp("rotation"))
+
+
+def check_mldsa65_rotation(c, path):
+    """Rotate node2 to ML-DSA-65 on state upgraded from v1.8."""
+    cli = c.cosmos_cli()
+    cli2 = c.cosmos_cli(2)
+    operator = cli2.address("validator")
+    # all genesis stake is bonded, so fund the rotation fee
+    rsp = cli.transfer("community1", operator, "1stake")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    # validator0 was unbonded before v1.8, so node1 must outweigh node2 for the
+    # chain to keep committing while node2 swaps keys
+    val1 = c.cosmos_cli(1).address("validator", bech="val")
+    rsp = cli.delegate(val1, "100000000000000000000stake", "community1")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    rsp = cli.event_query_tx_for(rsp["txhash"])
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    update_validator_pubkey_types(c, ["ed25519", MLDSA65])
+    pubkey, key_file = gen_mldsa65_key(cli2, path)
+    rsp = cli2.rotate_cons_pubkey(pubkey)
+    assert rsp["code"] == 0, rsp["raw_log"]
+    ev = find_log_event_attrs(rsp["events"], "rotate_cons_pubkey")
+    apply_height = int(ev["apply_height"])
+    swap_consensus_keys(c, {2: key_file}, apply_height)
+
+    addr = comet_validator(c, pubkey["key"])["address"]
+    scanned = apply_height - 1
+
+    # the node may still be catching up when its RPC port opens
+    def node2_signed():
+        nonlocal scanned
+        for height in range(scanned + 1, cli.block_height() + 1):
+            if addr in block_signers(comet_block(c, height)):
+                return True
+            scanned = height
+        return False
+
+    wait_for_fn("node2 to sign with its ML-DSA-65 key", node2_signed)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

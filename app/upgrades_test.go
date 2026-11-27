@@ -1,90 +1,592 @@
 package app
 
 import (
-	"fmt"
+	"math/big"
 	"testing"
 
-	dbm "github.com/cosmos/cosmos-db"
-	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
+	connectiontypes "github.com/cosmos/ibc-go/v11/modules/core/03-connection/types"
+	channelv11 "github.com/cosmos/ibc-go/v11/modules/core/04-channel/migrations/v11"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
+	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
+	ethparams "github.com/ethereum/go-ethereum/params"
+	legacyparamstypes "github.com/evmos/ethermint/types/legacyparams"
+	evmv0types "github.com/evmos/ethermint/x/evm/migrations/v0/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
+	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/encoding/protowire"
 
-	"cosmossdk.io/log/v2"
+	"cosmossdk.io/collections"
+	sdkmath "cosmossdk.io/math"
 
-	"github.com/cosmos/cosmos-sdk/store/v2/dbadapter"
+	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/feegrant"
+	"github.com/cosmos/cosmos-sdk/x/gov"
+	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
-func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
-	db := dbm.NewMemDB()
-	store := dbadapter.Store{DB: db}
-	ctx := sdk.Context{}.WithLogger(log.NewNopLogger())
+const upgradeTestHeight = int64(300)
 
-	const (
-		clientA = "07-tendermint-0"
-		clientB = "07-tendermint-1"
-	)
+type UpgradeTestSuite struct {
+	suite.Suite
 
-	// canonical keys — must survive
-	canonical := []string{
-		fmt.Sprintf("clients/%s/%s", clientA, host.KeyClientState),
-		fmt.Sprintf("clients/%s/%s", clientB, host.KeyClientState),
-		fmt.Sprintf("clients/%s/%s/0-100", clientA, host.KeyConsensusStatePrefix),
-		fmt.Sprintf("clients/%s/%s/1-200", clientB, host.KeyConsensusStatePrefix),
-	}
-	for _, k := range canonical {
-		store.Set([]byte(k), []byte("canonical-value"))
-	}
+	app *App
+	ctx sdk.Context
+}
 
-	// stale old-format keys — must be deleted
-	stale := []string{
-		fmt.Sprintf("clients/%s/%s/0/50/%s", clientB, host.KeyConsensusStatePrefix, host.KeyClientState),
-		fmt.Sprintf("clients/%s/%s/1/200/%s", clientB, host.KeyConsensusStatePrefix, host.KeyClientState),
-		fmt.Sprintf("clients/%s/%s/0/100/%s", clientA, host.KeyConsensusStatePrefix, host.KeyClientState),
-	}
-	for _, k := range stale {
-		store.Set([]byte(k), []byte("consensus-bytes-stored-under-clientState-key"))
-	}
+func TestUpgradeTestSuite(t *testing.T) {
+	suite.Run(t, new(UpgradeTestSuite))
+}
 
-	require.NoError(t, pruneStaleIBCConsensusStateSubkeys(ctx, store))
+func (s *UpgradeTestSuite) SetupTest() {
+	s.app = Setup(s.T(), "")
+	s.ctx = s.app.NewContext(false).WithBlockHeight(upgradeTestHeight)
+}
 
-	for _, k := range stale {
-		require.Nil(t, store.Get([]byte(k)), "stale key %s must be deleted", k)
-	}
-	for _, k := range canonical {
-		require.NotNil(t, store.Get([]byte(k)), "canonical key %s must survive", k)
-	}
+func (s *UpgradeTestSuite) applyUpgrade() {
+	s.Require().NoError(s.app.UpgradeKeeper.ApplyUpgrade(s.ctx, upgradetypes.Plan{Name: planName, Height: upgradeTestHeight}))
+}
 
-	// idempotent: second run must not error
-	require.NoError(t, pruneStaleIBCConsensusStateSubkeys(ctx, store))
-	for _, k := range canonical {
-		require.NotNil(t, store.Get([]byte(k)), "canonical key %s must survive second run", k)
+func (s *UpgradeTestSuite) deployHistoryContract() {
+	for _, p := range evmtypes.DefaultPreinstalls {
+		if common.HexToAddress(p.Address) == ethparams.HistoryStorageAddress {
+			s.Require().NoError(s.app.EvmKeeper.AddPreinstalls(s.ctx, []evmtypes.Preinstall{p}))
+			return
+		}
+	}
+	s.FailNow("EIP-2935 preinstall not found")
+}
+
+func testHeaderHash(h int64) common.Hash {
+	return common.BigToHash(big.NewInt(h + 1))
+}
+
+func (s *UpgradeTestSuite) setHeaderHashes(from, to int64) {
+	for h := from; h <= to; h++ {
+		s.app.EvmKeeper.SetHeaderHash(s.ctx.WithBlockHeight(h).WithHeaderHash(testHeaderHash(h).Bytes()))
 	}
 }
 
-// TestUpgradeV18CroBridgeContractAddresses verifies that:
-//  1. croBridgeContractAddresses are all valid EVM addresses.
-//  2. The upgrade handler param migration correctly persists the values via SetParams/GetParams.
-func TestUpgradeV18CroBridgeContractAddresses(t *testing.T) {
-	for _, addr := range croBridgeContractAddresses {
-		require.True(t, common.IsHexAddress(addr),
-			"croBridgeContractAddresses entry must be a valid EVM hex address, got: %s",
-			addr)
-		require.NotEqual(t, common.Address{}, common.HexToAddress(addr),
-			"croBridgeContractAddresses entry must not be the zero address, got: %s",
-			addr)
+func (s *UpgradeTestSuite) TestHistoricalEntries() {
+	headerHashNum := int64(evmtypes.DefaultHeaderHashNum)
+	testCases := []struct {
+		name        string
+		malleate    func()
+		expDisabled bool
+	}{
+		{
+			name: "EIP-2935 serves the last header_hash_num blocks",
+			malleate: func() {
+				s.deployHistoryContract()
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+			},
+			expDisabled: true,
+		},
+		{
+			name: "no history contract",
+			malleate: func() {
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+			},
+		},
+		{
+			// The upgrade block's own hash then takes the slot of the oldest height BLOCKHASH serves.
+			name: "history_serve_window equal to header_hash_num",
+			malleate: func() {
+				s.deployHistoryContract()
+				params := s.app.EvmKeeper.GetParams(s.ctx)
+				params.HistoryServeWindow = params.HeaderHashNum
+				s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, params))
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+			},
+		},
+		{
+			name: "history_serve_window one above header_hash_num",
+			malleate: func() {
+				s.deployHistoryContract()
+				params := s.app.EvmKeeper.GetParams(s.ctx)
+				params.HistoryServeWindow = params.HeaderHashNum + 1
+				s.Require().NoError(s.app.EvmKeeper.SetParams(s.ctx, params))
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+			},
+			expDisabled: true,
+		},
+		{
+			name: "contract deployed less than header_hash_num blocks ago",
+			malleate: func() {
+				s.deployHistoryContract()
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum+1, upgradeTestHeight-1)
+			},
+		},
+		{
+			name: "only legacy header hashes behind a deployed contract",
+			malleate: func() {
+				s.setHeaderHashes(upgradeTestHeight-headerHashNum, upgradeTestHeight-1)
+				s.deployHistoryContract()
+			},
+		},
 	}
 
-	// Verify the migration code path: GetParams → mutate → SetParams → GetParams round-trips correctly.
-	a := Setup(t, "")
-	ctx := a.NewContext(false)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			before, err := s.app.StakingKeeper.GetParams(s.ctx)
+			s.Require().NoError(err)
+			s.Require().NotZero(before.HistoricalEntries)
 
-	// Apply the same mutation the upgrade handler performs.
-	params := a.CronosKeeper.GetParams(ctx)
-	params.CroBridgeContractAddresses = croBridgeContractAddresses
-	require.NoError(t, a.CronosKeeper.SetParams(ctx, params))
+			const firstHistorical = upgradeTestHeight - 20
+			for h := firstHistorical; h < upgradeTestHeight; h++ {
+				hi := stakingtypes.HistoricalInfo{Header: cmtproto.Header{Height: h}}
+				s.Require().NoError(s.app.StakingKeeper.SetHistoricalInfo(s.ctx, h, &hi))
+			}
+			// an entry that no longer decodes must not stop the pruning
+			store := s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey])
+			store.Set(stakingtypes.GetHistoricalInfoKey(upgradeTestHeight-2), []byte{0xff})
+			// nor a gap, below which nothing else would ever prune
+			const gapHeight = upgradeTestHeight - 5
+			store.Delete(stakingtypes.GetHistoricalInfoKey(gapHeight))
+			tc.malleate()
 
-	stored := a.CronosKeeper.GetParams(ctx)
-	require.ElementsMatch(t, croBridgeContractAddresses, stored.CroBridgeContractAddresses,
-		"CroBridgeContractAddresses not persisted by SetParams")
+			s.applyUpgrade()
+
+			params, err := s.app.StakingKeeper.GetParams(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Equal(sdk.NewCoin(params.BondDenom, sdkmath.OneInt()), params.KeyRotationFee)
+			for h := firstHistorical; h < upgradeTestHeight; h++ {
+				s.Require().Equal(!tc.expDisabled && h != gapHeight, store.Has(stakingtypes.GetHistoricalInfoKey(h)), "height %d", h)
+			}
+			if !tc.expDisabled {
+				s.Require().Equal(before.HistoricalEntries, params.HistoricalEntries)
+				return
+			}
+			s.Require().Zero(params.HistoricalEntries)
+			// BeginBlock writes the upgrade block's own hash after the handler runs.
+			s.setHeaderHashes(upgradeTestHeight, upgradeTestHeight)
+			getHash := s.app.EvmKeeper.GetHashFn(s.ctx, uint64(headerHashNum))
+			for h := upgradeTestHeight - headerHashNum; h < upgradeTestHeight; h++ {
+				s.Require().Equal(testHeaderHash(h), getHash(uint64(h)), "BLOCKHASH(%d)", h)
+			}
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestKeyRotationFeePool() {
+	poolAddr := authtypes.NewModuleAddress(stakingtypes.KeyRotationFeePoolName)
+	squatCoins := sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdkmath.NewInt(7)))
+	testCases := []struct {
+		name       string
+		malleate   func()
+		expBalance sdk.Coins
+	}{
+		{
+			name:     "no account at the pool address",
+			malleate: func() {},
+		},
+		{
+			name: "plain account pre-funded at the pool address",
+			malleate: func() {
+				s.Require().NoError(s.app.BankKeeper.MintCoins(s.ctx, minttypes.ModuleName, squatCoins))
+				s.Require().NoError(s.app.BankKeeper.SendCoins(s.ctx, authtypes.NewModuleAddress(minttypes.ModuleName), poolAddr, squatCoins))
+				_, isModule := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr).(sdk.ModuleAccountI)
+				s.Require().False(isModule)
+			},
+			expBalance: squatCoins,
+		},
+		{
+			name:     "module account already exists",
+			malleate: func() { s.app.AccountKeeper.GetModuleAccount(s.ctx, stakingtypes.KeyRotationFeePoolName) },
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
+				s.app.AccountKeeper.RemoveAccount(s.ctx, acc)
+			}
+			tc.malleate()
+			var accNum *uint64
+			if acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr); acc != nil {
+				n := acc.GetAccountNumber()
+				accNum = &n
+			}
+
+			s.applyUpgrade()
+
+			acc := s.app.AccountKeeper.GetAccount(s.ctx, poolAddr)
+			s.Require().NotNil(acc)
+			macc, ok := acc.(sdk.ModuleAccountI)
+			s.Require().True(ok, "pool account is %T", acc)
+			s.Require().Equal(stakingtypes.KeyRotationFeePoolName, macc.GetName())
+			if accNum != nil {
+				s.Require().Equal(*accNum, acc.GetAccountNumber())
+			}
+			s.Require().True(tc.expBalance.Equal(s.app.BankKeeper.GetAllBalances(s.ctx, poolAddr)))
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestModuleMigrations() {
+	const customMlDsaCost = uint64(123)
+	encodedTrue, err := collections.BoolValue.Encode(true)
+	s.Require().NoError(err)
+	// The feegrant v1 to v2 migration wrote queue entries with an empty value, which the keeper can't decode.
+	feegrantQueueKey := append([]byte{0x01}, "queued-allowance"...)
+
+	testCases := []struct {
+		name                  string
+		malleate              func()
+		expMlDsaCost          uint64
+		expFeegrantQueueValue []byte
+	}{
+		{
+			name: "staking, auth and feegrant at their v1.8 versions with v1.8 state",
+			malleate: func() {
+				vm, err := s.app.UpgradeKeeper.GetModuleVersionMap(s.ctx)
+				s.Require().NoError(err)
+				vm[stakingtypes.ModuleName], vm[authtypes.ModuleName], vm[feegrant.ModuleName] = 5, 6, 2
+				s.Require().NoError(s.app.UpgradeKeeper.SetModuleVersionMap(s.ctx, vm))
+
+				authParams := s.app.AccountKeeper.GetParams(s.ctx)
+				authParams.SigVerifyCostMlDsa65 = 0
+				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
+
+				// v1.8 params have no key_rotation_fee field, which decodes differently from an encoded empty coin.
+				// The handler then overwrites the fee, so this only shows staking's migration accepts v1.8 params.
+				stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
+				s.Require().NoError(err)
+				bz, err := s.app.appCodec.Marshal(&stakingParams)
+				s.Require().NoError(err)
+				s.ctx.KVStore(s.app.keys[stakingtypes.StoreKey]).Set(stakingtypes.ParamsKey, s.dropProtoField(bz, 7))
+				stakingParams, err = s.app.StakingKeeper.GetParams(s.ctx)
+				s.Require().NoError(err)
+				s.Require().True(stakingParams.KeyRotationFee.Amount.IsNil())
+			},
+			expMlDsaCost:          authtypes.DefaultSigVerifyCostMlDsa65,
+			expFeegrantQueueValue: encodedTrue,
+		},
+		{
+			name: "modules already at current versions skip their migrations",
+			malleate: func() {
+				authParams := s.app.AccountKeeper.GetParams(s.ctx)
+				authParams.SigVerifyCostMlDsa65 = customMlDsaCost
+				s.Require().NoError(s.app.AccountKeeper.Params.Set(s.ctx, authParams))
+			},
+			expMlDsaCost:          customMlDsaCost,
+			expFeegrantQueueValue: []byte{},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			feegrantStore := s.ctx.KVStore(s.app.keys[feegrant.StoreKey])
+			feegrantStore.Set(feegrantQueueKey, []byte{})
+			tc.malleate()
+
+			s.applyUpgrade()
+
+			vm, err := s.app.UpgradeKeeper.GetModuleVersionMap(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Equal(uint64(6), vm[stakingtypes.ModuleName])
+			s.Require().Equal(uint64(7), vm[authtypes.ModuleName])
+			s.Require().Equal(uint64(3), vm[feegrant.ModuleName])
+			s.Require().Equal(tc.expFeegrantQueueValue, feegrantStore.Get(feegrantQueueKey))
+			s.Require().Equal(tc.expMlDsaCost, s.app.AccountKeeper.GetParams(s.ctx).SigVerifyCostMlDsa65)
+			stakingParams, err := s.app.StakingKeeper.GetParams(s.ctx)
+			s.Require().NoError(err)
+			s.Require().Equal(sdk.NewCoin(stakingParams.BondDenom, sdkmath.OneInt()), stakingParams.KeyRotationFee)
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) dropProtoField(bz []byte, field protowire.Number) []byte {
+	var out []byte
+	for len(bz) > 0 {
+		num, typ, tagLen := protowire.ConsumeTag(bz)
+		s.Require().GreaterOrEqual(tagLen, 0)
+		valLen := protowire.ConsumeFieldValue(num, typ, bz[tagLen:])
+		s.Require().GreaterOrEqual(valLen, 0)
+		if num != field {
+			out = append(out, bz[:tagLen+valLen]...)
+		}
+		bz = bz[tagLen+valLen:]
+	}
+	return out
+}
+
+func (s *UpgradeTestSuite) TestLegacyParamsProposal() {
+	content := &legacyparamstypes.ParameterChangeProposal{
+		Title:       "title",
+		Description: "description",
+		Changes:     []legacyparamstypes.ParamChange{{Subspace: "staking", Key: "MaxValidators", Value: `"100"`}},
+	}
+	msg, err := govv1.NewLegacyContent(content, authtypes.NewModuleAddress(govtypes.ModuleName).String())
+	s.Require().NoError(err)
+	proposer := sdk.AccAddress("proposer")
+
+	testCases := []struct {
+		name   string
+		run    func() error
+		expErr error
+	}{
+		{
+			name: "proposal stored before the upgrade decodes in queries and genesis export",
+			run: func() error {
+				proposal, err := govv1.NewProposal([]sdk.Msg{msg}, 1, s.ctx.BlockTime(), s.ctx.BlockTime(), "", "title", "summary", proposer, false)
+				s.Require().NoError(err)
+				s.Require().NoError(s.app.GovKeeper.SetProposal(s.ctx, proposal))
+
+				res, err := govkeeper.NewQueryServer(&s.app.GovKeeper).Proposal(s.ctx, &govv1.QueryProposalRequest{ProposalId: 1})
+				if err != nil {
+					return err
+				}
+				exec, ok := res.Proposal.Messages[0].GetCachedValue().(*govv1.MsgExecLegacyContent)
+				s.Require().True(ok)
+				s.Require().Equal(content, exec.Content.GetCachedValue())
+
+				genesis, err := govkeeper.ExportGenesis(s.ctx, &s.app.GovKeeper)
+				if err != nil {
+					return err
+				}
+				s.Require().Len(genesis.Proposals, 1)
+				return nil
+			},
+		},
+		{
+			name: "proposal in voting at the upgrade fails at execution and refunds its deposit",
+			run: func() error {
+				proposal, err := govv1.NewProposal([]sdk.Msg{msg}, 1, s.ctx.BlockTime(), s.ctx.BlockTime(), "", "title", "summary", proposer, false)
+				s.Require().NoError(err)
+				s.Require().NoError(s.app.GovKeeper.ActivateVotingPeriod(s.ctx, proposal))
+
+				params, err := s.app.GovKeeper.Params.Get(s.ctx)
+				s.Require().NoError(err)
+				deposit := sdk.NewCoins(params.MinDeposit...)
+				s.Require().NoError(s.app.BankKeeper.MintCoins(s.ctx, minttypes.ModuleName, deposit))
+				s.Require().NoError(s.app.BankKeeper.SendCoinsFromModuleToAccount(s.ctx, minttypes.ModuleName, proposer, deposit))
+				_, err = s.app.GovKeeper.AddDeposit(s.ctx, proposal.Id, proposer, deposit)
+				s.Require().NoError(err)
+
+				delegations, err := s.app.StakingKeeper.GetAllDelegations(s.ctx)
+				s.Require().NoError(err)
+				voter := sdk.MustAccAddressFromBech32(delegations[0].DelegatorAddress)
+				s.Require().NoError(s.app.GovKeeper.AddVote(s.ctx, proposal.Id, voter, govv1.NewNonSplitVoteOption(govv1.OptionYes), ""))
+
+				endCtx := s.ctx.WithBlockTime(s.ctx.BlockTime().Add(*params.VotingPeriod))
+				if err := gov.EndBlocker(endCtx, &s.app.GovKeeper); err != nil {
+					return err
+				}
+
+				executed, err := s.app.GovKeeper.Proposals.Get(endCtx, proposal.Id)
+				s.Require().NoError(err)
+				s.Require().Equal(govv1.StatusFailed, executed.Status)
+				s.Require().Contains(executed.FailedReason, govtypes.ErrNoProposalHandlerExists.Error())
+				s.Require().Equal(deposit, s.app.BankKeeper.GetAllBalances(endCtx, proposer))
+				return nil
+			},
+		},
+		{
+			name: "new submission is rejected",
+			run: func() error {
+				_, err := s.app.GovKeeper.SubmitProposal(s.ctx, []sdk.Msg{msg}, "", "title", "summary", proposer, false)
+				return err
+			},
+			expErr: govtypes.ErrNoProposalHandlerExists,
+		},
+		{
+			name:   "content fails basic validation",
+			run:    content.ValidateBasic,
+			expErr: legacyparamstypes.ErrRemoved,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			err := tc.run()
+			if tc.expErr == nil {
+				s.Require().NoError(err)
+				return
+			}
+			s.Require().ErrorIs(err, tc.expErr)
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestHistoricalParamsFromLegacyStore() {
+	amino := codec.NewLegacyAmino()
+	baseFee := sdkmath.NewInt(5000)
+
+	testCases := []struct {
+		name     string
+		malleate func(params storetypes.KVStore)
+		check    func()
+	}{
+		{
+			name: "evm reads its x/params subspace",
+			malleate: func(params storetypes.KVStore) {
+				s.ctx.KVStore(s.app.GetKey(evmtypes.StoreKey)).Delete(evmtypes.KeyPrefixParams)
+				params.Set([]byte("evm/EVMDenom"), amino.MustMarshalJSON("basetcro"))
+			},
+			check: func() { s.Require().Equal("basetcro", s.app.EvmKeeper.GetParams(s.ctx).EvmDenom) },
+		},
+		{
+			name: "evm version 4 layout reads x/params for a param it left unset",
+			malleate: func(params storetypes.KVStore) {
+				homestead := sdkmath.ZeroInt()
+				chainConfig := evmv0types.V0ChainConfig{HomesteadBlock: &homestead}
+				evmStore := s.ctx.KVStore(s.app.GetKey(evmtypes.StoreKey))
+				evmStore.Delete(evmtypes.KeyPrefixParams)
+				evmStore.Set(evmv0types.ParamStoreKeyChainConfig, s.app.AppCodec().MustMarshal(&chainConfig))
+				evmStore.Set(evmv0types.ParamStoreKeyEVMDenom, []byte("basetcro"))
+				params.Set([]byte("evm/EnableCreate"), amino.MustMarshalJSON(true))
+			},
+			check: func() {
+				params := s.app.EvmKeeper.GetParams(s.ctx)
+				s.Require().Equal("basetcro", params.EvmDenom)
+				s.Require().True(params.EnableCreate)
+				s.Require().False(params.EnableCall)
+			},
+		},
+		{
+			name: "feemarket reads its x/params subspace",
+			malleate: func(params storetypes.KVStore) {
+				s.ctx.KVStore(s.app.GetKey(feemarkettypes.StoreKey)).Delete(feemarkettypes.ParamsKey)
+				params.Set([]byte("feemarket/BaseFee"), amino.MustMarshalJSON(baseFee))
+			},
+			check: func() { s.Require().Equal(baseFee, s.app.FeeMarketKeeper.GetParams(s.ctx).BaseFee) },
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.malleate(s.ctx.KVStore(s.app.GetKey(paramsStoreKey)))
+			tc.check()
+		})
+	}
+}
+
+func (s *UpgradeTestSuite) TestIBCSendSequence() {
+	const (
+		portID          = "transfer"
+		channelID       = "channel-0"
+		seq             = uint64(7)
+		migratedChannel = "channel-1"
+		migratedSeq     = uint64(11)
+	)
+	v1Key := channelv11.NextSequenceSendV1Key(portID, channelID)
+	setV1Seq := func(store storetypes.KVStore) { store.Set(v1Key, sdk.Uint64ToBigEndian(seq)) }
+	testCases := []struct {
+		name     string
+		state    channeltypes.State
+		ordering channeltypes.Order
+		malleate func(store storetypes.KVStore)
+		expAlias bool
+	}{
+		{
+			name:     "open unordered channel, sequence under the v1 key",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.UNORDERED,
+			malleate: setV1Seq,
+			expAlias: true,
+		},
+		{
+			name:     "open unordered channel, sequence already under the v2 key",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.UNORDERED,
+			malleate: func(storetypes.KVStore) {
+				s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, channelID, seq)
+			},
+			expAlias: true,
+		},
+		{
+			name:     "open ordered channel",
+			state:    channeltypes.OPEN,
+			ordering: channeltypes.ORDERED,
+			malleate: setV1Seq,
+		},
+		{
+			name:     "closed unordered channel",
+			state:    channeltypes.CLOSED,
+			ordering: channeltypes.UNORDERED,
+			malleate: setV1Seq,
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			s.app.IBCKeeper.ConnectionKeeper.SetConnection(s.ctx, "connection-0", connectiontypes.ConnectionEnd{ClientId: "07-tendermint-0"})
+			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, channelID, channeltypes.NewChannel(
+				tc.state, tc.ordering, channeltypes.NewCounterparty(portID, "channel-9"), []string{"connection-0"}, "ics20-1",
+			))
+			// a second, already-migrated channel iterated after channel-0 catches a copy-back pass that stops early
+			s.app.IBCKeeper.ChannelKeeper.SetChannel(s.ctx, portID, migratedChannel, channeltypes.NewChannel(
+				channeltypes.OPEN, channeltypes.UNORDERED, channeltypes.NewCounterparty(portID, "channel-8"), []string{"connection-0"}, "ics20-1",
+			))
+			s.app.IBCKeeper.ChannelKeeperV2.SetNextSequenceSend(s.ctx, migratedChannel, migratedSeq)
+			store := s.ctx.KVStore(s.app.keys[ibcexported.StoreKey])
+			tc.malleate(store)
+
+			s.applyUpgrade()
+
+			requireSeqs := func(msg string) {
+				for id, exp := range map[string]uint64{channelID: seq, migratedChannel: migratedSeq} {
+					got, found := s.app.IBCKeeper.ChannelKeeper.GetNextSequenceSend(s.ctx, portID, id)
+					s.Require().True(found, msg)
+					s.Require().Equal(exp, got, msg)
+				}
+			}
+			requireSeqs("the upgrade must keep the send sequence")
+			s.Require().False(store.Has(v1Key))
+			aliasedClient, found := s.app.IBCKeeper.ChannelKeeperV2.GetClientForAlias(s.ctx, channelID)
+			s.Require().Equal(tc.expAlias, found, "only an OPEN UNORDERED channel gets an IBC v2 alias")
+			counterparty, counterpartyFound := s.app.IBCKeeper.ClientV2Keeper.GetClientCounterparty(s.ctx, channelID)
+			s.Require().Equal(tc.expAlias, counterpartyFound)
+			if tc.expAlias {
+				s.Require().Equal("07-tendermint-0", aliasedClient)
+				s.Require().Equal("channel-9", counterparty.ClientId)
+			}
+
+			s.Require().NoError(s.app.migrateChannelSendSequences(s.ctx))
+			requireSeqs("a second run must keep the send sequence")
+		})
+	}
+}
+
+// v1.9 sizes the commit reserve for ML-DSA-65 signatures for every validator, so
+// a live chain's block.max_bytes must still fit a full validator set.
+func (s *UpgradeTestSuite) TestCommitReserveFitsLiveBlockSize() {
+	testCases := []struct {
+		name          string
+		maxBytes      int64
+		evidenceBytes int64
+		maxValidators int
+	}{
+		// values from consensus and staking params as of 2026-11-14
+		{name: "mainnet", maxBytes: 1048576, evidenceBytes: 150000, maxValidators: 30},
+		{name: "testnet", maxBytes: 1048576, evidenceBytes: 150000, maxValidators: 35},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			var dataBytes int64
+			s.Require().NotPanics(func() {
+				dataBytes = cmttypes.MaxDataBytes(tc.maxBytes, tc.evidenceBytes, tc.maxValidators)
+			})
+			s.Require().GreaterOrEqual(dataBytes, tc.maxBytes/2)
+		})
+	}
 }

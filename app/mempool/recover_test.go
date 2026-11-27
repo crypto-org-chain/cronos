@@ -61,7 +61,7 @@ func withDecodeCache(m *Manager, decoder sdk.TxDecoder, encoder sdk.TxEncoder) {
 
 type storingPool struct{ fakePool }
 
-func (p *storingPool) Insert(_ context.Context, tx sdk.Tx) error {
+func (p *storingPool) Insert(_ context.Context, tx sdk.Tx, _ sdkmempool.InsertOption) error {
 	p.txs = append(p.txs, tx)
 	return nil
 }
@@ -76,7 +76,7 @@ func (r insertingRunner) RunTx(_ sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ sto
 	if eth, ok := tx.(*ethTx); ok {
 		r.ante.Set(anteKey(eth))
 	}
-	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx)
+	return sdk.GasInfo{}, &sdk.Result{}, nil, r.pool.Insert(context.Background(), tx, sdkmempool.InsertOption{})
 }
 
 var encodePanicTx = newEthTx(common.Address{0x1}, 7)
@@ -239,7 +239,9 @@ func (s *RecoverTestSuite) TestNewManagerLogsRecoveredPanics() {
 
 type panickingPool struct{ fakePool }
 
-func (*panickingPool) SelectBy(context.Context, [][]byte, func(sdk.Tx) bool) { panicking("scan") }
+func (*panickingPool) SelectBy(context.Context, [][]byte, func(sdkmempool.PooledTx) bool) {
+	panicking("scan")
+}
 
 type panicGasTx struct{ ptrTx }
 
@@ -410,7 +412,7 @@ func (s *RecoverTestSuite) TestRecheckRecoversPanics() {
 			f.a.logger = logger
 			poison := &poisonTx{ptrTx: ptrTx{id: 1}}
 			f.signer.m[poison] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
-			s.Require().NoError(f.pool.Insert(sdk.Context{}, poison))
+			s.Require().NoError(f.pool.Insert(sdk.Context{}, poison, sdkmempool.InsertOption{}))
 			f.enc.Set(poison, []byte("alice-0"))
 			sibling := f.add(2, "alice", 1, "alice-1")
 			f.a.recheckSenders = map[string]struct{}{alice: {}}
@@ -592,7 +594,7 @@ func (s *RecoverTestSuite) TestPriorityMempoolFinalizeRemove() {
 				TxPriority:      sdkmempool.NewDefaultTxPriority(),
 				SignerExtractor: poisonSigner{signer, poison},
 			}, logger)
-			s.Require().NoError(pool.Insert(sdk.Context{}, pooled))
+			s.Require().NoError(pool.Insert(sdk.Context{}, pooled, sdkmempool.InsertOption{}))
 
 			var err error
 			s.Require().NotPanics(func() {

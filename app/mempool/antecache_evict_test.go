@@ -120,7 +120,7 @@ func evictTTLEvictionClearsAnteCache(t *testing.T) {
 	ac.Set(addr, nonce)
 
 	f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("carol"), 0)}
-	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+	if err := f.pool.Insert(sdk.Context{}, tx, sdkmempool.InsertOption{}); err != nil {
 		t.Fatal(err)
 	}
 	f.enc.Set(tx, []byte("carol-7"))
@@ -153,7 +153,7 @@ func evictRecheckFailureClearsAnteCache(t *testing.T) {
 	ac.Set(addr, nonce)
 
 	f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("dave"), 0)}
-	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+	if err := f.pool.Insert(sdk.Context{}, tx, sdkmempool.InsertOption{}); err != nil {
 		t.Fatal(err)
 	}
 	f.enc.Set(tx, []byte("dave-2"))

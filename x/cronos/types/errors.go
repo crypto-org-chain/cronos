@@ -13,6 +13,7 @@ const (
 	codeErrContractAlreadyRegistered
 	codeErrDenomAlreadyMapped
 	codeErrSourceDenomContractMismatch
+	codeErrCallValueOverflow
 )
 
 // x/cronos module sentinel errors
@@ -27,5 +28,6 @@ var (
 		codeErrSourceDenomContractMismatch,
 		"source denom contract mismatch",
 	)
+	ErrCallValueOverflow = errors.Register(ModuleName, codeErrCallValueOverflow, "call value overflows uint256")
 	// this line is used by starport scaffolding # ibc/errors
 )

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -25,7 +26,7 @@ from eth_account import Account
 from eth_utils import abi, to_checksum_address
 from eth_utils.abi import abi_to_signature
 from hexbytes import HexBytes
-from pystarport import ledger
+from pystarport import ledger, ports
 from web3 import Web3
 from web3._utils.contracts import find_matching_event_abi
 from web3._utils.events import get_event_data
@@ -884,28 +885,93 @@ def fund_acc(w3, acc, fund=3000000000000000000):
         assert w3.eth.get_balance(addr, "latest") == fund
 
 
-def remove_cancun_prague_params(cronos):
+def submit_gov_update_params(cronos, msg, **fields):
     from .cosmoscli import module_address as cosmos_module_address
 
+    content = {"@type": msg, "authority": cosmos_module_address("gov"), **fields}
+    submit_gov_proposal(cronos, msg, messages=[content])
+
+
+def remove_cancun_prague_params(cronos):
     cli = cronos.cosmos_cli()
     p = cli.query_params("evm")
     del p["chain_config"]["cancun_time"]
     del p["chain_config"]["prague_time"]
     del p["chain_config"]["osaka_time"]
-    authority = cosmos_module_address("gov")
-    msg = "/ethermint.evm.v1.MsgUpdateParams"
-    submit_gov_proposal(
-        cronos,
-        msg,
-        messages=[
-            {
-                "@type": msg,
-                "authority": authority,
-                "params": p,
-            }
-        ],
-    )
+    submit_gov_update_params(cronos, "/ethermint.evm.v1.MsgUpdateParams", params=p)
     p = cli.query_params("evm")
     assert not p["chain_config"]["cancun_time"]
     assert not p["chain_config"]["prague_time"]
     assert not p["chain_config"]["osaka_time"]
+
+
+MLDSA65 = "ml_dsa_65"
+# cons_key_rotation.jsonnet validators that rotate; the other two hold 5/7 power
+ROTATED = (2, 3)
+
+
+def comet_rpc(cronos, i, path, **params):
+    port = ports.rpc_port(cronos.base_port(i))
+    url = f"http://127.0.0.1:{port}/{path}"
+    return requests.get(url, params=params, timeout=10).json()["result"]
+
+
+def comet_validators(cronos, i=0):
+    return comet_rpc(cronos, i, "validators", per_page=100)["validators"]
+
+
+def comet_validator(cronos, pubkey):
+    found = [v for v in comet_validators(cronos) if v["pub_key"]["value"] == pubkey]
+    assert len(found) == 1, found
+    return found[0]
+
+
+def comet_block(cronos, height):
+    return comet_rpc(cronos, 0, "block", height=height)["block"]
+
+
+def block_signers(block):
+    return [s["validator_address"] for s in block["last_commit"]["signatures"]]
+
+
+def show_validator(cli, home=None):
+    return json.loads(cli.raw("comet", "show-validator", home=home or cli.data_dir))
+
+
+def gen_mldsa65_key(cli, home):
+    cli.raw(
+        "init",
+        "pq",
+        consensus_key_algo=MLDSA65,
+        chain_id=cli.chain_id,
+        home=home,
+    )
+    return show_validator(cli, home), home / "config/priv_validator_key.json"
+
+
+def update_validator_pubkey_types(cronos, pub_key_types):
+    params = cronos.cosmos_cli().query_params("consensus")
+    # x/consensus rejects the msg unless block, evidence and validator are all set
+    fields = {
+        "block": params["block"],
+        "evidence": params["evidence"],
+        "validator": {"pub_key_types": pub_key_types},
+    }
+    for field in ("abci", "auth"):
+        if params.get(field):
+            fields[field] = params[field]
+    submit_gov_update_params(cronos, "/cosmos.consensus.v1.MsgUpdateParams", **fields)
+
+
+def swap_consensus_keys(cronos, key_files, apply_height):
+    """Restart validators on their rotated keys; the others must hold over 2/3."""
+    names = {i: f"{cronos.cosmos_cli(i).chain_id}-node{i}" for i in key_files}
+    for i, key_file in key_files.items():
+        cronos.supervisorctl("stop", names[i])
+        dst = cronos.cosmos_cli(i).data_dir / "config/priv_validator_key.json"
+        shutil.copy(key_file, dst)
+    wait_for_block(cronos.cosmos_cli(), apply_height)
+    for i in key_files:
+        cronos.supervisorctl("start", names[i])
+    for i in key_files:
+        wait_for_port(ports.evmrpc_port(cronos.base_port(i)))

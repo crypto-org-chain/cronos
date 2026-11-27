@@ -1,14 +1,14 @@
 {
     "chain-main": {
-        "branch": "release/v7",
+        "branch": "feat/cometbft-v0.38.26-mldsa65",
         "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "d3ef39afd014cc39a57ac5391b5ac27cc3e9370e",
-        "sha256": "1vg6v1vs01n4pwnzda8ycn05c8k9k6hwwklibw9q3rad54kk7jm3",
+        "rev": "d1e30addbfb0920640d65996b0b9d6fc4933b4d4",
+        "sha256": "10m22n9dcn4dk21r8ik4q4ck3nilx3xd22dxda9x5dvfzmgclxql",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/d3ef39afd014cc39a57ac5391b5ac27cc3e9370e.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/d1e30addbfb0920640d65996b0b9d6fc4933b4d4.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
@@ -73,16 +73,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "hermes": {
-        "branch": "main",
+        "branch": "master",
         "description": "Rust implementation of an Inter-Blockchain Communication (IBC) relayer",
         "homepage": "",
-        "owner": "informalsystems",
+        "owner": "crypto-org-chain",
         "repo": "hermes",
-        "rev": "bab3b80df71f6a3c73af7c2602a3daf614a643fa",
-        "sha256": "0r6jgi7sdrxq6my3ba5llq1rn50ps8g7h14xn0sfxhbhx3gb18p4",
+        "rev": "cd4664d8fa8345618d25fc2b300d4b3d7bf3413a",
+        "sha256": "1gc7cgnanqz6afyz54w0y8n5rqdlpd2jkqlyh0wiqxxvnn2c4jp6",
         "tag": "",
         "type": "tarball",
-        "url": "https://github.com/informalsystems/hermes/archive/bab3b80df71f6a3c73af7c2602a3daf614a643fa.tar.gz",
+        "url": "https://github.com/crypto-org-chain/hermes/archive/cd4664d8fa8345618d25fc2b300d4b3d7bf3413a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -103,10 +103,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f27d6578053dfba71ffe5156a8274a552340b730",
-        "sha256": "1f3c62g7d8sa6i3r6z22pc7qk1b6xg7x8f95721zvv0534fbhbi6",
+        "rev": "393dee0c5e8613b39222caf83b7b62ee02ebe35b",
+        "sha256": "14fzx3aqr7ap4387p4hgyad3zmqd481pj0mv8c657sh04ilh9lvb",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/f27d6578053dfba71ffe5156a8274a552340b730.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/393dee0c5e8613b39222caf83b7b62ee02ebe35b.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
@@ -127,10 +127,10 @@
         "homepage": "https://github.com/crypto-org-chain/relayer",
         "owner": "crypto-org-chain",
         "repo": "relayer",
-        "rev": "fe5722292a9961e80818e3ef5c987330b538bc05",
-        "sha256": "0jv4pkrqhckbabxxxbr0bcil0fakbnc7sf22k2wa5q6v6921ci0y",
+        "rev": "3903db75021a0fde97ccc19dcd6ace6374438a3d",
+        "sha256": "18zzda5sffl8cznx5jihqmb04k7xqjxbsz90fsf594xb2ssgr218",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/relayer/archive/fe5722292a9961e80818e3ef5c987330b538bc05.tar.gz",
+        "url": "https://github.com/crypto-org-chain/relayer/archive/3903db75021a0fde97ccc19dcd6ace6374438a3d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

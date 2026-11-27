@@ -15,7 +15,6 @@ import (
 func (app *App) setupVersionDB(
 	homePath string,
 	keys map[string]*storetypes.KVStoreKey,
-	tkeys map[string]*storetypes.TransientStoreKey,
 	okeys map[string]*storetypes.ObjectStoreKey,
 ) (storetypes.MultiStore, error) {
 	dataDir := filepath.Join(homePath, "data", "versiondb")
@@ -47,9 +46,6 @@ func (app *App) setupVersionDB(
 	app.SetStreamingManager(sm)
 
 	delegatedStoreKeys := make(map[storetypes.StoreKey]struct{})
-	for _, k := range tkeys {
-		delegatedStoreKeys[k] = struct{}{}
-	}
 	for _, k := range okeys {
 		delegatedStoreKeys[k] = struct{}{}
 	}

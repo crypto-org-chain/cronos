@@ -11,7 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/ethermint/x/evm/statedb"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/holiman/uint256"
 
+	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,21 +24,19 @@ const DefaultGasCap uint64 = 25000000
 
 // CallEVM execute an evm message from native module
 func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*core.Message, *evmtypes.EVMResult, error) {
+	amount, overflow := uint256.FromBig(value)
+	if overflow {
+		return nil, nil, errorsmod.Wrapf(types.ErrCallValueOverflow, "value %s", value)
+	}
 	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
 	msg := &core.Message{
-		From:            types.EVMModuleAddress,
-		To:              to,
-		Nonce:           nonce,
-		Value:           value, // amount
-		GasLimit:        gasLimit,
-		GasPrice:        big.NewInt(0),
-		GasFeeCap:       nil,
-		GasTipCap:       nil, // gasPrice
-		Data:            data,
-		AccessList:      nil, // accessList
-		SkipNonceChecks: false,
-		// Internal module calls are not real transactions, skip the limit checks.
-		SkipTransactionChecks: true,
+		From:     types.EVMModuleAddress,
+		To:       to,
+		Nonce:    nonce,
+		Value:    amount,
+		GasLimit: gasLimit,
+		GasPrice: new(uint256.Int),
+		Data:     data,
 	}
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {

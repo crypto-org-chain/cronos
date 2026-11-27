@@ -150,8 +150,8 @@ config {
         id: 'cronos_777-1',
         max_gas: 2500000,
         gas_multiplier: 1.1,
-        // hermes 1.13.x doesn't recognize cometbft 0.39 version string yet;
-        // force 0.38 wire-compat mode (no protocol breaks between 0.38/0.39).
+        // hermes 1.13.x maps only cometbft 0.34/0.37/0.38 version strings;
+        // force 0.38 wire-compat mode for the 0.40 chain.
         compat_mode: '0.38',
         address_type: {
           derivation: 'ethermint',
