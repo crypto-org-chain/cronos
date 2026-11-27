@@ -15,7 +15,7 @@ import (
 var _ types.EvmLogHandler = SendToIbcV2Handler{}
 
 // SendToIbcEventV2 represent the signature of
-// `event __CronosSendToIbc(address indexed sender, string indexed recipient, string indexed channel_id, uint256 amount, bytes extraData)`
+// `event __CronosSendToIbc(address indexed sender, uint256 indexed channel_id, string recipient, uint256 amount, bytes extraData)`
 var SendToIbcEventV2 abi.Event
 
 func init() {
@@ -75,22 +75,15 @@ func (h SendToIbcV2Handler) Handle(
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	if len(topics) != 3 {
-		// log and ignore
-		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
-		for i, topic := range topics {
-			h.cronosKeeper.Logger(ctx).Debug(fmt.Sprintf("topic index: %d value: %s", i, topic.TerminalString()))
-		}
-		return nil
+		return fmt.Errorf("expected 3 indexed topics for __CronosSendToIbc V2, got %d", len(topics))
 	}
 
 	unpacked, err := SendToIbcEventV2.Inputs.Unpack(data)
 	if err != nil {
-		// log and ignore
-		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
-		return nil
+		return fmt.Errorf("failed to decode __CronosSendToIbc V2 log: %w", err)
 	}
 
-	// needs to crope the extra bytes in the topic by using BytesToAddress
+	// needs to crop the extra bytes in the topic by using BytesToAddress
 	sender := common.BytesToAddress(topics[1].Bytes())
 	channelId := new(big.Int).SetBytes(topics[2].Bytes())
 	recipient := unpacked[0].(string)
