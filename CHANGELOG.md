@@ -8,6 +8,7 @@
 
 ### Bug fixes
 
+* [#2271](https://github.com/crypto-org-chain/cronos/pull/2271) fix(evm): return errors on EVM log decode failures in send_to_ibc, send_to_ibc_v2, send_cro_to_ibc, send_to_account handlers.
 * [#2267](https://github.com/crypto-org-chain/cronos/pull/2267) fix(mempool): report an exact eth tx resend as ErrTxInMempoolCache instead of a replacement.
 * [#2251](https://github.com/crypto-org-chain/cronos/pull/2251) fix(mempool): fix data race on txs shared by the decode cache.
 * [#2254](https://github.com/crypto-org-chain/cronos/pull/2254) fix(mempool): keep block tx results and recheck staging independent of local mempool errors.
