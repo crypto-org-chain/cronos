@@ -81,9 +81,7 @@ func (h SendCroToIbcHandler) Handle(
 
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
-		// log and ignore
-		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
-		return nil
+		return fmt.Errorf("failed to decode __CronosSendCroToIbc log: %w", err)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())

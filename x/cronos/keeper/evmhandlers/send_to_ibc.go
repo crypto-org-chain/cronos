@@ -73,9 +73,7 @@ func (h SendToIbcHandler) Handle(
 ) error {
 	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
-		// log and ignore
-		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
-		return nil
+		return fmt.Errorf("failed to decode __CronosSendToIbc log: %w", err)
 	}
 	sender := unpacked[0].(common.Address)
 	recipient := unpacked[1].(string)
